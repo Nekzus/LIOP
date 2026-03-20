@@ -25,7 +25,7 @@ export const GuardianTS = {
 	async analyzeAst(
 		wasmBytes: Uint8Array | Buffer,
 	): Promise<WebAssembly.Module> {
-		console.log(
+		console.error(
 			"[Guardian-TS] 🛡️ Starting Zero-Time AST heuristic inspection...",
 		);
 
@@ -58,7 +58,7 @@ export const GuardianTS = {
 			importCount++;
 		}
 
-		console.log(
+		console.error(
 			`[Guardian-TS] ✅ AST clean. Validated ${importCount} WASI/NMP imports.`,
 		);
 		return module;

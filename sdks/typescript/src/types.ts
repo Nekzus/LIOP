@@ -67,16 +67,22 @@ export interface GetPromptResult {
 	messages: Array<{
 		role: "user" | "assistant";
 		content:
-			| { type: "text"; text: string }
-			| { type: "image"; data: string; mimeType: string }
-			| {
-					type: "resource";
-					resource: { uri: string; text?: string; blob?: string };
-			  };
+		| { type: "text"; text: string }
+		| { type: "image"; data: string; mimeType: string }
+		| {
+			type: "resource";
+			resource: { uri: string; text?: string; blob?: string };
+		};
 	}>;
 }
 
 export interface ServerInfo {
 	name: string;
 	version: string;
+	capabilities?: {
+		prompts?: { listChanged?: boolean };
+		resources?: { subscribe?: boolean; listChanged?: boolean };
+		tools?: { listChanged?: boolean };
+		logging?: Record<string, unknown>;
+	};
 }

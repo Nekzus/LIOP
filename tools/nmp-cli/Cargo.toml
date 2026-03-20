@@ -1,0 +1,16 @@
+[package]
+name = "nmp-cli"
+version = "0.1.0"
+edition = "2021"
+description = "NMP Developer CLI for zero-trust interactions"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net"] }
+tonic = "0.12"
+nmp-core = { path = "../../sdks/rust/crates/core" }
+serde_json = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+reqwest = { version = "0.12", features = ["json"] }
+anyhow = "1"

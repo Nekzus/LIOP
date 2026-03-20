@@ -25,6 +25,31 @@ export class NmpMcpBridge {
 			return this.errorResponse(id, -32600, "Invalid Request");
 		}
 
+		// --- MCP Protocol Lifecycle ---
+		if (method === "initialize") {
+			return this.successResponse(id, {
+				protocolVersion: "2025-03-26",
+				capabilities: {
+					prompts: {},
+					resources: {},
+					tools: {}
+				},
+				serverInfo: {
+					name: "NmpServer-TheVault",
+					version: "1.0-alpha"
+				}
+			});
+		}
+
+		if (method === "notifications/initialized") {
+			return undefined; // Client-sent notification, no response required
+		}
+
+		if (method === "ping") {
+			return this.successResponse(id, {});
+		}
+		// --- End MCP Protocol Lifecycle ---
+
 		if (method === "tools/list") {
 			const tools = this.internalServer.listTools();
 			return this.successResponse(id, { tools });
@@ -213,7 +238,7 @@ export class NmpMcpBridge {
 					const params = payload.params as Record<string, unknown> | undefined;
 
 					const response = this.successResponse(id, {
-						protocolVersion: params?.protocolVersion || "2024-11-05",
+						protocolVersion: params?.protocolVersion || "2025-03-26",
 						capabilities: {
 							tools: {
 								listChanged: true,
@@ -247,3 +272,5 @@ export class NmpMcpBridge {
 		});
 	}
 }
+
+export * from "./stream.js";

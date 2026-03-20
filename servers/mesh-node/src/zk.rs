@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256}; // NEW: Replaces Stubs with dynamic Hashes
+use sha2::{Digest, Sha256};
+use tracing::info;
 
 /// NMP Zk Receipt
 /// This struct travels through the NMP gRPC Payload so that the Client
@@ -39,12 +40,12 @@ impl ZkExecutionEngine {
         _wasm_logic: &[u8],
         _input_data: &[u8],
     ) -> Result<(ZkExecutionResult, Vec<u8>), Box<dyn std::error::Error>> {
-        println!("[ZK] Initializing RISC Zero ZK-VM Prover (STUB - Arch Node)...");
+        info!("ZK: Initializing RISC Zero ZK-VM Prover (Stub)");
 
         // IMPORTANT: In local development on Windows, RISC Zero fails
         // due to Unix dependencies (os::unix::net::UnixStream).
         // Prove function takes the ELF and the environment setup.
-        println!("[ZK] Generating Hyper-realistic Computational Receipt based on payload...");
+        info!("ZK: Generating computational receipt based on payload");
 
         // let prove_info = prover.prove(env, ZK_WASM_GUEST_ELF)?;
         // let receipt = prove_info.receipt;
@@ -74,5 +75,59 @@ impl ZkExecutionEngine {
         let receipt_bytes = bincode::serialize(&nmp_receipt)?;
 
         Ok((stub_result, receipt_bytes))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn receipt_is_deterministic_for_same_input() {
+        let wasm = b"test_wasm_binary";
+        let input = b"test_input_data";
+
+        let (result1, bytes1) = ZkExecutionEngine::prove_wasm_execution(wasm, input).unwrap();
+        let (result2, bytes2) = ZkExecutionEngine::prove_wasm_execution(wasm, input).unwrap();
+
+        assert!(result1.is_valid);
+        assert!(result2.is_valid);
+        assert_eq!(bytes1, bytes2, "Identical inputs must produce identical receipts");
+    }
+
+    #[test]
+    fn receipt_differs_for_different_wasm() {
+        let input = b"shared_input";
+        let (_, bytes_a) = ZkExecutionEngine::prove_wasm_execution(b"wasm_v1", input).unwrap();
+        let (_, bytes_b) = ZkExecutionEngine::prove_wasm_execution(b"wasm_v2", input).unwrap();
+
+        assert_ne!(bytes_a, bytes_b, "Different WASM logic must produce unique receipts");
+    }
+
+    #[test]
+    fn receipt_differs_for_different_input_data() {
+        let wasm = b"same_wasm";
+        let (_, bytes_a) = ZkExecutionEngine::prove_wasm_execution(wasm, b"input_a").unwrap();
+        let (_, bytes_b) = ZkExecutionEngine::prove_wasm_execution(wasm, b"input_b").unwrap();
+
+        assert_ne!(bytes_a, bytes_b, "Different input data must produce unique seals");
+    }
+
+    #[test]
+    fn receipt_deserializes_correctly() {
+        let wasm = b"deserialize_test";
+        let (_, bytes) = ZkExecutionEngine::prove_wasm_execution(wasm, b"").unwrap();
+
+        let receipt: NmpZkReceipt = bincode::deserialize(&bytes)
+            .expect("Receipt should deserialize from bincode");
+
+        assert_eq!(receipt.journal.len(), 32, "Journal should be SHA-256 (32 bytes)");
+        assert_eq!(receipt.seal.len(), 32, "Seal should be SHA-256 (32 bytes)");
+    }
+
+    #[test]
+    fn receipt_works_with_empty_inputs() {
+        let result = ZkExecutionEngine::prove_wasm_execution(b"", b"");
+        assert!(result.is_ok(), "Empty inputs should still produce a valid receipt");
     }
 }

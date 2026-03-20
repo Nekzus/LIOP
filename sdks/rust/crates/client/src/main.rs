@@ -24,11 +24,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         loop {
             tokio::select! {
                  event = swarm.select_next_some() => {
-                     match event {
-                         libp2p::swarm::SwarmEvent::NewListenAddr { address, .. } => {
-                             println!("[-] Agent connected to Mesh on: {}", address);
-                         }
-                         _ => {}
+                     if let libp2p::swarm::SwarmEvent::NewListenAddr { address, .. } = event {
+                         println!("[-] Agent connected to Mesh on: {}", address);
                      }
                  }
             }

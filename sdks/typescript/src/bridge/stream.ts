@@ -1,0 +1,248 @@
+import { serve } from "@hono/node-server";
+import { Hono } from "hono";
+import { cors } from "hono/cors";
+import { randomUUID } from "node:crypto";
+import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
+import type { JSONRPCMessage } from "@modelcontextprotocol/sdk/types.js";
+import type { NmpServer } from "../server/index.js";
+import { NmpMcpBridge } from "./index.js";
+
+/**
+ * Configuration options for NmpStreamBridge.
+ */
+export interface NmpStreamBridgeOptions {
+    /** Port to listen on (default: 3000) */
+    port?: number;
+    /** Max concurrent sessions per IP (default: 5) */
+    maxSessionsPerIp?: number;
+    /** Session idle timeout in milliseconds (default: 30 min) */
+    sessionTimeoutMs?: number;
+}
+
+/** Internal metadata for tracked sessions */
+interface SessionEntry {
+    transport: WebStandardStreamableHTTPServerTransport;
+    lastActivity: number;
+    clientIp: string;
+}
+
+const DEFAULT_MAX_SESSIONS_PER_IP = 10;
+const DEFAULT_SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+const EVICTION_INTERVAL_MS = 60 * 1000; // Check every minute
+
+/**
+ * NmpStreamBridge
+ *
+ * Exposes The Vault (NmpServer) over a remote HTTP network using the industry-standard
+ * MCP Streamable HTTP Transport + Hono JS.
+ *
+ * Supports concurrent multi-client connections via per-session transport instances (Map pattern).
+ * External agents connect using only a URL + Bearer Token (Zero-Trust).
+ *
+ * Security hardening:
+ * - Zero-Trust Bearer Token enforcement
+ * - Per-IP rate limiting on session creation
+ * - Automatic eviction of idle sessions (TTL)
+ */
+export class NmpStreamBridge {
+    private app: Hono;
+    private httpServer: ReturnType<typeof serve> | null = null;
+    private bridgeLogic: NmpMcpBridge;
+    private activeSessions: Map<string, SessionEntry>;
+    private evictionTimer: ReturnType<typeof setInterval> | null = null;
+    private maxSessionsPerIp: number;
+    private sessionTimeoutMs: number;
+
+    constructor(
+        internalServer: NmpServer,
+        private options: NmpStreamBridgeOptions = {},
+    ) {
+        this.app = new Hono();
+        this.bridgeLogic = new NmpMcpBridge(internalServer);
+        this.activeSessions = new Map();
+        this.maxSessionsPerIp = options.maxSessionsPerIp ?? DEFAULT_MAX_SESSIONS_PER_IP;
+        this.sessionTimeoutMs = options.sessionTimeoutMs ?? DEFAULT_SESSION_TIMEOUT_MS;
+
+        this.setupRoutes();
+    }
+
+    /**
+     * Creates a new per-session transport instance and wires it to the NmpMcpBridge logic.
+     */
+    private createSessionTransport(clientIp: string): WebStandardStreamableHTTPServerTransport {
+        const transport = new WebStandardStreamableHTTPServerTransport({
+            sessionIdGenerator: () => randomUUID(),
+            onsessioninitialized: (sessionId: string) => {
+                this.activeSessions.set(sessionId, {
+                    transport,
+                    lastActivity: Date.now(),
+                    clientIp,
+                });
+                console.error(`🔗 [NMP StreamBridge] Session opened: ${sessionId} (IP: ${clientIp})`);
+            },
+        });
+
+        // Wire the transport's incoming messages to the NmpMcpBridge JSON-RPC router
+        transport.onmessage = async (message: JSONRPCMessage) => {
+            // Touch activity timestamp on every message
+            if (transport.sessionId) {
+                const entry = this.activeSessions.get(transport.sessionId);
+                if (entry) entry.lastActivity = Date.now();
+            }
+
+            try {
+                const result = await this.bridgeLogic.handleJsonRpcRequest(
+                    message as unknown as Record<string, unknown>,
+                );
+                // Notifications return undefined — no response needed
+                if (result !== undefined) {
+                    await transport.send(result as JSONRPCMessage);
+                }
+            } catch (err: unknown) {
+                console.error("🔥 [NMP StreamBridge] JSON-RPC error:", (err as Error).message);
+            }
+        };
+
+        transport.onclose = () => {
+            if (transport.sessionId) {
+                this.activeSessions.delete(transport.sessionId);
+                console.error(`🔌 [NMP StreamBridge] Session closed: ${transport.sessionId}`);
+            }
+        };
+
+        return transport;
+    }
+
+    /**
+     * Returns the number of active sessions for a given IP.
+     */
+    private countSessionsByIp(ip: string): number {
+        let count = 0;
+        for (const entry of this.activeSessions.values()) {
+            if (entry.clientIp === ip) count++;
+        }
+        return count;
+    }
+
+    /**
+     * Extracts client IP from the request (supports X-Forwarded-For for reverse proxies).
+     */
+    private getClientIp(c: { req: { header: (name: string) => string | undefined } }): string {
+        return c.req.header("x-forwarded-for")?.split(",")[0]?.trim()
+            || c.req.header("x-real-ip")
+            || "unknown";
+    }
+
+    /**
+     * Evicts sessions that have been idle longer than the configured timeout.
+     */
+    private evictIdleSessions(): void {
+        const now = Date.now();
+        for (const [sessionId, entry] of this.activeSessions) {
+            if (now - entry.lastActivity > this.sessionTimeoutMs) {
+                console.error(`♻️ [NMP StreamBridge] Evicting idle session: ${sessionId}`);
+                entry.transport.close().catch(() => { /* Swallow close errors */ });
+                this.activeSessions.delete(sessionId);
+            }
+        }
+    }
+
+    private setupRoutes() {
+        this.app.use("*", cors());
+
+        // ZTA (Zero-Trust Architecture) Security Middleware
+        this.app.use("/mcp", async (c, next) => {
+            const auth = c.req.header("Authorization");
+
+            const expectedToken = process.env.ZERO_TRUST_TOKEN;
+            if (expectedToken) {
+                if (!auth || !auth.startsWith("Bearer ") || auth.split(" ")[1] !== expectedToken) {
+                    console.error("🚨 [NMP StreamBridge] Access denied: Invalid Zero-Trust token.");
+                    return c.json({ error: "Unauthorized: NMP Zero-Trust Policy Enforced" }, 401);
+                }
+            }
+            await next();
+        });
+
+        // Multi-Session Streamable HTTP Handler
+        this.app.all("/mcp", async (c) => {
+            const sessionId = c.req.header("mcp-session-id");
+
+            // Route to existing session if session ID is present
+            if (sessionId) {
+                const existing = this.activeSessions.get(sessionId);
+                if (!existing) {
+                    return c.json({ error: "Session not found" }, 404);
+                }
+                // Touch activity on every routed request
+                existing.lastActivity = Date.now();
+
+                const response = await existing.transport.handleRequest(c.req.raw);
+
+                // If DELETE, the transport closes internally but onclose may not fire.
+                // Explicitly clean up the session from the Map.
+                if (c.req.method === "DELETE") {
+                    this.activeSessions.delete(sessionId);
+                    console.error(`🔌 [NMP StreamBridge] Session closed (DELETE): ${sessionId}`);
+                }
+
+                return response;
+            }
+
+            // No session ID → New client initializing.
+            // Rate-limit: enforce max sessions per IP
+            const clientIp = this.getClientIp(c);
+            const currentSessions = this.countSessionsByIp(clientIp);
+            if (currentSessions >= this.maxSessionsPerIp) {
+                console.error(`🛡️ [NMP StreamBridge] Rate limit hit for IP: ${clientIp} (${currentSessions} sessions)`);
+                return c.json({ error: "Too Many Sessions: Rate limit exceeded" }, 429);
+            }
+
+            const transport = this.createSessionTransport(clientIp);
+            return transport.handleRequest(c.req.raw);
+        });
+    }
+
+    /**
+     * Starts the NMP StreamBridge HTTP server and session eviction timer.
+     */
+    public async start(port?: number): Promise<void> {
+        const listenPort = port ?? this.options.port ?? 3000;
+
+        // Start the idle session eviction timer
+        this.evictionTimer = setInterval(() => this.evictIdleSessions(), EVICTION_INTERVAL_MS);
+
+        return new Promise((resolve) => {
+            this.httpServer = serve(
+                {
+                    fetch: this.app.fetch,
+                    port: listenPort,
+                },
+                (info) => {
+                    console.error(`🌊 [NMP StreamBridge] Streamable HTTP Gateway on http://localhost:${info.port}/mcp`);
+                    resolve();
+                },
+            );
+        });
+    }
+
+    /**
+     * Graceful shutdown — closes all active sessions, stops timers, and releases port.
+     */
+    public async stop(): Promise<void> {
+        if (this.evictionTimer) {
+            clearInterval(this.evictionTimer);
+            this.evictionTimer = null;
+        }
+
+        for (const [id, entry] of this.activeSessions) {
+            await entry.transport.close();
+            this.activeSessions.delete(id);
+        }
+
+        if (this.httpServer) {
+            this.httpServer.close();
+            console.error("🛑 [NMP StreamBridge] HTTP ports released.");
+        }
+    }
+}

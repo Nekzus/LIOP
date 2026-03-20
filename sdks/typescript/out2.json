@@ -1,0 +1,27 @@
+[NMP-Mesh] Loaded persistent identity from C:\Users\maseo\.nmp\identity.json
+[NMP-Mesh] Node started with id: 12D3KooWMF2ZrvT2SxjheTFzjdmMretTDeRpiVj11Hp3Y4hm5fch
+[NMP-Mesh] Listening on: /ip4/10.252.54.194/tcp/56038/ws/p2p/12D3KooWMF2ZrvT2SxjheTFzjdmMretTDeRpiVj11Hp3Y4hm5fch
+[NMP-Mesh] Listening on: /ip4/172.21.128.1/tcp/56038/ws/p2p/12D3KooWMF2ZrvT2SxjheTFzjdmMretTDeRpiVj11Hp3Y4hm5fch
+[NMP-Mesh] Listening on: /ip4/192.168.40.1/tcp/56038/ws/p2p/12D3KooWMF2ZrvT2SxjheTFzjdmMretTDeRpiVj11Hp3Y4hm5fch
+[NMP-Mesh] Listening on: /ip4/192.168.50.122/tcp/56038/ws/p2p/12D3KooWMF2ZrvT2SxjheTFzjdmMretTDeRpiVj11Hp3Y4hm5fch
+[NMP-Mesh] Listening on: /ip4/192.168.178.1/tcp/56038/ws/p2p/12D3KooWMF2ZrvT2SxjheTFzjdmMretTDeRpiVj11Hp3Y4hm5fch
+[NMP-Mesh] Listening on: /ip4/192.168.79.142/tcp/56038/ws/p2p/12D3KooWMF2ZrvT2SxjheTFzjdmMretTDeRpiVj11Hp3Y4hm5fch
+[NMP-Mesh] Listening on: /ip4/127.0.0.1/tcp/56038/ws/p2p/12D3KooWMF2ZrvT2SxjheTFzjdmMretTDeRpiVj11Hp3Y4hm5fch
+[NMP-Mesh] Listening on: /ip4/10.252.54.194/tcp/56039/p2p/12D3KooWMF2ZrvT2SxjheTFzjdmMretTDeRpiVj11Hp3Y4hm5fch
+[NMP-Mesh] Listening on: /ip4/172.21.128.1/tcp/56039/p2p/12D3KooWMF2ZrvT2SxjheTFzjdmMretTDeRpiVj11Hp3Y4hm5fch
+[NMP-Mesh] Listening on: /ip4/192.168.40.1/tcp/56039/p2p/12D3KooWMF2ZrvT2SxjheTFzjdmMretTDeRpiVj11Hp3Y4hm5fch
+[NMP-Mesh] Listening on: /ip4/192.168.50.122/tcp/56039/p2p/12D3KooWMF2ZrvT2SxjheTFzjdmMretTDeRpiVj11Hp3Y4hm5fch
+[NMP-Mesh] Listening on: /ip4/192.168.178.1/tcp/56039/p2p/12D3KooWMF2ZrvT2SxjheTFzjdmMretTDeRpiVj11Hp3Y4hm5fch
+[NMP-Mesh] Listening on: /ip4/192.168.79.142/tcp/56039/p2p/12D3KooWMF2ZrvT2SxjheTFzjdmMretTDeRpiVj11Hp3Y4hm5fch
+[NMP-Mesh] Listening on: /ip4/127.0.0.1/tcp/56039/p2p/12D3KooWMF2ZrvT2SxjheTFzjdmMretTDeRpiVj11Hp3Y4hm5fch
+[NMP-Mesh] Forcing direct P2P dial to 1 bootstrap nodes...
+[NMP-Mesh] ­ƒñØ Connected to peer: 12D3KooWR91Sn9jFr9nB6jRb5PP4cJCC9j8DxgnawdvtmAohJWwR
+[NMP-Mesh] ­ƒôì Adding 12D3KooWR91Sn9jFr9nB6jRb5PP4cJCC9j8DxgnawdvtmAohJWwR to DHT Routing Table
+[NMP-Mesh] ­ƒöÄ Discovered peer: 12D3KooWR91Sn9jFr9nB6jRb5PP4cJCC9j8DxgnawdvtmAohJWwR
+[NMP-Mesh] Successfully dialed /ip4/127.0.0.1/tcp/4061/p2p/12D3KooWR91Sn9jFr9nB6jRb5PP4cJCC9j8DxgnawdvtmAohJWwR
+[NMP-Agent] ­ƒøí´©Å Guarding Claude Desktop via STDIO.
+[NMP-Agent] ­ƒîÉ P2P Mesh: Joined (1 bootstraps)
+[NMP-Router] Processing: tools/call
+[NMP-Mesh] ­ƒöì Querying Mesh DHT for Provider: ProcessMedicalRecord...
+[NMP-Mesh] ­ƒÅü DHT search for ProcessMedicalRecord finished. Found 0 providers.
+{"jsonrpc":"2.0","id":"real-test-2","error":{"code":-32001,"message":"PQC Handshake Failed"}}

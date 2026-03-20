@@ -49,7 +49,7 @@ export const theVaultServer = new NmpServer(
 
 // 0. Load and Inject Data Context into the SDK (Fase 45 Perfect Parity)
 try {
-	const dataPath = path.resolve(__dirname, "../data/medical_records.json");
+	const dataPath = path.resolve(__dirname, "..", "data", "medical_records.json");
 	const recordsRaw = await fs.readFile(dataPath, "utf-8");
 	const records = JSON.parse(recordsRaw);
 	theVaultServer.setSandboxData(records);
@@ -105,7 +105,8 @@ theVaultServer.tool(
 await theVaultServer.connectToMesh({
 	port: 50051,
 	meshConfig: {
-		listenAddresses: ["/ip4/0.0.0.0/tcp/4001", "/ip4/0.0.0.0/tcp/4002/ws"]
+		listenAddresses: ["/ip4/0.0.0.0/tcp/4001", "/ip4/0.0.0.0/tcp/4002/ws"],
+		identityPath: path.resolve(__dirname, "../data/nmp-identity.json")
 	}
 }).catch(err => {
 	console.error(`[The Vault] Mesh Connection Failed: ${err.message}`);

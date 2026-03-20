@@ -4,6 +4,7 @@ members = [
     "sdks/rust/crates/client",
     "servers/mesh-node",
     "examples/wasm-filters/wasm-filter",
-    "examples/wasm-filters/wasm-watchdog"
+    "examples/wasm-filters/wasm-watchdog",
+    "tools/nmp-cli"
 ]
 resolver = "2"

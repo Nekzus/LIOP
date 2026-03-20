@@ -1,21 +1,31 @@
 // MCP Bridge for "The Vault" - Execution from Cursor/Claude Desktop
 import { NmpMcpBridge } from "@nekzus/neural-mesh/bridge";
+import { NmpHybridGateway } from "@nekzus/neural-mesh/gateway";
 import { theVaultServer } from "./server-node.js";
 
 async function main() {
 	console.error("==================================================");
-	console.error(">>> CONNECTING NMP-MCP BRIDGE (Stdio) <<<");
+	console.error(">>> NMP HYBRID TRANSFORMER GATEWAY (Alpha) <<<");
 	console.error("==================================================");
-	console.error("The Vault is ready to be consumed by an MCP-compatible IDE.");
+	console.error("The Vault is ready via Protocol Transcoding (JSON <-> gRPC).");
 
-	// NmpMcpBridge already wraps The Vault and brings up the JSON-RPC protocol over stdio internally
-	const bridge = new NmpMcpBridge(theVaultServer);
+	// NmpMcpBridge wraps The Vault and brings up the JSON-RPC protocol over stdio for local IDEs
+	const stdioBridge = new NmpMcpBridge(theVaultServer);
 
-	// Connect the bridge to listen for commands
-	await bridge.connect();
+	// NmpHybridGateway provides the single-port multiplexer for HTTP/MCP and gRPC/NMP
+	const hybridGateway = new NmpHybridGateway(theVaultServer);
 
+	// Start Hybrid Gateway (Network)
+	const serverPromise = hybridGateway.listen(3000, '::');
+
+	// Start Stdio Bridge (Local IDEs)
+	const stdioPromise = stdioBridge.connect().catch(err => {
+		console.error("[NMP-Bridge] Stdio Bridge error:", err);
+	});
+
+	await serverPromise; // Wait for the gateway to be ready
 	console.error(
-		">>> BRIDGE ACTIVE. Waiting for Logic-on-Origin instructions from the AI...",
+		">>> HYBRID GATEWAY ACTIVE. Serving JSON-RPC and gRPC with PQC-Shielding...",
 	);
 }
 

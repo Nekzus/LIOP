@@ -29,6 +29,9 @@ El Workspace de Cargo está estrictamente modularizado en componentes funcionale
   <Card title="wasm-filters" icon="microchip">
     Las plantillas de carga aisladas (Payload templates). Contiene lógica en Rust específicamente orientada a la compilación `wasm32-wasi` para actuar como el cerebro del agente.
   </Card>
+  <Card title="nmp-cli" icon="terminal">
+    Herramienta de Experiencia de Desarrollador (Developer Experience). Permite realizar ping HTTP al servicio de Health y probar negociaciones PQC (Handshakes gRPC) directamente desde la terminal.
+  </Card>
 </CardGroup>
 
 ## Stack de Transporte de Red
@@ -53,5 +56,6 @@ Esto asegura un aislamiento total ante fallos (panic-isolation): si el `.wasm` d
 ### Características de Vanguardia (Truth Protocol)
 
 Entrando en el "Endgame" de Nivel-0 (Tier-0), `nmp-server` opera más allá del sandboxing estándar:
+- **Observabilidad y Resiliencia**: Incluye instrumentación estructurada vía `tracing` y endpoints `/health` de hyper paralelizados, además de `config.toml` externalizada para despliegues dinámicos.
 - **Hooks de Conocimiento Cero (Zero-Knowledge Hooks)**: Antes de devolver una respuesta, la lógica puede envolverse en una zkVM para generar un Recibo matemático determinista del AST exacto aplicado sobre los datos localizados.
 - **Computación Ciega (Blind Computation)**: A través del trait `EnclaveProvider`, el motor de ejecución puede arrancar sin problemas dentro de capacidades de Hardware aisladas, previniendo el volcado de memoria a nivel de hipervisor y del SO host.

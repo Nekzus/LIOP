@@ -89,6 +89,18 @@ async function main() {
 	console.log("\nSimulating incoming legacy MCP Request:");
 	const response = await bridge.handleJsonRpcRequest(incomingCallCommand);
 	console.log(JSON.stringify(response, null, 2));
+
+	// --- 4. Launch Mesh Node & Tonic gRPC ---
+	console.log("\n[Server Info] Booting Neural Mesh Node (DHT)...");
+	await server.connectToMesh({
+		port: 50051,
+		meshConfig: {
+			listenAddresses: ["/ip4/127.0.0.1/tcp/4061/ws"],
+		},
+	});
+
+	console.log(`\n✅ Server is live! Run the client pointing to this P2P Multiaddr:`);
+	console.log(`pnpm demo:client --bootstrap /ip4/127.0.0.1/tcp/4061/ws/p2p/${server.getMeshNode()?.getPeerId()}`);
 }
 
 main().catch(console.error);

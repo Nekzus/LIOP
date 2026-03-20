@@ -79,7 +79,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 | `nmp-core` | Shared Protobuf types |
 | `tonic` 0.11 | gRPC client |
 | `tokio` 1.37 | Async runtime |
-| `libp2p` 0.51 | P2P networking (TCP, Noise, Yamux, Kademlia) |
+| `libp2p` 0.54 | P2P networking (QUIC, TCP, Noise, Yamux, Kademlia) |
 | `pqcrypto-kyber` 0.8 | ML-KEM-768 Post-Quantum Key Encapsulation |
 | `aes-gcm` 0.10 | AES-256-GCM authenticated encryption |
 | `rand` 0.10 | Cryptographic random number generation |

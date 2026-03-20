@@ -351,7 +351,8 @@ This package is continuously tested across multiple platforms and Node.js versio
 - [NMP Specification](https://github.com/Nekzus/Neural-Mesh-Protocol/blob/main/protocol/SPECIFICATION.md) — Technical specification
 - [NMP Manifesto](https://github.com/Nekzus/Neural-Mesh-Protocol/blob/main/MANIFESTO.md) — Project philosophy
 - [Contributing Guide](https://github.com/Nekzus/Neural-Mesh-Protocol/blob/main/CONTRIBUTING.md) — How to contribute
-- [Rust Mesh Node](https://github.com/Nekzus/Neural-Mesh-Protocol/tree/main/sdks/rust) — Native high-performance backend
+- [Rust Mesh Node](https://github.com/Nekzus/Neural-Mesh-Protocol/tree/main/servers/mesh-node) — Native high-performance backend
+- [NMP CLI](https://github.com/Nekzus/Neural-Mesh-Protocol/tree/main/tools/nmp-cli) — Developer diagnostics
 
 ---
 

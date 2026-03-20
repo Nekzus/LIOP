@@ -5,4 +5,5 @@ export * from "./rpc/client.js";
 export * from "./rpc/server.js";
 export * from "./sandbox/wasi.js";
 export * from "./server/index.js";
+export * from "./gateway/hybrid.js";
 export * from "./types.js";

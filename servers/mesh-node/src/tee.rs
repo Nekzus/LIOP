@@ -8,6 +8,7 @@
 // the Wasmtime engine execution inside an enclave.
 
 use std::error::Error;
+use tracing::info;
 
 use sha2::{Digest, Sha256};
 
@@ -23,15 +24,44 @@ pub struct AwsNitroEnclaveStub;
 
 impl EnclaveProvider for AwsNitroEnclaveStub {
     fn attest_and_boot(&self) -> Result<(), Box<dyn Error>> {
-        println!("[TEE] 🛡️ AWS Nitro Enclave: Bootstrapping Secure Wasmtime Context (Stub)...");
+        info!("TEE: AWS Nitro Enclave bootstrapping Secure Wasmtime Context (Stub)");
         Ok(())
     }
 
     fn generate_attestation_report(&self, nonce: &[u8]) -> Result<Vec<u8>, Box<dyn Error>> {
-        println!("[TEE] 🛡️ Generating Attestation Report signed by Nitro Hypervisor (Hyper-realistic Mock)...");
+        info!("TEE: Generating Attestation Report signed by Nitro Hypervisor (Mock)");
         let mut hasher = Sha256::new();
         hasher.update(b"AWS_NITRO_ENCLAVE_V1_COSE_SIGN1");
         hasher.update(nonce);
         Ok(hasher.finalize().to_vec())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn enclave_boots_successfully() {
+        let enclave = AwsNitroEnclaveStub;
+        assert!(enclave.attest_and_boot().is_ok());
+    }
+
+    #[test]
+    fn attestation_report_is_deterministic() {
+        let enclave = AwsNitroEnclaveStub;
+        let nonce = b"test-nonce-12345";
+        let report1 = enclave.generate_attestation_report(nonce).unwrap();
+        let report2 = enclave.generate_attestation_report(nonce).unwrap();
+        assert_eq!(report1, report2, "Same nonce must produce identical reports");
+        assert_eq!(report1.len(), 32, "Report should be SHA-256 (32 bytes)");
+    }
+
+    #[test]
+    fn attestation_report_differs_per_nonce() {
+        let enclave = AwsNitroEnclaveStub;
+        let report_a = enclave.generate_attestation_report(b"nonce-a").unwrap();
+        let report_b = enclave.generate_attestation_report(b"nonce-b").unwrap();
+        assert_ne!(report_a, report_b, "Different nonces must produce different reports");
     }
 }

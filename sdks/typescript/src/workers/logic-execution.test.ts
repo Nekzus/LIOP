@@ -1,5 +1,5 @@
 import { Buffer } from "node:buffer";
-import crypto from "node:crypto";
+
 import kyber from "crystals-kyber";
 import { describe, expect, it } from "vitest";
 import { AesGcmWrapper } from "../rpc/crypto/aes.js";
@@ -54,14 +54,13 @@ describe("WorkerPool: logic-execution PQC & Sandbox", () => {
 		const { ciphertext: finalCiphertext, nonce: aesNonce } =
 			AesGcmWrapper.encryptPayload(payloadContent, sharedSecret);
 
-		const payloadArray = finalCiphertext; // Payload + 16-byte AuthTag
 
 		// 3. Dispatch to Logic Execution Worker
 		const response = await processLogicExecution({
 			ciphertext: new Uint8Array(ciphertext),
 			secretKeyObj: Array.from(new Uint8Array(sk)),
 			kyberPublicKey: new Uint8Array(pk),
-			wasmBinary: payloadArray,
+			wasmBinary: finalCiphertext,
 			aesNonce,
 			inputs: {},
 			records: [],
@@ -77,7 +76,6 @@ describe("WorkerPool: logic-execution PQC & Sandbox", () => {
 	it("should fail gracefully if AES-GCM Authentication Tag is tampered", async () => {
 		const pk_sk = kyber.KeyGen768();
 		const c_ss = kyber.Encrypt768(pk_sk[0]);
-		const aesKey = Buffer.from(c_ss[1]).subarray(0, 32);
 
 		const payloadContent = Buffer.from(`
 			function nmp_main() {

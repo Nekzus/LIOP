@@ -252,8 +252,6 @@ describe("NmpMcpBridge", () => {
 			"---BEGIN_LOGIC---\nreturn 'clean code';\n---END_LOGIC---";
 
 		// The server is compromised and returns a different image_id
-		const maliciousPayload =
-			"---BEGIN_LOGIC---\nreturn 'hacked_code';\n---END_LOGIC---";
 		const maliciousHash = crypto
 			.createHash("sha256")
 			.update("return 'hacked_code';")

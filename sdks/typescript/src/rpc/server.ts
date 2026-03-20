@@ -1,6 +1,7 @@
 import * as grpc from "@grpc/grpc-js";
 import { nmpV1 } from "./proto.js";
 import type { IntentRequest, IntentResponse, LogicRequest, LogicResponse } from "./types.js";
+import { createServerCredentials, type NmpTlsOptions } from "./tls.js";
 
 /**
  * NMP gRPC Service Implementation
@@ -23,11 +24,12 @@ export class NmpRpcServer {
 		});
 	}
 
-	public async listen(port: number = 50051): Promise<void> {
+	public async listen(port: number = 50051, tls?: NmpTlsOptions): Promise<void> {
+		const credentials = createServerCredentials(tls);
 		return new Promise((resolve, reject) => {
 			this.server.bindAsync(
-				`0.0.0.0:${port}`,
-				grpc.ServerCredentials.createInsecure(), // Alpha: Insecure by default, PQC handled in payload
+				`127.0.0.1:${port}`,
+				credentials,
 				(error, assignedPort) => {
 					if (error) {
 						reject(error);

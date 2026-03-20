@@ -15,17 +15,23 @@ The Cargo Workspace is divided into modular crates:
 
 - **`nmp-core`**: The shared library storing standardized Protobuf definitions via `prost` and `tonic`.
 - **`nmp-server`**: The Data Node host. Contains the heavy-duty `wasmtime-wasi` sandbox. It securely receives foreign WebAssembly logic, virtualizes strict capabilities (like read-only filesystem access for specific directories), and executes the payload at near-native speeds.
-- **`nmp-client`**: The Agent Node injector. It searches for resources across the Kademlia DHT and pushes compiled `.wasm` tasks via Tonic gRPC to remote servers.
-- **`wasm-filter`**: An example rust-based `wasm32-wasip1` payload that demonstrates safe logic-on-origin injection.
-- **`wasm-watchdog`**: An example long-running `wasm32-wasip1` task that demonstrates streaming continuous events via gRPC async channels back to the agent.
+- **`nmp-client`**: The Agent Node injector SDK for compiling and pushing Wasm logic (now located in `sdks/rust/crates/client`).
+- **`config/health`**: Modular infrastructure for TOML-driven external configuration and Hyper-based observability (`/health` probes).
+
+## Core Capabilities (Hardening)
+
+- **Native QUIC Transport**: Support for high-performance, multiplexed `/quic-v1` UDP transport over the Libp2p Mesh DHT.
+- **TLS/mTLS Security**: Deep integration with `rustls` securing gRPC Tonic endpoints with decentralized or standard PKI certificates.
+- **Rate-Limiting (Anti-DoS)**: Token-bucket interceptors deployed at the gRPC layer to throttle aggressive logic injections.
+- **Structured Telemetry**: Full `tracing_subscriber` integration out-of-the-box for JSON-ready asynchronous logging.
 
 ## Security (Zero-Trust)
 
 This backend implements a ferocious security posture:
-- **WASI Sandboxing**: Payload instances cannot touch sockets, memory, or undeclared files not strictly mapped by the Server.
+- **WASI Sandboxing**: Payload instances cannot touch sockets, memory, or undeclared files not strictly mapped by the Server. Includes `consume_fuel()` runtime protections against infinite loops.
 - **Decentralized Identity**: Peer Identifiers are mathematically derived from Ed25519 keypairs. Kademlia routing is cryptographically verified to evade Eclipse attacks.
-- **PQC Handshakes (Draft)**: Experimental integrations with `pqcrypto-kyber` to thwart "Harvest Now, Decrypt Later" quantum attacks on the mesh intent negotiation.
-- **Guardian AST (Draft)**: Future ML-based traversal of the WAT/WASM structures to deny complex obfuscation loops before instantiation.
+- **Zero-Time AST**: `Guardian` statically analyzes `.wasm` imports via `wasmparser` to ban malicious sandbox escapes *before* instantiation.
+- **PQC Handshakes & ZK**: Experimental integrations with `pqcrypto-kyber` to thwart "Harvest Now, Decrypt Later" quantum attacks, and ZK-Receipt SHA-256 (Journal + Seal) verification.
 
 ## Building and Running
 

@@ -116,6 +116,11 @@ export class NmpServer {
 
 		const isTest = process.env.NODE_ENV === "test" || process.env.VITEST;
 
+		// Sync capabilities to serverInfo for MCP Handshakes
+		if (this.config?.capabilities && !this.serverInfo.capabilities) {
+			this.serverInfo.capabilities = this.config.capabilities as any;
+		}
+
 		this.workerPool = new Piscina({
 			filename: path.resolve(
 				__dirname,
@@ -296,7 +301,7 @@ export class NmpServer {
 							timestamp: now,
 						});
 					} else if (
-						result.content.find((c) => c.text?.includes("VIOLETION_DETECTED"))
+						result.content.find((c) => c.text?.includes("VIOLATION_DETECTED"))
 					) {
 						stats.failures++;
 						stats.lastAttempt = now;
@@ -306,7 +311,7 @@ export class NmpServer {
 					return result;
 				} catch (error: unknown) {
 					const e = error as Error;
-					if (e.message?.includes("VIOLETION_DETECTED")) {
+					if (e.message?.includes("VIOLATION_DETECTED")) {
 						stats.failures++;
 						stats.lastAttempt = now;
 						this.connectionStats.set(clientId, stats);
@@ -558,6 +563,10 @@ Failure to follow these rules will result in an immediate violation and the exec
 		return this.serverInfo;
 	}
 
+	public getMeshNode(): MeshNode | null {
+		return this.meshNode;
+	}
+
 	/**
 	 * Injects data into the secure sandbox context for Logic-on-Origin tools.
 	 */
@@ -571,13 +580,18 @@ Failure to follow these rules will result in an immediate violation and the exec
 	 */
 	public async connectToMesh(options: {
 		port?: number;
-		meshConfig?: { listenAddresses?: string[]; bootstrapNodes?: string[] }
+		meshConfig?: { listenAddresses?: string[]; bootstrapNodes?: string[]; identityPath?: string }
 	} = {}): Promise<void> {
 		const port = options.port || 50051;
 
 		// 1. Initialize Mesh Node (Discovery)
 		this.meshNode = new MeshNode(options.meshConfig);
 		await this.meshNode.start();
+
+		// Announce local tools to the DHT
+		for (const tool of this.listTools()) {
+			await this.meshNode.announceCapability(tool.name).catch(console.error);
+		}
 
 		// 2. Initialize gRPC Server (Execution)
 		this.rpcServer = new NmpRpcServer();
@@ -631,8 +645,26 @@ Failure to follow these rules will result in an immediate violation and the exec
 						isEncrypted: true
 					});
 
+					let finalOutput = workerResponse.output;
+
+					// [PROTOCOL TRANSFORMER] Support for Proxied Tool Calls
+					// If the execution resulted in a special proxy command, handle it
+					try {
+						const decoded = JSON.parse(finalOutput);
+						if (decoded.__nmp_proxy_tool) {
+							console.error(`[NMP-RPC] ⚡ Executing Proxied Tool: ${decoded.__nmp_proxy_tool}`);
+							const toolResult = await this.callTool({
+								name: decoded.__nmp_proxy_tool,
+								arguments: decoded.__nmp_proxy_args || {}
+							});
+							finalOutput = JSON.stringify(toolResult);
+						}
+					} catch {
+						// Not a proxy command, continue with raw output
+					}
+
 					const response: LogicResponse = {
-						semantic_evidence: workerResponse.output,
+						semantic_evidence: finalOutput,
 						cryptographic_proof: Buffer.from(workerResponse.image_id || "", "hex"),
 						zk_receipt: Buffer.from("risc0-receipt-stub"),
 						is_error: false

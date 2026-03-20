@@ -1,0 +1,19 @@
+# NMP Server Node Configuration
+
+[server]
+grpc_addr = "[::1]:50051"
+p2p_listen = "/ip4/0.0.0.0/tcp/0"
+
+[sandbox]
+fuel_limit = 500_000_000
+allowed_dir = "."
+max_functions = 50_000
+
+[session]
+ttl_seconds = 300
+max_concurrent = 1000
+
+[security]
+tls_enabled = false
+cert_path = "certs/server.crt"
+key_path = "certs/server.key"

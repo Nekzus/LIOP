@@ -60,6 +60,8 @@ Neural-Mesh-Protocol/
 ├── examples/
 │   ├── demos/               # High-fidelity & educational demos
 │   └── wasm-filters/        # Example WASM payloads (filter, watchdog)
+├── tools/
+│   └── nmp-cli/             # Developer CLI for Health/Negotiate checks
 ├── docs/                    # Mintlify documentation portal
 ├── tests/                   # E2E integration tests
 ├── MANIFESTO.md             # Project philosophy & vision
@@ -83,6 +85,7 @@ The developer-facing SDK, published as [`@nekzus/neural-mesh`](https://www.npmjs
 | PII Shield | Real-time detection and blocking of sensitive data (Email, Credit Card, IP, Phone) |
 | Worker Pool | Multi-threaded execution via Piscina for non-blocking cryptography |
 | PQC (Kyber) | Post-Quantum key encapsulation for transport layer security |
+| Security | TLS/mTLS, Rate-Limiting, and QUIC transport support |
 | ZK Receipts | Zero-Knowledge proof verification for computational integrity |
 
 [Read the TypeScript SDK Documentation](./sdks/typescript/README.md)
@@ -110,10 +113,11 @@ The high-performance Data Node host, written in Rust. This is where injected WAS
 |---|---|
 | `executor.rs` | Wasmtime + WASI sandbox with fuel-based CPU limits and `nmp::push_event` host syscall |
 | `guardian.rs` | Zero-Time AST structural scanning via `wasmparser` — rejects malicious imports before JIT |
-| `grpc.rs` | Tonic gRPC server with PQC intent negotiation and streaming logic responses |
-| `p2p.rs` | libp2p Kademlia DHT for decentralized peer discovery over Noise/QUIC |
+| `grpc.rs` | Tonic gRPC server with PQC intent negotiation, Rate-Limiting, and streaming |
+| `p2p.rs` | libp2p Kademlia DHT for decentralized peer discovery over Noise/TCP/QUIC |
 | `zk.rs` | ZK-SNARK proof generation engine (Journal + Seal) via SHA-256 cryptographic hashing |
 | `tee.rs` | Trusted Execution Environment trait bounds for AWS Nitro Enclaves / Intel SGX |
+| `config/health`| Externalized `config.toml` and Hyper `/health` endpoints for observability |
 
 [Read the Mesh Node Documentation](./servers/mesh-node/README.md)
 

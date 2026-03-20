@@ -32,18 +32,19 @@ describe("NmpClient", () => {
 		expect(tools[0].name).toBe("read_logs");
 	});
 
-	it("should simulate execution after connection", async () => {
+	it("should reject callTool when no gRPC server is reachable", async () => {
 		const client = new NmpClient();
 		await client.connect();
 
 		// Mock a 1184-byte Kyber768 array and a dummy WASM Buffer
-		const mockServerPublicKey = new Uint8Array(1184);
 		const mockWasmPayload = Buffer.from("mock-wasm-binary-data");
 
-		const res = await client.callTool(
-			{ name: "read_logs", arguments: {} },
-			mockWasmPayload
-		);
-		expect(res.isError).toBeFalsy();
+		// callTool should reject because there is no gRPC server running at localhost:50051
+		await expect(
+			client.callTool(
+				{ name: "read_logs", arguments: {} },
+				mockWasmPayload
+			),
+		).rejects.toThrow();
 	});
 });

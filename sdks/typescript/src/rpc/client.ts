@@ -1,6 +1,7 @@
-import * as grpc from "@grpc/grpc-js";
+import type * as grpc from "@grpc/grpc-js";
 import { nmpV1 } from "./proto.js";
 import type { IntentRequest, IntentResponse, LogicRequest, LogicResponse } from "./types.js";
+import { createChannelCredentials, type NmpTlsOptions } from "./tls.js";
 
 /**
  * NMP gRPC Client Implementation
@@ -9,13 +10,9 @@ import type { IntentRequest, IntentResponse, LogicRequest, LogicResponse } from 
 export class NmpRpcClient {
 	private client: any;
 
-	constructor(address: string) {
-		// Alpha: Using insecure credentials for discovery, 
-		// but the payload itself is protected by PQC.
-		this.client = new nmpV1.NeuralMesh(
-			address,
-			grpc.credentials.createInsecure()
-		);
+	constructor(address: string, tls?: NmpTlsOptions) {
+		const credentials = createChannelCredentials(tls);
+		this.client = new nmpV1.NeuralMesh(address, credentials);
 	}
 
 	/**

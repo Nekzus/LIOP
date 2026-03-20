@@ -2,27 +2,29 @@
 // Powered by Wasmtime + WASI
 
 use std::error::Error;
+use tracing::{info, warn};
 use wasmtime::{Config, Engine, Linker, Module, Store};
-use wasmtime_wasi::sync::WasiCtxBuilder;
-use wasmtime_wasi::WasiCtx;
+use wasmtime_wasi::preview1::WasiP1Ctx;
+use wasmtime_wasi::{DirPerms, FilePerms, WasiCtxBuilder};
 
 use nmp_core::v1::LogicResponse;
 use tokio::sync::mpsc::Sender;
 
-// Holds the execution state per Agent request.
+/// Holds the execution state per Agent request.
+/// Implements wasmtime's host state pattern for WASI P1 modules.
 pub struct AgentExecutionState {
-    pub wasi: WasiCtx,
+    pub wasi: WasiP1Ctx,
     pub tx: Sender<Result<LogicResponse, tonic::Status>>,
 }
 
 pub fn create_wasi_engine() -> Result<Engine, Box<dyn Error>> {
-    println!("Init Zero-Trust Wasmtime Engine...");
+    info!("Initializing Zero-Trust Wasmtime Engine");
     let mut config = Config::new();
     config.wasm_backtrace_details(wasmtime::WasmBacktraceDetails::Enable);
     // Optimization for Logic-on-Origin speed
     config.cranelift_opt_level(wasmtime::OptLevel::SpeedAndSize);
 
-    // GUARDIAN: Habilitar límite determinista computacional
+    // GUARDIAN: Enable deterministic computational fuel limit
     config.consume_fuel(true);
 
     let engine = Engine::new(&config)?;
@@ -41,24 +43,24 @@ pub fn execute_sandboxed_logic(
     crate::guardian::analyze_ast(wasm_bytes)?;
 
     let mut linker = Linker::new(engine);
-    wasmtime_wasi::sync::add_to_linker(&mut linker, |s: &mut AgentExecutionState| &mut s.wasi)?;
+
+    // Link WASI P1 (wasi_snapshot_preview1) syscalls into the linker
+    wasmtime_wasi::preview1::add_to_linker_sync(&mut linker, |s: &mut AgentExecutionState| {
+        &mut s.wasi
+    })?;
 
     // ZERO-TRUST CAPABILITY MODEL
     // By default, the injected WASM logic has NO network access, NO env vars, and NO filesystem.
     // We explicitly grant ONLY read-access to `allowed_dir`.
-    let dir =
-        wasmtime_wasi::Dir::open_ambient_dir(allowed_dir, wasmtime_wasi::ambient_authority())?;
-
     let wasi = WasiCtxBuilder::new()
         .inherit_stdio() // For prototype, we pipe stdout back
-        .inherit_args()?
-        .preopened_dir(dir, "/data")?
-        .build();
+        .preopened_dir(allowed_dir, "/data", DirPerms::READ, FilePerms::READ)?
+        .build_p1();
 
     let mut store = Store::new(engine, AgentExecutionState { wasi, tx });
 
-    // GUARDIAN: Asignar límite de Combustible Computacional
-    store.add_fuel(500_000_000)?;
+    // GUARDIAN: Assign Computational Fuel Limit
+    store.set_fuel(500_000_000)?;
 
     // PUSH EVENT HOST FUNCTION
     linker.func_wrap(
@@ -82,20 +84,21 @@ pub fn execute_sandboxed_logic(
             let res = LogicResponse {
                 semantic_evidence: format!("[WATCHDOG PUSH ALERT]: {}", msg),
                 cryptographic_proof: vec![],
-                zk_receipt: vec![], // Watchdog events can also theoretically carry ZK proofs later
+                zk_receipt: vec![],
+                is_error: false,
             };
             let _ = caller.data().tx.blocking_send(Ok(res));
             Ok(())
         },
     )?;
 
-    println!("[-] Compiling incoming NMP Logic Module...");
+    info!("Compiling incoming NMP Logic Module");
     let module = Module::new(engine, wasm_bytes)?;
 
-    println!("[-] Linking Capabilities...");
+    info!("Linking Capabilities");
     let instance = linker.instantiate(&mut store, &module)?;
 
-    println!("[-] Triggering Logic-on-Origin execution...");
+    info!("Triggering Logic-on-Origin execution");
     let start_func = instance.get_typed_func::<(), ()>(&mut store, "_start")?;
 
     match start_func.call(&mut store, ()) {
@@ -103,13 +106,14 @@ pub fn execute_sandboxed_logic(
         Err(e) => {
             let err_str = e.to_string();
             if err_str.contains("all fuel consumed") {
-                println!("[!] GUARDIAN ACTIVE: WASM Execution halted due to CPU Fuel Exhaustion.");
+                warn!("GUARDIAN ACTIVE: WASM execution halted due to CPU Fuel Exhaustion");
                 let res = LogicResponse {
                     semantic_evidence:
                         "[AST Sandbox Halt]: Execution Exceeded Computational Fuel Threshold"
                             .to_string(),
                     cryptographic_proof: vec![],
                     zk_receipt: vec![],
+                    is_error: true,
                 };
                 let _ = store.data().tx.blocking_send(Ok(res));
                 Ok(())

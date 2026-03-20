@@ -4,10 +4,13 @@
 use futures::StreamExt;
 use libp2p::kad::store::RecordStore;
 use std::error::Error;
+use tracing::info;
 
+mod config;
 pub mod executor;
 pub mod grpc;
-mod guardian; // Added guardian module
+mod guardian;
+mod health;
 pub mod p2p;
 mod tee;
 pub mod zk;
@@ -20,7 +23,29 @@ use tonic::transport::Server;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    println!("NMP Server Node - Initiating Genesis Boot Sequence...");
+    // Initialize structured logging (JSON format via RUST_LOG env filter)
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
+        )
+        .with_target(true)
+        .with_thread_ids(true)
+        .init();
+
+    info!("NMP Server Node - Initiating Genesis Boot Sequence");
+
+    // Load configuration from file or defaults
+    let config = config::NmpConfig::load()?;
+    info!(
+        grpc_addr = %config.server.grpc_addr,
+        p2p_listen = %config.server.p2p_listen,
+        p2p_quic_listen = %config.server.p2p_quic_listen,
+        fuel_limit = config.sandbox.fuel_limit,
+        session_ttl = config.session.ttl_seconds,
+        tls_enabled = config.security.tls_enabled,
+        "Configuration loaded"
+    );
 
     // Phase 4: Hardware Enclave (TEE) Bootstrapping Stub
     let enclave = AwsNitroEnclaveStub;
@@ -28,15 +53,19 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let _report = enclave.generate_attestation_report(b"nmp-nonce-1234")?;
 
     // Boot up the Zero-Trust WASM Engine
-    println!("Loading Sandbox capabilities (Wasmtime+WASI)...");
-
+    info!("Loading Sandbox capabilities (Wasmtime+WASI)");
     let sandbox_engine = executor::create_wasi_engine()?;
 
     // Setup gRPC Server routing
-    let addr = "[::1]:50051".parse().unwrap();
-    let nmp_service = NmpService::new(sandbox_engine);
+    let addr = config.server.grpc_addr.parse().unwrap();
+    let nmp_service = NmpService::new(
+        sandbox_engine,
+        config.session.ttl_duration(),
+        config.sandbox.fuel_limit,
+        config.sandbox.allowed_dir.clone(),
+    );
 
-    println!("[-] Starting NMP gRPC Service on {}", addr);
+    info!(addr = %addr, "Starting NMP gRPC Service");
     let grpc_future = Server::builder()
         .add_service(NeuralMeshServer::new(nmp_service))
         .serve(addr);
@@ -44,13 +73,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Initialize Libp2p generic mesh presence (Kademlia/Noise)
     let mut swarm = p2p::build_mesh_swarm()?;
 
-    // Listen on all interfaces, randomized port for prototype testing
-    swarm.listen_on("/ip4/0.0.0.0/tcp/0".parse()?)?;
+    // Listen on configured interfaces
+    swarm.listen_on(config.server.p2p_listen.parse()?)?;
+    swarm.listen_on(config.server.p2p_quic_listen.parse()?)?;
 
-    // 5. Publish Capabilities to DHT (Zero ListTools Routing)
-    // In NMP, the server unilaterally pushes its schemas to the decentralized table.
-    // The Agent (LLM) reads this from the network RAM cache without pinging the server.
-    println!("[-] Publishing Tool Schemas to Kademlia DHT...");
+    // Publish Capabilities to DHT (Zero ListTools Routing)
+    info!("Publishing Tool Schemas to Kademlia DHT");
     let capabilities_json = r#"{
         "tools": [{
             "name": "analyze_logs_in_origin",
@@ -72,29 +100,29 @@ async fn main() -> Result<(), Box<dyn Error>> {
         expires: None,
     };
 
-    // For local prototype testing we store it directly. In a live mesh, we use `put_record`.
     let _ = swarm.behaviour_mut().kademlia.store_mut().put(record);
-    println!("[-] Capabilities cached successfully on the P2P Mesh.");
+    info!("Capabilities cached successfully on the P2P Mesh");
 
     // Enter the networking event loop
-    println!("Entering Agent Mesh Network Loop...");
+    info!("Entering Agent Mesh Network Loop");
     let p2p_future = async move {
         loop {
             tokio::select! {
                  event = swarm.select_next_some() => {
-                     match event {
-                         libp2p::swarm::SwarmEvent::NewListenAddr { address, .. } => {
-                             println!("[-] NMP Node P2P Mesh ready on: {}", address);
-                         }
-                         _ => {}
+                     if let libp2p::swarm::SwarmEvent::NewListenAddr { address, .. } = event {
+                         info!(address = %address, "NMP Node P2P Mesh ready");
                      }
                  }
             }
         }
     };
 
-    // Run both the P2P Mesh loop and the gRPC Engine concurrently
-    let _ = tokio::join!(grpc_future, p2p_future);
+    // Start health check HTTP endpoint (parallel to gRPC)
+    let health_addr: std::net::SocketAddr = "[::1]:50052".parse().unwrap();
+    let health_future = health::start_health_server(health_addr);
+
+    // Run the P2P Mesh, gRPC Engine, and Health Check concurrently
+    let _ = tokio::join!(grpc_future, p2p_future, health_future);
 
     Ok(())
 }

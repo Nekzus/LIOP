@@ -1,0 +1,249 @@
+<svg viewBox="0 0 1000 550" width="100%" height="auto" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Animation Paths -->
+    <!-- Claude -> Sentinel -->
+    <path id="req-mcp" d="M 220 280 L 320 280" fill="none" />
+    <path id="res-mcp" d="M 320 320 L 220 320" fill="none" />
+    
+    <!-- Sentinel -> Nexus -->
+    <path id="req-nexus" d="M 460 220 L 520 150" fill="none" />
+    <!-- Nexus -> Sentinel -->
+    <path id="res-nexus" d="M 500 140 L 440 210" fill="none" />
+    
+    <!-- Sentinel -> Vault B -->
+    <path id="req-vault" d="M 520 280 L 750 280" fill="none" />
+    <path id="res-vault" d="M 750 320 L 520 320" fill="none" />
+  </defs>
+
+  <style>
+    .text-title { font-family: system-ui, -apple-system, sans-serif; font-weight: 700; font-size: 18px; fill: #0f172a; }
+    .text-sub { font-family: system-ui, -apple-system, sans-serif; font-weight: 500; font-size: 14px; fill: #475569; }
+    .text-tiny { font-family: monospace; font-size: 12px; fill: #d97706; }
+    
+    .conn-line { stroke: #cbd5e1; stroke-width: 2; stroke-dasharray: 6, 6; animation: dash 20s linear infinite; }
+    .conn-faint { stroke: #e2e8f0; stroke-width: 1.5; stroke-dasharray: 4, 4; }
+    .conn-active { stroke: #0284c7; stroke-width: 2; stroke-dasharray: 6, 6; animation: dash-rev 10s linear infinite; }
+
+    @keyframes dash { to { stroke-dashoffset: -400; } }
+    @keyframes dash-rev { to { stroke-dashoffset: 400; } }
+
+    /* Timing: 10s Loop */
+    
+    /* 1. Claude -> Sentinel (Yellow) 0-15% */
+    @keyframes anim-1 {
+      0% { opacity: 0; transform: translate(0px, 0px); }
+      2% { opacity: 1; transform: translate(0px, 0px); }
+      13% { opacity: 1; transform: translate(100px, 0px); }
+      15% { opacity: 0; transform: translate(100px, 0px); }
+      100% { opacity: 0; }
+    }
+    .p-1-0 { animation: anim-1 10s linear infinite; opacity: 0; }
+    .p-1-1 { animation: anim-1 10s linear infinite 0.2s; opacity: 0; }
+    .p-1-2 { animation: anim-1 10s linear infinite 0.4s; opacity: 0; }
+
+    /* 2. Sentinel -> Nexus (Blue) 15-25% */
+    @keyframes anim-2 {
+      0% { opacity: 0; transform: translate(0px, 0px); }
+      15% { opacity: 0; transform: translate(0px, 0px); }
+      17% { opacity: 1; transform: translate(0px, 0px); }
+      23% { opacity: 1; transform: translate(60px, -70px); }
+      25% { opacity: 0; transform: translate(60px, -70px); }
+      100% { opacity: 0; }
+    }
+    .p-2-0 { animation: anim-2 10s linear infinite; opacity: 0; }
+    .p-2-1 { animation: anim-2 10s linear infinite 0.15s; opacity: 0; }
+    .p-2-2 { animation: anim-2 10s linear infinite 0.3s; opacity: 0; }
+
+    /* 3. Nexus -> Sentinel (Green) 25-35% */
+    @keyframes anim-3 {
+      0% { opacity: 0; transform: translate(0px, 0px); }
+      25% { opacity: 0; transform: translate(0px, 0px); }
+      27% { opacity: 1; transform: translate(0px, 0px); }
+      33% { opacity: 1; transform: translate(-60px, 70px); }
+      35% { opacity: 0; transform: translate(-60px, 70px); }
+      100% { opacity: 0; }
+    }
+    .p-3-0 { animation: anim-3 10s linear infinite; opacity: 0; }
+    .p-3-1 { animation: anim-3 10s linear infinite 0.15s; opacity: 0; }
+    .p-3-2 { animation: anim-3 10s linear infinite 0.3s; opacity: 0; }
+
+    /* 4. Sentinel -> Vault B (Cyan) 35-50% */
+    @keyframes anim-4 {
+      0% { opacity: 0; transform: translate(0px, 0px); }
+      35% { opacity: 0; transform: translate(0px, 0px); }
+      37% { opacity: 1; transform: translate(0px, 0px); }
+      48% { opacity: 1; transform: translate(230px, 0px); }
+      50% { opacity: 0; transform: translate(230px, 0px); }
+      100% { opacity: 0; }
+    }
+    .p-4-0 { animation: anim-4 10s linear infinite; opacity: 0; }
+    .p-4-1 { animation: anim-4 10s linear infinite 0.2s; opacity: 0; }
+    .p-4-2 { animation: anim-4 10s linear infinite 0.4s; opacity: 0; }
+
+    /* 5a. Processing Vault B Visibility (52-65%) */
+    @keyframes anim-5-viz {
+      0%, 51% { opacity: 0; }
+      52%, 65% { opacity: 1; }
+      66%, 100% { opacity: 0; }
+    }
+    .viz-5 { animation: anim-5-viz 10s linear infinite; }
+
+    /* 5b. Processing Vault B Spin (Continuous 1.5s loop) */
+    @keyframes anim-5-spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .p-5-0 { animation: anim-5-spin 1.5s linear infinite; transform-origin: 0px 0px; }
+    .p-5-1 { animation: anim-5-spin 1.5s linear infinite -0.5s; transform-origin: 0px 0px; }
+    .p-5-2 { animation: anim-5-spin 1.5s linear infinite -1.0s; transform-origin: 0px 0px; }
+
+    /* 6. Vault B -> Sentinel (Purple ZK) 65-80% */
+    @keyframes anim-6 {
+      0% { opacity: 0; transform: translate(0px, 0px); }
+      65% { opacity: 0; transform: translate(0px, 0px); }
+      67% { opacity: 1; transform: translate(0px, 0px); }
+      78% { opacity: 1; transform: translate(-230px, 0px); }
+      80% { opacity: 0; transform: translate(-230px, 0px); }
+      100% { opacity: 0; }
+    }
+    .p-6-0 { animation: anim-6 10s linear infinite; opacity: 0; }
+    .p-6-1 { animation: anim-6 10s linear infinite 0.2s; opacity: 0; }
+    .p-6-2 { animation: anim-6 10s linear infinite 0.4s; opacity: 0; }
+
+    /* 7. Sentinel -> Claude (Yellow) 80-95% */
+    @keyframes anim-7 {
+      0% { opacity: 0; transform: translate(0px, 0px); }
+      80% { opacity: 0; transform: translate(0px, 0px); }
+      82% { opacity: 1; transform: translate(0px, 0px); }
+      93% { opacity: 1; transform: translate(-100px, 0px); }
+      95% { opacity: 0; transform: translate(-100px, 0px); }
+      100% { opacity: 0; }
+    }
+    .p-7-0 { animation: anim-7 10s linear infinite; opacity: 0; }
+    .p-7-1 { animation: anim-7 10s linear infinite 0.2s; opacity: 0; }
+    .p-7-2 { animation: anim-7 10s linear infinite 0.4s; opacity: 0; }
+  </style>
+
+  <!-- Background Topology Connections -->
+  <!-- Claude <-> Sentinel -->
+  <line x1="220" y1="280" x2="320" y2="280" class="conn-line" />
+  <line x1="320" y1="320" x2="220" y2="320" class="conn-line" />
+  <text x="270" y="270" class="text-tiny" text-anchor="middle" fill="#64748b">HTTP</text>
+  
+  <!-- Sentinel <-> Nexus -->
+  <line x1="460" y1="220" x2="520" y2="150" class="conn-line" />
+  <line x1="500" y1="140" x2="440" y2="210" class="conn-line" />
+  <text x="450" y="170" class="text-tiny" text-anchor="middle" fill="#0284c7" transform="rotate(-50 450 170)">DHT Query</text>
+
+  <!-- Sentinel <-> Vault B (Active) -->
+  <line x1="520" y1="280" x2="750" y2="280" class="conn-active" />
+  <line x1="520" y1="320" x2="750" y2="320" class="conn-active" />
+  <text x="635" y="270" class="text-tiny" text-anchor="middle" fill="#0d9488">P2P gRPC + AES Tunel</text>
+
+  <!-- Sentinel <-> Other Vaults (Faint) -->
+  <line x1="520" y1="280" x2="750" y2="110" class="conn-faint" />
+  <line x1="520" y1="280" x2="750" y2="450" class="conn-faint" />
+
+  <!-- Nexus <-> Vaults (DHT Announces) -->
+  <path d="M 640 100 Q 700 80 750 100" class="conn-faint" fill="none"/>
+  <path d="M 630 140 Q 690 200 750 280" class="conn-faint" fill="none"/>
+  <path d="M 600 150 Q 650 350 750 450" class="conn-faint" fill="none"/>
+  <text x="690" y="180" class="text-sub" fill="#64748b" font-size="11">DHT Announces</text>
+
+
+  <!-- Node: Claude -->
+  <rect x="20" y="220" width="200" height="150" rx="12" fill="#ffffff" stroke="#f59e0b" stroke-width="2" />
+  <text x="120" y="255" class="text-title" text-anchor="middle">Claude Desktop</text>
+  <rect x="40" y="280" width="160" height="70" rx="6" fill="#f8fafc" />
+  <text x="120" y="305" class="text-sub" text-anchor="middle">"Call FetchWeather"</text>
+  <text x="120" y="325" class="text-sub" text-anchor="middle" fill="#d97706">Awaiting Result...</text>
+
+  <!-- Node: Sentinel -->
+  <rect x="320" y="220" width="200" height="150" rx="12" fill="#ffffff" stroke="#0ea5e9" stroke-width="2" />
+  <text x="420" y="255" class="text-title" text-anchor="middle">The Sentinel</text>
+  <rect x="340" y="280" width="160" height="70" rx="6" fill="#f0f9ff" />
+  <text x="420" y="305" class="text-tiny" text-anchor="middle" fill="#0284c7">1. Find in DHT</text>
+  <text x="420" y="325" class="text-tiny" text-anchor="middle" fill="#0284c7">2. Transcode &amp; Route</text>
+
+  <!-- Node: Nexus (Top) -->
+  <rect x="490" y="40" width="160" height="110" rx="12" fill="#ffffff" stroke="#10b981" stroke-width="2" />
+  <text x="570" y="75" class="text-title" text-anchor="middle">The Nexus</text>
+  <rect x="510" y="90" width="120" height="40" rx="6" fill="#ecfdf5" />
+  <text x="570" y="105" class="text-tiny" text-anchor="middle" fill="#059669">Bootstrap / DHT</text>
+  <text x="570" y="120" class="text-tiny" text-anchor="middle" fill="#059669">Routing Table</text>
+
+  <!-- Node: Vault A (Top Right) -->
+  <rect x="750" y="50" width="220" height="120" rx="12" fill="#ffffff" stroke="#cbd5e1" stroke-width="2" opacity="0.8"/>
+  <text x="860" y="85" class="text-title" text-anchor="middle">Vault A (Europe)</text>
+  <rect x="770" y="105" width="180" height="45" rx="6" fill="#f8fafc" />
+  <text x="860" y="125" class="text-sub" text-anchor="middle" fill="#475569">ProcessMedicalRecord</text>
+  <text x="860" y="140" class="text-tiny" text-anchor="middle" fill="#2563eb">ID: 12D3...VAULT_A</text>
+
+  <!-- Node: Vault B (Mid Right - Target) -->
+  <rect x="750" y="220" width="220" height="150" rx="12" fill="#ffffff" stroke="#8b5cf6" stroke-width="2" />
+  <text x="860" y="255" class="text-title" text-anchor="middle">Vault B (USA)</text>
+  <rect x="770" y="275" width="180" height="75" rx="6" fill="#fef2f2" stroke="#f43f5e" stroke-width="1" />
+  <text x="860" y="295" class="text-sub" text-anchor="middle" fill="#be123c">FetchWeather</text>
+  <text x="860" y="315" class="text-tiny" text-anchor="middle" fill="#059669">ID: 12D3...VAULT_B</text>
+  <text x="860" y="335" class="text-tiny" text-anchor="middle" fill="#d97706">WASI Sandbox Exec</text>
+
+  <!-- Node: Vault C (Bottom Right) -->
+  <rect x="750" y="400" width="220" height="120" rx="12" fill="#ffffff" stroke="#cbd5e1" stroke-width="2" opacity="0.8" />
+  <text x="860" y="435" class="text-title" text-anchor="middle">Vault C (Japan)</text>
+  <rect x="770" y="455" width="180" height="45" rx="6" fill="#f8fafc" />
+  <text x="860" y="475" class="text-sub" text-anchor="middle" fill="#475569">GenerateInvoice</text>
+  <text x="860" y="490" class="text-tiny" text-anchor="middle" fill="#2563eb">ID: 12D3...VAULT_C</text>
+
+
+  <!-- Particle Entities (Using Translation Groups) -->
+  
+  <!-- 1. Claude -> Sentinel -->
+  <g transform="translate(220, 280)">
+    <circle cx="0" cy="0" r="6" fill="#d97706" class="p-1-0" />
+    <circle cx="0" cy="0" r="6" fill="#d97706" class="p-1-1" />
+    <circle cx="0" cy="0" r="6" fill="#d97706" class="p-1-2" />
+  </g>
+
+  <!-- 2. Sentinel -> Nexus -->
+  <g transform="translate(460, 220)">
+    <circle cx="0" cy="0" r="6" fill="#3b82f6" class="p-2-0" />
+    <circle cx="0" cy="0" r="6" fill="#3b82f6" class="p-2-1" />
+    <circle cx="0" cy="0" r="6" fill="#3b82f6" class="p-2-2" />
+  </g>
+
+  <!-- 3. Nexus -> Sentinel -->
+  <g transform="translate(500, 140)">
+    <circle cx="0" cy="0" r="6" fill="#059669" class="p-3-0" />
+    <circle cx="0" cy="0" r="6" fill="#059669" class="p-3-1" />
+    <circle cx="0" cy="0" r="6" fill="#059669" class="p-3-2" />
+  </g>
+
+  <!-- 4. Sentinel -> Vault B -->
+  <g transform="translate(520, 280)">
+    <circle cx="0" cy="0" r="6" fill="#0d9488" class="p-4-0" />
+    <circle cx="0" cy="0" r="6" fill="#0d9488" class="p-4-1" />
+    <circle cx="0" cy="0" r="6" fill="#0d9488" class="p-4-2" />
+  </g>
+
+  <!-- 5. Processing Vault B -->
+  <g transform="translate(860, 310)" class="viz-5">
+    <circle cx="0" cy="-30" r="4" fill="#d97706" class="p-5-0" />
+    <circle cx="0" cy="-30" r="4" fill="#d97706" class="p-5-1" />
+    <circle cx="0" cy="-30" r="4" fill="#d97706" class="p-5-2" />
+  </g>
+
+  <!-- 6. Vault B -> Sentinel -->
+  <g transform="translate(750, 320)">
+    <circle cx="0" cy="0" r="6" fill="#8b5cf6" class="p-6-0" />
+    <circle cx="0" cy="0" r="6" fill="#8b5cf6" class="p-6-1" />
+    <circle cx="0" cy="0" r="6" fill="#8b5cf6" class="p-6-2" />
+  </g>
+
+  <!-- 7. Sentinel -> Claude -->
+  <g transform="translate(320, 320)">
+    <circle cx="0" cy="0" r="6" fill="#d97706" class="p-7-0" />
+    <circle cx="0" cy="0" r="6" fill="#d97706" class="p-7-1" />
+    <circle cx="0" cy="0" r="6" fill="#d97706" class="p-7-2" />
+  </g>
+
+</svg>
