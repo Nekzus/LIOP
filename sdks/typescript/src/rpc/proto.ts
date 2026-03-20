@@ -11,7 +11,7 @@ import * as fs from "node:fs";
 // Selection logic
 const PROD_PROTO_PATH = path.resolve(
 	__dirname,
-	"../../protocol/nmp_core.proto",
+	"../protocol/nmp_core.proto",
 );
 // 2. Fallback to monorepo development path
 const DEV_PROTO_PATH = path.resolve(
