@@ -6,11 +6,24 @@ import * as protoLoader from "@grpc/proto-loader";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Path to the shared proto file in the monorepo
-const PROTO_PATH = path.resolve(
+import * as fs from "node:fs";
+
+// Selection logic
+const PROD_PROTO_PATH = path.resolve(__dirname, "../../protocol/nmp_core.proto");
+// 2. Fallback to monorepo development path
+const DEV_PROTO_PATH = path.resolve(
 	__dirname,
 	"../../../../protocol/proto/nmp_core.proto",
 );
+
+// Selection logic
+const PROTO_PATH = fs.existsSync(PROD_PROTO_PATH)
+	? PROD_PROTO_PATH
+	: DEV_PROTO_PATH;
+
+if (!fs.existsSync(PROTO_PATH)) {
+	console.error(`[NMP-Proto] 🚨 CRITICAL: Proto file not found at ${PROTO_PATH}`);
+}
 
 /**
  * NMP Proto Loader
