@@ -1,20 +1,17 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { z } from "zod";
+import { NmpHybridGateway } from "../gateway/hybrid.js";
+import { NmpServer } from "../server/index.js";
 
 /**
  * NmpStreamBridge Integration Test Suite.
  *
- * Prerequisites:
- *   1. Start The Vault server: `npx tsx examples/demos/high-fidelity-demo/src/run-mcp.ts`
- *   2. Run tests: `pnpm vitest run src/bridge/stream.test.ts`
- *
- * These tests validate the full NMP pipeline over the Streamable HTTP transport:
- * connection, tool discovery, Logic-on-Origin execution, PII egress protection,
- * concurrent sessions, and sandbox security.
+ * This suite now manages its own "The Vault" server instance automatically.
  */
 
-/** Shape returned by client.callTool() */
+// ... (interfaces existing)
 interface ToolResult {
 	content: Array<{ type: string; text: string }>;
 	isError?: boolean;
@@ -39,6 +36,52 @@ async function createRemoteClient(name: string): Promise<Client> {
 }
 
 describe("NmpStreamBridge (Integration)", () => {
+	let gateway: NmpHybridGateway;
+	let server: NmpServer;
+
+	beforeAll(async () => {
+		// Initialize the Mock "The Vault" Server
+		server = new NmpServer(
+			{ name: "The Vault - Integration Test", version: "1.1.2" },
+			{
+				security: {
+					forbiddenKeys: ["id", "name"],
+					piiPatterns: [],
+				},
+			},
+		);
+
+		// Critical: Start gRPC server and Mesh Node (necessary for PQC handshake in the Router)
+		await server.connectToMesh({ port: 50051 });
+
+		// Seed with Industrial Records (Matching Demo requirements)
+		server.setSandboxData([
+			{ id: "P001", name: "Alice", age: 34, condition: "Hypertension" },
+			{ id: "P005", name: "Eve", age: 62, condition: "Diabetes Type 2" },
+		]);
+
+		// Register the critical Audit Sandbox tool required by tests
+		server.tool(
+			"nmp_audit_sandbox",
+			"Executes Logic-on-Origin",
+			{ payload: z.string() },
+			// This handler is only reached if boundaries are missing
+			async () => ({
+				content: [{ type: "text", text: "Error: Logic-on-Origin boundaries missing." }],
+				isError: true,
+			}),
+		);
+
+		// Initialize and Start the Hybrid Gateway (Port 3000)
+		gateway = new NmpHybridGateway(server);
+		await gateway.listen(3000, "127.0.0.1");
+	});
+
+	afterAll(async () => {
+		await gateway.stop();
+		await server.close();
+	});
+
 	it("should support 3 concurrent client sessions", async () => {
 		const [client1, client2, client3] = await Promise.all([
 			createRemoteClient("ConcurrentAgent-1"),
