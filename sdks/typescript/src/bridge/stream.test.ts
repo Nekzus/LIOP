@@ -67,7 +67,9 @@ describe("NmpStreamBridge (Integration)", () => {
 			{ payload: z.string() },
 			// This handler is only reached if boundaries are missing
 			async () => ({
-				content: [{ type: "text", text: "Error: Logic-on-Origin boundaries missing." }],
+				content: [
+					{ type: "text", text: "Error: Logic-on-Origin boundaries missing." },
+				],
 				isError: true,
 			}),
 		);
