@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.2.0-alpha.3](https://github.com/Nekzus/Neural-Mesh-Protocol/compare/v1.2.0-alpha.2...v1.2.0-alpha.3) (2026-03-20)
+
+
+### Bug Fixes
+
+* **sdk:** correct production proto path in dist package ([0b8a0ed](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/0b8a0eda1511c811e6d16fd025f1f34ac478829b))
+* **sdk:** ensure stable integration tests and final biome formatting ([366cc0d](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/366cc0d199ff7acf3bb5ee3d81906383ec37951c))
+
 # [1.2.0-alpha.2](https://github.com/Nekzus/Neural-Mesh-Protocol/compare/v1.2.0-alpha.1...v1.2.0-alpha.2) (2026-03-20)
 
 
