@@ -16,7 +16,7 @@ async function main() {
 
 	// 2. We assume we know The Vault's listen address for bootstrap
 	// Read the dynamically generated PeerID from The Vault
-	const fs = await import("fs/promises");
+	const fs = await import("node:fs/promises");
 	let vaultMultiaddr = "";
 	try {
 		vaultMultiaddr = (await fs.readFile("vault.multiaddr", "utf-8")).trim();

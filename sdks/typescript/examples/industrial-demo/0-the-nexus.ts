@@ -1,4 +1,4 @@
-import * as fs from "fs/promises";
+import * as fs from "node:fs/promises";
 import { NmpServer } from "../../src/server/index.js";
 
 async function main() {

@@ -46,7 +46,7 @@ async function main() {
 	// Read Nexus Address
 	const bootstrapNodes: string[] = [];
 	try {
-		const fs = await import("fs/promises");
+		const fs = await import("node:fs/promises");
 		const addr = await fs.readFile("nexus.multiaddr", "utf-8");
 		bootstrapNodes.push(addr.trim());
 		console.log(`[The Vault] Discovered Nexus at ${addr.trim()}`);
@@ -73,7 +73,7 @@ async function main() {
 	// Tools are auto-announced to DHT by connectToMesh()
 
 	// 5. Write the actual multiaddr to a file for Sentinel/Agent to bootstrap
-	const fs = await import("fs/promises");
+	const fs = await import("node:fs/promises");
 	const multiaddrs = meshNode.getMultiaddrs();
 	// Prefer IPv4 TCP / 127.0.0.1 for local testing
 	const p2pAddr =
