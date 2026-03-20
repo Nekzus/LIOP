@@ -3,6 +3,23 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.2.0-alpha.1](https://github.com/Nekzus/Neural-Mesh-Protocol/compare/v1.1.2...v1.2.0-alpha.1) (2026-03-20)
+
+
+### Bug Fixes
+
+* **demo:** Improve scenario parsing to support npm config variables ([949ef46](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/949ef4615f7978ee9902cf365334d80678a3ab2f))
+* **sdk:** add node: protocol to built-in imports in industrial-demo examples ([4af86a4](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/4af86a4ef22e0700b0f9647f2f305b564a9ab3ee))
+* **sdk:** Enforce strict JSON-RPC by redirecting all telemetry to stderr ([959f152](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/959f152dcafbc4d1cc3492ebec5deb55ea99a919))
+* **sdk:** move organizeImports to assist section in biome.json for v2.4 compatibility ([a7cf460](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/a7cf460cf9530950e540726fa13af22bedd3f553))
+
+
+### Features
+
+* **bridge:** Graceful shutdown on MCP client disconnect to prevent EADDRINUSE ([38444f4](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/38444f47e7a2190264c1c74b4e8bc7ec5989069d))
+* **nmp-alpha:** complete alpha phase with e2e validation and cloudflare edge pivot ([f2eb84e](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/f2eb84ecdcaf2d31bd7a1ee72d84261c2885092a))
+* **nmp-mesh:** Final Alpha Release with Multi-Node Topology (squash) ([e265172](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/e265172a8362e5ed61017dbf74a6b5f49c76362b))
+
 ## [1.1.2](https://github.com/Nekzus/Neural-Mesh-Protocol/compare/v1.1.1...v1.1.2) (2026-03-05)
 
 
