@@ -78,7 +78,8 @@ export class MeshNode {
 						`[NMP-Mesh] Loaded persistent identity from ${absolutePath}`,
 					);
 					return { privateKey, isNew: false };
-				} catch (e: any) {
+				} catch (error: unknown) {
+					const e = error as Error & { code?: string };
 					if (e.code !== "ENOENT") {
 						console.error(`[NMP-Mesh] Error loading identity: ${e.message}`);
 					}
@@ -98,6 +99,7 @@ export class MeshNode {
 	/**
 	 * Persists the private key to disk using protobuf serialization (libp2p v3.x).
 	 */
+	// biome-ignore lint/suspicious/noExplicitAny: Libp2p private key type is complex for Alpha
 	private async saveIdentity(privateKey: any) {
 		if (!this.config.identityPath || !this.node) return;
 
@@ -196,18 +198,17 @@ export class MeshNode {
 					// Allow local/private IPs in the DHT routing table for development/testing
 					allowQueryWithZeroPeers: true,
 				}),
-				// @ts-expect-error: Conflict between @libp2p/peer-collections versions
 				ping: ping(),
 			},
-			// @ts-expect-error: Conflict between @libp2p/interface versions for bootstrap components
-			peerDiscovery:
-				this.config.bootstrapNodes && this.config.bootstrapNodes.length > 0
-					? [
-							bootstrap({
-								list: this.config.bootstrapNodes,
-							}),
-						]
-					: undefined,
+			// biome-ignore lint/suspicious/noExplicitAny: libp2p interface version conflict (PeerId/PeerStore mismatch)
+			peerDiscovery: (this.config.bootstrapNodes &&
+			this.config.bootstrapNodes.length > 0
+				? [
+						bootstrap({
+							list: this.config.bootstrapNodes,
+						}),
+					]
+				: undefined) as any,
 		});
 
 		// Monitor Connectivity Events
@@ -223,21 +224,23 @@ export class MeshNode {
 
 			if (!this.node) return;
 			const dht = (this.node.services as any).dht;
-			if (dht && dht.routingTable) {
+			if (dht?.routingTable) {
 				console.error(
 					`[NMP-Mesh] 📍 Adding ${peerId.toString()} to DHT Routing Table`,
 				);
-				dht.routingTable.add(peerId).catch((err: any) => {
+				dht.routingTable.add(peerId).catch((err: unknown) => {
 					console.error(
-						`[NMP-Mesh] Failed to add peer to routing table: ${err}`,
+						`[NMP-Mesh] Failed to add peer to routing table: ${err instanceof Error ? err.message : String(err)}`,
 					);
 				});
 			}
 
 			// Trigger reactive re-announcement of all capabilities
 			// so that ADD_PROVIDER messages reach the new peer
-			this.reannounceAll().catch((err: any) => {
-				console.error(`[NMP-Mesh] Re-announce error: ${err}`);
+			this.reannounceAll().catch((err: unknown) => {
+				console.error(
+					`[NMP-Mesh] Re-announce error: ${err instanceof Error ? err.message : String(err)}`,
+				);
 			});
 		});
 
@@ -333,9 +336,9 @@ export class MeshNode {
 					providers.push(peerId);
 				}
 			}
-		} catch (error: any) {
+		} catch (error: unknown) {
 			console.error(
-				`[NMP-Mesh] 🚨 Error finding providers for ${hash}: ${error.message}`,
+				`[NMP-Mesh] 🚨 Error finding providers for ${hash}: ${error instanceof Error ? error.message : String(error)}`,
 			);
 		}
 
@@ -364,6 +367,7 @@ export class MeshNode {
 			const allPeers = await this.node.peerStore.all();
 			for (const peer of allPeers) {
 				if (peer.id.toString() === peerIdStr && peer.addresses.length > 0) {
+					// biome-ignore lint/suspicious/noExplicitAny: Internal libp2p addr type
 					const addrs = peer.addresses.map((a: any) => a.multiaddr.toString());
 					console.error(
 						`[NMP-Mesh] Resolved peer ${peerIdStr} via peerStore: ${addrs[0]}`,

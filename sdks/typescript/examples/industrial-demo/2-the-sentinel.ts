@@ -1,4 +1,3 @@
-import { peerIdFromString } from "@libp2p/peer-id";
 import { NmpHybridGateway } from "../../src/gateway/hybrid.js";
 import { NmpServer } from "../../src/server/index.js";
 
@@ -23,7 +22,7 @@ async function main() {
 		console.log(
 			`[The Sentinel] 📎 Read Vault Bootstrap Address: ${vaultMultiaddr}`,
 		);
-	} catch (e) {
+	} catch (_e) {
 		console.error("🚨 Error: Start '1-the-vault.ts' first!");
 		process.exit(1);
 	}

@@ -1,0 +1,291 @@
+examples\industrial-demo\3-mcp-client.ts:37:14 lint/suspicious/noExplicitAny ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü
+
+  ! Unexpected any. Specify a different type.
+  
+    35 Ôöé 		console.log("[Claude] -> Contenido:");
+    36 Ôöé 		console.log(JSON.stringify(result, null, 2));
+  > 37 Ôöé 	} catch (e: any) {
+       Ôöé 	            ^^^
+    38 Ôöé 		console.error(`[Claude] ÔØî Fallo la conexi├│n: ${e.message}`);
+    39 Ôöé 	}
+  
+  i any disables many type checking rules. Its use should be avoided.
+  
+
+scripts\debug-key-api.ts:2:56 lint/suspicious/noExplicitAny ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü
+
+  ! Unexpected any. Specify a different type.
+  
+    1 Ôöé async function main() {
+  > 2 Ôöé 	const keys = (await import("@libp2p/crypto/keys")) as any;
+      Ôöé 	                                                      ^^^
+    3 Ôöé 	console.log("Available exports from @libp2p/crypto/keys:");
+    4 Ôöé 	console.log(Object.keys(keys));
+  
+  i any disables many type checking rules. Its use should be avoided.
+  
+
+src\client\index.ts:134:10 lint/suspicious/noExplicitAny ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü
+
+  ! Unexpected any. Specify a different type.
+  
+    132 Ôöé 			capability_hash: request.name,
+    133 Ôöé 			proof_of_intent: Buffer.from("alpha-intent-proof"),
+  > 134 Ôöé 		})) as any;
+        Ôöé 		       ^^^
+    135 Ôöé 
+    136 Ôöé 		if (!intentResponse.accepted) {
+  
+  i any disables many type checking rules. Its use should be avoided.
+  
+
+src\gateway\hybrid.ts:128:29 lint/suspicious/noExplicitAny ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü
+
+  ! Unexpected any. Specify a different type.
+  
+    127 Ôöé 	private handleGrpcStream(stream: http2.ServerHttp2Stream) {
+  > 128 Ôöé 		stream.on("data", (chunk: any) => {
+        Ôöé 		                          ^^^
+    129 Ôöé 			const decoded = LpmCodec.decode(new Uint8Array(chunk));
+    130 Ôöé 			if (decoded.data)
+  
+  i any disables many type checking rules. Its use should be avoided.
+  
+
+src\gateway\router.ts:16:24 lint/suspicious/noExplicitAny ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü
+
+  ! Unexpected any. Specify a different type.
+  
+    14 Ôöé  */
+    15 Ôöé export class NmpMcpRouter {
+  > 16 Ôöé 	private virtualTools: any[] = [];
+       Ôöé 	                      ^^^
+    17 Ôöé 
+    18 Ôöé 	constructor(
+  
+  i any disables many type checking rules. Its use should be avoided.
+  
+
+src\gateway\router.ts:22:17 lint/suspicious/noExplicitAny ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü
+
+  ! Unexpected any. Specify a different type.
+  
+    20 Ôöé 		private meshNode: MeshNode | null = null,
+    21 Ôöé 		rpcPort = 50051,
+  > 22 Ôöé 		virtualTools: any[] = [],
+       Ôöé 		              ^^^
+    23 Ôöé 	) {
+    24 Ôöé 		this.virtualTools = virtualTools;
+  
+  i any disables many type checking rules. Its use should be avoided.
+  
+
+src\gateway\router.ts:31:33 lint/suspicious/noExplicitAny ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü
+
+  ! Unexpected any. Specify a different type.
+  
+    29 Ôöé 	}
+    30 Ôöé 
+  > 31 Ôöé 	public async dispatch(request: any): Promise<any> {
+       Ôöé 	                               ^^^
+    32 Ôöé 		const { method, params, id } = request;
+    33 Ôöé 		console.error(`[NMP-Router] Processing: ${method}`);
+  
+  i any disables many type checking rules. Its use should be avoided.
+  
+
+src\gateway\router.ts:31:47 lint/suspicious/noExplicitAny ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü
+
+  ! Unexpected any. Specify a different type.
+  
+    29 Ôöé 	}
+    30 Ôöé 
+  > 31 Ôöé 	public async dispatch(request: any): Promise<any> {
+       Ôöé 	                                             ^^^
+    32 Ôöé 		const { method, params, id } = request;
+    33 Ôöé 		console.error(`[NMP-Router] Processing: ${method}`);
+  
+  i any disables many type checking rules. Its use should be avoided.
+  
+
+src\gateway\router.ts:80:19 lint/suspicious/noExplicitAny ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü
+
+  ! Unexpected any. Specify a different type.
+  
+    78 Ôöé 					const result = this.nmpServer.readResource(params.uri as string);
+    79 Ôöé 					return { jsonrpc: "2.0", id, result };
+  > 80 Ôöé 				} catch (err: any) {
+       Ôöé 				              ^^^
+    81 Ôöé 					return {
+    82 Ôöé 						jsonrpc: "2.0",
+  
+  i any disables many type checking rules. Its use should be avoided.
+  
+
+src\gateway\router.ts:103:38 lint/suspicious/noExplicitAny ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü
+
+  ! Unexpected any. Specify a different type.
+  
+    101 Ôöé 	}
+    102 Ôöé 
+  > 103 Ôöé 	private async transcodeMcpToNmp(id: any, params: any): Promise<any> {
+        Ôöé 	                                    ^^^
+    104 Ôöé 		const toolName = params.name;
+    105 Ôöé 		const isLocal = this.nmpServer.listTools().some((t) => t.name === toolName);
+  
+  i any disables many type checking rules. Its use should be avoided.
+  
+
+src\gateway\router.ts:103:51 lint/suspicious/noExplicitAny ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü
+
+  ! Unexpected any. Specify a different type.
+  
+    101 Ôöé 	}
+    102 Ôöé 
+  > 103 Ôöé 	private async transcodeMcpToNmp(id: any, params: any): Promise<any> {
+        Ôöé 	                                                 ^^^
+    104 Ôöé 		const toolName = params.name;
+    105 Ôöé 		const isLocal = this.nmpServer.listTools().some((t) => t.name === toolName);
+  
+  i any disables many type checking rules. Its use should be avoided.
+  
+
+src\gateway\router.ts:103:65 lint/suspicious/noExplicitAny ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü
+
+  ! Unexpected any. Specify a different type.
+  
+    101 Ôöé 	}
+    102 Ôöé 
+  > 103 Ôöé 	private async transcodeMcpToNmp(id: any, params: any): Promise<any> {
+        Ôöé 	                                                               ^^^
+    104 Ôöé 		const toolName = params.name;
+    105 Ôöé 		const isLocal = this.nmpServer.listTools().some((t) => t.name === toolName);
+  
+  i any disables many type checking rules. Its use should be avoided.
+  
+
+src\gateway\router.ts:137:7 lint/suspicious/noExplicitAny ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü
+
+  ! Unexpected any. Specify a different type.
+  
+    136 Ôöé 	private async routeToRemoteProvider(
+  > 137 Ôöé 		id: any,
+        Ôöé 		    ^^^
+    138 Ôöé 		toolName: string,
+    139 Ôöé 		peerId: string,
+  
+  i any disables many type checking rules. Its use should be avoided.
+  
+
+src\gateway\router.ts:140:11 lint/suspicious/noExplicitAny ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü
+
+  ! Unexpected any. Specify a different type.
+  
+    138 Ôöé 		toolName: string,
+    139 Ôöé 		peerId: string,
+  > 140 Ôöé 		params: any,
+        Ôöé 		        ^^^
+    141 Ôöé 	): Promise<any> {
+    142 Ôöé 		if (!this.meshNode)
+  
+  i any disables many type checking rules. Its use should be avoided.
+  
+
+src\gateway\router.ts:141:13 lint/suspicious/noExplicitAny ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü
+
+  ! Unexpected any. Specify a different type.
+  
+    139 Ôöé 		peerId: string,
+    140 Ôöé 		params: any,
+  > 141 Ôöé 	): Promise<any> {
+        Ôöé 	           ^^^
+    142 Ôöé 		if (!this.meshNode)
+    143 Ôöé 			return {
+  
+  i any disables many type checking rules. Its use should be avoided.
+  
+
+src\gateway\router.ts:187:7 lint/suspicious/noExplicitAny ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü
+
+  ! Unexpected any. Specify a different type.
+  
+    186 Ôöé 	private async performTranscoding(
+  > 187 Ôöé 		id: any,
+        Ôöé 		    ^^^
+    188 Ôöé 		client: any,
+    189 Ôöé 		toolName: string,
+  
+  i any disables many type checking rules. Its use should be avoided.
+  
+
+src\gateway\router.ts:188:11 lint/suspicious/noExplicitAny ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü
+
+  ! Unexpected any. Specify a different type.
+  
+    186 Ôöé 	private async performTranscoding(
+    187 Ôöé 		id: any,
+  > 188 Ôöé 		client: any,
+        Ôöé 		        ^^^
+    189 Ôöé 		toolName: string,
+    190 Ôöé 		params: any,
+  
+  i any disables many type checking rules. Its use should be avoided.
+  
+
+src\gateway\router.ts:190:11 lint/suspicious/noExplicitAny ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü
+
+  ! Unexpected any. Specify a different type.
+  
+    188 Ôöé 		client: any,
+    189 Ôöé 		toolName: string,
+  > 190 Ôöé 		params: any,
+        Ôöé 		        ^^^
+    191 Ôöé 	): Promise<any> {
+    192 Ôöé 		return new Promise((resolve) => {
+  
+  i any disables many type checking rules. Its use should be avoided.
+  
+
+src\rpc\client.ts:16:18 lint/suspicious/noExplicitAny ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü
+
+  ! Unexpected any. Specify a different type.
+  
+    14 Ôöé  */
+    15 Ôöé export class NmpRpcClient {
+  > 16 Ôöé 	private client: any;
+       Ôöé 	                ^^^
+    17 Ôöé 
+    18 Ôöé 	constructor(address: string, tls?: NmpTlsOptions) {
+  
+  i any disables many type checking rules. Its use should be avoided.
+  
+
+src\rpc\codec\lpm.ts:8:8 lint/complexity/noStaticOnlyClass ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü
+
+  ! Avoid classes that contain only static members.
+  
+     6 Ôöé  */
+     7 Ôöé 
+   > 8 Ôöé export class LpmCodec {
+       Ôöé        ^^^^^^^^^^^^^^^^
+   > 9 Ôöé 	/**
+        ...
+  > 47 Ôöé 		return { data, remaining };
+  > 48 Ôöé 	}
+  > 49 Ôöé }
+       Ôöé ^
+    50 Ôöé 
+  
+  i Prefer using simple functions instead of classes with only static members.
+  
+
+The number of diagnostics exceeds the limit allowed. Use --max-diagnostics to increase it.
+Diagnostics not shown: 31.
+Checked 78 files in 165ms. No fixes applied.
+Found 4 errors.
+Found 47 warnings.
+check ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü
+
+  ├ù Some errors were emitted while running checks.
+  
+

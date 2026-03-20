@@ -1,5 +1,7 @@
+export {};
+
 async function main() {
-	const keys = (await import("@libp2p/crypto/keys")) as any;
+	const keys = (await import("@libp2p/crypto/keys")) as Record<string, unknown>;
 	console.log("Available exports from @libp2p/crypto/keys:");
 	console.log(Object.keys(keys));
 

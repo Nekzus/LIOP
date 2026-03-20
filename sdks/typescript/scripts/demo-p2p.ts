@@ -13,7 +13,7 @@ async function runDemo() {
 	try {
 		await fs.unlink(IDENTITY_PATH);
 		console.log("Deleted old identity for fresh demo.\n");
-	} catch (e) {}
+	} catch (_e) {}
 
 	// STEP 1: First Start (Generate)
 	console.log("Step 1: Starting fresh MeshNode...");

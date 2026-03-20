@@ -3,16 +3,16 @@ import { NmpRpcClient } from "../rpc/client.js";
 import { AesGcmWrapper } from "../rpc/crypto/aes.js";
 import { Kyber768Wrapper } from "../rpc/crypto/kyber.js";
 import type { LogicRequest, LogicResponse } from "../rpc/types.js";
-import type { CallToolRequest, CallToolResult, ServerInfo } from "../types.js";
+import type { CallToolRequest, CallToolResult } from "../types.js";
 
 /**
  * NmpClient interfaces with the P2P Mesh (or local Bridge) to dynamically
  * request or inject Logic-on-Origin capabilities into remote execution environments.
  */
 export class NmpClient {
-	private serverInfo?: ServerInfo;
 	private rpcClient: NmpRpcClient | null = null;
 	private meshNode: MeshNode | null = null;
+	private serverInfo?: { name: string; version: string };
 
 	/**
 	 * Discovers and connects to the target server or mesh capability.
@@ -109,7 +109,7 @@ export class NmpClient {
 	 */
 	public async callTool(
 		request: CallToolRequest,
-		wasmPayload?: Buffer,
+		_wasmPayload?: Buffer,
 	): Promise<CallToolResult> {
 		if (!this.meshNode) {
 			throw new Error("Client must be connected before calling tools.");
@@ -131,7 +131,14 @@ export class NmpClient {
 			agent_did: "nmp-client-alpha", // In production, this would be a Noise PeerID or SPIFFE ID
 			capability_hash: request.name,
 			proof_of_intent: Buffer.from("alpha-intent-proof"),
-		})) as any;
+		})) as unknown as {
+			accepted: boolean;
+			error_message: string;
+			kyber_public_key: Uint8Array;
+			kyberPublicKey: Uint8Array;
+			session_token: string;
+			sessionToken: string;
+		};
 
 		if (!intentResponse.accepted) {
 			throw new Error(`Intent denied by host: ${intentResponse.error_message}`);
@@ -163,11 +170,11 @@ export class NmpClient {
 		// 3. Symmetric Sealing (AES-256-GCM)
 		console.error(`[NmpClient] 🛡️ Sealing WASM Payload and Inputs...`);
 
-		const safePayload = wasmPayload || Buffer.from("");
+		const _safePayload = _wasmPayload || Buffer.from("");
 
 		// Encrypt WASM binary
 		const { ciphertext: encryptedWasm, nonce: aesNonce } =
-			AesGcmWrapper.encryptPayload(safePayload, sharedSecret);
+			AesGcmWrapper.encryptPayload(_safePayload, sharedSecret);
 
 		// Encrypt inputs using the SAME session nonce for the multi-payload request (Standard NMP V1)
 		const encryptedInputs: Record<string, Uint8Array> = {};
@@ -198,7 +205,11 @@ export class NmpClient {
 		};
 
 		return new Promise((resolve, reject) => {
-			const stream = this.rpcClient!.executeLogic(logicRequest);
+			const stream = this.rpcClient?.executeLogic(logicRequest);
+			if (!stream) {
+				reject(new Error("RPC Client unavailable or failed to create stream."));
+				return;
+			}
 			let resultFulfilled = false;
 
 			stream.on("data", async (response: LogicResponse) => {
@@ -209,7 +220,7 @@ export class NmpClient {
 
 				try {
 					const isValid = await this.verifyZkReceipt(
-						safePayload,
+						_safePayload,
 						Buffer.from(response.cryptographic_proof).toString("hex"),
 						Buffer.from(response.zk_receipt),
 					);
@@ -301,7 +312,7 @@ export class NmpClient {
 		}
 	}
 
-	public getServerInfo(): ServerInfo | undefined {
+	public getServerInfo(): { name: string; version: string } | undefined {
 		return this.serverInfo;
 	}
 

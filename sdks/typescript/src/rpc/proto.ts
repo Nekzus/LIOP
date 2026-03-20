@@ -24,5 +24,6 @@ const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
 	oneofs: true,
 });
 
+// biome-ignore lint/suspicious/noExplicitAny: gRPC dynamic loading requires any for the service definition map
 export const nmpProto = grpc.loadPackageDefinition(packageDefinition) as any;
 export const nmpV1 = nmpProto.nmp.v1;

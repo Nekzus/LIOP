@@ -8,7 +8,7 @@ describe("NmpClient", () => {
 	it("should throw an error if attempting to execute without connection", async () => {
 		const client = new NmpClient();
 
-		const mockServerPublicKey = new Uint8Array(1184);
+		const _mockServerPublicKey = new Uint8Array(1184);
 		const mockWasmPayload = Buffer.from("mock");
 
 		await expect(

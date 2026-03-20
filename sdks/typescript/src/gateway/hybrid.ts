@@ -1,9 +1,8 @@
-import * as http from "http";
-import * as http2 from "http2";
-import * as net from "net";
+import * as http from "node:http";
+import * as http2 from "node:http2";
+import * as net from "node:net";
 import { MeshNode, type MeshNodeConfig } from "../mesh/index.js";
-import { LpmCodec } from "../rpc/codec/lpm.js";
-import { createChannelCredentials, type NmpTlsOptions } from "../rpc/tls.js";
+import type { NmpTlsOptions } from "../rpc/tls.js";
 import type { NmpServer } from "../server/index.js";
 import { NmpMcpRouter } from "./router.js";
 
@@ -107,7 +106,7 @@ export class NmpHybridGateway {
 						const response = await this.router.dispatch(jsonRequest);
 						res.writeHead(200, { "Content-Type": "application/json" });
 						res.end(JSON.stringify(response));
-					} catch (e) {
+					} catch (_e) {
 						res.writeHead(400);
 						res.end(
 							JSON.stringify({
@@ -125,11 +124,12 @@ export class NmpHybridGateway {
 	}
 
 	private handleGrpcStream(stream: http2.ServerHttp2Stream) {
-		stream.on("data", (chunk: any) => {
-			const decoded = LpmCodec.decode(new Uint8Array(chunk));
-			if (decoded.data)
+		stream.on("data", (chunk: unknown) => {
+			// biome-ignore lint/suspicious/noExplicitAny: Standard gRPC stream data is Buffer
+			const data = chunk as any;
+			if (data)
 				console.error(
-					`[NMP-Hybrid] Native gRPC Proxy passing ${decoded.data.length} bytes`,
+					`[NMP-Hybrid] Native gRPC Proxy passing ${data.length} bytes`,
 				);
 		});
 		stream.respond({ ":status": 200, "content-type": "application/grpc" });
@@ -152,7 +152,7 @@ export class NmpHybridGateway {
 					});
 					stream.end(JSON.stringify(response));
 				} else stream.close();
-			} catch (e) {
+			} catch (_e) {
 				stream.respond({ ":status": 400 });
 				stream.end();
 			}

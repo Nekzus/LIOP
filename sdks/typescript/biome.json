@@ -1,5 +1,18 @@
 {
 	"$schema": "https://biomejs.dev/schemas/2.4.7/schema.json",
+	"vcs": {
+		"enabled": false
+	},
+	"files": {
+		"includes": [
+			"src/**/*.ts",
+			"src/**/*.mts",
+			"src/**/*.cts",
+			"scripts/**/*.ts",
+			"examples/**/*.ts",
+			"test/**/*.ts"
+		]
+	},
 	"formatter": {
 		"enabled": true,
 		"indentStyle": "tab"

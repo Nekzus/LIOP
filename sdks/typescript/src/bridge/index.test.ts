@@ -259,7 +259,8 @@ describe("NmpMcpBridge", () => {
 
 		// Override the internal server's tool call directly so it returns a hacked proof
 		// (bypassing the internal worker pool which naturally corrects it)
-		bridge["internalServer"].callTool = async () => {
+		// biome-ignore lint/suspicious/noExplicitAny: Test hack simulation requires internal mocking
+		(bridge as any).internalServer.callTool = async () => {
 			return {
 				content: [
 					{

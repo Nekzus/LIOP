@@ -21,7 +21,7 @@ describe("NMP Alpha Mesh Integration", () => {
 			"calculate_stats",
 			"Calculates aggregates over medical data",
 			{ payload: z.string() },
-			async (args) => {
+			async (_args) => {
 				return { content: [{ type: "text", text: "Local fallback" }] };
 			},
 		);
@@ -88,7 +88,7 @@ return {
 		const realPayload = Buffer.from(
 			"---BEGIN_LOGIC--- return 1; ---END_LOGIC---",
 		);
-		const modifiedPayload = Buffer.from(
+		const _modifiedPayload = Buffer.from(
 			"---BEGIN_LOGIC--- return 2; ---END_LOGIC---",
 		);
 

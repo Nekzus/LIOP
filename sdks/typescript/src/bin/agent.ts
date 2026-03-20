@@ -37,7 +37,7 @@ async function main() {
 				const addr = fs.readFileSync(nexusPath, "utf8").trim();
 				if (addr) bootstrapNodes.push(addr);
 			}
-		} catch (e) {
+		} catch (_e) {
 			/* ignore */
 		}
 	}
@@ -117,10 +117,10 @@ async function main() {
 				if (request.method) {
 					const response = await router.dispatch(request);
 					if (response) {
-						process.stdout.write(JSON.stringify(response) + "\n");
+						process.stdout.write(`${JSON.stringify(response)}\n`);
 					}
 				}
-			} catch (err) {
+			} catch (_err) {
 				// Silent catch for binary noise
 			}
 		}

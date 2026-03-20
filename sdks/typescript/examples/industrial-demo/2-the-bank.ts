@@ -50,7 +50,7 @@ async function main() {
 		const addr = await fs.readFile("nexus.multiaddr", "utf-8");
 		bootstrapNodes.push(addr.trim());
 		console.log(`[The Bank] Discovered Nexus at ${addr.trim()}`);
-	} catch (e) {
+	} catch (_e) {
 		console.warn("[The Bank] No nexus.multiaddr found. Starting isolated.");
 	}
 

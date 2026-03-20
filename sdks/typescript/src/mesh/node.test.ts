@@ -11,13 +11,13 @@ describe("MeshNode Identity & Discovery", () => {
 	beforeEach(async () => {
 		try {
 			await fs.unlink(TEST_IDENTITY_PATH);
-		} catch (e) {}
+		} catch (_e) {}
 	});
 
 	afterEach(async () => {
 		try {
 			await fs.unlink(TEST_IDENTITY_PATH);
-		} catch (e) {}
+		} catch (_e) {}
 	});
 
 	it("should generate a new identity if none exists", async () => {

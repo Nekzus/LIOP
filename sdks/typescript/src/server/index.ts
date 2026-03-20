@@ -8,12 +8,7 @@ import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { MeshNode } from "../mesh/node.js";
 import { NmpRpcServer } from "../rpc/server.js";
-import type {
-	IntentRequest,
-	IntentResponse,
-	LogicRequest,
-	LogicResponse,
-} from "../rpc/types.js";
+import type { LogicRequest, LogicResponse } from "../rpc/types.js";
 import type {
 	CallToolRequest,
 	CallToolResult,
@@ -69,8 +64,10 @@ export class NmpServer {
 	private workerPool: Piscina;
 	private meshNode: MeshNode | null = null;
 	private rpcServer: NmpRpcServer | null = null;
-	private sessions: Map<string, { capability_hash: string; kyber_sk: any }> =
-		new Map();
+	private sessions: Map<
+		string,
+		{ capability_hash: string; kyber_sk: Uint8Array }
+	> = new Map();
 
 	constructor(
 		private serverInfo: ServerInfo,
@@ -118,7 +115,10 @@ export class NmpServer {
 
 		// Sync capabilities to serverInfo for MCP Handshakes
 		if (this.config?.capabilities && !this.serverInfo.capabilities) {
-			this.serverInfo.capabilities = this.config.capabilities as any;
+			this.serverInfo.capabilities = this.config.capabilities as Record<
+				string,
+				unknown
+			>;
 		}
 
 		this.workerPool = new Piscina({
@@ -692,8 +692,9 @@ Failure to follow these rules will result in an immediate violation and the exec
 
 					call.write(response);
 					call.end();
-				} catch (error: any) {
-					console.error(`[NMP-RPC] 🚨 Execution Error: ${error.message}`);
+				} catch (error: unknown) {
+					const e = error as Error;
+					console.error(`[NMP-RPC] 🚨 Execution Error: ${e.message}`);
 					call.end();
 				}
 			},

@@ -13,13 +13,17 @@ import type { NmpServer } from "../server/index.js";
  * Decoupled from transport (HTTP/Stdio).
  */
 export class NmpMcpRouter {
+	// biome-ignore lint/suspicious/noExplicitAny: Temporary for Alpha v1 heterogeneous tool list
 	private virtualTools: any[] = [];
+	// biome-ignore lint/suspicious/noExplicitAny: Internal gRPC client from dynamic proto-loader
+	// biome-ignore lint/correctness/noUnusedPrivateClassMembers: Initialized in constructor for Alpha v1 flows
 	private internalRpcClient: any;
 
 	constructor(
 		private nmpServer: NmpServer,
 		private meshNode: MeshNode | null = null,
 		rpcPort = 50051,
+		// biome-ignore lint/suspicious/noExplicitAny: Temporary for Alpha v1 heterogeneous tool list
 		virtualTools: any[] = [],
 	) {
 		this.virtualTools = virtualTools;
@@ -29,7 +33,13 @@ export class NmpMcpRouter {
 		);
 	}
 
-	public async dispatch(request: any): Promise<any> {
+	public async dispatch(request: {
+		method: string;
+		// biome-ignore lint/suspicious/noExplicitAny: MCP params are polymorphic
+		params?: any;
+		// biome-ignore lint/suspicious/noExplicitAny: MCP id is polymorphic
+		id?: any;
+	}): Promise<any> {
 		const { method, params, id } = request;
 		console.error(`[NMP-Router] Processing: ${method}`);
 
@@ -78,11 +88,14 @@ export class NmpMcpRouter {
 				try {
 					const result = this.nmpServer.readResource(params.uri as string);
 					return { jsonrpc: "2.0", id, result };
-				} catch (err: any) {
+				} catch (err: unknown) {
 					return {
 						jsonrpc: "2.0",
 						id,
-						error: { code: -32000, message: err.message },
+						error: {
+							code: -32000,
+							message: err instanceof Error ? err.message : String(err),
+						},
 					};
 				}
 			}
@@ -101,6 +114,7 @@ export class NmpMcpRouter {
 		}
 	}
 
+	// biome-ignore lint/suspicious/noExplicitAny: MCP JSON-RPC params/id are polymorphic
 	private async transcodeMcpToNmp(id: any, params: any): Promise<any> {
 		const toolName = params.name;
 		const isLocal = this.nmpServer.listTools().some((t) => t.name === toolName);
@@ -200,7 +214,7 @@ export class NmpMcpRouter {
 					capability_hash: capabilityHash,
 					proof_of_intent: Buffer.from([]),
 				},
-				(err: any, response: IntentResponse) => {
+				(err: Error | null, response: IntentResponse) => {
 					if (err || !response.accepted) {
 						return resolve({
 							jsonrpc: "2.0",
@@ -241,7 +255,7 @@ export class NmpMcpRouter {
 						try {
 							const parsedResult = JSON.parse(resultBody);
 							resolve({ jsonrpc: "2.0", id, result: parsedResult });
-						} catch (e) {
+						} catch (_e) {
 							resolve({
 								jsonrpc: "2.0",
 								id,
@@ -249,7 +263,7 @@ export class NmpMcpRouter {
 							});
 						}
 					});
-					call.on("error", (e: any) =>
+					call.on("error", (e: Error) =>
 						resolve({
 							jsonrpc: "2.0",
 							id,

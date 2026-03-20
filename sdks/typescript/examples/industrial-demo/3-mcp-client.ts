@@ -1,3 +1,5 @@
+export {};
+
 async function main() {
 	console.log("==================================================");
 	console.log("👤 CLAUDE DESKTOP (Legacy MCP Client)");
@@ -34,8 +36,9 @@ async function main() {
 		console.log(`\n[Claude] ✅ Respuesta recibida en ${t1 - t0}ms`);
 		console.log("[Claude] -> Contenido:");
 		console.log(JSON.stringify(result, null, 2));
-	} catch (e: any) {
-		console.error(`[Claude] ❌ Fallo la conexión: ${e.message}`);
+	} catch (e: unknown) {
+		const errorMessage = e instanceof Error ? e.message : String(e);
+		console.error(`[Claude] ❌ Fallo la conexión: ${errorMessage}`);
 	}
 }
 

@@ -20,7 +20,7 @@ export const ASTGuardian = {
 	 */
 	analyze(module: WebAssembly.Module): void {
 		const imports = WebAssembly.Module.imports(module);
-		let importCount = 0;
+		let _importCount = 0;
 
 		for (const imp of imports) {
 			// Strict Sandbox Validation: Only allow WASI preview 1 and native NMP functions.
@@ -30,7 +30,7 @@ export const ASTGuardian = {
 					`Banned Host Import Detected: ${imp.module}/${imp.name}`,
 				);
 			}
-			importCount++;
+			_importCount++;
 		}
 
 		// In Node.js / V8, the maximum module size and function limits

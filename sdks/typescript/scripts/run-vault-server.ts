@@ -32,7 +32,7 @@ async function main() {
 		"nmp_audit_sandbox",
 		"Audits the sandbox environment",
 		{ payload: z.string() },
-		async (args) => {
+		async (_args) => {
 			return {
 				content: [
 					{
@@ -49,7 +49,7 @@ async function main() {
 		"read_logs",
 		"Reads system logs",
 		{ payload: z.string() },
-		async (args) => {
+		async (_args) => {
 			return { content: [{ type: "text", text: "Log data summary" }] };
 		},
 	);
