@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.2.0-alpha.2](https://github.com/Nekzus/Neural-Mesh-Protocol/compare/v1.2.0-alpha.1...v1.2.0-alpha.2) (2026-03-20)
+
+
+### Bug Fixes
+
+* **sdk:** bundle .proto files and implement dynamic resolution for NPM distribution ([e2914d9](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/e2914d9d570c41841c57de02b952aefe03d29b01))
+
 # [1.2.0-alpha.1](https://github.com/Nekzus/Neural-Mesh-Protocol/compare/v1.1.2...v1.2.0-alpha.1) (2026-03-20)
 
 
