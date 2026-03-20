@@ -9,7 +9,10 @@ const __dirname = path.dirname(__filename);
 import * as fs from "node:fs";
 
 // Selection logic
-const PROD_PROTO_PATH = path.resolve(__dirname, "../../protocol/nmp_core.proto");
+const PROD_PROTO_PATH = path.resolve(
+	__dirname,
+	"../../protocol/nmp_core.proto",
+);
 // 2. Fallback to monorepo development path
 const DEV_PROTO_PATH = path.resolve(
 	__dirname,
@@ -22,7 +25,9 @@ const PROTO_PATH = fs.existsSync(PROD_PROTO_PATH)
 	: DEV_PROTO_PATH;
 
 if (!fs.existsSync(PROTO_PATH)) {
-	console.error(`[NMP-Proto] 🚨 CRITICAL: Proto file not found at ${PROTO_PATH}`);
+	console.error(
+		`[NMP-Proto] 🚨 CRITICAL: Proto file not found at ${PROTO_PATH}`,
+	);
 }
 
 /**

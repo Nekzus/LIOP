@@ -43,7 +43,7 @@
 		}
 	},
 	"scripts": {
-		"build": "tsc -p tsconfig.build.json && node scripts/copy-protos.js",
+		"build": "tsc -p tsconfig.build.json && npx tsx scripts/copy-protos.ts",
 		"test": "vitest run --fileParallelism=false",
 		"test:all": "vitest run --fileParallelism=false",
 		"test:integration": "vitest run tests/integration --fileParallelism=false",

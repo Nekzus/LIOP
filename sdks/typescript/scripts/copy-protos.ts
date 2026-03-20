@@ -16,7 +16,9 @@ const targetProtoDir = path.resolve(__dirname, "../dist/protocol");
  */
 function copyProtos() {
 	if (!fs.existsSync(sourceProtoDir)) {
-		console.error(`[Build] 🚨 Source proto directory not found: ${sourceProtoDir}`);
+		console.error(
+			`[Build] 🚨 Source proto directory not found: ${sourceProtoDir}`,
+		);
 		process.exit(1);
 	}
 
