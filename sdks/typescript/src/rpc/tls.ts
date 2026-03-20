@@ -6,8 +6,8 @@
  * Otherwise, falls back to insecure credentials (alpha/development mode).
  */
 
-import * as grpc from "@grpc/grpc-js";
 import * as fs from "node:fs";
+import * as grpc from "@grpc/grpc-js";
 
 export interface NmpTlsOptions {
 	/** Path to the root CA certificate (PEM format) */

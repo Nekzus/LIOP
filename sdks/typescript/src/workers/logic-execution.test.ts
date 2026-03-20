@@ -54,7 +54,6 @@ describe("WorkerPool: logic-execution PQC & Sandbox", () => {
 		const { ciphertext: finalCiphertext, nonce: aesNonce } =
 			AesGcmWrapper.encryptPayload(payloadContent, sharedSecret);
 
-
 		// 3. Dispatch to Logic Execution Worker
 		const response = await processLogicExecution({
 			ciphertext: new Uint8Array(ciphertext),

@@ -16,8 +16,8 @@ import { describe, expect, it } from "vitest";
 
 /** Shape returned by client.callTool() */
 interface ToolResult {
-    content: Array<{ type: string; text: string }>;
-    isError?: boolean;
+	content: Array<{ type: string; text: string }>;
+	isError?: boolean;
 }
 
 const TOKEN = process.env.ZERO_TRUST_TOKEN || "test-token";
@@ -25,57 +25,57 @@ const BASE_URL = "http://localhost:3000/mcp";
 
 /** Creates a fresh MCP client connected to The Vault via Streamable HTTP */
 async function createRemoteClient(name: string): Promise<Client> {
-    const transport = new StreamableHTTPClientTransport(new URL(BASE_URL), {
-        requestInit: {
-            headers: { Authorization: `Bearer ${TOKEN}` },
-        },
-    });
-    const client = new Client(
-        { name, version: "1.0.0" },
-        { capabilities: { sampling: {} } },
-    );
-    await client.connect(transport);
-    return client;
+	const transport = new StreamableHTTPClientTransport(new URL(BASE_URL), {
+		requestInit: {
+			headers: { Authorization: `Bearer ${TOKEN}` },
+		},
+	});
+	const client = new Client(
+		{ name, version: "1.0.0" },
+		{ capabilities: { sampling: {} } },
+	);
+	await client.connect(transport);
+	return client;
 }
 
 describe("NmpStreamBridge (Integration)", () => {
-    it("should support 3 concurrent client sessions", async () => {
-        const [client1, client2, client3] = await Promise.all([
-            createRemoteClient("ConcurrentAgent-1"),
-            createRemoteClient("ConcurrentAgent-2"),
-            createRemoteClient("ConcurrentAgent-3"),
-        ]);
+	it("should support 3 concurrent client sessions", async () => {
+		const [client1, client2, client3] = await Promise.all([
+			createRemoteClient("ConcurrentAgent-1"),
+			createRemoteClient("ConcurrentAgent-2"),
+			createRemoteClient("ConcurrentAgent-3"),
+		]);
 
-        const [r1, r2, r3] = await Promise.all([
-            client1.listTools(),
-            client2.listTools(),
-            client3.listTools(),
-        ]);
+		const [r1, r2, r3] = await Promise.all([
+			client1.listTools(),
+			client2.listTools(),
+			client3.listTools(),
+		]);
 
-        expect(r1.tools.length).toBeGreaterThan(0);
-        expect(r2.tools.length).toBeGreaterThan(0);
-        expect(r3.tools.length).toBeGreaterThan(0);
-        expect(r1.tools[0].name).toBe(r2.tools[0].name);
-        expect(r2.tools[0].name).toBe(r3.tools[0].name);
+		expect(r1.tools.length).toBeGreaterThan(0);
+		expect(r2.tools.length).toBeGreaterThan(0);
+		expect(r3.tools.length).toBeGreaterThan(0);
+		expect(r1.tools[0].name).toBe(r2.tools[0].name);
+		expect(r2.tools[0].name).toBe(r3.tools[0].name);
 
-        await Promise.all([client1.close(), client2.close(), client3.close()]);
-    });
+		await Promise.all([client1.close(), client2.close(), client3.close()]);
+	});
 
-    it("should discover tools via Streamable HTTP", async () => {
-        const client = await createRemoteClient("DiscoveryAgent");
-        const { tools } = await client.listTools();
+	it("should discover tools via Streamable HTTP", async () => {
+		const client = await createRemoteClient("DiscoveryAgent");
+		const { tools } = await client.listTools();
 
-        expect(tools.length).toBeGreaterThan(0);
-        expect(tools[0].name).toBe("nmp_audit_sandbox");
-        expect(tools[0].inputSchema?.properties?.payload).toBeDefined();
+		expect(tools.length).toBeGreaterThan(0);
+		expect(tools[0].name).toBe("nmp_audit_sandbox");
+		expect(tools[0].inputSchema?.properties?.payload).toBeDefined();
 
-        await client.close();
-    });
+		await client.close();
+	});
 
-    it("should execute Logic-on-Origin Blind Computation with ZK-Receipt", async () => {
-        const client = await createRemoteClient("ComputeAgent");
+	it("should execute Logic-on-Origin Blind Computation with ZK-Receipt", async () => {
+		const client = await createRemoteClient("ComputeAgent");
 
-        const payload = `---BEGIN_LOGIC---
+		const payload = `---BEGIN_LOGIC---
 const totalPatients = env.records.length;
 const avgAge = env.records.reduce((sum, r) => sum + r.age, 0) / totalPatients;
 const conditions = {};
@@ -85,85 +85,85 @@ env.records.forEach(r => {
 return { total_patients: totalPatients, average_age: Math.round(avgAge * 10) / 10, condition_distribution: conditions };
 ---END_LOGIC---`;
 
-        const result = (await client.callTool({
-            name: "nmp_audit_sandbox",
-            arguments: { payload },
-        })) as ToolResult;
+		const result = (await client.callTool({
+			name: "nmp_audit_sandbox",
+			arguments: { payload },
+		})) as ToolResult;
 
-        expect(result.content.length).toBeGreaterThan(0);
-        expect(result.content[0].type).toBe("text");
+		expect(result.content.length).toBeGreaterThan(0);
+		expect(result.content[0].type).toBe("text");
 
-        const data = JSON.parse(result.content[0].text);
-        expect(data.computation_result).toBeDefined();
-        expect(data.image_id).toBeDefined();
-        expect(data.status).toBe("Worker Pool Execution Success");
+		const data = JSON.parse(result.content[0].text);
+		expect(data.computation_result).toBeDefined();
+		expect(data.image_id).toBeDefined();
+		expect(data.status).toBe("Worker Pool Execution Success");
 
-        await client.close();
-    });
+		await client.close();
+	});
 
-    it("should BLOCK PII exfiltration attempts (Egress Security)", async () => {
-        const client = await createRemoteClient("MaliciousAgent");
+	it("should BLOCK PII exfiltration attempts (Egress Security)", async () => {
+		const client = await createRemoteClient("MaliciousAgent");
 
-        const maliciousPayload = `---BEGIN_LOGIC---
+		const maliciousPayload = `---BEGIN_LOGIC---
 return env.records.map(r => ({ id: r.id, name: r.name, age: r.age }));
 ---END_LOGIC---`;
 
-        const result = (await client.callTool({
-            name: "nmp_audit_sandbox",
-            arguments: { payload: maliciousPayload },
-        })) as ToolResult;
+		const result = (await client.callTool({
+			name: "nmp_audit_sandbox",
+			arguments: { payload: maliciousPayload },
+		})) as ToolResult;
 
-        const responseText = result.content[0].text;
+		const responseText = result.content[0].text;
 
-        const isPiiBlocked =
-            responseText.includes("Egress Security Violation") ||
-            responseText.includes("PII") ||
-            responseText.includes("Forbidden Key") ||
-            result.isError === true;
+		const isPiiBlocked =
+			responseText.includes("Egress Security Violation") ||
+			responseText.includes("PII") ||
+			responseText.includes("Forbidden Key") ||
+			result.isError === true;
 
-        expect(isPiiBlocked).toBe(true);
+		expect(isPiiBlocked).toBe(true);
 
-        await client.close();
-    });
+		await client.close();
+	});
 
-    it("should BLOCK sandbox escape attempts via Guardian AST", async () => {
-        const client = await createRemoteClient("EvilAgent");
+	it("should BLOCK sandbox escape attempts via Guardian AST", async () => {
+		const client = await createRemoteClient("EvilAgent");
 
-        const dangerousPayload = `---BEGIN_LOGIC---
+		const dangerousPayload = `---BEGIN_LOGIC---
 const fs = require('fs');
 const data = fs.readFileSync('/etc/passwd', 'utf8');
 return { stolen: data };
 ---END_LOGIC---`;
 
-        const result = (await client.callTool({
-            name: "nmp_audit_sandbox",
-            arguments: { payload: dangerousPayload },
-        })) as ToolResult;
+		const result = (await client.callTool({
+			name: "nmp_audit_sandbox",
+			arguments: { payload: dangerousPayload },
+		})) as ToolResult;
 
-        const responseText = result.content[0].text;
+		const responseText = result.content[0].text;
 
-        const isBlocked =
-            responseText.includes("Guardian") ||
-            responseText.includes("blocked") ||
-            responseText.includes("forbidden") ||
-            responseText.includes("require") ||
-            responseText.includes("Sandbox") ||
-            result.isError === true;
+		const isBlocked =
+			responseText.includes("Guardian") ||
+			responseText.includes("blocked") ||
+			responseText.includes("forbidden") ||
+			responseText.includes("require") ||
+			responseText.includes("Sandbox") ||
+			result.isError === true;
 
-        expect(isBlocked).toBe(true);
+		expect(isBlocked).toBe(true);
 
-        await client.close();
-    });
+		await client.close();
+	});
 
-    it("should discover resources and prompts", async () => {
-        const client = await createRemoteClient("DiscoveryAgent-2");
+	it("should discover resources and prompts", async () => {
+		const client = await createRemoteClient("DiscoveryAgent-2");
 
-        const resources = await client.listResources();
-        expect(resources.resources).toBeDefined();
+		const resources = await client.listResources();
+		expect(resources.resources).toBeDefined();
 
-        const prompts = await client.listPrompts();
-        expect(prompts.prompts).toBeDefined();
+		const prompts = await client.listPrompts();
+		expect(prompts.prompts).toBeDefined();
 
-        await client.close();
-    });
+		await client.close();
+	});
 });

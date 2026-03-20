@@ -46,7 +46,11 @@ export default async function processLogicExecution(
 		const authTag = wasmBuffer.subarray(-16);
 		const encryptedData = wasmBuffer.subarray(0, -16);
 
-		const decipher = crypto.createDecipheriv("aes-256-gcm", aesKey, Buffer.from(aesNonce || new Uint8Array(12)));
+		const decipher = crypto.createDecipheriv(
+			"aes-256-gcm",
+			aesKey,
+			Buffer.from(aesNonce || new Uint8Array(12)),
+		);
 		decipher.setAuthTag(authTag);
 		let decrypted = decipher.update(encryptedData);
 		decrypted = Buffer.concat([decrypted, decipher.final()]);
@@ -58,7 +62,11 @@ export default async function processLogicExecution(
 			const valTag = valBuffer.subarray(-16);
 			const valData = valBuffer.subarray(0, -16);
 
-			const valDecipher = crypto.createDecipheriv("aes-256-gcm", aesKey, Buffer.from(aesNonce || new Uint8Array(12)));
+			const valDecipher = crypto.createDecipheriv(
+				"aes-256-gcm",
+				aesKey,
+				Buffer.from(aesNonce || new Uint8Array(12)),
+			);
 			valDecipher.setAuthTag(valTag);
 			let valDecrypted = valDecipher.update(valData);
 			valDecrypted = Buffer.concat([valDecrypted, valDecipher.final()]);
@@ -105,12 +113,16 @@ export default async function processLogicExecution(
 			.trim();
 	}
 
-	// 4. Instantiate and Execute WASI Sandbox (or V8 Fallback)	
+	// 4. Instantiate and Execute WASI Sandbox (or V8 Fallback)
 	const sandbox = new WasiSandbox();
 	await sandbox.init();
 
 	try {
-		const result = await sandbox.execute(decryptedPayload, records, decryptedInputs);
+		const result = await sandbox.execute(
+			decryptedPayload,
+			records,
+			decryptedInputs,
+		);
 
 		// 5. Generate ZK Receipt Mock / Cryptographic Proof of Execution
 		const hasher = crypto.createHash("sha256");

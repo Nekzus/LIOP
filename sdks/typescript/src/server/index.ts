@@ -2,9 +2,18 @@ import crypto from "node:crypto";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import * as grpc from "@grpc/grpc-js";
 import { Piscina } from "piscina";
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
+import { MeshNode } from "../mesh/node.js";
+import { NmpRpcServer } from "../rpc/server.js";
+import type {
+	IntentRequest,
+	IntentResponse,
+	LogicRequest,
+	LogicResponse,
+} from "../rpc/types.js";
 import type {
 	CallToolRequest,
 	CallToolResult,
@@ -16,18 +25,8 @@ import type {
 	Tool,
 } from "../types.js";
 import { PII_PATTERNS, type PiiRule, PiiScanner } from "./pii.js";
-import { MeshNode } from "../mesh/node.js";
-import { NmpRpcServer } from "../rpc/server.js";
-import type {
-	IntentRequest,
-	IntentResponse,
-	LogicRequest,
-	LogicResponse
-} from "../rpc/types.js";
-import * as grpc from "@grpc/grpc-js";
 
-
-export { PiiScanner, type PiiRule, PII_PATTERNS };
+export { PII_PATTERNS, type PiiRule, PiiScanner };
 
 export type ToolHandler<T extends z.ZodRawShape = z.ZodRawShape> = (
 	args: z.infer<z.ZodObject<T>>,
@@ -70,7 +69,8 @@ export class NmpServer {
 	private workerPool: Piscina;
 	private meshNode: MeshNode | null = null;
 	private rpcServer: NmpRpcServer | null = null;
-	private sessions: Map<string, { capability_hash: string; kyber_sk: any }> = new Map();
+	private sessions: Map<string, { capability_hash: string; kyber_sk: any }> =
+		new Map();
 
 	constructor(
 		private serverInfo: ServerInfo,
@@ -336,7 +336,9 @@ export class NmpServer {
 		// [NMP-ALPHA] Auto-announce capability to the Mesh P2P DHT if node is active
 		if (this.meshNode) {
 			this.meshNode.announceCapability(name).catch((err) => {
-				console.error(`[NMP-Mesh] 🚨 Failed to auto-announce tool ${name}: ${err.message}`);
+				console.error(
+					`[NMP-Mesh] 🚨 Failed to auto-announce tool ${name}: ${err.message}`,
+				);
 			});
 		}
 	}
@@ -389,10 +391,11 @@ CRITICAL RULES:
 ---END_LOGIC---
 4. The runtime provides a global 'env' scope containing the target data ecosystem. Ensure your logic handles the data structures safely.
 5. DYNAMIC RETURN STRUCTURE: You MUST format your JSON output keys in the EXACT SAME LANGUAGE as the user's initial prompt/query. If the user asks in Spanish, use Spanish keys (e.g., 'cantidad', 'promedio'). Do not default to English keys unless requested in English.
-6. STRICT SCHEMA ADHERENCE: Only use the fields explicitly defined in the provided 'Data Dictionary' or schema. Do NOT attempt to guess, fallback, or use fields not present in the schema (e.g., do not use 'gender' if it is not in the schema).${this.activeSchema
+6. STRICT SCHEMA ADHERENCE: Only use the fields explicitly defined in the provided 'Data Dictionary' or schema. Do NOT attempt to guess, fallback, or use fields not present in the schema (e.g., do not use 'gender' if it is not in the schema).${
+									this.activeSchema
 										? `\n\nCURRENT DATA SCHEMA:\n${JSON.stringify(this.activeSchema, null, 2)}`
 										: ""
-									}
+								}
 
 Failure to follow these rules will result in an immediate violation and the execution will be aborted.`,
 							},
@@ -578,10 +581,16 @@ Failure to follow these rules will result in an immediate violation and the exec
 	 * Connects to the libp2p Kademlia DHT and announces capabilities.
 	 * Boots the gRPC server for secure Logic-on-Origin.
 	 */
-	public async connectToMesh(options: {
-		port?: number;
-		meshConfig?: { listenAddresses?: string[]; bootstrapNodes?: string[]; identityPath?: string }
-	} = {}): Promise<void> {
+	public async connectToMesh(
+		options: {
+			port?: number;
+			meshConfig?: {
+				listenAddresses?: string[];
+				bootstrapNodes?: string[];
+				identityPath?: string;
+			};
+		} = {},
+	): Promise<void> {
 		const port = options.port || 50051;
 
 		// 1. Initialize Mesh Node (Discovery)
@@ -599,7 +608,9 @@ Failure to follow these rules will result in an immediate violation and the exec
 		this.rpcServer.addService({
 			negotiateIntent: (call, callback) => {
 				const request = call.request;
-				console.error(`[NMP-RPC] 🤝 Negotiating intent for capability: ${request.capability_hash}`);
+				console.error(
+					`[NMP-RPC] 🤝 Negotiating intent for capability: ${request.capability_hash}`,
+				);
 
 				// Standard dynamic import to avoid potential circularity
 				import("../rpc/crypto/kyber.js").then(({ Kyber768Wrapper }) => {
@@ -608,26 +619,30 @@ Failure to follow these rules will result in an immediate violation and the exec
 					const sessionToken = crypto.randomUUID();
 					this.sessions.set(sessionToken, {
 						capability_hash: request.capability_hash,
-						kyber_sk: secretKey
+						kyber_sk: secretKey,
 					});
 
 					callback(null, {
 						accepted: true,
 						session_token: sessionToken,
 						error_message: "",
-						kyber_public_key: publicKey
+						kyber_public_key: publicKey,
 					});
 				});
 			},
-			executeLogic: async (call: grpc.ServerWritableStream<LogicRequest, LogicResponse>) => {
+			executeLogic: async (
+				call: grpc.ServerWritableStream<LogicRequest, LogicResponse>,
+			) => {
 				const request = call.request;
-				console.error(`[NMP-RPC] 🚀 Executing Logic-on-Origin for session: ${request.session_token}`);
+				console.error(
+					`[NMP-RPC] 🚀 Executing Logic-on-Origin for session: ${request.session_token}`,
+				);
 
 				const session = this.sessions.get(request.session_token);
 				if (!session) {
 					call.emit("error", {
 						code: grpc.status.UNAUTHENTICATED,
-						details: "Invalid session token"
+						details: "Invalid session token",
 					});
 					return;
 				}
@@ -642,7 +657,7 @@ Failure to follow these rules will result in an immediate violation and the exec
 						aesNonce: request.aes_nonce,
 						records: this.sandboxRecords,
 						sessionToken: request.session_token,
-						isEncrypted: true
+						isEncrypted: true,
 					});
 
 					let finalOutput = workerResponse.output;
@@ -652,10 +667,12 @@ Failure to follow these rules will result in an immediate violation and the exec
 					try {
 						const decoded = JSON.parse(finalOutput);
 						if (decoded.__nmp_proxy_tool) {
-							console.error(`[NMP-RPC] ⚡ Executing Proxied Tool: ${decoded.__nmp_proxy_tool}`);
+							console.error(
+								`[NMP-RPC] ⚡ Executing Proxied Tool: ${decoded.__nmp_proxy_tool}`,
+							);
 							const toolResult = await this.callTool({
 								name: decoded.__nmp_proxy_tool,
-								arguments: decoded.__nmp_proxy_args || {}
+								arguments: decoded.__nmp_proxy_args || {},
 							});
 							finalOutput = JSON.stringify(toolResult);
 						}
@@ -665,9 +682,12 @@ Failure to follow these rules will result in an immediate violation and the exec
 
 					const response: LogicResponse = {
 						semantic_evidence: finalOutput,
-						cryptographic_proof: Buffer.from(workerResponse.image_id || "", "hex"),
+						cryptographic_proof: Buffer.from(
+							workerResponse.image_id || "",
+							"hex",
+						),
 						zk_receipt: Buffer.from("risc0-receipt-stub"),
-						is_error: false
+						is_error: false,
 					};
 
 					call.write(response);
@@ -676,16 +696,20 @@ Failure to follow these rules will result in an immediate violation and the exec
 					console.error(`[NMP-RPC] 🚨 Execution Error: ${error.message}`);
 					call.end();
 				}
-			}
+			},
 		});
 
 		await this.rpcServer.listen(port);
-		console.error(`[NMP-SDK] 🌍 Node successfully announced to Mesh. PeerID: ${this.meshNode.getPeerId()}`);
+		console.error(
+			`[NMP-SDK] 🌍 Node successfully announced to Mesh. PeerID: ${this.meshNode.getPeerId()}`,
+		);
 
 		// Announce existing tools registered before connection
 		for (const toolName of this.tools.keys()) {
 			this.meshNode.announceCapability(toolName).catch((err) => {
-				console.error(`[NMP-Mesh] 🚨 Failed to announce legacy tool ${toolName}: ${err.message}`);
+				console.error(
+					`[NMP-Mesh] 🚨 Failed to announce legacy tool ${toolName}: ${err.message}`,
+				);
 			});
 		}
 	}

@@ -41,10 +41,7 @@ describe("NmpClient", () => {
 
 		// callTool should reject because there is no gRPC server running at localhost:50051
 		await expect(
-			client.callTool(
-				{ name: "read_logs", arguments: {} },
-				mockWasmPayload
-			),
+			client.callTool({ name: "read_logs", arguments: {} }, mockWasmPayload),
 		).rejects.toThrow();
 	});
 });

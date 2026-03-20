@@ -1,6 +1,6 @@
-import { describe, expect, it, beforeAll, afterAll } from "vitest";
-import { NmpServer } from "../../src/server/index.js";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { z } from "zod";
+import { NmpServer } from "../../src/server/index.js";
 
 /**
  * End-to-End Integration Tests (Local, No Network)
@@ -132,9 +132,10 @@ return JSON.stringify({ diabetes_count: diabetesCount, total: records.length });
 
 	it("should cache validated logic payloads by SHA-256 hash", async () => {
 		// Create a fresh server to avoid throttle state from previous test
-		const freshServer = new NmpServer(
-			{ name: "CacheTestNode", version: "1.0.0" },
-		);
+		const freshServer = new NmpServer({
+			name: "CacheTestNode",
+			version: "1.0.0",
+		});
 		freshServer.setSandboxData([{ value: 10 }, { value: 20 }]);
 
 		freshServer.tool(

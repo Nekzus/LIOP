@@ -126,6 +126,6 @@ export class WasiSandbox {
 	public async teardown(): Promise<void> {
 		try {
 			await fs.rm(this.workingDir, { recursive: true, force: true });
-		} catch (e) { }
+		} catch (e) {}
 	}
 }

@@ -99,8 +99,12 @@ async function main() {
 		},
 	});
 
-	console.log(`\n✅ Server is live! Run the client pointing to this P2P Multiaddr:`);
-	console.log(`pnpm demo:client --bootstrap /ip4/127.0.0.1/tcp/4061/ws/p2p/${server.getMeshNode()?.getPeerId()}`);
+	console.log(
+		`\n✅ Server is live! Run the client pointing to this P2P Multiaddr:`,
+	);
+	console.log(
+		`pnpm demo:client --bootstrap /ip4/127.0.0.1/tcp/4061/ws/p2p/${server.getMeshNode()?.getPeerId()}`,
+	);
 }
 
 main().catch(console.error);

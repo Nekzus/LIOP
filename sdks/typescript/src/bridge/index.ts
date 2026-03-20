@@ -8,7 +8,7 @@ import type { CallToolRequest, CallToolResult } from "../types.js";
  * NmpServer logic (or eventually packaging them to WASM).
  */
 export class NmpMcpBridge {
-	constructor(private internalServer: NmpServer) { }
+	constructor(private internalServer: NmpServer) {}
 
 	/**
 	 * Handles an incoming standard MCP JSON-RPC 2.0 payload containing `callTool`
@@ -32,12 +32,12 @@ export class NmpMcpBridge {
 				capabilities: {
 					prompts: {},
 					resources: {},
-					tools: {}
+					tools: {},
 				},
 				serverInfo: {
 					name: "NmpServer-TheVault",
-					version: "1.0-alpha"
-				}
+					version: "1.0-alpha",
+				},
 			});
 		}
 
@@ -218,7 +218,9 @@ export class NmpMcpBridge {
 		});
 
 		const shutdown = async () => {
-			console.error("[NMP-Bridge] Disconnecting MCP session and releasing ports...");
+			console.error(
+				"[NMP-Bridge] Disconnecting MCP session and releasing ports...",
+			);
 			await this.internalServer.close();
 			process.exit(0);
 		};

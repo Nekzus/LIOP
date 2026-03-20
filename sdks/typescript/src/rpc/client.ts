@@ -1,7 +1,12 @@
 import type * as grpc from "@grpc/grpc-js";
 import { nmpV1 } from "./proto.js";
-import type { IntentRequest, IntentResponse, LogicRequest, LogicResponse } from "./types.js";
 import { createChannelCredentials, type NmpTlsOptions } from "./tls.js";
+import type {
+	IntentRequest,
+	IntentResponse,
+	LogicRequest,
+	LogicResponse,
+} from "./types.js";
 
 /**
  * NMP gRPC Client Implementation
@@ -19,7 +24,9 @@ export class NmpRpcClient {
 	 * Negotiates intent with the remote host.
 	 * Returns the ephemeral Kyber public key for payload encryption.
 	 */
-	public async negotiateIntent(request: IntentRequest): Promise<IntentResponse> {
+	public async negotiateIntent(
+		request: IntentRequest,
+	): Promise<IntentResponse> {
 		return new Promise((resolve, reject) => {
 			this.client.NegotiateIntent(
 				request,
@@ -29,7 +36,7 @@ export class NmpRpcClient {
 					} else {
 						resolve(response);
 					}
-				}
+				},
 			);
 		});
 	}
@@ -38,7 +45,9 @@ export class NmpRpcClient {
 	 * Pushes the encrypted Logic-on-Origin payload to the origin.
 	 * Returns a stream of semantic responses and ZK proofs.
 	 */
-	public executeLogic(request: LogicRequest): grpc.ClientReadableStream<LogicResponse> {
+	public executeLogic(
+		request: LogicRequest,
+	): grpc.ClientReadableStream<LogicResponse> {
 		return this.client.ExecuteLogic(request);
 	}
 

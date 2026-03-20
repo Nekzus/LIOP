@@ -1,23 +1,15 @@
 {
-	"$schema": "https://biomejs.dev/schemas/2.4.4/schema.json",
-	"files": {
-		"includes": [
-			"**",
-			"!!**/node_modules",
-			"!!**/dist",
-			"!!**/coverage",
-			"!!**/*.d.ts"
-		]
-	},
 	"formatter": {
 		"enabled": true,
-		"indentStyle": "tab",
-		"lineWidth": 80
+		"indentStyle": "tab"
 	},
 	"linter": {
 		"enabled": true,
 		"rules": {
 			"recommended": true
 		}
+	},
+	"organizeImports": {
+		"enabled": true
 	}
 }

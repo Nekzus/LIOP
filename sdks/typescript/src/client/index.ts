@@ -1,9 +1,9 @@
+import { MeshNode, type MeshNodeConfig } from "../mesh/node.js";
+import { NmpRpcClient } from "../rpc/client.js";
 import { AesGcmWrapper } from "../rpc/crypto/aes.js";
 import { Kyber768Wrapper } from "../rpc/crypto/kyber.js";
-import { NmpRpcClient } from "../rpc/client.js";
-import type { CallToolRequest, CallToolResult, ServerInfo } from "../types.js";
 import type { LogicRequest, LogicResponse } from "../rpc/types.js";
-import { MeshNode, type MeshNodeConfig } from "../mesh/node.js";
+import type { CallToolRequest, CallToolResult, ServerInfo } from "../types.js";
 
 /**
  * NmpClient interfaces with the P2P Mesh (or local Bridge) to dynamically
@@ -20,11 +20,13 @@ export class NmpClient {
 	 */
 	public async connect(
 		address?: string,
-		options?: { meshConfig?: MeshNodeConfig }
+		options?: { meshConfig?: MeshNodeConfig },
 	): Promise<void> {
 		this.meshNode = new MeshNode(options?.meshConfig);
 		await this.meshNode.start();
-		console.error(`[NmpClient] 🌍 Mesh Node synchronized. PeerID: ${this.meshNode.getPeerId()}`);
+		console.error(
+			`[NmpClient] 🌍 Mesh Node synchronized. PeerID: ${this.meshNode.getPeerId()}`,
+		);
 
 		if (address) {
 			this.rpcClient = new NmpRpcClient(address);
@@ -38,20 +40,31 @@ export class NmpClient {
 	 * and returns the physical Multiaddr pointing to its tonic instance.
 	 */
 	public async resolveCapability(toolName: string): Promise<string> {
-		if (!this.meshNode) throw new Error("Client must be connected to Mesh to resolve capabilities.");
-		
-		console.error(`[NmpClient] 📡 Querying Mesh DHT for Provider: ${toolName}...`);
+		if (!this.meshNode)
+			throw new Error(
+				"Client must be connected to Mesh to resolve capabilities.",
+			);
+
+		console.error(
+			`[NmpClient] 📡 Querying Mesh DHT for Provider: ${toolName}...`,
+		);
 		const providers = await this.meshNode.findProviders(toolName);
-		
+
 		if (providers.length === 0) {
-			throw new Error(`Kademlia DHT found zero providers for capability: ${toolName}`);
+			throw new Error(
+				`Kademlia DHT found zero providers for capability: ${toolName}`,
+			);
 		}
 
-		console.error(`[NmpClient] ✅ Identified Alpha Provider PeerID: ${providers[0]}`);
+		console.error(
+			`[NmpClient] ✅ Identified Alpha Provider PeerID: ${providers[0]}`,
+		);
 		const addrs = await this.meshNode.resolvePeer(providers[0]);
-		
+
 		if (addrs.length === 0) {
-			throw new Error(`Failed to resolve external IPv4 for Peer: ${providers[0]}`);
+			throw new Error(
+				`Failed to resolve external IPv4 for Peer: ${providers[0]}`,
+			);
 		}
 
 		// NMP V1 Convention: Extract the lowest level IPv4 of the P2P swarm, and assume
@@ -61,7 +74,9 @@ export class NmpClient {
 			const parts = maddr.split("/");
 			if (parts[1] === "ip4") {
 				const grpcHost = `${parts[2]}:50051`;
-				console.error(`[NmpClient] 🧭 Translated Multiaddr to gRPC Target: ${grpcHost}`);
+				console.error(
+					`[NmpClient] 🧭 Translated Multiaddr to gRPC Target: ${grpcHost}`,
+				);
 				return grpcHost;
 			}
 		}
@@ -73,7 +88,9 @@ export class NmpClient {
 	/**
 	 * Retrieves Remote Capabilities via DHT (simulated here for generic queries)
 	 */
-	public async discoverTools(): Promise<{ name: string; description?: string }[]> {
+	public async discoverTools(): Promise<
+		{ name: string; description?: string }[]
+	> {
 		if (!this.meshNode) {
 			throw new Error("Client must be connected before discovering tools.");
 		}
@@ -102,38 +119,50 @@ export class NmpClient {
 		if (!this.rpcClient) {
 			const dynamicAddress = await this.resolveCapability(request.name);
 			this.rpcClient = new NmpRpcClient(dynamicAddress);
-			this.serverInfo = { name: `NmpServer (${dynamicAddress})`, version: "1.0.0" };
+			this.serverInfo = {
+				name: `NmpServer (${dynamicAddress})`,
+				version: "1.0.0",
+			};
 		}
 
 		// 1. Negotiate Intent with the remote host
 		console.error(`[NmpClient] 🤝 Negotiating intent for ${request.name}...`);
-		const intentResponse = await this.rpcClient.negotiateIntent({
+		const intentResponse = (await this.rpcClient.negotiateIntent({
 			agent_did: "nmp-client-alpha", // In production, this would be a Noise PeerID or SPIFFE ID
 			capability_hash: request.name,
 			proof_of_intent: Buffer.from("alpha-intent-proof"),
-		}) as any;
+		})) as any;
 
 		if (!intentResponse.accepted) {
 			throw new Error(`Intent denied by host: ${intentResponse.error_message}`);
 		}
 
 		// NMP Robust Field Extraction (Supports both snake_case and camelCase via gRPC-JS)
-		const publicKey = intentResponse.kyber_public_key || intentResponse.kyberPublicKey;
-		const sessionToken = intentResponse.session_token || intentResponse.sessionToken;
+		const publicKey =
+			intentResponse.kyber_public_key || intentResponse.kyberPublicKey;
+		const sessionToken =
+			intentResponse.session_token || intentResponse.sessionToken;
 
 		if (!publicKey) {
-			console.error("[NmpClient] 🚨 Critical Error: Kyber Public Key not found in IntentResponse.", intentResponse);
-			throw new Error("Handshake failed: Remote host did not provide a valid Kyber Public Key.");
+			console.error(
+				"[NmpClient] 🚨 Critical Error: Kyber Public Key not found in IntentResponse.",
+				intentResponse,
+			);
+			throw new Error(
+				"Handshake failed: Remote host did not provide a valid Kyber Public Key.",
+			);
 		}
 
 		// 2. Post-Quantum Encapsulation (ML-KEM-768)
-		console.error(`[NmpClient] 🔒 Encapsulating Post-Quantum Shared Secret for ${request.name}...`);
+		console.error(
+			`[NmpClient] 🔒 Encapsulating Post-Quantum Shared Secret for ${request.name}...`,
+		);
 		const { ciphertext: kyberCiphertext, sharedSecret } =
 			Kyber768Wrapper.encapsulateAsymmetric(publicKey);
 
 		// 3. Symmetric Sealing (AES-256-GCM)
 		console.error(`[NmpClient] 🛡️ Sealing WASM Payload and Inputs...`);
-		
+
 		const safePayload = wasmPayload || Buffer.from("");
 
 		// Encrypt WASM binary
@@ -146,8 +175,15 @@ export class NmpClient {
 			// We manually encrypt with the same nonce/key to match the Proto structure
 			// ideally we'd have per-field nonces, but for Alpha we follow the nmp_core.proto v1.
 			const crypto = await import("node:crypto");
-			const cipher = crypto.createCipheriv("aes-256-gcm", sharedSecret, aesNonce);
-			const encrypted = Buffer.concat([cipher.update(JSON.stringify(value)), cipher.final()]);
+			const cipher = crypto.createCipheriv(
+				"aes-256-gcm",
+				sharedSecret,
+				aesNonce,
+			);
+			const encrypted = Buffer.concat([
+				cipher.update(JSON.stringify(value)),
+				cipher.final(),
+			]);
 			const authTag = cipher.getAuthTag();
 			encryptedInputs[key] = Buffer.concat([encrypted, authTag]);
 		}
@@ -167,7 +203,9 @@ export class NmpClient {
 
 			stream.on("data", async (response: LogicResponse) => {
 				if (resultFulfilled) return;
-				console.error("[NmpClient] ✅ Logic Executed. Verification in progress...");
+				console.error(
+					"[NmpClient] ✅ Logic Executed. Verification in progress...",
+				);
 
 				try {
 					const isValid = await this.verifyZkReceipt(
@@ -177,7 +215,9 @@ export class NmpClient {
 					);
 
 					if (!isValid) {
-						reject(new Error("ZK-Receipt verification failed. ImageID mismatch."));
+						reject(
+							new Error("ZK-Receipt verification failed. ImageID mismatch."),
+						);
 						return;
 					}
 

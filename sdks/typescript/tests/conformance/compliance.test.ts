@@ -1,6 +1,6 @@
-import { describe, expect, it, beforeAll, afterAll } from "vitest";
-import { NmpServer } from "../../src/server/index.js";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { z } from "zod";
+import { NmpServer } from "../../src/server/index.js";
 
 /**
  * MCP Protocol Conformance Tests
@@ -73,12 +73,9 @@ describe("MCP Protocol Conformance", () => {
 
 		it("should reject duplicate tool registration", () => {
 			expect(() =>
-				server.tool(
-					"echo",
-					"Duplicate",
-					{ text: z.string() },
-					async () => ({ content: [{ type: "text", text: "" }] }),
-				),
+				server.tool("echo", "Duplicate", { text: z.string() }, async () => ({
+					content: [{ type: "text", text: "" }],
+				})),
 			).toThrow("Tool already registered: echo");
 		});
 
@@ -104,9 +101,9 @@ describe("MCP Protocol Conformance", () => {
 		});
 
 		it("should return isError for unknown tool", async () => {
-			await expect(
-				server.callTool({ name: "nonexistent" }),
-			).rejects.toThrow("Tool not found: nonexistent");
+			await expect(server.callTool({ name: "nonexistent" })).rejects.toThrow(
+				"Tool not found: nonexistent",
+			);
 		});
 	});
 
@@ -121,9 +118,7 @@ describe("MCP Protocol Conformance", () => {
 			);
 
 			const resources = server.listResources();
-			const dataset = resources.find(
-				(r) => r.uri === "nmp://test/dataset",
-			);
+			const dataset = resources.find((r) => r.uri === "nmp://test/dataset");
 			expect(dataset).toBeDefined();
 			expect(dataset?.name).toBe("TestDataset");
 			expect(dataset?.description).toBe("A test dataset");
@@ -179,9 +174,7 @@ describe("MCP Protocol Conformance", () => {
 			const prompts = server.listPrompts();
 			const greeting = prompts.find((p) => p.name === "greeting");
 			expect(greeting).toBeDefined();
-			expect(greeting?.description).toBe(
-				"Generates a greeting message",
-			);
+			expect(greeting?.description).toBe("Generates a greeting message");
 			expect(greeting?.arguments).toHaveLength(1);
 			expect(greeting?.arguments?.[0].name).toBe("name");
 		});
@@ -201,16 +194,13 @@ describe("MCP Protocol Conformance", () => {
 			});
 			expect(result.messages).toBeInstanceOf(Array);
 			expect(result.messages[0].role).toBe("assistant");
-			expect(result.messages[0].content).toHaveProperty(
-				"text",
-				"Hello, NMP!",
-			);
+			expect(result.messages[0].content).toHaveProperty("text", "Hello, NMP!");
 		});
 
 		it("should throw for unknown prompt", async () => {
-			await expect(
-				server.getPrompt({ name: "nonexistent" }),
-			).rejects.toThrow("Prompt not found");
+			await expect(server.getPrompt({ name: "nonexistent" })).rejects.toThrow(
+				"Prompt not found",
+			);
 		});
 	});
 
@@ -218,13 +208,9 @@ describe("MCP Protocol Conformance", () => {
 		it("should register the nmp_blind_analyst prompt", () => {
 			server.enableZeroShotAutonomy();
 			const prompts = server.listPrompts();
-			const blind = prompts.find(
-				(p) => p.name === "nmp_blind_analyst",
-			);
+			const blind = prompts.find((p) => p.name === "nmp_blind_analyst");
 			expect(blind).toBeDefined();
-			expect(blind?.description).toContain(
-				"Neural Mesh Protocol",
-			);
+			expect(blind?.description).toContain("Neural Mesh Protocol");
 		});
 	});
 });

@@ -1,7 +1,12 @@
 import * as grpc from "@grpc/grpc-js";
 import { nmpV1 } from "./proto.js";
-import type { IntentRequest, IntentResponse, LogicRequest, LogicResponse } from "./types.js";
 import { createServerCredentials, type NmpTlsOptions } from "./tls.js";
+import type {
+	IntentRequest,
+	IntentResponse,
+	LogicRequest,
+	LogicResponse,
+} from "./types.js";
 
 /**
  * NMP gRPC Service Implementation
@@ -15,8 +20,13 @@ export class NmpRpcServer {
 	}
 
 	public addService(handlers: {
-		negotiateIntent: (call: grpc.ServerUnaryCall<IntentRequest, IntentResponse>, callback: grpc.sendUnaryData<IntentResponse>) => void;
-		executeLogic: (call: grpc.ServerWritableStream<LogicRequest, LogicResponse>) => void;
+		negotiateIntent: (
+			call: grpc.ServerUnaryCall<IntentRequest, IntentResponse>,
+			callback: grpc.sendUnaryData<IntentResponse>,
+		) => void;
+		executeLogic: (
+			call: grpc.ServerWritableStream<LogicRequest, LogicResponse>,
+		) => void;
 	}): void {
 		this.server.addService(nmpV1.NeuralMesh.service, {
 			NegotiateIntent: handlers.negotiateIntent,
@@ -24,7 +34,10 @@ export class NmpRpcServer {
 		});
 	}
 
-	public async listen(port: number = 50051, tls?: NmpTlsOptions): Promise<void> {
+	public async listen(
+		port: number = 50051,
+		tls?: NmpTlsOptions,
+	): Promise<void> {
 		const credentials = createServerCredentials(tls);
 		return new Promise((resolve, reject) => {
 			this.server.bindAsync(
@@ -38,7 +51,7 @@ export class NmpRpcServer {
 					this.server.start();
 					console.error(`[NMP-RPC] Server listening on port ${assignedPort}`);
 					resolve();
-				}
+				},
 			);
 		});
 	}

@@ -1,19 +1,19 @@
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
+import { noise } from "@chainsafe/libp2p-noise";
 import { yamux } from "@chainsafe/libp2p-yamux";
+import { bootstrap } from "@libp2p/bootstrap";
 import { identify } from "@libp2p/identify";
 import { kadDHT } from "@libp2p/kad-dht";
 import { mplex } from "@libp2p/mplex";
-import { noise } from "@chainsafe/libp2p-noise";
 import { ping } from "@libp2p/ping";
-import type { Libp2p } from "libp2p";
-import * as fs from "node:fs/promises";
-import * as path from "node:path";
-import { createLibp2p } from "libp2p";
-import { webSockets } from "@libp2p/websockets";
 import { tcp } from "@libp2p/tcp";
+import { webSockets } from "@libp2p/websockets";
 import { multiaddr } from "@multiformats/multiaddr";
+import type { Libp2p } from "libp2p";
+import { createLibp2p } from "libp2p";
 import { CID } from "multiformats/cid";
 import { sha256 } from "multiformats/hashes/sha2";
-import { bootstrap } from "@libp2p/bootstrap";
 
 export interface MeshNodeConfig {
 	listenAddresses?: string[];
@@ -60,10 +60,12 @@ export class MeshNode {
 	private async loadOrCreateIdentity() {
 		try {
 			// biome-ignore lint/suspicious/noExplicitAny: <libp2p type workaround>
-			const { generateKeyPair, privateKeyFromProtobuf } = await import("@libp2p/crypto/keys") as any;
+			const { generateKeyPair, privateKeyFromProtobuf } = (await import(
+				"@libp2p/crypto/keys"
+			)) as any;
 			// biome-ignore lint/suspicious/noExplicitAny: <libp2p type workaround>
-			// @ts-ignore: libp2p ESM dynamic import type conflict
-			const uint8arrays = await import("uint8arrays") as any;
+			// @ts-expect-error: libp2p ESM dynamic import type conflict
+			const uint8arrays = (await import("uint8arrays")) as any;
 
 			if (this.config.identityPath) {
 				const absolutePath = path.resolve(this.config.identityPath);
@@ -72,7 +74,9 @@ export class MeshNode {
 					const json = JSON.parse(data);
 					const protobufBytes = uint8arrays.fromString(json.privKey, "base64");
 					const privateKey = privateKeyFromProtobuf(protobufBytes);
-					console.error(`[NMP-Mesh] Loaded persistent identity from ${absolutePath}`);
+					console.error(
+						`[NMP-Mesh] Loaded persistent identity from ${absolutePath}`,
+					);
 					return { privateKey, isNew: false };
 				} catch (e: any) {
 					if (e.code !== "ENOENT") {
@@ -84,7 +88,9 @@ export class MeshNode {
 			const privateKey = await generateKeyPair("Ed25519");
 			return { privateKey, isNew: true };
 		} catch (error) {
-			console.error(`[NMP-Mesh] Critical error in identity management: ${error}`);
+			console.error(
+				`[NMP-Mesh] Critical error in identity management: ${error}`,
+			);
 			return undefined;
 		}
 	}
@@ -98,12 +104,16 @@ export class MeshNode {
 		try {
 			const absolutePath = path.resolve(this.config.identityPath);
 			// biome-ignore lint/suspicious/noExplicitAny: <libp2p type workaround>
-			const { privateKeyToProtobuf } = await import("@libp2p/crypto/keys") as any;
-			// @ts-ignore: libp2p ESM dynamic import type conflict
+			const { privateKeyToProtobuf } = (await import(
+				"@libp2p/crypto/keys"
+			)) as any;
+			// @ts-expect-error: libp2p ESM dynamic import type conflict
 			const uint8arrays = await import("uint8arrays");
 
 			const protobufBytes = privateKeyToProtobuf(privateKey);
-			const privKeyEncoded = (uint8arrays.toString || uint8arrays.default.toString)(protobufBytes, "base64");
+			const privKeyEncoded = (
+				uint8arrays.toString || uint8arrays.default.toString
+			)(protobufBytes, "base64");
 
 			const json = {
 				id: this.node.peerId.toString(),
@@ -132,7 +142,12 @@ export class MeshNode {
 	 * Uses a small delay to allow the DHT protocol handshake to complete.
 	 */
 	private async reannounceAll(): Promise<void> {
-		if (this.reannouncing || !this.node || this.announcedCapabilities.size === 0) return;
+		if (
+			this.reannouncing ||
+			!this.node ||
+			this.announcedCapabilities.size === 0
+		)
+			return;
 
 		this.reannouncing = true;
 		try {
@@ -141,7 +156,9 @@ export class MeshNode {
 
 			if (!this.node) return;
 
-			console.error(`[NMP-Mesh] 🔄 Re-announcing ${this.announcedCapabilities.size} capabilities to updated routing table...`);
+			console.error(
+				`[NMP-Mesh] 🔄 Re-announcing ${this.announcedCapabilities.size} capabilities to updated routing table...`,
+			);
 
 			for (const hash of this.announcedCapabilities) {
 				try {
@@ -179,35 +196,41 @@ export class MeshNode {
 					// Allow local/private IPs in the DHT routing table for development/testing
 					allowQueryWithZeroPeers: true,
 				}),
-				// @ts-ignore: Conflict between @libp2p/peer-collections versions
+				// @ts-expect-error: Conflict between @libp2p/peer-collections versions
 				ping: ping(),
 			},
-			// @ts-ignore: Conflict between @libp2p/interface versions for bootstrap components
+			// @ts-expect-error: Conflict between @libp2p/interface versions for bootstrap components
 			peerDiscovery:
 				this.config.bootstrapNodes && this.config.bootstrapNodes.length > 0
 					? [
 							bootstrap({
 								list: this.config.bootstrapNodes,
 							}),
-					  ]
+						]
 					: undefined,
 		});
 
 		// Monitor Connectivity Events
 		this.node.addEventListener("peer:discovery", (evt) => {
-			console.error(`[NMP-Mesh] 🔎 Discovered peer: ${evt.detail.id.toString()}`);
+			console.error(
+				`[NMP-Mesh] 🔎 Discovered peer: ${evt.detail.id.toString()}`,
+			);
 		});
 
 		this.node.addEventListener("peer:connect", (evt) => {
 			const peerId = evt.detail;
 			console.error(`[NMP-Mesh] 🤝 Connected to peer: ${peerId.toString()}`);
-			
+
 			if (!this.node) return;
 			const dht = (this.node.services as any).dht;
 			if (dht && dht.routingTable) {
-				console.error(`[NMP-Mesh] 📍 Adding ${peerId.toString()} to DHT Routing Table`);
+				console.error(
+					`[NMP-Mesh] 📍 Adding ${peerId.toString()} to DHT Routing Table`,
+				);
 				dht.routingTable.add(peerId).catch((err: any) => {
-					console.error(`[NMP-Mesh] Failed to add peer to routing table: ${err}`);
+					console.error(
+						`[NMP-Mesh] Failed to add peer to routing table: ${err}`,
+					);
 				});
 			}
 
@@ -224,14 +247,18 @@ export class MeshNode {
 			await this.saveIdentity(privateKey);
 		}
 
-		console.error(`[NMP-Mesh] Node started with id: ${this.node.peerId.toString()}`);
+		console.error(
+			`[NMP-Mesh] Node started with id: ${this.node.peerId.toString()}`,
+		);
 		this.node.getMultiaddrs().forEach((addr) => {
 			console.error(`[NMP-Mesh] Listening on: ${addr.toString()}`);
 		});
 
 		// Force explicit dialing of Bootstrap nodes to guarantee topology
 		if (this.config.bootstrapNodes && this.config.bootstrapNodes.length > 0) {
-			console.error(`[NMP-Mesh] Forcing direct P2P dial to ${this.config.bootstrapNodes.length} bootstrap nodes...`);
+			console.error(
+				`[NMP-Mesh] Forcing direct P2P dial to ${this.config.bootstrapNodes.length} bootstrap nodes...`,
+			);
 			for (const addr of this.config.bootstrapNodes) {
 				try {
 					await this.node.dial(multiaddr(addr));
@@ -268,7 +295,9 @@ export class MeshNode {
 
 		try {
 			const cid = await this.capabilityToCID(hash);
-			console.error(`[NMP-Mesh] Announcing capability: ${hash} (CID: ${cid.toString()})`);
+			console.error(
+				`[NMP-Mesh] Announcing capability: ${hash} (CID: ${cid.toString()})`,
+			);
 
 			// In libp2p v1.x, contentRouting.provide returns Promise<void>
 			await this.node.contentRouting.provide(cid);
@@ -278,7 +307,9 @@ export class MeshNode {
 			const selfId = this.node.peerId.toString();
 			for await (const peer of this.node.contentRouting.findProviders(cid)) {
 				if (peer.id.toString() === selfId) {
-					console.error(`[NMP-Mesh] ✨ Self-verification success: Node is providing ${hash}`);
+					console.error(
+						`[NMP-Mesh] ✨ Self-verification success: Node is providing ${hash}`,
+					);
 					break;
 				}
 			}
@@ -303,10 +334,14 @@ export class MeshNode {
 				}
 			}
 		} catch (error: any) {
-			console.error(`[NMP-Mesh] 🚨 Error finding providers for ${hash}: ${error.message}`);
+			console.error(
+				`[NMP-Mesh] 🚨 Error finding providers for ${hash}: ${error.message}`,
+			);
 		}
 
-		console.error(`[NMP-Mesh] 🏁 DHT search for ${hash} finished. Found ${providers.length} providers.`);
+		console.error(
+			`[NMP-Mesh] 🏁 DHT search for ${hash} finished. Found ${providers.length} providers.`,
+		);
 		return providers;
 	}
 
@@ -318,7 +353,9 @@ export class MeshNode {
 			for (const conn of connections) {
 				if (conn.remotePeer.toString() === peerIdStr) {
 					const remoteAddr = conn.remoteAddr.toString();
-					console.error(`[NMP-Mesh] Resolved peer ${peerIdStr} via active connection: ${remoteAddr}`);
+					console.error(
+						`[NMP-Mesh] Resolved peer ${peerIdStr} via active connection: ${remoteAddr}`,
+					);
 					return [remoteAddr];
 				}
 			}
@@ -328,12 +365,16 @@ export class MeshNode {
 			for (const peer of allPeers) {
 				if (peer.id.toString() === peerIdStr && peer.addresses.length > 0) {
 					const addrs = peer.addresses.map((a: any) => a.multiaddr.toString());
-					console.error(`[NMP-Mesh] Resolved peer ${peerIdStr} via peerStore: ${addrs[0]}`);
+					console.error(
+						`[NMP-Mesh] Resolved peer ${peerIdStr} via peerStore: ${addrs[0]}`,
+					);
 					return addrs;
 				}
 			}
 
-			console.error(`[NMP-Mesh] Peer ${peerIdStr} not found in connections or peerStore`);
+			console.error(
+				`[NMP-Mesh] Peer ${peerIdStr} not found in connections or peerStore`,
+			);
 		} catch (error) {
 			console.error(`[NMP-Mesh] Failed to resolve peer ${peerIdStr}: ${error}`);
 		}
