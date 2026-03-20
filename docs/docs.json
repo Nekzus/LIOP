@@ -54,6 +54,7 @@
                 "group": "TypeScript SDK",
                 "pages": [
                   "typescript-sdk/overview",
+                  "typescript-sdk/agent",
                   "typescript-sdk/client",
                   "typescript-sdk/server"
                 ]
@@ -117,6 +118,7 @@
                 "group": "TypeScript SDK",
                 "pages": [
                   "es/typescript-sdk/overview",
+                  "es/typescript-sdk/agent",
                   "es/typescript-sdk/client",
                   "es/typescript-sdk/server"
                 ]

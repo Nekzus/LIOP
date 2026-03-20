@@ -55,6 +55,49 @@ npm install @nekzus/neural-mesh
 
 ---
 
+## NMP Agent (CLI)
+
+The SDK includes a zero-config agent (`nmp-agent`) designed to bridge the Neural Mesh Protocol with local AI clients like **Claude Desktop**.
+
+### Installation & Run
+
+You can run the agent directly using `npx` (recommended) or install it globally:
+
+```bash
+# Run instantly
+npx @nekzus/neural-mesh
+
+# Or install globally
+npm install -g @nekzus/neural-mesh
+nmp-agent
+```
+
+### 🤖 Claude Desktop Configuration
+
+To use the Neural Mesh inside Claude Desktop, update your `claude_desktop_config.json` (typically found in `%APPDATA%\Claude\claude_desktop_config.json` on Windows):
+
+```json
+{
+  "mcpServers": {
+    "neural-mesh": {
+      "command": "npx",
+      "args": ["-y", "@nekzus/neural-mesh"]
+    }
+  }
+}
+```
+
+### Persistence & Identity
+
+The agent automatically manages your P2P identity:
+- **Identity Path**: `~/.nmp/identity.json`. This file contains your unique PeerID. Keep it safe if you want to maintain a consistent identity in the mesh.
+- **Bootstrap Nodes**: By default, the agent connects to the **NMP Alpha Nexus**. You can provide custom bootstrap addresses as CLI arguments:
+  ```bash
+  npx @nekzus/neural-mesh /ip4/1.2.3.4/tcp/4001/p2p/PEER_ID
+  ```
+
+---
+
 ## Quick Start
 
 ### 1. Create a Server

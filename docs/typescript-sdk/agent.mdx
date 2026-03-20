@@ -1,0 +1,79 @@
+---
+title: "NMP Agent (CLI)"
+description: "Zero-Config security gateway for desktop AI applications"
+---
+
+The **NMP Agent** is a pre-compiled, production-ready CLI utility included with the `@nekzus/neural-mesh` package. It acts as a bridge between standard AI interfaces (like **Claude Desktop** or **Cursor**) and the decentralized **Neural Mesh Protocol**.
+
+Instead of writing a custom server, users can simply run the agent to instantly gain "Logic-on-Origin" capabilities.
+
+## Installation
+
+The agent is distributed via the main SDK package. You can run it directly using `npx`:
+
+```bash
+npx -y @nekzus/neural-mesh
+```
+
+Or install it globally to have the `nmp-agent` command available system-wide:
+
+```bash
+npm install -g @nekzus/neural-mesh
+nmp-agent
+```
+
+## 🤖 Claude Desktop Integration
+
+NMP is designed to be a drop-in replacement for MCP servers. To add Neural Mesh tools to your Claude Desktop experience, update your configuration file:
+
+<CodeGroup>
+```json Windows (%APPDATA%\Claude\claude_desktop_config.json)
+{
+  "mcpServers": {
+    "neural-mesh": {
+      "command": "npx",
+      "args": ["-y", "@nekzus/neural-mesh"]
+    }
+  }
+}
+```
+```json macOS (~/Library/Application Support/Claude/claude_desktop_config.json)
+{
+  "mcpServers": {
+    "neural-mesh": {
+      "command": "npx",
+      "args": ["-y", "@nekzus/neural-mesh"]
+    }
+  }
+}
+```
+</CodeGroup>
+
+Once configured, restart Claude Desktop. You will see the 🛡️ **NMP Guard** status in your logs.
+
+## Core Features
+
+### 1. Identity Persistence
+The agent generates a unique **PeerID** (Ed25519 keypair) the first time it runs. This identity is stored in:
+`~/.nmp/identity.json`
+
+> [!IMPORTANT]
+> If you move to a different machine, copying this folder will allow you to keep your reputation and verified access across the Mesh.
+
+### 2. Autonomous Routing
+The agent uses the `NmpMcpRouter` internally. When a tool call is received from Claude:
+1. It queries the **Kademlia DHT** to find nodes providing that tool.
+2. It establishes a **Kyber768 + AES-256-GCM** secure tunnel.
+3. It executes the logic on the remote server and returns the verified result.
+
+### 3. Bootstrap Discovery
+By default, the agent connects to the official **NMP Alpha Nexus**. However, you can point it to any mesh bootstrap node:
+
+```bash
+npx @nekzus/neural-mesh /ip4/1.2.3.4/tcp/4001/p2p/PEER_ID
+```
+
+## Security & Diagnostics
+The agent only communicates via **STDIO**. It prints status logs and discovery events strictly to `stderr`, ensuring that the `stdout` channel remains clean for valid JSON-RPC 2.0 messages required by the LLM client.
+
+If you encounter connection issues, check for the 🛡️ icon in the console to verify the Mesh status.

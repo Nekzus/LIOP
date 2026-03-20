@@ -64,36 +64,10 @@ El SDK exporta tres clases principales:
 
 NMP rompe la limitación de hilo único de Node.js mediante el enrutamiento de la carga criptográfica a hilos aislados del SO.
 
-```mermaid
-flowchart TD
-    classDef client fill:#0ea5e9,stroke:#0284c7,stroke-width:2px,color:#fff
-    classDef grpc fill:#8b5cf6,stroke:#7c3aed,stroke-width:2px,color:#fff
-    classDef main fill:#10b981,stroke:#059669,stroke-width:2px,color:#fff
-    classDef worker fill:#f59e0b,stroke:#d97706,stroke-width:2px,color:#fff
-    classDef wasi fill:#ef4444,stroke:#dc2626,stroke-width:2px,color:#fff
-
-    C[Cliente NMP / Agente]:::client --"Petición PQC Encapsulada\n(gRPC / TCP)"--> G{Servidor gRPC\n(Hilo Principal)}:::grpc
-    
-    subgraph "Main Thread (Event Loop)"
-        G --> |"Acepta Conn\nNo Bloqueante"| M[Despachador RPC]:::main
-    end
-
-    subgraph "Hardware CPU Cores"
-        M -.->|"Offload Payload Cifrado\n(Memoria Compartida)"| W1[Worker Thread 1]:::worker
-        M -.->|Offload| W2[Worker Thread 2]:::worker
-        M -.->|Offload| WN[Worker Thread N]:::worker
-    end
-
-    subgraph "Inside OS Worker Thread"
-        W1 --> |1| D1(Kyber768 & AES Decrypt)
-        D1 --> |2| G1(Guardian-TS Inspección AST)
-        G1 --> |3| V1[Ejecución Sandbox WASI]:::wasi
-        V1 --> |4| Z1(Generador ZK-Receipt)
-    end
-
-    W1 -.->|"Retorna Prueba\ny Contexto"| M
-    M --"LogicResponse\nStream"--> C
-```
+<Frame>
+  <img className="block dark:hidden w-full" src="/images/animated-sdk-flow-light.svg" alt="Flujo Arquitectónico del SDK NMP" />
+  <img className="hidden dark:block w-full" src="/images/animated-sdk-flow-dark.svg" alt="Flujo Arquitectónico del SDK NMP" />
+</Frame>
 
 ## Comenzando
 

@@ -127,7 +127,7 @@ The high-performance Data Node host, written in Rust. This is where injected WAS
 |---|---|
 | **Transport** | Tonic gRPC + Protobuf v3 |
 | **Peer Discovery** | libp2p (Kademlia DHT, Noise Protocol, QUIC) |
-| **Sandboxing** | Wasmtime 14.0 + WASI Preview 1 |
+| **Sandboxing** | Wasmtime 29.0 + WASI Preview 1 |
 | **Post-Quantum Crypto** | ML-KEM-768 (Kyber) + AES-256-GCM |
 | **Static Analysis** | `wasmparser` AST inspection |
 | **Integrity Proofs** | ZK-SNARKs (RISC Zero architecture) |
@@ -141,6 +141,14 @@ The high-performance Data Node host, written in Rust. This is where injected WAS
 
 ```bash
 npm install @nekzus/neural-mesh
+```
+
+### Run the Zero-Config Agent (CLI)
+
+For end-users wanting to integrate with **Claude Desktop** instantly:
+
+```bash
+npx -y @nekzus/neural-mesh
 ```
 
 ### Build the Rust Backend
