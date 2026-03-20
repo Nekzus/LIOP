@@ -65,4 +65,15 @@ Thumbs.db
 *.sln
 *.swp
 examples/demos/sentinel-mesh/data/*.json
-examples/demos/sentinel-mesh/data/*.json
+
+# -----------------
+# NMP Industrial Demo Generatos
+# -----------------
+*-identity.json
+*.multiaddr
+out2.json
+vault.multiaddr
+nexus.multiaddr
+bank.multiaddr
+oracle.multiaddr
+sentinel.multiaddr
