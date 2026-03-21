@@ -6,7 +6,7 @@ import * as grpc from "@grpc/grpc-js";
 import { Piscina } from "piscina";
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
-import { MeshNode } from "../mesh/node.js";
+import { MeshNode, type NmpManifest } from "../mesh/node.js";
 import { NmpRpcServer } from "../rpc/server.js";
 import type { LogicRequest, LogicResponse } from "../rpc/types.js";
 import type {
@@ -597,12 +597,41 @@ Failure to follow these rules will result in an immediate violation and the exec
 		this.meshNode = new MeshNode(options.meshConfig);
 		await this.meshNode.start();
 
-		// Announce local tools to the DHT
+		// 2. Register NMP Manifest Protocol Handler
+		// This allows remote peers to query our tool/resource metadata dynamically.
+		const meshNodeRef = this.meshNode;
+		this.meshNode.registerManifestHandler((): NmpManifest => {
+			const tools = this.listTools().map((t) => ({
+				name: t.name,
+				description: t.description,
+				inputSchema: t.inputSchema as Record<string, unknown>,
+			}));
+
+			const resources = this.listResources().map((r) => ({
+				name: r.name,
+				uri: r.uri,
+				description: r.description,
+				mimeType: r.mimeType,
+			}));
+
+			return {
+				peerId: meshNodeRef.getPeerId(),
+				grpcPort: port,
+				tools,
+				resources,
+				serverInfo: this.serverInfo,
+			};
+		});
+
+		// 3. Announce local tools to the DHT
 		for (const tool of this.listTools()) {
 			await this.meshNode.announceCapability(tool.name).catch(console.error);
 		}
 
-		// 2. Initialize gRPC Server (Execution)
+		// 4. Announce manifest availability
+		await this.meshNode.announceManifest().catch(console.error);
+
+		// 5. Initialize gRPC Server (Execution)
 		this.rpcServer = new NmpRpcServer();
 
 		this.rpcServer.addService({
@@ -704,15 +733,6 @@ Failure to follow these rules will result in an immediate violation and the exec
 		console.error(
 			`[NMP-SDK] 🌍 Node successfully announced to Mesh. PeerID: ${this.meshNode.getPeerId()}`,
 		);
-
-		// Announce existing tools registered before connection
-		for (const toolName of this.tools.keys()) {
-			this.meshNode.announceCapability(toolName).catch((err) => {
-				console.error(
-					`[NMP-Mesh] 🚨 Failed to announce legacy tool ${toolName}: ${err.message}`,
-				);
-			});
-		}
 	}
 
 	/**

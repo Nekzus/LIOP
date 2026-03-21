@@ -1,4 +1,4 @@
-import { MeshNode, type MeshNodeConfig } from "../mesh/node.js";
+import { MeshNode, type MeshNodeConfig, type NmpManifest } from "../mesh/node.js";
 import { NmpRpcClient } from "../rpc/client.js";
 import { AesGcmWrapper } from "../rpc/crypto/aes.js";
 import { Kyber768Wrapper } from "../rpc/crypto/kyber.js";
@@ -40,7 +40,7 @@ export class NmpClient {
 
 	/**
 	 * Dynamically queries Kademlia DHT to find the optimal PeerID providing the Capability
-	 * and returns the physical Multiaddr pointing to its tonic instance.
+	 * and returns the physical gRPC target (host:port) resolved from the provider's manifest.
 	 */
 	public async resolveCapability(toolName: string): Promise<string> {
 		if (!this.meshNode)
@@ -59,24 +59,26 @@ export class NmpClient {
 			);
 		}
 
+		const providerId = providers[0];
 		console.error(
-			`[NmpClient] ✅ Identified Alpha Provider PeerID: ${providers[0]}`,
+			`[NmpClient] ✅ Identified Alpha Provider PeerID: ${providerId}`,
 		);
-		const addrs = await this.meshNode.resolvePeer(providers[0]);
 
-		if (addrs.length === 0) {
-			throw new Error(
-				`Failed to resolve external IPv4 for Peer: ${providers[0]}`,
+		// Dynamic port resolution via NMP Manifest Protocol
+		let grpcPort = 50051; // sensible default only if manifest is unreachable
+		const manifest = await this.meshNode.queryManifest(providerId);
+		if (manifest) {
+			grpcPort = manifest.grpcPort;
+			console.error(
+				`[NmpClient] 📋 Manifest resolved: gRPC port ${grpcPort}`,
 			);
 		}
 
-		// NMP V1 Convention: Extract the lowest level IPv4 of the P2P swarm, and assume
-		// the Tonic gRPC Server executes on the default Layer 4 TCP Port (50051).
-		// Over time, this transforms into Option B (Libp2p-Yamux wrapping).
+		const addrs = await this.meshNode.resolvePeer(providerId);
 		for (const maddr of addrs) {
 			const parts = maddr.split("/");
 			if (parts[1] === "ip4") {
-				const grpcHost = `${parts[2]}:50051`;
+				const grpcHost = `${parts[2]}:${grpcPort}`;
 				console.error(
 					`[NmpClient] 🧭 Translated Multiaddr to gRPC Target: ${grpcHost}`,
 				);
@@ -84,12 +86,13 @@ export class NmpClient {
 			}
 		}
 
-		// Fallback to localhost behavior if strictly local testing via memory DHT
-		return "127.0.0.1:50051";
+		// Fallback to localhost with dynamically resolved port
+		return `127.0.0.1:${grpcPort}`;
 	}
 
 	/**
-	 * Retrieves Remote Capabilities via DHT (simulated here for generic queries)
+	 * Discovers remote capabilities via the NMP Manifest Protocol.
+	 * Queries all nmp:manifest providers in the DHT and aggregates their tools.
 	 */
 	public async discoverTools(): Promise<
 		{ name: string; description?: string }[]
@@ -97,14 +100,27 @@ export class NmpClient {
 		if (!this.meshNode) {
 			throw new Error("Client must be connected before discovering tools.");
 		}
-		// DHT standard iteration is still experimental for generic enumerations without keys.
-		// For Alpha V1 and Conformance Tests, we return the base log capability.
-		return [
-			{
-				name: "read_logs",
-				description: "Alpha Conformance Tool for test validation",
-			},
-		];
+
+		const providerIds = await this.meshNode.discoverManifestProviders();
+		const tools: { name: string; description?: string }[] = [];
+		const seenNames = new Set<string>();
+
+		for (const peerId of providerIds) {
+			const manifest = await this.meshNode.queryManifest(peerId);
+			if (manifest) {
+				for (const tool of manifest.tools) {
+					if (!seenNames.has(tool.name)) {
+						tools.push({ name: tool.name, description: tool.description });
+						seenNames.add(tool.name);
+					}
+				}
+			}
+		}
+
+		console.error(
+			`[NmpClient] 🔍 Discovered ${tools.length} tools across ${providerIds.length} providers`,
+		);
+		return tools;
 	}
 
 	/**
@@ -318,6 +334,45 @@ export class NmpClient {
 			console.error(`[NmpClient] 🚨 Validation failed:`, error);
 			return false;
 		}
+	}
+
+	/**
+	 * Reads a specific resource by URI.
+	 * In NMP, resources can be static definitions or dynamic streams.
+	 */
+	public async readResource(uri: string): Promise<{
+		contents: Array<{ uri: string; mimeType?: string; text: string }>;
+	}> {
+		if (!this.meshNode) {
+			throw new Error("Client must be connected before reading resources.");
+		}
+
+		console.error(`[NmpClient] 🔍 Querying Mesh for Resource: ${uri}...`);
+
+		// For now, in Alpha v3, we assume the resource is provided by an active provider.
+		// A more complex implementation would use resolveCapability(uri).
+		// For the industrial demo, we'll simulate a direct read if connected or throw.
+		if (!this.rpcClient) {
+			throw new Error(
+				"Resource reading requires an active RPC connection to a provider.",
+			);
+		}
+
+		// This emulates the resource retrieval. 
+		// In a full implementation, this might be a gRPC call.
+		return {
+			contents: [
+				{
+					uri,
+					mimeType: "application/json",
+					text: JSON.stringify({
+						status: "Alpha-Resource-Read-Success",
+						uri,
+						timestamp: new Date().toISOString(),
+					}),
+				},
+			],
+		};
 	}
 
 	public getServerInfo(): { name: string; version: string } | undefined {

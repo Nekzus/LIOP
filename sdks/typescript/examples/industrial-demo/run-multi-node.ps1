@@ -8,8 +8,6 @@ Write-Host "Compilando TypeScript y enlazando agent..." -ForegroundColor Yellow
 
 cd $workingDir
 pnpm run build
-npm run build
-npm link
 
 Write-Host "Starting The Nexus (Bootstrap Directory)..." -ForegroundColor Green
 Start-Process -FilePath "cmd.exe" -ArgumentList "/k pnpm tsx examples/industrial-demo/0-the-nexus.ts" -WorkingDirectory $workingDir -WindowStyle Normal
