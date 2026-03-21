@@ -348,6 +348,11 @@ export class MeshNode {
 				// Strategy 2: Yamux native sendData (Found in user telemetry)
 				else if (typeof stream.sendData === "function") {
 					console.error("[NMP-Mesh] 🛠️ Serving manifest via native Yamux sendData");
+					// Libp2p internal muxers often expect Uint8ArrayList which has .sublist()
+					// Node.js Buffer has .subarray(). We shim it to avoid TypeError.
+					if (!(buf as any).sublist) {
+						(buf as any).sublist = (buf as any).subarray;
+					}
 					stream.sendData(buf);
 					// Gracefully close the write side as required by Yamux
 					if (typeof stream.sendCloseWrite === "function") {
