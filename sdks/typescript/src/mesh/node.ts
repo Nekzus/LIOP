@@ -586,15 +586,20 @@ export class MeshNode {
 		const providers: string[] = [];
 		try {
 			const cid = await this.capabilityToCID(hash);
-			console.error(`[NMP-Mesh] 🔍 Querying Mesh DHT for Provider: ${hash}...`);
+			console.error(`[NMP-Mesh] 🔍 Querying DHT for ${hash} (CID: ${cid.toString()})...`);
 
 			// In libp2p v1.x, contentRouting.findProviders returns AsyncIterable<{ id: PeerId, multiaddrs: Multiaddr[] }>
+			let foundAny = false;
 			for await (const peer of this.node.contentRouting.findProviders(cid)) {
+				foundAny = true;
 				const peerId = peer.id.toString();
 				console.error(`[NMP-Mesh] ✨ Found provider: ${peerId}`);
 				if (!providers.includes(peerId)) {
 					providers.push(peerId);
 				}
+			}
+			if (!foundAny) {
+				console.error(`[NMP-Mesh] 💨 DHT search for ${hash} returned zero results (routing table size: ${(this.node.services as any).dht?.routingTable?.size || 0})`);
 			}
 		} catch (error: unknown) {
 			console.error(
