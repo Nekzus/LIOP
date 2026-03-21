@@ -15,11 +15,35 @@ import { createLibp2p } from "libp2p";
 import { CID } from "multiformats/cid";
 import { sha256 } from "multiformats/hashes/sha2";
 
+/**
+ * Manifest describing a node's capabilities in the NMP Mesh.
+ * Exchanged via the /nmp/manifest/1.0.0 protocol stream.
+ */
+export interface NmpManifest {
+	peerId: string;
+	grpcPort: number;
+	tools: Array<{
+		name: string;
+		description?: string;
+		inputSchema?: Record<string, unknown>;
+	}>;
+	resources: Array<{
+		name: string;
+		uri: string;
+		description?: string;
+		mimeType?: string;
+	}>;
+	serverInfo: { name: string; version: string };
+}
+
 export interface MeshNodeConfig {
 	listenAddresses?: string[];
 	bootstrapNodes?: string[];
 	identityPath?: string;
 }
+
+const NMP_MANIFEST_PROTOCOL = "/nmp/manifest/1.0.0";
+const NMP_MANIFEST_CAPABILITY = "nmp:manifest";
 
 /**
  * P2P Mesh Node backed by libp2p + Kademlia DHT.
@@ -41,6 +65,9 @@ export class MeshNode {
 
 	/** Guards against concurrent re-announcement storms. */
 	private reannouncing = false;
+
+	/** Callback that returns the local node's manifest on request. */
+	private manifestProvider: (() => NmpManifest) | null = null;
 
 	constructor(config: MeshNodeConfig = {}) {
 		this.config = {
@@ -193,10 +220,13 @@ export class MeshNode {
 			services: {
 				identify: identify(),
 				dht: kadDHT({
-					protocol: "/ipfs/kad/1.0.0",
+					protocol: "/ipfs/lan/kad/1.0.0", // SHIFT TO LAN PROTOCOL!
 					clientMode: false,
 					// Allow local/private IPs in the DHT routing table for development/testing
 					allowQueryWithZeroPeers: true,
+					// By default kadDHT drops local IP addresses. Override the mapper to keep them.
+					peerInfoMapper: (peer) => peer,
+					logPrefix: "libp2p:dht-lan",
 				}),
 				ping: ping(),
 			},
@@ -278,6 +308,161 @@ export class MeshNode {
 			await this.node.stop();
 			console.error("[NMP-Mesh] Node stopped");
 		}
+	}
+
+	/**
+	 * Registers a callback that provides this node's manifest.
+	 * When a remote peer opens a /nmp/manifest/1.0.0 stream,
+	 * the callback is invoked and the result is sent as JSON.
+	 */
+	registerManifestHandler(provider: () => NmpManifest): void {
+		this.manifestProvider = provider;
+		if (!this.node) return;
+
+		// libp2p v1.x/v3.x handle API uses { stream, connection }
+		this.node.handle(NMP_MANIFEST_PROTOCOL, async (arg: any, connection?: any) => {
+			const stream = arg.stream || arg; // Robust extraction
+			try {
+				const manifest = this.manifestProvider?.();
+				if (!manifest || !stream) {
+					stream?.close?.();
+					return;
+				}
+
+				const manifestStr = JSON.stringify(manifest);
+				const payload = new TextEncoder().encode(manifestStr);
+
+				// Write length-prefixed payload (4 bytes for length)
+				const lengthBuf = new Uint8Array(4);
+				new DataView(lengthBuf.buffer).setUint32(0, payload.length);
+				const buf = Buffer.concat([lengthBuf, payload]);
+
+				// Strategy 1: Standard libp2p AsyncIterable sink
+				if (typeof stream.sink === "function") {
+					await stream.sink(
+						(async function* () {
+							yield buf;
+						})(),
+					);
+				} 
+				// Strategy 2: Yamux native sendData (Found in user telemetry)
+				else if (typeof stream.sendData === "function") {
+					console.error("[NMP-Mesh] 🛠️ Serving manifest via native Yamux sendData");
+					stream.sendData(buf);
+					// Gracefully close the write side as required by Yamux
+					if (typeof stream.sendCloseWrite === "function") {
+						stream.sendCloseWrite();
+					}
+				}
+				// Strategy 3: it-pipe style function (stream is the sink)
+				else if (typeof stream === "function") {
+					await stream((async function* () {
+						yield buf;
+					})());
+				}
+				// Strategy 4: Fallback write/push
+				else if (typeof stream.write === "function") {
+					await stream.write(buf);
+					await stream.closeWrite?.();
+				} else {
+					throw new Error(`Unsupported stream. Keys: ${Object.keys(stream)}`);
+				}
+
+				console.error(
+					`[NMP-Mesh] 📋 Served manifest (${manifest.tools.length} tools, port ${manifest.grpcPort})`,
+				);
+			} catch (err) {
+				console.error(`[NMP-Mesh] 🚨 Error serving manifest: ${err}`);
+			}
+		});
+
+		console.error(
+			`[NMP-Mesh] 📡 Manifest Protocol registered: ${NMP_MANIFEST_PROTOCOL}`,
+		);
+	}
+
+	/**
+	 * Queries a remote peer's manifest by opening a /nmp/manifest/1.0.0 stream.
+	 * Returns null if the peer doesn't support the protocol or is unreachable.
+	 */
+	async queryManifest(peerIdStr: string): Promise<NmpManifest | null> {
+		if (!this.node) throw new Error("Mesh Node is not running");
+
+		try {
+			// Resolve the peer's multiaddr from active connections or peerStore
+			const connections = this.node.getConnections();
+			let targetConn = connections.find(
+				(c) => c.remotePeer.toString() === peerIdStr,
+			);
+
+			if (!targetConn) {
+				// Try to dial the peer first
+				const allPeers = await this.node.peerStore.all();
+				const peer = allPeers.find((p) => p.id.toString() === peerIdStr);
+				if (peer && peer.addresses.length > 0) {
+					// biome-ignore lint/suspicious/noExplicitAny: libp2p addr type
+					const addr = (peer.addresses[0] as any).multiaddr;
+					await this.node.dial(addr);
+					targetConn = this.node
+						.getConnections()
+						.find((c) => c.remotePeer.toString() === peerIdStr);
+				}
+			}
+
+			if (!targetConn) {
+				console.error(
+					`[NMP-Mesh] Cannot reach peer ${peerIdStr} for manifest query`,
+				);
+				return null;
+			}
+
+			// Open a protocol stream to the peer
+			// biome-ignore lint/suspicious/noExplicitAny: libp2p stream types vary across v1.x/v3.x
+			const stream: any = await targetConn.newStream(NMP_MANIFEST_PROTOCOL);
+
+			// Read the response
+			const chunks: Uint8Array[] = [];
+			for await (const chunk of stream.source) {
+				// libp2p streams yield Uint8ArrayList or Uint8Array
+				const data =
+					chunk instanceof Uint8Array ? chunk : chunk.subarray();
+				chunks.push(data);
+			}
+
+			const raw = Buffer.concat(chunks);
+			if (raw.length < 4) return null;
+
+			// Skip length prefix (4 bytes)
+			const jsonStr = raw.subarray(4).toString("utf-8");
+			const manifest: NmpManifest = JSON.parse(jsonStr);
+
+			console.error(
+				`[NMP-Mesh] 📋 Received manifest from ${peerIdStr}: ${manifest.tools.length} tools, gRPC port ${manifest.grpcPort}`,
+			);
+
+			return manifest;
+		} catch (err) {
+			console.error(
+				`[NMP-Mesh] Failed to query manifest from ${peerIdStr}: ${err}`,
+			);
+			return null;
+		}
+	}
+
+	/**
+	 * Discovers all peers in the DHT that have announced "nmp:manifest".
+	 * Returns their PeerIDs for subsequent manifest queries.
+	 */
+	async discoverManifestProviders(): Promise<string[]> {
+		return this.findProviders(NMP_MANIFEST_CAPABILITY);
+	}
+
+	/**
+	 * Announces this node as a manifest provider in the DHT.
+	 * Should be called after tools/resources have been registered.
+	 */
+	async announceManifest(): Promise<void> {
+		await this.announceCapability(NMP_MANIFEST_CAPABILITY);
 	}
 
 	getPeerId(): string {

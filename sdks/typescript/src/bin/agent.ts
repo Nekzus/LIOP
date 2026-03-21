@@ -11,6 +11,9 @@ import { NmpServer } from "../server/index.js";
  *
  * Secure Logic-on-Origin gateway for Claude Desktop.
  * Communicates via STDIO / JSON-RPC.
+ *
+ * All tool discovery is DYNAMIC via the /nmp/manifest/1.0.0 protocol.
+ * No hardcoded tools, PeerIDs, or port mappings.
  */
 async function main() {
 	const nmpDir = path.join(os.homedir(), ".nmp");
@@ -20,7 +23,7 @@ async function main() {
 		fs.mkdirSync(nmpDir, { recursive: true });
 	}
 
-	// 1. Determine Bootstrap Nodes
+	// 1. Determine Bootstrap Nodes (Zero-Config Discovery)
 	let bootstrapNodes: string[] = [];
 
 	// Command line arguments take precedence
@@ -42,17 +45,21 @@ async function main() {
 		}
 	}
 
-	// Default Fallback (Industrial Demo Nexus)
+	// If no bootstrap nodes found, the agent operates in standalone mode.
+	// It will only serve local tools until peers are discovered.
 	if (bootstrapNodes.length === 0) {
-		bootstrapNodes.push(
-			"/ip4/127.0.0.1/tcp/4001/p2p/12D3KooWEZ3Jy2tu65g5ZGVq1t3TrzKnrqhbvfCmMgdA9cNAEiKY",
+		console.error(
+			"[NMP-Agent] ⚠️ No bootstrap nodes configured. Operating in standalone mode.",
+		);
+		console.error(
+			"[NMP-Agent] 💡 Pass a multiaddr as argument or create 'nexus.multiaddr' file.",
 		);
 	}
 
-	// Initialize local server node
+	// Initialize local server node (lightweight, no tools registered locally)
 	const nmpServer = new NmpServer({
 		name: "@nekzus/nmp-agent",
-		version: "1.1.2",
+		version: "1.2.0",
 	});
 
 	// 2. Mesh Node Configuration
@@ -64,47 +71,22 @@ async function main() {
 	// Start P2P Mesh
 	await meshNode.start();
 
-	// Initialize the shared Router
-	// For Alpha Demo, we explicitly expose the industrial capabilities we expect in the mesh
-	const router = new NmpMcpRouter(nmpServer, meshNode, 50051, [
-		{
-			name: "ProcessMedicalRecord",
-			description:
-				"Processes sensitive medical data blinded securely via NMP Zero-Trust WASM (Hosted on The Vault)",
-			inputSchema: {
-				type: "object",
-				properties: {
-					patientId: {
-						type: "string",
-						description: "The ID of the patient (e.g., NMP-99)",
-					},
-				},
-				required: ["patientId"],
-			},
-		},
-		{
-			name: "CheckBalance",
-			description:
-				"Securely checks the bank account balance without exposing PII (Hosted on The Bank)",
-			inputSchema: {
-				type: "object",
-				properties: { accountId: { type: "string" } },
-				required: ["accountId"],
-			},
-		},
-		{
-			name: "GetStockPrice",
-			description:
-				"Fetches the real-time stock price for a given ticker symbol (Hosted on The Oracle)",
-			inputSchema: {
-				type: "object",
-				properties: { ticker: { type: "string" } },
-				required: ["ticker"],
-			},
-		},
-	]);
+	// 3. Initialize the Dynamic Router
+	// No hardcoded tools — all discovery happens via nmp:manifest protocol
+	const router = new NmpMcpRouter(nmpServer, meshNode);
 
-	// 3. STDIO Transport implementation
+	// Proactive Notification to Claude Desktop when tools are discovered dynamically
+	router.onToolsChanged = () => {
+		process.stdout.write(`{"jsonrpc":"2.0","method":"notifications/tools/list_changed"}\n`);
+	};
+
+	// Periodic Discovery Worker (every 10 seconds)
+	// This silently polls the DHT for new nodes and triggers onToolsChanged if the topology shifts.
+	setInterval(() => {
+		router.refreshManifestCache(true).catch(() => {});
+	}, 10000);
+
+	// 4. STDIO Transport implementation
 	process.stdin.on("data", async (data) => {
 		const payload = data.toString().trim();
 		if (!payload) return;
@@ -130,6 +112,9 @@ async function main() {
 	console.error(`[NMP-Agent] 🛡️ Guarding Claude Desktop via STDIO.`);
 	console.error(
 		`[NMP-Agent] 🌐 P2P Mesh: Joined (${bootstrapNodes.length} bootstraps)`,
+	);
+	console.error(
+		"[NMP-Agent] 📡 Tool discovery: Dynamic via /nmp/manifest/1.0.0",
 	);
 
 	process.on("SIGINT", async () => {
