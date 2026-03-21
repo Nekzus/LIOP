@@ -406,18 +406,25 @@ export class MeshNode {
 		if (!this.node) throw new Error("Mesh Node is not running");
 
 		try {
-			// Resolve the target (parse string to PeerId for dialProtocol compatibility)
-			console.error(`[NMP-Mesh] ☎️ Dialing manifest protocol for ${peerIdStr}...`);
+			// Resolve the target from active connections to ensure PeerId version compatibility
+			let targetPeer: any = null;
+			const connections = this.node.getConnections();
+			const activeConn = connections.find(c => c.remotePeer.toString() === peerIdStr);
 			
-			// biome-ignore lint/suspicious/noExplicitAny: <libp2p version workaround>
-			const { peerIdFromString } = await import("@libp2p/peer-id");
-			const targetPeer = peerIdFromString(peerIdStr);
+			if (activeConn) {
+				console.error(`[NMP-Mesh] ☎️ Using active connection's PeerId for ${peerIdStr}`);
+				targetPeer = activeConn.remotePeer;
+			} else {
+				// Fallback to string parsing if not connected yet
+				const { peerIdFromString } = await import("@libp2p/peer-id");
+				targetPeer = peerIdFromString(peerIdStr);
+			}
 
 			// Open a protocol stream using high-level dialProtocol for automated it-stream wrapping
 			// biome-ignore lint/suspicious/noExplicitAny: libp2p version compatibility
 			let stream: any;
 			try {
-				// We dial by PeerID object (cast to any to avoid @libp2p/interface version mismatch)
+				// We dial using the native PeerId object found or parsed
 				const result: any = await this.node.dialProtocol(targetPeer as any, NMP_MANIFEST_PROTOCOL);
 				stream = result.stream || result;
 			} catch (dialErr) {
