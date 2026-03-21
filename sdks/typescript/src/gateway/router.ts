@@ -173,32 +173,40 @@ export class NmpMcpRouter {
 				);
 			}
 
-			// Query each provider's manifest
+			// Query each provider's manifest in parallel
 			let cacheUpdated = false;
-			for (const peerId of providerIds) {
+			const queryTasks = providerIds.map(async (peerId) => {
 				// Skip if cached and not expired
 				const cached = this.manifestCache.get(peerId);
 				if (
 					cached &&
 					Date.now() - cached.cachedAt < MANIFEST_CACHE_TTL_S * 1000
 				) {
-					continue;
+					return;
 				}
 
-				const manifest = await this.meshNode.queryManifest(peerId);
-				if (manifest) {
-					this.manifestCache.set(peerId, {
-						manifest,
-						cachedAt: Date.now(),
-					});
-					cacheUpdated = true;
+				try {
+					const manifest = await this.meshNode?.queryManifest(peerId);
+					if (manifest) {
+						this.manifestCache.set(peerId, {
+							manifest,
+							cachedAt: Date.now(),
+						});
+						cacheUpdated = true;
+						if (!silent) {
+							console.error(
+								`[NMP-Router] ✅ Cached manifest from ${peerId}: ${manifest.tools.length} tools, gRPC:${manifest.grpcPort}`,
+							);
+						}
+					}
+				} catch (err) {
 					if (!silent) {
-						console.error(
-							`[NMP-Router] ✅ Cached manifest from ${peerId}: ${manifest.tools.length} tools, gRPC:${manifest.grpcPort}`,
-						);
+						console.error(`[NMP-Router] ⚠️ Failed to query manifest from ${peerId}: ${err}`);
 					}
 				}
-			}
+			});
+
+			await Promise.all(queryTasks);
 
 			if (cacheUpdated) {
 				const newCount = Array.from(this.manifestCache.values()).reduce(

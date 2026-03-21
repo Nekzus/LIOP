@@ -101,11 +101,10 @@ El proyecto funciona bajo un ecosistema `Cargo Workspace` modular:
     - **Refactorización del Gateway Híbrido:** El `NmpHybridGateway` fue simplificado para delegar el 100% de su ruteo al nuevo `Router`, garantizando que las correcciones de seguridad (como el hashing de capacidades) sean consistentes en todos los puntos de entrada.
     - **Paridad de Hashing:** Se estandarizó el uso del `toolName` como identificador de capacidad en la Malla Alpha v1, eliminando discrepancias de hashing SHA256 que impedían el handshake PQC en el ruteador remoto.
     - **Distribución vía `bin`:** Configuración de `package.json` para exponer el comando `nmp-agent`, facilitando la adopción masiva sin configuraciones complejas de red.
-
   - **Fase 33.1: LAN Mesh Discovery & Native Protocol Support [Completado]:**
     - **Protocolo LAN-DHT:** Implementación de `/ipfs/lan/kad/1.0.0` para garantizar el descubrimiento dinámico en redes locales y privadas, saltando las restricciones de IPs privadas del DHT público.
-    - **Zero-Hardcode Discovery:** Eliminación total de mapeos estáticos de puertos en el `Router`, delegando la resolución de capacidades (`nmp:manifest`) íntegramente a la red P2P mediante `dialProtocol` de alta fidelidad y normalización de objetos `PeerId`.
-    - **Robustez de Bootstrap (Agent):** Búsqueda multi-ruta de `nexus.multiaddr` (CWD, Home, Binary Dir) y retardo de calentamiento de 3s para garantizar la conectividad inicial.
+    - **Zero-Hardcode Discovery:** Eliminación total de mapeos estáticos de puertos en el `Router`, delegando la resolución de capacidades (`nmp:manifest`) íntegramente a la red P2P mediante `dialProtocol` de alta fidelidad y normalización de objetos `PeerId` nativos extraídos de conexiones activas.
+    - **Robustez de Bootstrap (Agent)::** Búsqueda multi-ruta de `nexus.multiaddr` (CWD, Home, Binary Dir) y retardo de calentamiento de 3s para garantizar la conectividad inicial.
     - **Yamux Native Fallback:** Desarrollo de un sistema de respuesta (Server) y consulta (Client) de bajo nivel para el protocolo de manifiesto, compatible con flujos crudos de Yamux mediante adaptadores de eventos asíncronos (`sendData` / `on('data')`).
     - **Depuración de Muxers:** Eliminación completa del soporte para `mplex` (en desuso), consolidando `yamux` como el estándar único de multiplexación para la malla NMP.
     - **Verificación Multi-Nodo:** Validación exitosa de una malla de 3 nodos (Nexus, Vault, Bank) resolviendo herramientas dinámicamente desde un agente externo.

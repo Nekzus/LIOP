@@ -385,6 +385,13 @@ export class MeshNode {
 					throw new Error(`Unsupported stream. Keys: ${Object.keys(stream)}`);
 				}
 
+				// CRITICAL: Force close the stream after sending the manifest to avoid manifest-reading hangs
+				try {
+					await (stream.close || stream.closeWrite)?.();
+				} catch (closeErr) {
+					// Ignore close errors
+				}
+
 				console.error(
 					`[NMP-Mesh] 📋 Served manifest (${manifest.tools.length} tools, port ${manifest.grpcPort})`,
 				);
@@ -433,7 +440,7 @@ export class MeshNode {
 			}
 
 			// Strategy: Robust Async Reader
-			let source = stream.source;
+			let source = stream.source || (typeof stream[Symbol.asyncIterator] === "function" ? stream : null);
 			if (!source) {
 				// Fallback to the manual robust event reader if dialProtocol failed to wrap (unlikely but safe)
 				if (typeof stream.on === "function" || typeof stream.resume === "function") {
@@ -502,13 +509,29 @@ export class MeshNode {
 				}
 			}
 
-			// Read the response
+			// Read the response with a 5-second timeout to prevent hangs
 			const chunks: Uint8Array[] = [];
-			for await (const chunk of source) {
-				// libp2p streams yield Uint8ArrayList or Uint8Array
-				const data =
-					chunk instanceof Uint8Array ? chunk : chunk.subarray();
-				chunks.push(data);
+			const timeoutPromise = new Promise<never>((_, reject) => {
+				setTimeout(() => reject(new Error("Manifest read timeout (5s)")), 5000);
+			});
+
+			try {
+				await Promise.race([
+					(async () => {
+						for await (const chunk of source) {
+							// libp2p streams yield Uint8ArrayList or Uint8Array
+							const data =
+								chunk instanceof Uint8Array ? chunk : chunk.subarray();
+							chunks.push(data);
+						}
+					})(),
+					timeoutPromise,
+				]);
+			} catch (itErr: any) {
+				console.error(`[NMP-Mesh] ⚠️ Error or timeout while reading manifest from ${peerIdStr}: ${itErr.message}`);
+				// Cleanup stream if possible
+				try { stream.abort?.(); } catch(e) {}
+				return null;
 			}
 
 			const raw = Buffer.concat(chunks);
