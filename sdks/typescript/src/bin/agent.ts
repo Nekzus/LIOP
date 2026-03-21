@@ -32,16 +32,33 @@ async function main() {
 		bootstrapNodes = args.filter((a) => a.startsWith("/"));
 	}
 
-	// Convenience: Try to read nexus.multiaddr if in workspace
+	// Environment variable
+	if (bootstrapNodes.length === 0 && process.env.NMP_BOOTSTRAP) {
+		bootstrapNodes.push(process.env.NMP_BOOTSTRAP.trim());
+	}
+
+	// Convenience: Try to read nexus.multiaddr from multiple locations
 	if (bootstrapNodes.length === 0) {
-		try {
-			const nexusPath = path.join(process.cwd(), "nexus.multiaddr");
-			if (fs.existsSync(nexusPath)) {
-				const addr = fs.readFileSync(nexusPath, "utf8").trim();
-				if (addr) bootstrapNodes.push(addr);
-			}
-		} catch (_e) {
-			/* ignore */
+		const searchPaths = [
+			path.join(process.cwd(), "nexus.multiaddr"),
+			path.join(nmpDir, "nexus.multiaddr"),
+			// Try relative to the agent binary (dist/bin/agent.js -> root/nexus.multiaddr)
+			path.join(path.dirname(new URL(import.meta.url).pathname), "../../nexus.multiaddr"),
+			// Windows path fix (remove leading slash if present)
+			path.join(path.dirname(new URL(import.meta.url).pathname).replace(/^\/([A-Z]:)/, "$1"), "../../nexus.multiaddr")
+		];
+
+		for (const nexusPath of searchPaths) {
+			try {
+				if (fs.existsSync(nexusPath)) {
+					const addr = fs.readFileSync(nexusPath, "utf8").trim();
+					if (addr && !bootstrapNodes.includes(addr)) {
+						bootstrapNodes.push(addr);
+						console.error(`[NMP-Agent] 📍 Found bootstrap at: ${nexusPath}`);
+						break; 
+					}
+				}
+			} catch (_e) { /* ignore */ }
 		}
 	}
 
@@ -80,8 +97,12 @@ async function main() {
 		process.stdout.write(`{"jsonrpc":"2.0","method":"notifications/tools/list_changed"}\n`);
 	};
 
-	// Periodic Discovery Worker (every 10 seconds)
+	// Initial warming period (3s) then Periodic Discovery Worker (every 10 seconds)
 	// This silently polls the DHT for new nodes and triggers onToolsChanged if the topology shifts.
+	setTimeout(() => {
+		router.refreshManifestCache(true).catch(() => {});
+	}, 3000);
+
 	setInterval(() => {
 		router.refreshManifestCache(true).catch(() => {});
 	}, 10000);

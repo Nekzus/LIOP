@@ -308,6 +308,8 @@ export class NmpMcpRouter {
 				(acc, { manifest }) => acc + manifest.tools.length, 
 				0
 			);
+			const connections = this.meshNode ? (this.meshNode as any).node?.getConnections().length : 0;
+			const bootstrapCount = (this.meshNode as any).config?.bootstrapNodes?.length || 0;
 			
 			return {
 				jsonrpc: "2.0",
@@ -316,7 +318,7 @@ export class NmpMcpRouter {
 					content: [
 						{
 							type: "text",
-							text: `NMP Mesh Status: ${meshState}\nProviders Discovered: ${providerCount}\nRemote Tools Mapped: ${cachedTools}`,
+							text: `NMP Mesh Status: ${meshState}\nConnections: ${connections}\nBootstraps: ${bootstrapCount}\nProviders Discovered: ${providerCount}\nRemote Tools Mapped: ${cachedTools}`,
 						},
 					],
 				},
