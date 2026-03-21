@@ -406,90 +406,93 @@ export class MeshNode {
 		if (!this.node) throw new Error("Mesh Node is not running");
 
 		try {
-			// Resolve the peer's multiaddr from active connections or peerStore
-			const connections = this.node.getConnections();
-			let targetConn = connections.find(
-				(c) => c.remotePeer.toString() === peerIdStr,
-			);
+			// Resolve the target (parse string to PeerId for dialProtocol compatibility)
+			console.error(`[NMP-Mesh] ☎️ Dialing manifest protocol for ${peerIdStr}...`);
+			
+			// biome-ignore lint/suspicious/noExplicitAny: <libp2p version workaround>
+			const { peerIdFromString } = await import("@libp2p/peer-id");
+			const targetPeer = peerIdFromString(peerIdStr);
 
-			if (!targetConn) {
-				// Try to dial the peer first
-				const allPeers = await this.node.peerStore.all();
-				const peer = allPeers.find((p) => p.id.toString() === peerIdStr);
-				if (peer && peer.addresses.length > 0) {
-					// biome-ignore lint/suspicious/noExplicitAny: libp2p addr type
-					const addr = (peer.addresses[0] as any).multiaddr;
-					await this.node.dial(addr);
-					targetConn = this.node
-						.getConnections()
-						.find((c) => c.remotePeer.toString() === peerIdStr);
-				}
-			}
-
-			if (!targetConn) {
-				console.error(
-					`[NMP-Mesh] Cannot reach peer ${peerIdStr} for manifest query`,
-				);
+			// Open a protocol stream using high-level dialProtocol for automated it-stream wrapping
+			// biome-ignore lint/suspicious/noExplicitAny: libp2p version compatibility
+			let stream: any;
+			try {
+				// We dial by PeerID object (cast to any to avoid @libp2p/interface version mismatch)
+				const result: any = await this.node.dialProtocol(targetPeer as any, NMP_MANIFEST_PROTOCOL);
+				stream = result.stream || result;
+			} catch (dialErr) {
+				console.error(`[NMP-Mesh] 🚨 Dial error for ${peerIdStr}: ${dialErr}`);
 				return null;
 			}
 
-			// Open a protocol stream to the peer
-			// biome-ignore lint/suspicious/noExplicitAny: libp2p stream types vary across v1.x/v3.x
-			const stream: any = await targetConn.newStream(NMP_MANIFEST_PROTOCOL);
-
-			// Strategy: Robust Async Reader fallback for raw streams (libp2p 3.x)
+			// Strategy: Robust Async Reader
 			let source = stream.source;
-			if (!source && typeof stream.on === "function") {
-				console.error("[NMP-Mesh] 🛠️ Reading manifest via raw event-to-iterable adapter");
-				source = (async function* () {
-					const queue: any[] = [];
-					let resolve: (() => void) | null = null;
-					let finished = false;
-					let error: Error | null = null;
+			if (!source) {
+				// Fallback to the manual robust event reader if dialProtocol failed to wrap (unlikely but safe)
+				if (typeof stream.on === "function" || typeof stream.resume === "function") {
+					console.error("[NMP-Mesh] 🛠️ Reading manifest via native fallback (Stream Wrapper missing)");
+					source = (async function* () {
+						const queue: any[] = [];
+						let resolve: (() => void) | null = null;
+						let finished = false;
+						let error: Error | null = null;
 
-					stream.on("data", (chunk: any) => {
-						queue.push(chunk);
-						if (resolve) {
-							const r = resolve;
-							resolve = null;
-							r();
-						}
-					});
-					stream.on("end", () => {
-						finished = true;
-						if (resolve) {
-							const r = resolve;
-							resolve = null;
-							r();
-						}
-					});
-					stream.on("error", (e: Error) => {
-						error = e;
-						if (resolve) {
-							const r = resolve;
-							resolve = null;
-							r();
-						}
-					});
-
-					// Ensure stream is flowing
-					if (typeof stream.resume === "function") stream.resume();
-
-					while (!finished || queue.length > 0) {
-						if (error) throw error;
-						if (queue.length > 0) {
-							yield queue.shift();
-						} else {
-							await new Promise<void>((res) => {
-								resolve = res;
+						const dataHandler = (chunk: any) => {
+							queue.push(chunk);
+							if (resolve) {
+								const r = resolve;
+								resolve = null;
+								r();
+							}
+						};
+						
+						if (typeof stream.on === "function") {
+							stream.on("data", dataHandler);
+							stream.on("end", () => {
+								finished = true;
+								if (resolve) {
+									const r = resolve;
+									resolve = null;
+									r();
+								}
+							});
+							stream.on("error", (e: Error) => {
+								error = e;
+								if (resolve) {
+									const r = resolve;
+									resolve = null;
+									r();
+								}
 							});
 						}
-					}
-				})();
+
+						// Ensure stream is flowing
+						if (typeof stream.resume === "function") stream.resume();
+
+						while (!finished || queue.length > 0) {
+							if (error) throw error;
+							if (queue.length > 0) {
+								yield queue.shift();
+							} else {
+								await new Promise<void>((res) => {
+									resolve = res;
+								});
+							}
+							// Exit loop if we haven't received anything and stream has no event emitter
+							if (!stream.on && queue.length === 0) break;
+						}
+					})();
+				}
 			}
 
 			if (!source) {
-				throw new Error("Target stream has no source or event emitter");
+				// Final attempt: check if it's already an iterable
+				if (typeof stream[Symbol.asyncIterator] === "function") {
+					source = stream;
+				} else {
+					console.error(`[NMP-Mesh] 🚨 Stream Debug: keys=[${Object.keys(stream)}] typeof source=${typeof stream.source}`);
+					throw new Error("Target stream has no source (AsyncIterable) or event emitter (Readable)");
+				}
 			}
 
 			// Read the response
@@ -503,7 +506,7 @@ export class MeshNode {
 
 			const raw = Buffer.concat(chunks);
 			if (raw.length < 4) {
-				console.error("[NMP-Mesh] ⚠️ Received empty or invalid manifest (too short)");
+				console.error(`[NMP-Mesh] ⚠️ Received empty/invalid manifest from ${peerIdStr}`);
 				return null;
 			}
 

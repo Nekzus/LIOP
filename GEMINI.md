@@ -104,7 +104,7 @@ El proyecto funciona bajo un ecosistema `Cargo Workspace` modular:
 
   - **Fase 33.1: LAN Mesh Discovery & Native Protocol Support [Completado]:**
     - **Protocolo LAN-DHT:** Implementación de `/ipfs/lan/kad/1.0.0` para garantizar el descubrimiento dinámico en redes locales y privadas, saltando las restricciones de IPs privadas del DHT público.
-    - **Zero-Hardcode Discovery:** Eliminación total de mapeos estáticos de puertos en el `Router`, delegando la resolución de capacidades (`nmp:manifest`) íntegramente a la red P2P.
+    - **Zero-Hardcode Discovery:** Eliminación total de mapeos estáticos de puertos en el `Router`, delegando la resolución de capacidades (`nmp:manifest`) íntegramente a la red P2P mediante `dialProtocol` de alta fidelidad.
     - **Robustez de Bootstrap (Agent):** Búsqueda multi-ruta de `nexus.multiaddr` (CWD, Home, Binary Dir) y retardo de calentamiento de 3s para garantizar la conectividad inicial.
     - **Yamux Native Fallback:** Desarrollo de un sistema de respuesta (Server) y consulta (Client) de bajo nivel para el protocolo de manifiesto, compatible con flujos crudos de Yamux mediante adaptadores de eventos asíncronos (`sendData` / `on('data')`).
     - **Depuración de Muxers:** Eliminación completa del soporte para `mplex` (en desuso), consolidando `yamux` como el estándar único de multiplexación para la malla NMP.
