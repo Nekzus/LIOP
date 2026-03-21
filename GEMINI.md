@@ -106,6 +106,7 @@ El proyecto funciona bajo un ecosistema `Cargo Workspace` modular:
     - **Protocolo LAN-DHT:** Implementación de `/ipfs/lan/kad/1.0.0` para garantizar el descubrimiento dinámico en redes locales y privadas, saltando las restricciones de IPs privadas del DHT público.
     - **Zero-Hardcode Discovery:** Eliminación total de mapeos estáticos de puertos en el `Router`, delegando la resolución de capacidades (`nmp:manifest`) íntegramente a la red P2P.
     - **Yamux Native Fallback:** Desarrollo de un sistema de respuesta de bajo nivel para el protocolo de manifiesto, compatible con flujos crudos de Yamux mediante `sendData` y `sendCloseWrite`.
+    - **Depuración de Muxers:** Eliminación completa del soporte para `mplex` (en desuso), consolidando `yamux` como el estándar único de multiplexación para la malla NMP.
     - **Verificación Multi-Nodo:** Validación exitosa de una malla de 3 nodos (Nexus, Vault, Bank) resolviendo herramientas dinámicamente desde un agente externo.
 
 ---

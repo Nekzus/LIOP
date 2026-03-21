@@ -437,9 +437,64 @@ export class MeshNode {
 			// biome-ignore lint/suspicious/noExplicitAny: libp2p stream types vary across v1.x/v3.x
 			const stream: any = await targetConn.newStream(NMP_MANIFEST_PROTOCOL);
 
+			// Strategy: Robust Async Reader fallback for raw streams (libp2p 3.x)
+			let source = stream.source;
+			if (!source && typeof stream.on === "function") {
+				console.error("[NMP-Mesh] 🛠️ Reading manifest via raw event-to-iterable adapter");
+				source = (async function* () {
+					const queue: any[] = [];
+					let resolve: (() => void) | null = null;
+					let finished = false;
+					let error: Error | null = null;
+
+					stream.on("data", (chunk: any) => {
+						queue.push(chunk);
+						if (resolve) {
+							const r = resolve;
+							resolve = null;
+							r();
+						}
+					});
+					stream.on("end", () => {
+						finished = true;
+						if (resolve) {
+							const r = resolve;
+							resolve = null;
+							r();
+						}
+					});
+					stream.on("error", (e: Error) => {
+						error = e;
+						if (resolve) {
+							const r = resolve;
+							resolve = null;
+							r();
+						}
+					});
+
+					// Ensure stream is flowing
+					if (typeof stream.resume === "function") stream.resume();
+
+					while (!finished || queue.length > 0) {
+						if (error) throw error;
+						if (queue.length > 0) {
+							yield queue.shift();
+						} else {
+							await new Promise<void>((res) => {
+								resolve = res;
+							});
+						}
+					}
+				})();
+			}
+
+			if (!source) {
+				throw new Error("Target stream has no source or event emitter");
+			}
+
 			// Read the response
 			const chunks: Uint8Array[] = [];
-			for await (const chunk of stream.source) {
+			for await (const chunk of source) {
 				// libp2p streams yield Uint8ArrayList or Uint8Array
 				const data =
 					chunk instanceof Uint8Array ? chunk : chunk.subarray();
@@ -447,7 +502,10 @@ export class MeshNode {
 			}
 
 			const raw = Buffer.concat(chunks);
-			if (raw.length < 4) return null;
+			if (raw.length < 4) {
+				console.error("[NMP-Mesh] ⚠️ Received empty or invalid manifest (too short)");
+				return null;
+			}
 
 			// Skip length prefix (4 bytes)
 			const jsonStr = raw.subarray(4).toString("utf-8");
