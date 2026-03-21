@@ -5,7 +5,6 @@ import { yamux } from "@chainsafe/libp2p-yamux";
 import { bootstrap } from "@libp2p/bootstrap";
 import { identify } from "@libp2p/identify";
 import { kadDHT } from "@libp2p/kad-dht";
-import { mplex } from "@libp2p/mplex";
 import { ping } from "@libp2p/ping";
 import { tcp } from "@libp2p/tcp";
 import { webSockets } from "@libp2p/websockets";
@@ -216,7 +215,7 @@ export class MeshNode {
 			},
 			transports: [webSockets(), tcp()],
 			connectionEncrypters: [noise()],
-			streamMuxers: [yamux(), mplex()],
+			streamMuxers: [yamux()],
 			services: {
 				identify: identify(),
 				dht: kadDHT({
