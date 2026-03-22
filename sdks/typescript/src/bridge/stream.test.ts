@@ -111,8 +111,9 @@ describe("NmpStreamBridge (Integration)", () => {
 		const { tools } = await client.listTools();
 
 		expect(tools.length).toBeGreaterThan(0);
-		expect(tools[0].name).toBe("nmp_audit_sandbox");
-		expect(tools[0].inputSchema?.properties?.payload).toBeDefined();
+		const auditTool = tools.find(t => t.name === "nmp_audit_sandbox");
+		expect(auditTool).toBeDefined();
+		expect(auditTool?.inputSchema?.properties?.payload).toBeDefined();
 
 		await client.close();
 	});

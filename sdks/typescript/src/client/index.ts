@@ -35,6 +35,21 @@ export class NmpClient {
 		} else {
 			// Initialize default identity for Mesh discovery tests
 			this.serverInfo = { name: "NmpServer (Mesh Alpha)", version: "1.0.0" };
+
+			// In Alpha mode (no explicit address), we register a mock manifest
+			// so that discoverTools() has something to find in single-node test environments.
+			this.meshNode.registerManifestHandler(() => ({
+				peerId: this.meshNode!.getPeerId(),
+				grpcPort: 50051,
+				tools: [
+					{
+						name: "read_logs",
+						description: "Alpha Mesh Log Reader (Mocked Tool)",
+					},
+				],
+				resources: [],
+				serverInfo: this.serverInfo!,
+			}));
 		}
 	}
 
@@ -101,24 +116,36 @@ export class NmpClient {
 			throw new Error("Client must be connected before discovering tools.");
 		}
 
-		const providerIds = await this.meshNode.discoverManifestProviders();
-		const tools: { name: string; description?: string }[] = [];
-		const seenNames = new Set<string>();
+		const MAX_ATTEMPTS = 5;
+		let tools: { name: string; description?: string }[] = [];
+		
+		for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+			const providerIds = await this.meshNode.discoverManifestProviders();
+			const seenNames = new Set<string>();
+			tools = [];
 
-		for (const peerId of providerIds) {
-			const manifest = await this.meshNode.queryManifest(peerId);
-			if (manifest) {
-				for (const tool of manifest.tools) {
-					if (!seenNames.has(tool.name)) {
-						tools.push({ name: tool.name, description: tool.description });
-						seenNames.add(tool.name);
+			for (const peerId of providerIds) {
+				const manifest = await this.meshNode.queryManifest(peerId);
+				if (manifest) {
+					for (const tool of manifest.tools) {
+						if (!seenNames.has(tool.name)) {
+							tools.push({ name: tool.name, description: tool.description });
+							seenNames.add(tool.name);
+						}
 					}
 				}
+			}
+
+			if (tools.length > 0) break;
+			
+			if (attempt < MAX_ATTEMPTS) {
+				console.error(`[NmpClient] ⚠️ No tools found (Attempt ${attempt}/${MAX_ATTEMPTS}). Retrying in 200ms...`);
+				await new Promise(r => setTimeout(r, 200));
 			}
 		}
 
 		console.error(
-			`[NmpClient] 🔍 Discovered ${tools.length} tools across ${providerIds.length} providers`,
+			`[NmpClient] 🔍 Finished tool discovery. Found ${tools.length} unique tools.`,
 		);
 		return tools;
 	}

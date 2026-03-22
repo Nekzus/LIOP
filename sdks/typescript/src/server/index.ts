@@ -719,8 +719,9 @@ Failure to follow these rules will result in an immediate violation and the exec
 						is_error: false,
 					};
 
-					call.write(response);
-					call.end();
+					call.write(response, () => {
+						call.end();
+					});
 				} catch (error: unknown) {
 					const e = error as Error;
 					console.error(`[NMP-RPC] 🚨 Execution Error: ${e.message}`);

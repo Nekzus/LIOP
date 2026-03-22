@@ -14,7 +14,7 @@ import type { Libp2p } from "libp2p";
 import { createLibp2p } from "libp2p";
 import { CID } from "multiformats/cid";
 import { sha256 } from "multiformats/hashes/sha2";
-import { pEvent } from "p-event";
+// import { pEvent } from "p-event"; // Comentado para evitar conflictos ESM en tests
 
 /**
  * Manifest describing a node's capabilities in the NMP Mesh.
@@ -278,10 +278,10 @@ export class MeshNode {
 			});
 		});
 
+		await this.node.start();
+
 		// [NMP-ALPHA] Protocols and services setup
 		this.applyHandlers();
-
-		await this.node.start();
 
 		if (isNew && this.config.identityPath) {
 			await this.saveIdentity(privateKey);
@@ -327,6 +327,11 @@ export class MeshNode {
 
 		this.manifestProtocolRegistered = true;
 
+		// Announce manifest capability to the Mesh DHT for discovery
+		this.announceCapability(NMP_MANIFEST_CAPABILITY).catch((err) => {
+			console.error(`[NMP-Mesh] 🚨 Initial manifest announcement failed: ${err}`);
+		});
+
 		// libp2p v1.x/v3.x handle API uses { stream, connection }
 		this.node.handle(NMP_MANIFEST_PROTOCOL, async (arg: any, connection?: any) => {
 			const stream = arg.stream || arg; // Robust extraction
@@ -345,45 +350,34 @@ export class MeshNode {
 
 				const manifestStr = JSON.stringify(manifest);
 				const payload = new TextEncoder().encode(manifestStr);
-
+				
 				// Write length-prefixed payload (Big Endian 4 bytes)
 				const lengthBuf = Buffer.alloc(4);
 				lengthBuf.writeUInt32BE(payload.length, 0);
-				
 				const fullPacket = Buffer.concat([lengthBuf, Buffer.from(payload)]);
 
-				// DeepWiki/Official libp2p: use stream.send() and stream.close() for modern stream handling
-				// If send() is available, we use it directly with EventTarget-based backpressure.
-				if (typeof stream.send === 'function') {
-					console.error(`[NMP-Mesh] 🛠️ Using official stream.send() API...`);
-					
-					// If send returns false, buffer is full; wait for 'drain' event
-					if (stream.send(fullPacket) === false) {
-						console.error(`[NMP-Mesh] ⏳ Stream buffer full, waiting for drain...`);
-						await pEvent(stream, 'drain', { rejectionEvents: ['close', 'error'] });
+				console.error(`[NMP-Mesh] 🛠️ Serving manifest (${fullPacket.length} bytes) to ${remotePeer} [Tools: ${manifest.tools.map(t => t.name).join(', ')}]`);
+
+				try {
+					await pipe(
+						[fullPacket],
+						stream
+					);
+					console.error(`[NMP-Mesh] ✅ Manifest sent successfully to ${remotePeer}`);
+				} catch (pipeErr: any) {
+					console.error(`[NMP-Mesh] 🚨 Pipe error serving manifest to ${remotePeer}: ${pipeErr.message}`);
+					// Fallback to direct send if available
+					if (typeof stream.send === 'function') {
+						console.error(`[NMP-Mesh] 🛠️ Using fallback stream.send() for ${remotePeer}`);
+						stream.send(fullPacket);
 					}
-					
-					// close() stops sending and waits for flush
-					if (typeof stream.close === 'function') {
-						await stream.close();
-					} else if (typeof stream.sendCloseWrite === 'function') {
-						await stream.sendCloseWrite();
-					}
-					
-					console.error(`[NMP-Mesh] ✅ Served manifest to ${remotePeer} using standard API`);
-					return;
 				}
+				return;
 
-				// Fallback to legacy it-pipe if send() is not available (e.g. older libp2p or custom mocks)
-				const sink = typeof stream === "function" ? stream : 
-							 (typeof stream.sink === "function" ? stream.sink.bind(stream) : null);
-				
-				if (!sink) throw new Error(`Unwriteable stream (no send() or sink). Arg keys: ${Object.keys(arg).join(', ')}`);
 
-				await pipe(
-					[fullPacket],
-					sink
-				);
+				console.error(`[NMP-Mesh] 🚨 Stream has no valid output method (sink or send)`);
+
+
 
 				console.error(`[NMP-Mesh] ✅ Served manifest to ${remotePeer}`);
 			} catch (err: any) {
@@ -413,6 +407,13 @@ export class MeshNode {
 	 */
 	async queryManifest(peerIdStr: string): Promise<NmpManifest | null> {
 		if (!this.node) throw new Error("Mesh Node is not running");
+
+		// [ALPHA-OPTIMIZATION] Local Loopback Bypass
+		// If we are querying our own manifest, return it directly from the provider.
+		if (peerIdStr === this.node.peerId.toString()) {
+			console.error(`[NMP-Mesh] 🔄 Loopback: Returning local manifest directly for ${peerIdStr}`);
+			return this.manifestProvider?.() || null;
+		}
 
 		const MAX_ATTEMPTS = 3;
 		for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
@@ -601,6 +602,16 @@ export class MeshNode {
 			}
 			if (!foundAny) {
 				console.error(`[NMP-Mesh] 💨 DHT search for ${hash} returned zero results (routing table size: ${(this.node.services as any).dht?.routingTable?.size || 0})`);
+			}
+
+			// [DEVELOPER-EXPERIENCE] Local Loopback Discovery
+			// If we are providing this capability, ensure we find ourselves even if DHT findProviders doesn't return us.
+			if (this.announcedCapabilities.has(hash)) {
+				const selfId = this.node.peerId.toString();
+				if (!providers.includes(selfId)) {
+					console.error(`[NMP-Mesh] 🔄 Including local node (${selfId}) in results for ${hash}`);
+					providers.push(selfId);
+				}
 			}
 		} catch (error: unknown) {
 			console.error(
