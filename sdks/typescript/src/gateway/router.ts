@@ -62,7 +62,7 @@ export class NmpMcpRouter {
 						{
 							name: "NmpMeshStatus",
 							description:
-								"Returns the current dynamic status of the Zero-Trust Neural Mesh.",
+								"NmpMeshStatus: Returns the current dynamic diagnostic status of the Zero-Trust Neural Mesh.",
 							inputSchema: { type: "object", properties: {} },
 						},
 						...remoteTools,
@@ -123,7 +123,7 @@ export class NmpMcpRouter {
 				const diagnosticTool = {
 					name: "NmpMeshStatus",
 					description:
-						"Returns the current dynamic status of the Zero-Trust Neural Mesh.",
+						"NmpMeshStatus: Returns the current dynamic diagnostic status of the Zero-Trust Neural Mesh.",
 					inputSchema: { type: "object", properties: {} },
 				};
 
@@ -485,8 +485,11 @@ export class NmpMcpRouter {
 				: 0;
 
 			const bootstrapNodes: string[] =
-				this.meshNode && (this.meshNode as any).config?.bootstrapNodes
-					? (this.meshNode as any).config.bootstrapNodes
+				this.meshNode &&
+				// biome-ignore lint/suspicious/noExplicitAny: access internal config
+				(this.meshNode as any).config?.bootstrapNodes
+					? // biome-ignore lint/suspicious/noExplicitAny: access internal config
+						(this.meshNode as any).config.bootstrapNodes
 					: [];
 			const bootstrapCount = bootstrapNodes.length;
 
