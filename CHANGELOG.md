@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.2.0-alpha.5](https://github.com/Nekzus/Neural-Mesh-Protocol/compare/v1.2.0-alpha.4...v1.2.0-alpha.5) (2026-03-22)
+
+
+### Features
+
+* **router:** Inyectada topología Zero-Trust (NmpMeshStatus Expandido + Visibilidad de Origen en MCP Tools) ([873ca0e](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/873ca0edb4f34b41221afc5aef76e630a5710171))
+
 # [1.2.0-alpha.4](https://github.com/Nekzus/Neural-Mesh-Protocol/compare/v1.2.0-alpha.3...v1.2.0-alpha.4) (2026-03-22)
 
 
