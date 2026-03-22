@@ -379,10 +379,18 @@ export class NmpMcpRouter {
 		const tools: any[] = [];
 		const seenNames = new Set(this.nmpServer.listTools().map((t) => t.name));
 
-		for (const { manifest } of this.manifestCache.values()) {
+		for (const [peerId, { manifest }] of this.manifestCache.entries()) {
 			for (const tool of manifest.tools) {
 				if (!seenNames.has(tool.name)) {
-					tools.push(tool);
+					const augmentedTool = { ...tool };
+					const providerName = manifest.serverInfo?.name || "Unknown Provider";
+					const originStamp = `\n\n[🛡️ NMP Zero-Trust Origin]\nProvider: ${providerName}\nNetwork ID: ${peerId}`;
+
+					augmentedTool.description = augmentedTool.description
+						? `${augmentedTool.description}${originStamp}`
+						: originStamp.trim();
+
+					tools.push(augmentedTool);
 					seenNames.add(tool.name);
 				}
 			}
@@ -415,10 +423,18 @@ export class NmpMcpRouter {
 		}> = [];
 		const seenUris = new Set(this.nmpServer.listResources().map((r) => r.uri));
 
-		for (const { manifest } of this.manifestCache.values()) {
+		for (const [peerId, { manifest }] of this.manifestCache.entries()) {
 			for (const resource of manifest.resources) {
 				if (!seenUris.has(resource.uri)) {
-					resources.push(resource);
+					const augmentedResource = { ...resource };
+					const providerName = manifest.serverInfo?.name || "Unknown Provider";
+					const originStamp = `\n\n[🛡️ NMP Zero-Trust Origin]\nProvider: ${providerName}\nNetwork ID: ${peerId}`;
+
+					augmentedResource.description = augmentedResource.description
+						? `${augmentedResource.description}${originStamp}`
+						: originStamp.trim();
+
+					resources.push(augmentedResource);
 					seenUris.add(resource.uri);
 				}
 			}
@@ -467,32 +483,47 @@ export class NmpMcpRouter {
 				? // biome-ignore lint/suspicious/noExplicitAny: access internal nodes
 					(this.meshNode as any).node?.getConnections().length
 				: 0;
-			const bootstrapCount =
-				// biome-ignore lint/suspicious/noExplicitAny: access internal config
+
+			const bootstrapNodes: string[] =
 				this.meshNode && (this.meshNode as any).config?.bootstrapNodes
-					? // biome-ignore lint/suspicious/noExplicitAny: access internal config
-						(this.meshNode as any).config.bootstrapNodes.length
-					: 0;
+					? (this.meshNode as any).config.bootstrapNodes
+					: [];
+			const bootstrapCount = bootstrapNodes.length;
+
+			const bootstrapList = bootstrapNodes
+				.map((addr) => {
+					const parts = addr.split("/");
+					const id = parts[parts.length - 1];
+					return `  • ${id ? id.slice(-8) : "Unknown"} (${addr})`;
+				})
+				.join("\n");
+
 			const routingTableSize = this.meshNode
 				? // biome-ignore lint/suspicious/noExplicitAny: access internal nodes
 					(this.meshNode as any).getRoutingTableSize()
 				: 0;
 
+			const localPeerId = this.meshNode?.getPeerId() || "Offline";
+
 			const cachedToolList = Array.from(this.manifestCache.entries())
 				.flatMap(([peerId, { manifest }]) =>
-					manifest.tools.map((t) => `  • ${t.name} (from ${peerId.slice(-6)})`),
+					manifest.tools.map((t) => `  • ${t.name} (from origin: ${peerId})`),
 				)
 				.join("\n");
 
 			const statusText = [
 				`🌐 NMP Mesh Status: ${meshState === "Active" ? "🟢 Active" : "🔴 Offline"}`,
+				`🆔 Local Agent Identity: ${localPeerId}`,
 				`📊 Network: ${connections} Conns | ${routingTableSize} DHT Peers | ${bootstrapCount} Bootstraps`,
+				bootstrapCount > 0 ? `\nActive Bootstraps:\n${bootstrapList}\n` : "",
 				`🔎 Discovery: ${stats.candidates} Candidates | ${stats.success} OK | ${stats.failures} FAIL`,
 				`🛠️ Tooling: ${providerCount} Providers | ${cachedTools} Total Remote Tools`,
 				cachedTools > 0
-					? `\nDiscovered Remote Tools:\n${cachedToolList}`
+					? `\nDiscovered Remote Tools (Zero-Trust Origins):\n${cachedToolList}`
 					: "\nNo remote tools discovered yet.",
-			].join("\n");
+			]
+				.filter((line) => line !== "")
+				.join("\n");
 
 			return {
 				jsonrpc: "2.0",
