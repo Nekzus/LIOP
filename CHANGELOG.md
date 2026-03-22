@@ -3,6 +3,28 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.2.0-alpha.4](https://github.com/Nekzus/Neural-Mesh-Protocol/compare/v1.2.0-alpha.3...v1.2.0-alpha.4) (2026-03-22)
+
+
+### Bug Fixes
+
+* **agent:** implement multi-path bootstrap discovery and DHT warming delay ([eb20971](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/eb20971a752557a925698448572a94906f0f76f7))
+* **mesh:** add timeouts and parallel manifest queries to prevent Claude connection hangs ([7639770](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/76397709f01b12a3799dfbab277af16d581143a3))
+* **mesh:** resolve PeerId type conflict in dialProtocol ([963238b](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/963238bec66456c92a0fe90a7d1c175af0e823a7))
+* **mesh:** use native PeerId from connections to avoid toMultihash error ([8e17681](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/8e176812ec1a98b2d2a7888f7473a30acfcdb833))
+* **sdk:** add robust event-based reader fallback in queryManifest for raw streams ([d830549](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/d8305492e3a7fab1619a997fe8e19fc533cfb76a))
+* **sdk:** shim sublist on manifest buffer for Yamux compatibility ([5963277](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/5963277a425642284a9c62f54249d4741d299b10))
+* **sdk:** use pseudo-Uint8ArrayList for Yamux native stream compatibility ([566797b](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/566797b55572011800240b74a9569c34c24f174a))
+
+
+### Features
+
+* Implement initial NMP TypeScript SDK including client, server, mesh networking, and comprehensive integration tests. ([86e2b2f](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/86e2b2f835a89fb006d6338680b97eb4808c6ecd))
+* **mesh-node:** align manifest serving with official libp2p standards (Phase 80) ([0cafeeb](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/0cafeebafb8691b0c885fdea34ee6a721006eee9))
+* **sdk:** fully synchronized discovery fix and updated project bitacora ([ec86481](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/ec86481b42b17d78ab95e450fee45ba57ad82ec5))
+* **sdk:** implement dynamic tool discovery with LAN-DHT and Yamux native fallback ([84787d4](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/84787d4c22312be0ec350743f6ff5601894f539b))
+* **sdk:** improve mesh stability, non-blocking discovery and stream handling ([5905961](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/5905961838cc9b21394ba0e07a2b30b501e2af18))
+
 # [1.2.0-alpha.3](https://github.com/Nekzus/Neural-Mesh-Protocol/compare/v1.2.0-alpha.2...v1.2.0-alpha.3) (2026-03-20)
 
 
