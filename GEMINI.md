@@ -1,6 +1,7 @@
 # Neural Mesh Protocol (NMP) - Bitácora de Desarrollo
 
 ## Políticas Fundamentales del Proyecto
+- **[PRIORIDAD ABSOLUTA] DOCUMENTACIÓN OFICIAL (DeepWiki):** ANTES QUE NADA, SIEMPRE se debe verificar con la documentación oficial de las tecnologías involucradas (mediante servidores MCP como DeepWiki, comandos o URLs) ANTES de emitir cualquier acción, ya sea de planificación o modificación de código. El objetivo es cumplir estrictamente con los estándares que la tecnología ofrece de manera profesional, garantizando los mínimos errores posibles, entregando soluciones hiper-precisas, modernas y probadas empíricamente. Esta consigna es el primer pilar de toda interacción.
 - **Idioma del Código (Inglés):** Todo el código fuente (nombres de variables, funciones, arquitecturas), comentarios internos y documentación oficial que resida dentro del repositorio debe escribirse **estrictamente en Inglés** para garantizar un estándar profesional y permitir la colaboración a nivel mundial.
 - **Idioma de Planificación (Español):** Todas las interacciones, discusiones en chat, y documentos de planificación (incluyendo este `GEMINI.md` y `task.md`) deben y serán mantenidos en **Español**.
 - **Bitácora Viva:** Es mandatorio que este documento `GEMINI.md`, al igual que el listado de tareas, se mantengan continua y obligatoriamente actualizados con ***cada*** modificación, refactor o avance arquitectónico del proyecto.
@@ -526,4 +527,7 @@ El proyecto funciona bajo un ecosistema `Cargo Workspace` modular:
   - **Router Inteligente**: `NmpMcpRouter` fue reescrito para consultar de forma proactiva la DHT buscando nodos *Provider*, cacheando sus manifiestos y combinando capacidades remotas con locales. El fallback a `localhost` fue erradicado.
   - **Zero-Config Agent**: `nmp-agent` ahora inicia vacío y descubre orgánicamente todo su ecosistema basándose estrictamente en manifiestos anunciados, permitiendo a Claude integrarse a redes industriales heterogéneas sin tocar un archivo de configuración.
   - **Resolución Dinámica de Kademlia**: El módulo `resolveCapability` en cliente ahora extrae la IP de los Enjambres Libp2p (Swarms) y adjunta el puerto de la resolución del Manifiesto P2P.
-- **Cierre de Fase Alpha**: NMP evoluciona de un framework de desarrollo a un ecosistema de usuario final ("Full Power in the Package").
+- **Fase 80: Alineación con Estándares Libp2p (DeepWiki) [Completado]:**
+  - **Refactor de Streams L7:** Sustitución de la escritura manual (`pipe`/`it-pipe`) y métodos internos de Yamux (`sendData`) en el servidor de manifiestos por la API oficial `stream.send()` y `stream.close()`.
+  - **Gestión de Backpressure**: Implementación de lógica de espera de evento `drain` mediante `p-event` si el buffer de transmisión está lleno, garantizando resiliencia ante saturaciones de red.
+  - **Estabilización de Tipografía**: Inyección de `global.d.ts` para soportar `PromiseWithResolvers` (ES2024), resolviendo incompatibilidades de tipos en dependencias modernas de alto rendimiento.

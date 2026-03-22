@@ -14,6 +14,7 @@ import type { Libp2p } from "libp2p";
 import { createLibp2p } from "libp2p";
 import { CID } from "multiformats/cid";
 import { sha256 } from "multiformats/hashes/sha2";
+import { pEvent } from "p-event";
 
 /**
  * Manifest describing a node's capabilities in the NMP Mesh.
@@ -351,26 +352,33 @@ export class MeshNode {
 				
 				const fullPacket = Buffer.concat([lengthBuf, Buffer.from(payload)]);
 
-				// Send and flush using libp2p's standard stream piping
-				// Explicitly extract sink to avoid it-pipe isDuplex validation errors
-				let sink = typeof stream === "function" ? stream : 
-							 (typeof stream.sink === "function" ? stream.sink.bind(stream) : null);
-				
-				if (!sink && typeof stream === 'object' && stream !== null) {
-					// Check for low-level Yamux/AbstractStream write methods
-					if (typeof stream.sendData === 'function') {
-						console.error(`[NMP-Mesh] 🛠️ Using sendData fallback for YamuxStream...`);
-						const { Uint8ArrayList } = await import('uint8arraylist');
-						const list = new Uint8ArrayList(fullPacket);
-						stream.sendData(list);
-						// Ensure it's pushed through the transport
-						if (typeof stream.sendCloseWrite === 'function') await stream.sendCloseWrite();
-						console.error(`[NMP-Mesh] ✅ Manifest sent via sendData`);
-						return; 
+				// DeepWiki/Official libp2p: use stream.send() and stream.close() for modern stream handling
+				// If send() is available, we use it directly with EventTarget-based backpressure.
+				if (typeof stream.send === 'function') {
+					console.error(`[NMP-Mesh] 🛠️ Using official stream.send() API...`);
+					
+					// If send returns false, buffer is full; wait for 'drain' event
+					if (stream.send(fullPacket) === false) {
+						console.error(`[NMP-Mesh] ⏳ Stream buffer full, waiting for drain...`);
+						await pEvent(stream, 'drain', { rejectionEvents: ['close', 'error'] });
 					}
+					
+					// close() stops sending and waits for flush
+					if (typeof stream.close === 'function') {
+						await stream.close();
+					} else if (typeof stream.sendCloseWrite === 'function') {
+						await stream.sendCloseWrite();
+					}
+					
+					console.error(`[NMP-Mesh] ✅ Served manifest to ${remotePeer} using standard API`);
+					return;
 				}
 
-				if (!sink) throw new Error(`Unwriteable stream (no sink or sendData). Arg keys: ${Object.keys(arg).join(', ')}`);
+				// Fallback to legacy it-pipe if send() is not available (e.g. older libp2p or custom mocks)
+				const sink = typeof stream === "function" ? stream : 
+							 (typeof stream.sink === "function" ? stream.sink.bind(stream) : null);
+				
+				if (!sink) throw new Error(`Unwriteable stream (no send() or sink). Arg keys: ${Object.keys(arg).join(', ')}`);
 
 				await pipe(
 					[fullPacket],
