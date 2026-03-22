@@ -97,13 +97,13 @@ async function main() {
 		process.stdout.write(`{"jsonrpc":"2.0","method":"notifications/tools/list_changed"}\n`);
 	};
 
-	// Initial warming period (5s) then Periodic Discovery Worker (every 10 seconds)
+	// Initial warming period (2s) then Periodic Discovery Worker (every 10 seconds)
 	// This silently polls the DHT for new nodes and triggers onToolsChanged if the topology shifts.
 	setTimeout(() => {
 		const rtSize = (meshNode as any).getRoutingTableSize?.() || 0;
 		console.error(`[NMP-Agent] 🛰️ Warm-up complete. Routing Table size: ${rtSize}`);
 		router.refreshManifestCache(true).catch(() => {});
-	}, 5000);
+	}, 2000);
 
 	setInterval(() => {
 		router.refreshManifestCache(true).catch(() => {});
