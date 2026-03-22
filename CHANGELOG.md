@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.2.0-alpha.6](https://github.com/Nekzus/Neural-Mesh-Protocol/compare/v1.2.0-alpha.5...v1.2.0-alpha.6) (2026-03-22)
+
+
+### Bug Fixes
+
+* **router:** Optimizada indexación semántica de NmpMeshStatus para descubrimientos de LLMs y corregido linter residual ([18ab90a](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/18ab90a074b4c4a307efb36d755e414cec38363e))
+
 # [1.2.0-alpha.5](https://github.com/Nekzus/Neural-Mesh-Protocol/compare/v1.2.0-alpha.4...v1.2.0-alpha.5) (2026-03-22)
 
 
