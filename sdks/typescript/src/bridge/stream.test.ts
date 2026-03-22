@@ -80,8 +80,8 @@ describe("NmpStreamBridge (Integration)", () => {
 	});
 
 	afterAll(async () => {
-		await gateway.stop();
-		await server.close();
+		if (gateway) await gateway.stop();
+		if (server) await server.close();
 	});
 
 	it("should support 3 concurrent client sessions", async () => {

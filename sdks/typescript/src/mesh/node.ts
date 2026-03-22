@@ -359,17 +359,31 @@ export class MeshNode {
 				console.error(`[NMP-Mesh] 🛠️ Serving manifest (${fullPacket.length} bytes) to ${remotePeer} [Tools: ${manifest.tools.map(t => t.name).join(', ')}]`);
 
 				try {
-					await pipe(
-						[fullPacket],
-						stream
-					);
-					console.error(`[NMP-Mesh] ✅ Manifest sent successfully to ${remotePeer}`);
-				} catch (pipeErr: any) {
-					console.error(`[NMP-Mesh] 🚨 Pipe error serving manifest to ${remotePeer}: ${pipeErr.message}`);
-					// Fallback to direct send if available
+					// Modern libp2p (v1.x/v3.0+) uses stream.send() for writing
 					if (typeof stream.send === 'function') {
-						console.error(`[NMP-Mesh] 🛠️ Using fallback stream.send() for ${remotePeer}`);
-						stream.send(fullPacket);
+						if (!stream.send(fullPacket)) {
+							// Handle backpressure
+							const { pEvent } = await import("p-event");
+							try {
+								await pEvent(stream, "drain", { timeout: 5000 });
+							} catch (e) {
+								console.error(`[NMP-Mesh] ⚠️ Drain timeout or error for ${remotePeer}: ${e instanceof Error ? e.message : String(e)}`);
+							}
+						}
+					} else {
+						// Legacy fallback for older libp2p or custom wrappers
+						await pipe([fullPacket], stream);
+					}
+					console.error(`[NMP-Mesh] ✅ Manifest sent successfully to ${remotePeer}`);
+				} catch (writeErr: any) {
+					console.error(`[NMP-Mesh] 🚨 Write error serving manifest to ${remotePeer}: ${writeErr.message}`);
+				} finally {
+					// Ensure the stream is closed after serving the manifest
+					try {
+						if (typeof stream.close === 'function') await stream.close();
+						else if (typeof stream.abort === 'function') await stream.abort();
+					} catch (e) {
+						// Ignore close errors
 					}
 				}
 				return;
@@ -463,7 +477,7 @@ export class MeshNode {
 
 				// Read segments until timeout or closure
 				const timeoutPromise = new Promise<never>((_, reject) => {
-					setTimeout(() => reject(new Error("Manifest read timeout (3s)")), 3000);
+					setTimeout(() => reject(new Error("Manifest read timeout (5s)")), 5000);
 				});
 
 				try {

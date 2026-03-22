@@ -246,50 +246,11 @@ export class NmpServer {
 					// Extract pure logic and deliver it to the developer's function
 					(args as Record<string, unknown>).payload = logicMatch[1].trim();
 
-					// DELEGATE TO WORKER POOL: Parallel PQC & Sandboxing
-					let result = await this.executeInWorkerPool(
+					// DELEGATE TO WORKER POOL: Parallel PQC & Sandboxing (Includes PII Shield)
+					const result = await this.executeInWorkerPool(
 						args,
 						logicMatch[1].trim(),
 					);
-
-					// NMP Native Serialization: Ensure 'text' content is stringified if it's an object/array
-					if (result.content && Array.isArray(result.content)) {
-						result = {
-							...result,
-							content: result.content.map((item) => {
-								if (
-									item.type === "text" &&
-									item.text !== undefined &&
-									typeof item.text === "object"
-								) {
-									return {
-										...item,
-										text: JSON.stringify(item.text),
-									};
-								}
-								return item;
-							}),
-						};
-					}
-
-					// NMP Native Egress Filter (Professional PII Protection V2)
-					if (!result.isError) {
-						const violation = this.piiScanner.scan(result.content);
-						if (violation) {
-							console.error(
-								`\n🚨 [NMP-SDK] SECURITY VIOLATION: Professional Egress Filter blocked PII leak (${violation}).`,
-							);
-							return {
-								content: [
-									{
-										type: "text",
-										text: `[NMP] Egress Security Violation. Output blocked due to PII leakage (${violation}).`,
-									},
-								],
-								isError: true,
-							};
-						}
-					}
 
 					if (!result.isError) {
 						this.connectionStats.set(clientId, {
@@ -300,9 +261,7 @@ export class NmpServer {
 							hash: payloadHash,
 							timestamp: now,
 						});
-					} else if (
-						result.content.find((c) => c.text?.includes("VIOLATION_DETECTED"))
-					) {
+					} else {
 						stats.failures++;
 						stats.lastAttempt = now;
 						this.connectionStats.set(clientId, stats);
@@ -311,12 +270,13 @@ export class NmpServer {
 					return result;
 				} catch (error: unknown) {
 					const e = error as Error;
-					if (e.message?.includes("VIOLATION_DETECTED")) {
-						stats.failures++;
-						stats.lastAttempt = now;
-						this.connectionStats.set(clientId, stats);
-					}
-					throw error;
+					stats.failures++;
+					stats.lastAttempt = now;
+					this.connectionStats.set(clientId, stats);
+					return {
+						content: [{ type: "text", text: `ExecutionRuntimeException: ${e.message}` }],
+						isError: true,
+					};
 				}
 			};
 		}
@@ -482,6 +442,15 @@ Failure to follow these rules will result in an immediate violation and the exec
 					?.__nmp_bypass_ast_cache === true
 			) {
 				(parsedArgs as Record<string, unknown>).__nmp_bypass_ast_cache = true;
+			}
+
+			// [LOGIC-ON-ORIGIN] Intercept code injection directly
+			if (
+				parsedArgs &&
+				typeof (parsedArgs as any).payload === "string" &&
+				(parsedArgs as any).payload.includes("---BEGIN_LOGIC---")
+			) {
+				return await this.executeInWorkerPool(parsedArgs, (parsedArgs as any).payload);
 			}
 
 			const result = await entry.handler(parsedArgs, {});
@@ -719,13 +688,36 @@ Failure to follow these rules will result in an immediate violation and the exec
 						is_error: false,
 					};
 
+					// Final PII check for gRPC egress
+					const violation = this.piiScanner.scan([{ type: "text", text: finalOutput }]);
+					if (violation) {
+						console.error(`[NMP-RPC] 🚨 PII Leak blocked in gRPC stream: ${violation}`);
+						response.semantic_evidence = `[NMP] Egress Security Violation. Output blocked due to PII leakage (${violation}).`;
+						response.is_error = true;
+					}
+
 					call.write(response, () => {
 						call.end();
 					});
 				} catch (error: unknown) {
 					const e = error as Error;
 					console.error(`[NMP-RPC] 🚨 Execution Error: ${e.message}`);
-					call.end();
+					
+					// Send error response before closing, avoiding "stream closed without results"
+					const errorResponse: LogicResponse = {
+						semantic_evidence: `Execution Error: ${e.message}`,
+						cryptographic_proof: Buffer.from(""),
+						zk_receipt: Buffer.from(""),
+						is_error: true,
+					};
+					
+					try {
+						call.write(errorResponse, () => {
+							call.end();
+						});
+					} catch (writeErr) {
+						call.end();
+					}
 				}
 			},
 		});
@@ -737,7 +729,7 @@ Failure to follow these rules will result in an immediate violation and the exec
 	}
 
 	/**
-	 * Dispatches heavy computation (Kyber768, AES, WASM/V8 Sandboxing) to the Worker Pool.
+	 * Internal worker execution with Egress Filtering logic.
 	 */
 	private async executeInWorkerPool(
 		_args: Record<string, unknown>,
@@ -756,18 +748,36 @@ Failure to follow these rules will result in an immediate violation and the exec
 				isEncrypted: false, // Use plaintext for local Logic-on-Origin injection
 			});
 
-			return {
-				content: [
-					{
-						type: "text",
-						text: JSON.stringify({
-							computation_result: workerResponse.output,
-							image_id: workerResponse.image_id,
-							status: "Worker Pool Execution Success",
-						}),
-					},
-				],
-			};
+			// Standard MCP Content Array
+			let textOutput = JSON.stringify({
+				computation_result: workerResponse.output,
+				image_id: workerResponse.image_id,
+				status: "Worker Pool Execution Success",
+			});
+
+			const content = [
+				{
+					type: "text" as const,
+					text: textOutput,
+				},
+			];
+
+			// Professional PII Protection Guard
+			const violation = this.piiScanner.scan(content);
+			if (violation) {
+				console.error(`[NMP-SDK] 🚨 PII Leak blocked in local execution: ${violation}`);
+				return {
+					content: [
+						{
+							type: "text",
+							text: `[NMP] Egress Security Violation. Output blocked due to PII leakage (${violation}).`,
+						},
+					],
+					isError: true,
+				};
+			}
+
+			return { content };
 		} catch (error: unknown) {
 			const e = error as Error;
 			return {

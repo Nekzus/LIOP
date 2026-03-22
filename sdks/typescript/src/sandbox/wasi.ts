@@ -108,7 +108,7 @@ export class WasiSandbox {
 			const duration = performance.now() - startMark;
 			const fuelUsed = Math.floor(duration * 1500 + 500);
 
-			if (fuelUsed > 100000) {
+			if (fuelUsed > 500000) {
 				throw new Error("Wasmtime: Resource Exhaustion (Fuel limit exceeded)");
 			}
 
