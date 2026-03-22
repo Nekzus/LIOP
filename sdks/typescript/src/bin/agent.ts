@@ -97,17 +97,25 @@ async function main() {
 		process.stdout.write(`{"jsonrpc":"2.0","method":"notifications/tools/list_changed"}\n`);
 	};
 
-	// Initial warming period (3s) then Periodic Discovery Worker (every 10 seconds)
+	// Initial warming period (5s) then Periodic Discovery Worker (every 10 seconds)
 	// This silently polls the DHT for new nodes and triggers onToolsChanged if the topology shifts.
 	setTimeout(() => {
+		const rtSize = (meshNode as any).getRoutingTableSize?.() || 0;
+		console.error(`[NMP-Agent] 🛰️ Warm-up complete. Routing Table size: ${rtSize}`);
 		router.refreshManifestCache(true).catch(() => {});
-	}, 3000);
+	}, 5000);
 
 	setInterval(() => {
 		router.refreshManifestCache(true).catch(() => {});
-	}, 10000);
+	}, 15000);
 
 	// 4. STDIO Transport implementation
+	process.stdout.on("error", (err: any) => {
+		if (err.code === "EPIPE") {
+			process.exit(0); // Graceful exit when Claude Desktop disconnects
+		}
+	});
+
 	process.stdin.on("data", async (data) => {
 		const payload = data.toString().trim();
 		if (!payload) return;

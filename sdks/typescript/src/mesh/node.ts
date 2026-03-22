@@ -2,6 +2,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { noise } from "@chainsafe/libp2p-noise";
 import { yamux } from "@chainsafe/libp2p-yamux";
+import { pipe } from "it-pipe";
 import { bootstrap } from "@libp2p/bootstrap";
 import { identify } from "@libp2p/identify";
 import { kadDHT } from "@libp2p/kad-dht";
@@ -67,6 +68,9 @@ export class MeshNode {
 
 	/** Callback that returns the local node's manifest on request. */
 	private manifestProvider: (() => NmpManifest) | null = null;
+
+	/** Flag to ensure the manifest protocol is only registered once. */
+	private manifestProtocolRegistered = false;
 
 	constructor(config: MeshNodeConfig = {}) {
 		this.config = {
@@ -273,6 +277,9 @@ export class MeshNode {
 			});
 		});
 
+		// [NMP-ALPHA] Protocols and services setup
+		this.applyHandlers();
+
 		await this.node.start();
 
 		if (isNew && this.config.identityPath) {
@@ -310,93 +317,69 @@ export class MeshNode {
 	}
 
 	/**
-	 * Registers a callback that provides this node's manifest.
-	 * When a remote peer opens a /nmp/manifest/1.0.0 stream,
-	 * the callback is invoked and the result is sent as JSON.
+	 * Internal logic to register protocol handlers against the libp2p node.
+	 * Can be called multiple times; handles idempotent registration.
 	 */
-	registerManifestHandler(provider: () => NmpManifest): void {
-		this.manifestProvider = provider;
-		if (!this.node) return;
+	private applyHandlers(): void {
+		if (!this.node || this.manifestProtocolRegistered) return;
+		if (!this.manifestProvider) return;
+
+		this.manifestProtocolRegistered = true;
 
 		// libp2p v1.x/v3.x handle API uses { stream, connection }
 		this.node.handle(NMP_MANIFEST_PROTOCOL, async (arg: any, connection?: any) => {
 			const stream = arg.stream || arg; // Robust extraction
+			const remotePeer = (arg.connection || connection)?.remotePeer?.toString() || "unknown";
+			
+			console.error(`[NMP-Mesh] 📥 Incoming manifest request from ${remotePeer}.`);
+
+
 			try {
 				const manifest = this.manifestProvider?.();
 				if (!manifest || !stream) {
-					stream?.close?.();
+					console.error(`[NMP-Mesh] ⚠️ Skipping manifest request (no provider or stream)`);
+					try { await (stream.close || stream.abort)?.(); } catch(e) {}
 					return;
 				}
 
 				const manifestStr = JSON.stringify(manifest);
 				const payload = new TextEncoder().encode(manifestStr);
 
-				// Write length-prefixed payload (4 bytes for length)
-				const lengthBuf = new Uint8Array(4);
-				new DataView(lengthBuf.buffer).setUint32(0, payload.length);
-				const buf = Buffer.concat([lengthBuf, payload]);
+				// Write length-prefixed payload (Big Endian 4 bytes)
+				const lengthBuf = Buffer.alloc(4);
+				lengthBuf.writeUInt32BE(payload.length, 0);
+				
+				const fullPacket = Buffer.concat([lengthBuf, Buffer.from(payload)]);
 
-				// Strategy 1: Standard libp2p AsyncIterable sink
-				if (typeof stream.sink === "function") {
-					await stream.sink(
-						(async function* () {
-							yield buf;
-						})(),
-					);
-				} 
-				// Strategy 2: Yamux native sendData (Found in user telemetry)
-				else if (typeof stream.sendData === "function") {
-					console.error("[NMP-Mesh] 🛠️ Serving manifest via native Yamux sendData");
-					// Libp2p internal muxers often expect Uint8ArrayList and will loop until length is 0.
-					// We wrap our buffer in a pseudo-list that implements sublist and consume correctly.
-					const pseudoList = {
-						_buf: buf,
-						_pos: 0,
-						get length() { return Math.max(0, this._buf.length - this._pos); },
-						sublist(start: number, end?: number) {
-							const absoluteStart = this._pos + start;
-							const absoluteEnd = end !== undefined ? (this._pos + end) : this._buf.length;
-							return this._buf.subarray(absoluteStart, absoluteEnd);
-						},
-						consume(n: number) {
-							this._pos += n;
-						},
-						// Add common aliases just in case
-						subarray(start: number, end?: number) { return this.sublist(start, end); }
-					};
-					
-					stream.sendData(pseudoList);
-					// Gracefully close the write side as required by Yamux
-					if (typeof stream.sendCloseWrite === "function") {
-						stream.sendCloseWrite();
+				// Send and flush using libp2p's standard stream piping
+				// Explicitly extract sink to avoid it-pipe isDuplex validation errors
+				let sink = typeof stream === "function" ? stream : 
+							 (typeof stream.sink === "function" ? stream.sink.bind(stream) : null);
+				
+				if (!sink && typeof stream === 'object' && stream !== null) {
+					// Check for low-level Yamux/AbstractStream write methods
+					if (typeof stream.sendData === 'function') {
+						console.error(`[NMP-Mesh] 🛠️ Using sendData fallback for YamuxStream...`);
+						const { Uint8ArrayList } = await import('uint8arraylist');
+						const list = new Uint8ArrayList(fullPacket);
+						stream.sendData(list);
+						// Ensure it's pushed through the transport
+						if (typeof stream.sendCloseWrite === 'function') await stream.sendCloseWrite();
+						console.error(`[NMP-Mesh] ✅ Manifest sent via sendData`);
+						return; 
 					}
 				}
-				// Strategy 3: it-pipe style function (stream is the sink)
-				else if (typeof stream === "function") {
-					await stream((async function* () {
-						yield buf;
-					})());
-				}
-				// Strategy 4: Fallback write/push
-				else if (typeof stream.write === "function") {
-					await stream.write(buf);
-					await stream.closeWrite?.();
-				} else {
-					throw new Error(`Unsupported stream. Keys: ${Object.keys(stream)}`);
-				}
 
-				// CRITICAL: Force close the stream after sending the manifest to avoid manifest-reading hangs
-				try {
-					await (stream.close || stream.closeWrite)?.();
-				} catch (closeErr) {
-					// Ignore close errors
-				}
+				if (!sink) throw new Error(`Unwriteable stream (no sink or sendData). Arg keys: ${Object.keys(arg).join(', ')}`);
 
-				console.error(
-					`[NMP-Mesh] 📋 Served manifest (${manifest.tools.length} tools, port ${manifest.grpcPort})`,
+				await pipe(
+					[fullPacket],
+					sink
 				);
-			} catch (err) {
-				console.error(`[NMP-Mesh] 🚨 Error serving manifest: ${err}`);
+
+				console.error(`[NMP-Mesh] ✅ Served manifest to ${remotePeer}`);
+			} catch (err: any) {
+				console.error(`[NMP-Mesh] 🚨 Error serving manifest to ${remotePeer}: ${err.message}`);
 			}
 		});
 
@@ -406,155 +389,123 @@ export class MeshNode {
 	}
 
 	/**
+	 * Registers a callback as the manifest provider.
+	 * Will be applied immediately if the node is already initialized.
+	 */
+	registerManifestHandler(provider: () => NmpManifest): void {
+		this.manifestProvider = provider;
+		if (this.node) {
+			this.applyHandlers();
+		}
+	}
+
+	/**
 	 * Queries a remote peer's manifest by opening a /nmp/manifest/1.0.0 stream.
 	 * Returns null if the peer doesn't support the protocol or is unreachable.
 	 */
 	async queryManifest(peerIdStr: string): Promise<NmpManifest | null> {
 		if (!this.node) throw new Error("Mesh Node is not running");
 
-		try {
-			// Resolve the target from active connections to ensure PeerId version compatibility
-			let targetPeer: any = null;
-			const connections = this.node.getConnections();
-			const activeConn = connections.find(c => c.remotePeer.toString() === peerIdStr);
-			
-			if (activeConn) {
-				console.error(`[NMP-Mesh] ☎️ Using active connection's PeerId for ${peerIdStr}`);
-				targetPeer = activeConn.remotePeer;
-			} else {
-				// Fallback to string parsing if not connected yet
-				const { peerIdFromString } = await import("@libp2p/peer-id");
-				targetPeer = peerIdFromString(peerIdStr);
-			}
-
-			// Open a protocol stream using high-level dialProtocol for automated it-stream wrapping
-			// biome-ignore lint/suspicious/noExplicitAny: libp2p version compatibility
-			let stream: any;
+		const MAX_ATTEMPTS = 3;
+		for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
 			try {
-				// We dial using the native PeerId object found or parsed
-				const result: any = await this.node.dialProtocol(targetPeer as any, NMP_MANIFEST_PROTOCOL);
-				stream = result.stream || result;
-			} catch (dialErr) {
-				console.error(`[NMP-Mesh] 🚨 Dial error for ${peerIdStr}: ${dialErr}`);
-				return null;
-			}
-
-			// Strategy: Robust Async Reader
-			let source = stream.source || (typeof stream[Symbol.asyncIterator] === "function" ? stream : null);
-			if (!source) {
-				// Fallback to the manual robust event reader if dialProtocol failed to wrap (unlikely but safe)
-				if (typeof stream.on === "function" || typeof stream.resume === "function") {
-					console.error("[NMP-Mesh] 🛠️ Reading manifest via native fallback (Stream Wrapper missing)");
-					source = (async function* () {
-						const queue: any[] = [];
-						let resolve: (() => void) | null = null;
-						let finished = false;
-						let error: Error | null = null;
-
-						const dataHandler = (chunk: any) => {
-							queue.push(chunk);
-							if (resolve) {
-								const r = resolve;
-								resolve = null;
-								r();
-							}
-						};
-						
-						if (typeof stream.on === "function") {
-							stream.on("data", dataHandler);
-							stream.on("end", () => {
-								finished = true;
-								if (resolve) {
-									const r = resolve;
-									resolve = null;
-									r();
-								}
-							});
-							stream.on("error", (e: Error) => {
-								error = e;
-								if (resolve) {
-									const r = resolve;
-									resolve = null;
-									r();
-								}
-							});
-						}
-
-						// Ensure stream is flowing
-						if (typeof stream.resume === "function") stream.resume();
-
-						while (!finished || queue.length > 0) {
-							if (error) throw error;
-							if (queue.length > 0) {
-								yield queue.shift();
-							} else {
-								await new Promise<void>((res) => {
-									resolve = res;
-								});
-							}
-							// Exit loop if we haven't received anything and stream has no event emitter
-							if (!stream.on && queue.length === 0) break;
-						}
-					})();
-				}
-			}
-
-			if (!source) {
-				// Final attempt: check if it's already an iterable
-				if (typeof stream[Symbol.asyncIterator] === "function") {
-					source = stream;
+				// Resolve the target from active connections to ensure PeerId version compatibility
+				let targetPeer: any = null;
+				const connections = this.node.getConnections();
+				const activeConn = connections.find(c => c.remotePeer.toString() === peerIdStr);
+				
+				if (activeConn) {
+					targetPeer = activeConn.remotePeer;
 				} else {
-					console.error(`[NMP-Mesh] 🚨 Stream Debug: keys=[${Object.keys(stream)}] typeof source=${typeof stream.source}`);
-					throw new Error("Target stream has no source (AsyncIterable) or event emitter (Readable)");
+					// Fallback to string parsing if not connected yet
+					const { peerIdFromString } = await import("@libp2p/peer-id");
+					targetPeer = peerIdFromString(peerIdStr);
 				}
+
+				// Open a protocol stream using high-level dialProtocol for automated it-stream wrapping
+				let stream: any;
+				try {
+					const result: any = await this.node.dialProtocol(targetPeer as any, NMP_MANIFEST_PROTOCOL);
+					stream = result.stream || result;
+				} catch (dialErr) {
+					if (attempt === MAX_ATTEMPTS) {
+						console.error(`[NMP-Mesh] 🚨 Dial error for ${peerIdStr} after ${MAX_ATTEMPTS} attempts: ${dialErr}`);
+						return null;
+					}
+					const delay = 500 * Math.pow(2, attempt);
+					console.error(`[NMP-Mesh] ⚠️ Dial error for ${peerIdStr} (Attempt ${attempt}). Retrying in ${delay}ms...`);
+					await new Promise(r => setTimeout(r, delay));
+					continue;
+				}
+
+				// Strategy: Robust Async Reader
+				let source = stream.source || (typeof stream[Symbol.asyncIterator] === "function" ? stream : null);
+				
+				// Final attempt: check if it's already an iterable
+				if (!source && typeof stream[Symbol.asyncIterator] === "function") {
+					source = stream;
+				}
+
+				if (!source) {
+					throw new Error("Target stream has no source (AsyncIterable)");
+				}
+
+				const chunks: Uint8Array[] = [];
+
+				// Read segments until timeout or closure
+				const timeoutPromise = new Promise<never>((_, reject) => {
+					setTimeout(() => reject(new Error("Manifest read timeout (3s)")), 3000);
+				});
+
+				try {
+					await Promise.race([
+						(async () => {
+							for await (const chunk of source) {
+								if (!chunk) continue;
+								
+								// Telemetry: inspect chunk structure
+								const bytes = chunk instanceof Uint8Array ? chunk : 
+									(chunk as any).subarray ? (chunk as any).subarray() : 
+									Buffer.from(chunk as any);
+								
+								if (bytes.length > 0) {
+									console.error(`[NMP-Mesh] 🧩 Received chunk (${bytes.length} bytes) from ${peerIdStr}`);
+									chunks.push(bytes);
+								}
+							}
+						})(),
+						timeoutPromise,
+					]);
+				} catch (itErr: any) {
+					if (chunks.length === 0) throw itErr;
+					console.error(`[NMP-Mesh] ⚠️ Partial manifest read from ${peerIdStr}: ${itErr.message}`);
+				}
+
+				const raw = Buffer.concat(chunks);
+				if (raw.length < 4) {
+					throw new Error("Received empty/invalid manifest (too short)");
+				}
+
+				// Skip length prefix (4 bytes)
+				const jsonStr = raw.subarray(4).toString("utf-8");
+				const manifest: NmpManifest = JSON.parse(jsonStr);
+
+				console.error(
+					`[NMP-Mesh] 📋 Received manifest from ${peerIdStr}: ${manifest.tools.length} tools`,
+				);
+
+				return manifest;
+			} catch (err: any) {
+				if (attempt === MAX_ATTEMPTS) {
+					console.error(`[NMP-Mesh] 🚨 Failed to query manifest from ${peerIdStr} after ${MAX_ATTEMPTS} attempts: ${err.message}`);
+					return null;
+				}
+				const delay = 500 * Math.pow(2, attempt);
+				console.error(`[NMP-Mesh] ⚠️ Query error for ${peerIdStr} (Attempt ${attempt}): ${err.message}. Retrying in ${delay}ms...`);
+				await new Promise(r => setTimeout(r, delay));
 			}
-
-			// Read the response with a 5-second timeout to prevent hangs
-			const chunks: Uint8Array[] = [];
-			const timeoutPromise = new Promise<never>((_, reject) => {
-				setTimeout(() => reject(new Error("Manifest read timeout (5s)")), 5000);
-			});
-
-			try {
-				await Promise.race([
-					(async () => {
-						for await (const chunk of source) {
-							// libp2p streams yield Uint8ArrayList or Uint8Array
-							const data =
-								chunk instanceof Uint8Array ? chunk : chunk.subarray();
-							chunks.push(data);
-						}
-					})(),
-					timeoutPromise,
-				]);
-			} catch (itErr: any) {
-				console.error(`[NMP-Mesh] ⚠️ Error or timeout while reading manifest from ${peerIdStr}: ${itErr.message}`);
-				// Cleanup stream if possible
-				try { stream.abort?.(); } catch(e) {}
-				return null;
-			}
-
-			const raw = Buffer.concat(chunks);
-			if (raw.length < 4) {
-				console.error(`[NMP-Mesh] ⚠️ Received empty/invalid manifest from ${peerIdStr}`);
-				return null;
-			}
-
-			// Skip length prefix (4 bytes)
-			const jsonStr = raw.subarray(4).toString("utf-8");
-			const manifest: NmpManifest = JSON.parse(jsonStr);
-
-			console.error(
-				`[NMP-Mesh] 📋 Received manifest from ${peerIdStr}: ${manifest.tools.length} tools, gRPC port ${manifest.grpcPort}`,
-			);
-
-			return manifest;
-		} catch (err) {
-			console.error(
-				`[NMP-Mesh] Failed to query manifest from ${peerIdStr}: ${err}`,
-			);
-			return null;
 		}
+		return null;
 	}
 
 	/**
@@ -571,6 +522,15 @@ export class MeshNode {
 	 */
 	async announceManifest(): Promise<void> {
 		await this.announceCapability(NMP_MANIFEST_CAPABILITY);
+	}
+
+	/**
+	 * Returns the current size of the routing table for diagnostic purposes.
+	 */
+	getRoutingTableSize(): number {
+		if (!this.node) return 0;
+		// @ts-expect-error: Accessing internal routing table size for diagnostics
+		return this.node.services.dht?.routingTable?.size || 0;
 	}
 
 	getPeerId(): string {

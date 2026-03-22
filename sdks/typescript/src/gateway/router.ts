@@ -10,7 +10,7 @@ import type { NmpServer } from "../server/index.js";
 const MANIFEST_CACHE_TTL_S = 30;
 
 /** Maximum number of DHT query retries for manifest discovery */
-const MANIFEST_DISCOVERY_RETRIES = 3;
+const MANIFEST_DISCOVERY_RETRIES = 5;
 
 /**
  * NMP MCP Router
@@ -38,7 +38,45 @@ export class NmpMcpRouter {
 		private nmpServer: NmpServer,
 		private meshNode: MeshNode | null = null,
 		private defaultRpcPort = 50051,
-	) {}
+	) {
+		// Auto-register manifest handler if mesh node is provided
+		if (this.meshNode) {
+			this.meshNode.registerManifestHandler(() => {
+				const remoteTools = this.nmpServer.listTools().map((t) => ({
+					name: t.name,
+					description: t.description,
+					inputSchema: t.inputSchema as Record<string, unknown>,
+				}));
+
+				const resources = this.nmpServer.listResources().map((r) => ({
+					name: r.name,
+					uri: r.uri,
+					description: r.description,
+					mimeType: r.mimeType,
+				}));
+
+				return {
+					peerId: this.meshNode!.getPeerId(),
+					grpcPort: this.defaultRpcPort,
+					tools: [
+						{
+							name: "NmpMeshStatus",
+							description: "Returns the current dynamic status of the Zero-Trust Neural Mesh.",
+							inputSchema: { type: "object", properties: {} }
+						},
+						...remoteTools
+					],
+					resources,
+					serverInfo: this.nmpServer.getServerInfo(),
+				};
+			});
+
+			// Proactively announce manifest capability to the mesh
+			this.meshNode.announceManifest().catch((err) => {
+				console.error(`[NMP-Router] ⚠️ Failed to announce manifest: ${err.message}`);
+			});
+		}
+	}
 
 	// biome-ignore lint/suspicious/noExplicitAny: MCP JSON-RPC dispatch is polymorphic
 	public async dispatch(request: {
@@ -68,6 +106,7 @@ export class NmpMcpRouter {
 					},
 				};
 			case "notifications/initialized":
+			case "notifications/cancelled":
 				return null; // No-op for MCP spec compliance
 			case "ping":
 				return { jsonrpc: "2.0", id, result: {} };
@@ -152,7 +191,7 @@ export class NmpMcpRouter {
 				(acc, { manifest }) => acc + manifest.tools.length, 0
 			);
 
-			// Retry logic for DHT warm-up latency
+			// Phase 1: Try DHT discovery
 			let providerIds: string[] = [];
 			for (let attempt = 0; attempt < MANIFEST_DISCOVERY_RETRIES; attempt++) {
 				providerIds = await this.meshNode.discoverManifestProviders();
@@ -160,53 +199,80 @@ export class NmpMcpRouter {
 				if (attempt < MANIFEST_DISCOVERY_RETRIES - 1) {
 					if (!silent) {
 						console.error(
-							`[NMP-Router] 🔄 DHT warm-up retry ${attempt + 1}/${MANIFEST_DISCOVERY_RETRIES}...`,
+							`[NMP-Router] 🔄 DHT discovery retry ${attempt + 1}/${MANIFEST_DISCOVERY_RETRIES}...`,
 						);
 					}
 					await new Promise((r) => setTimeout(r, 1000));
 				}
 			}
 
-			if (!silent && providerIds.length > 0) {
+			// Phase 2: Fallback to all active connections if DHT is empty or slow
+			// This is extremely effective for small local meshes (Alpha stage)
+			if (providerIds.length === 0) {
+				const activePeers = (this.meshNode as any).node?.getConnections().map((c: any) => c.remotePeer.toString()) || [];
+				if (activePeers.length > 0) {
+					if (!silent) console.error(`[NMP-Router] 🛠️ DHT empty. Falling back to ${activePeers.length} active connections...`);
+					providerIds = activePeers;
+				}
+			}
+
+			if (providerIds.length === 0) {
+				this.discovering = false;
+				return;
+			}
+
+			if (!silent) {
 				console.error(
-					`[NMP-Router] 📡 Found ${providerIds.length} manifest providers in DHT`,
+					`[NMP-Router] 📡 Discovered ${providerIds.length} candidate manifest providers`,
 				);
 			}
 
-			// Query each provider's manifest in parallel
+			let successCount = 0;
+			let errorCount = 0;
 			let cacheUpdated = false;
-			const queryTasks = providerIds.map(async (peerId) => {
+			for (const peerId of providerIds) {
+				// Avoid querying ourselves
+				if (this.meshNode && peerId === this.meshNode.getPeerId()) continue;
+				if (!this.meshNode) continue;
+
 				// Skip if cached and not expired
 				const cached = this.manifestCache.get(peerId);
 				if (
 					cached &&
 					Date.now() - cached.cachedAt < MANIFEST_CACHE_TTL_S * 1000
 				) {
-					return;
+					successCount++;
+					continue;
 				}
 
 				try {
-					const manifest = await this.meshNode?.queryManifest(peerId);
+					// Add a small delay between queries to avoid muxer saturation
+					await new Promise((r) => setTimeout(r, 100));
+
+					const manifest = await this.meshNode.queryManifest(peerId);
 					if (manifest) {
 						this.manifestCache.set(peerId, {
 							manifest,
 							cachedAt: Date.now(),
 						});
 						cacheUpdated = true;
-						if (!silent) {
-							console.error(
-								`[NMP-Router] ✅ Cached manifest from ${peerId}: ${manifest.tools.length} tools, gRPC:${manifest.grpcPort}`,
-							);
-						}
+						successCount++;
+					} else {
+						errorCount++;
 					}
 				} catch (err) {
-					if (!silent) {
-						console.error(`[NMP-Router] ⚠️ Failed to query manifest from ${peerId}: ${err}`);
-					}
+					console.error(`[NMP-Router] 🚨 Failed to query manifest from ${peerId}:`, err);
+					errorCount++;
 				}
-			});
-
-			await Promise.all(queryTasks);
+			}
+			
+			// Store discovery stats for NmpMeshStatus diagnostics
+			(this as any)._discoveryStats = {
+				candidates: providerIds.length,
+				success: successCount,
+				failures: errorCount,
+				lastDiscovery: Date.now()
+			};
 
 			if (cacheUpdated) {
 				const newCount = Array.from(this.manifestCache.values()).reduce(
@@ -234,7 +300,10 @@ export class NmpMcpRouter {
 			inputSchema?: Record<string, unknown>;
 		}>
 	> {
-		await this.refreshManifestCache();
+		// Trigger background refresh if not already discovering
+		if (!this.discovering) {
+			this.refreshManifestCache(true).catch(() => {});
+		}
 
 		// biome-ignore lint/suspicious/noExplicitAny: Tool schema is polymorphic
 		const tools: any[] = [];
@@ -265,7 +334,10 @@ export class NmpMcpRouter {
 			mimeType?: string;
 		}>
 	> {
-		await this.refreshManifestCache();
+		// Trigger background refresh if not already discovering
+		if (!this.discovering) {
+			this.refreshManifestCache(true).catch(() => {});
+		}
 
 		const resources: Array<{
 			name: string;
@@ -310,6 +382,10 @@ export class NmpMcpRouter {
 
 		// Intercept the static diagnostic tool
 		if (toolName === "NmpMeshStatus") {
+			// Trigger a proactive refresh when status is requested to force discovery
+			this.refreshManifestCache(true).catch(() => {});
+
+			const stats = (this as any)._discoveryStats || { candidates: 0, success: 0, failures: 0 };
 			const providerCount = this.manifestCache.size;
 			const meshState = this.meshNode ? "Active" : "Offline";
 			const cachedTools = Array.from(this.manifestCache.values()).reduce(
@@ -318,6 +394,7 @@ export class NmpMcpRouter {
 			);
 			const connections = this.meshNode ? (this.meshNode as any).node?.getConnections().length : 0;
 			const bootstrapCount = (this.meshNode as any).config?.bootstrapNodes?.length || 0;
+			const routingTableSize = this.meshNode ? (this.meshNode as any).getRoutingTableSize() : 0;
 			
 			return {
 				jsonrpc: "2.0",
@@ -326,7 +403,7 @@ export class NmpMcpRouter {
 					content: [
 						{
 							type: "text",
-							text: `NMP Mesh Status: ${meshState}\nConnections: ${connections}\nBootstraps: ${bootstrapCount}\nProviders Discovered: ${providerCount}\nRemote Tools Mapped: ${cachedTools}`,
+							text: `NMP Mesh Status: ${meshState}\nConnections: ${connections}\nRouting Table: ${routingTableSize}\nBootstraps: ${bootstrapCount}\nCandidates Found: ${stats.candidates}\nQueries Succeeded: ${stats.success}\nQueries Failed: ${stats.failures}\nTotal Providers: ${providerCount}\nRemote Tools Mapped: ${cachedTools}`,
 						},
 					],
 				},
