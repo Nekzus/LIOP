@@ -1,7 +1,7 @@
-use wasmparser::{Parser, Payload::*};
 use std::error::Error;
 use std::fmt;
 use tracing::info;
+use wasmparser::{Parser, Payload::*};
 
 #[derive(Debug)]
 pub struct GuardianError(String);
@@ -14,16 +14,16 @@ impl fmt::Display for GuardianError {
 impl Error for GuardianError {}
 
 /// The Guardian Module
-/// Scans the Abstract Syntax Tree (AST) of incoming WASM 
-/// before it reaches the Wasmtime engine to prevent sandbox-escape 
+/// Scans the Abstract Syntax Tree (AST) of incoming WASM
+/// before it reaches the Wasmtime engine to prevent sandbox-escape
 /// zero-days, resource exhaustion bombs, and evasive execution.
 pub fn analyze_ast(wasm_bytes: &[u8]) -> Result<(), Box<dyn Error>> {
     info!("Guardian: Starting Zero-Time AST heuristic inspection");
     let parser = Parser::new(0);
-    
+
     let mut import_count = 0;
     let mut func_count = 0;
-    
+
     for payload in parser.parse_all(wasm_bytes) {
         match payload? {
             ImportSection(s) => {
@@ -44,14 +44,20 @@ pub fn analyze_ast(wasm_bytes: &[u8]) -> Result<(), Box<dyn Error>> {
                 func_count = count;
                 // Protection against AST decompression bombs
                 if count > 50000 {
-                    return Err(Box::new(GuardianError("Payload exceeds structural limits (Potential AST Bomb)".into())));
+                    return Err(Box::new(GuardianError(
+                        "Payload exceeds structural limits (Potential AST Bomb)".into(),
+                    )));
                 }
             }
             _ => {}
         }
     }
-    
-    info!(imports = import_count, functions = func_count, "Guardian: AST clean");
+
+    info!(
+        imports = import_count,
+        functions = func_count,
+        "Guardian: AST clean"
+    );
     Ok(())
 }
 
@@ -78,7 +84,11 @@ mod tests {
 
         // Import fd_write from wasi_snapshot_preview1
         let mut imports = ImportSection::new();
-        imports.import("wasi_snapshot_preview1", "fd_write", EntityType::Function(0));
+        imports.import(
+            "wasi_snapshot_preview1",
+            "fd_write",
+            EntityType::Function(0),
+        );
         module.section(&imports);
 
         // One local function (type 1: () -> ())
@@ -133,7 +143,9 @@ mod tests {
         let mut module = Module::new();
 
         let mut types = TypeSection::new();
-        types.ty().function(vec![ValType::I32, ValType::I32], vec![]);
+        types
+            .ty()
+            .function(vec![ValType::I32, ValType::I32], vec![]);
         module.section(&types);
 
         let mut imports = ImportSection::new();
@@ -147,14 +159,22 @@ mod tests {
     fn accepts_valid_wasi_module() {
         let wasm = make_valid_wasi_module();
         let result = analyze_ast(&wasm);
-        assert!(result.is_ok(), "Valid WASI module should pass Guardian AST check: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Valid WASI module should pass Guardian AST check: {:?}",
+            result.err()
+        );
     }
 
     #[test]
     fn accepts_nmp_namespace_imports() {
         let wasm = make_nmp_import_module();
         let result = analyze_ast(&wasm);
-        assert!(result.is_ok(), "NMP namespace imports should be approved by Guardian: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "NMP namespace imports should be approved by Guardian: {:?}",
+            result.err()
+        );
     }
 
     #[test]
@@ -184,4 +204,3 @@ mod tests {
         assert!(result.is_ok(), "Module with no imports should pass");
     }
 }
-

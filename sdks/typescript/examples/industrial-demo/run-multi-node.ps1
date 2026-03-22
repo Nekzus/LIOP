@@ -4,7 +4,7 @@ $workingDir = "z:\Nekzus-Solutions\Active-Projects\NMP-v1.0-alpha\sdks\typescrip
 Write-Host "==================================================" -ForegroundColor Cyan
 Write-Host "🌌 Neural Mesh Protocol (NMP) - Multi-Node Demo" -ForegroundColor Cyan
 Write-Host "==================================================" -ForegroundColor Cyan
-Write-Host "Compilando TypeScript y enlazando agent..." -ForegroundColor Yellow
+Write-Host "Rebuilding TypeScript and linking agent..." -ForegroundColor Yellow
 
 cd $workingDir
 pnpm run build

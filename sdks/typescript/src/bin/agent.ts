@@ -43,9 +43,17 @@ async function main() {
 			path.join(process.cwd(), "nexus.multiaddr"),
 			path.join(nmpDir, "nexus.multiaddr"),
 			// Try relative to the agent binary (dist/bin/agent.js -> root/nexus.multiaddr)
-			path.join(path.dirname(new URL(import.meta.url).pathname), "../../nexus.multiaddr"),
+			path.join(
+				path.dirname(new URL(import.meta.url).pathname),
+				"../../nexus.multiaddr",
+			),
 			// Windows path fix (remove leading slash if present)
-			path.join(path.dirname(new URL(import.meta.url).pathname).replace(/^\/([A-Z]:)/, "$1"), "../../nexus.multiaddr")
+			path.join(
+				path
+					.dirname(new URL(import.meta.url).pathname)
+					.replace(/^\/([A-Z]:)/, "$1"),
+				"../../nexus.multiaddr",
+			),
 		];
 
 		for (const nexusPath of searchPaths) {
@@ -55,10 +63,12 @@ async function main() {
 					if (addr && !bootstrapNodes.includes(addr)) {
 						bootstrapNodes.push(addr);
 						console.error(`[NMP-Agent] 📍 Found bootstrap at: ${nexusPath}`);
-						break; 
+						break;
 					}
 				}
-			} catch (_e) { /* ignore */ }
+			} catch (_e) {
+				/* ignore */
+			}
 		}
 	}
 
@@ -94,14 +104,18 @@ async function main() {
 
 	// Proactive Notification to Claude Desktop when tools are discovered dynamically
 	router.onToolsChanged = () => {
-		process.stdout.write(`{"jsonrpc":"2.0","method":"notifications/tools/list_changed"}\n`);
+		process.stdout.write(
+			`{"jsonrpc":"2.0","method":"notifications/tools/list_changed"}\n`,
+		);
 	};
 
 	// Initial warming period (2s) then Periodic Discovery Worker (every 10 seconds)
 	// This silently polls the DHT for new nodes and triggers onToolsChanged if the topology shifts.
 	setTimeout(() => {
 		const rtSize = (meshNode as any).getRoutingTableSize?.() || 0;
-		console.error(`[NMP-Agent] 🛰️ Warm-up complete. Routing Table size: ${rtSize}`);
+		console.error(
+			`[NMP-Agent] 🛰️ Warm-up complete. Routing Table size: ${rtSize}`,
+		);
 		router.refreshManifestCache(true).catch(() => {});
 	}, 2000);
 

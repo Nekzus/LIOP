@@ -7,8 +7,8 @@ use tracing::{error, info};
 /// Starts a minimalist HTTP health check server on the specified address.
 /// Runs concurrently alongside the gRPC server and P2P Mesh.
 pub async fn start_health_server(addr: SocketAddr) {
-    use tokio::net::TcpListener;
     use tokio::io::AsyncWriteExt;
+    use tokio::net::TcpListener;
 
     let listener = match TcpListener::bind(addr).await {
         Ok(l) => l,
@@ -33,7 +33,10 @@ pub async fn start_health_server(addr: SocketAddr) {
             let request_line = String::from_utf8_lossy(&buf);
 
             let (status, body) = if request_line.starts_with("GET /health") {
-                ("200 OK", r#"{"status":"healthy","service":"nmp-server","version":"1.0.0-alpha"}"#)
+                (
+                    "200 OK",
+                    r#"{"status":"healthy","service":"nmp-server","version":"1.0.0-alpha"}"#,
+                )
             } else {
                 ("404 Not Found", r#"{"error":"not found"}"#)
             };

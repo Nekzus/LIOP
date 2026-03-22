@@ -61,10 +61,11 @@ export class NmpMcpRouter {
 					tools: [
 						{
 							name: "NmpMeshStatus",
-							description: "Returns the current dynamic status of the Zero-Trust Neural Mesh.",
-							inputSchema: { type: "object", properties: {} }
+							description:
+								"Returns the current dynamic status of the Zero-Trust Neural Mesh.",
+							inputSchema: { type: "object", properties: {} },
 						},
-						...remoteTools
+						...remoteTools,
 					],
 					resources,
 					serverInfo: this.nmpServer.getServerInfo(),
@@ -73,7 +74,9 @@ export class NmpMcpRouter {
 
 			// Proactively announce manifest capability to the mesh
 			this.meshNode.announceManifest().catch((err) => {
-				console.error(`[NMP-Router] ⚠️ Failed to announce manifest: ${err.message}`);
+				console.error(
+					`[NMP-Router] ⚠️ Failed to announce manifest: ${err.message}`,
+				);
 			});
 		}
 	}
@@ -113,15 +116,16 @@ export class NmpMcpRouter {
 			case "tools/list": {
 				const localTools = this.nmpServer.listTools();
 				const remoteTools = await this.getRemoteTools();
-				
-				// Inyectamos una herramienta diagnóstica estática obligatoria.
-				// Esto garantiza que la lista {tools: []} nunca esté vacía en el arranque.
-				// Claude Desktop oculta silenciosamente el conector si recibe un array vacío al inicio,
-				// lo cual rompía la UX debido a los ~3s de warm-up del Kademlia DHT.
+
+				// Inject a mandatory static diagnostic tool.
+				// This ensures that the {tools: []} list is never empty on startup.
+				// Claude Desktop silently hides the connector if it receives an empty array initially,
+				// which broke the UX due to the ~3s warm-up time of the Kademlia DHT.
 				const diagnosticTool = {
 					name: "NmpMeshStatus",
-					description: "Returns the current dynamic status of the Zero-Trust Neural Mesh.",
-					inputSchema: { type: "object", properties: {} }
+					description:
+						"Returns the current dynamic status of the Zero-Trust Neural Mesh.",
+					inputSchema: { type: "object", properties: {} },
 				};
 
 				return {
@@ -199,7 +203,9 @@ export class NmpMcpRouter {
 						const connections =
 							(this.meshNode as any).node?.getConnections().length || 0;
 						if (connections > 0) {
-							console.error(`[NMP-Router] 🤝 P2P Connection established. Starting discovery...`);
+							console.error(
+								`[NMP-Router] 🤝 P2P Connection established. Starting discovery...`,
+							);
 							break;
 						}
 						console.error(
@@ -212,14 +218,24 @@ export class NmpMcpRouter {
 				// Phase 1: Try DHT discovery + Fallback loop
 				let providerIds: string[] = [];
 				const MAX_COLD_ATTEMPTS = this.manifestCache.size === 0 ? 5 : 1;
-				
-				for (let coldAttempt = 0; coldAttempt < MAX_COLD_ATTEMPTS; coldAttempt++) {
+
+				for (
+					let coldAttempt = 0;
+					coldAttempt < MAX_COLD_ATTEMPTS;
+					coldAttempt++
+				) {
 					// 1.1 Try DHT discovery
-					for (let attempt = 0; attempt < MANIFEST_DISCOVERY_RETRIES; attempt++) {
+					for (
+						let attempt = 0;
+						attempt < MANIFEST_DISCOVERY_RETRIES;
+						attempt++
+					) {
 						providerIds = await this.meshNode!.discoverManifestProviders();
 						if (providerIds.length > 0) break;
 						if (attempt < MANIFEST_DISCOVERY_RETRIES - 1) {
-							console.error(`[NMP-Router] 🔄 DHT discovery attempt ${attempt + 1}/${MANIFEST_DISCOVERY_RETRIES}...`);
+							console.error(
+								`[NMP-Router] 🔄 DHT discovery attempt ${attempt + 1}/${MANIFEST_DISCOVERY_RETRIES}...`,
+							);
 							await new Promise((r) => setTimeout(r, 1000));
 						}
 					}
@@ -231,21 +247,27 @@ export class NmpMcpRouter {
 								?.getConnections()
 								.map((c: any) => c.remotePeer.toString()) || [];
 						if (activePeers.length > 0) {
-							console.error(`[NMP-Router] 🛠️ DHT empty. Using ${activePeers.length} active connections as fallback.`);
+							console.error(
+								`[NMP-Router] 🛠️ DHT empty. Using ${activePeers.length} active connections as fallback.`,
+							);
 							providerIds = activePeers;
 						}
 					}
 
 					if (providerIds.length > 0) break;
-					
+
 					if (coldAttempt < MAX_COLD_ATTEMPTS - 1) {
-						console.error(`[NMP-Router] ⚠️ Initial discovery failed (0 providers). Retrying in 1s (${coldAttempt + 1}/${MAX_COLD_ATTEMPTS})...`);
+						console.error(
+							`[NMP-Router] ⚠️ Initial discovery failed (0 providers). Retrying in 1s (${coldAttempt + 1}/${MAX_COLD_ATTEMPTS})...`,
+						);
 						await new Promise((r) => setTimeout(r, 1000));
 					}
 				}
 
 				if (providerIds.length === 0) {
-					console.error(`[NMP-Router] 🛑 No manifest providers found after all attempts.`);
+					console.error(
+						`[NMP-Router] 🛑 No manifest providers found after all attempts.`,
+					);
 					return;
 				}
 
@@ -286,10 +308,14 @@ export class NmpMcpRouter {
 							});
 							cacheUpdated = true;
 							successCount++;
-							console.error(`[NMP-Router] ✨ Manifest received from ${peerId} (${manifest.tools.length} tools)`);
+							console.error(
+								`[NMP-Router] ✨ Manifest received from ${peerId} (${manifest.tools.length} tools)`,
+							);
 						} else {
 							errorCount++;
-							console.error(`[NMP-Router] ⚠️ Manifest query returned NULL for ${peerId}`);
+							console.error(
+								`[NMP-Router] ⚠️ Manifest query returned NULL for ${peerId}`,
+							);
 						}
 					} catch (err) {
 						console.error(
@@ -441,8 +467,8 @@ export class NmpMcpRouter {
 				: 0;
 
 			const cachedToolList = Array.from(this.manifestCache.entries())
-				.flatMap(([peerId, { manifest }]) => 
-					manifest.tools.map((t) => `  • ${t.name} (from ${peerId.slice(-6)})`)
+				.flatMap(([peerId, { manifest }]) =>
+					manifest.tools.map((t) => `  • ${t.name} (from ${peerId.slice(-6)})`),
 				)
 				.join("\n");
 
@@ -451,7 +477,9 @@ export class NmpMcpRouter {
 				`📊 Network: ${connections} Conns | ${routingTableSize} DHT Peers | ${bootstrapCount} Bootstraps`,
 				`🔎 Discovery: ${stats.candidates} Candidates | ${stats.success} OK | ${stats.failures} FAIL`,
 				`🛠️ Tooling: ${providerCount} Providers | ${cachedTools} Total Remote Tools`,
-				cachedTools > 0 ? `\nDiscovered Remote Tools:\n${cachedToolList}` : "\nNo remote tools discovered yet."
+				cachedTools > 0
+					? `\nDiscovered Remote Tools:\n${cachedToolList}`
+					: "\nNo remote tools discovered yet.",
 			].join("\n");
 
 			return {

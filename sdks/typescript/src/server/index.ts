@@ -274,7 +274,9 @@ export class NmpServer {
 					stats.lastAttempt = now;
 					this.connectionStats.set(clientId, stats);
 					return {
-						content: [{ type: "text", text: `ExecutionRuntimeException: ${e.message}` }],
+						content: [
+							{ type: "text", text: `ExecutionRuntimeException: ${e.message}` },
+						],
 						isError: true,
 					};
 				}
@@ -450,7 +452,10 @@ Failure to follow these rules will result in an immediate violation and the exec
 				typeof (parsedArgs as any).payload === "string" &&
 				(parsedArgs as any).payload.includes("---BEGIN_LOGIC---")
 			) {
-				return await this.executeInWorkerPool(parsedArgs, (parsedArgs as any).payload);
+				return await this.executeInWorkerPool(
+					parsedArgs,
+					(parsedArgs as any).payload,
+				);
 			}
 
 			const result = await entry.handler(parsedArgs, {});
@@ -689,9 +694,13 @@ Failure to follow these rules will result in an immediate violation and the exec
 					};
 
 					// Final PII check for gRPC egress
-					const violation = this.piiScanner.scan([{ type: "text", text: finalOutput }]);
+					const violation = this.piiScanner.scan([
+						{ type: "text", text: finalOutput },
+					]);
 					if (violation) {
-						console.error(`[NMP-RPC] 🚨 PII Leak blocked in gRPC stream: ${violation}`);
+						console.error(
+							`[NMP-RPC] 🚨 PII Leak blocked in gRPC stream: ${violation}`,
+						);
 						response.semantic_evidence = `[NMP] Egress Security Violation. Output blocked due to PII leakage (${violation}).`;
 						response.is_error = true;
 					}
@@ -702,7 +711,7 @@ Failure to follow these rules will result in an immediate violation and the exec
 				} catch (error: unknown) {
 					const e = error as Error;
 					console.error(`[NMP-RPC] 🚨 Execution Error: ${e.message}`);
-					
+
 					// Send error response before closing, avoiding "stream closed without results"
 					const errorResponse: LogicResponse = {
 						semantic_evidence: `Execution Error: ${e.message}`,
@@ -710,7 +719,7 @@ Failure to follow these rules will result in an immediate violation and the exec
 						zk_receipt: Buffer.from(""),
 						is_error: true,
 					};
-					
+
 					try {
 						call.write(errorResponse, () => {
 							call.end();
@@ -749,7 +758,7 @@ Failure to follow these rules will result in an immediate violation and the exec
 			});
 
 			// Standard MCP Content Array
-			let textOutput = JSON.stringify({
+			const textOutput = JSON.stringify({
 				computation_result: workerResponse.output,
 				image_id: workerResponse.image_id,
 				status: "Worker Pool Execution Success",
@@ -765,7 +774,9 @@ Failure to follow these rules will result in an immediate violation and the exec
 			// Professional PII Protection Guard
 			const violation = this.piiScanner.scan(content);
 			if (violation) {
-				console.error(`[NMP-SDK] 🚨 PII Leak blocked in local execution: ${violation}`);
+				console.error(
+					`[NMP-SDK] 🚨 PII Leak blocked in local execution: ${violation}`,
+				);
 				return {
 					content: [
 						{

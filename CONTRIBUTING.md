@@ -1,5 +1,5 @@
 # Contributing to Neural Mesh Protocol (NMP)
-*Para la versión en Español, ver la sección más abajo.*
+*Para la versión en Español, ver la sección más abajo.* 
 
 Thank you for your interest in contributing to the Neural Mesh Protocol (NMP). We are building the successor to the Model Context Protocol (MCP) by shifting the paradigm from Context-Pulling to **Logic-on-Origin (LoO)**. 
 

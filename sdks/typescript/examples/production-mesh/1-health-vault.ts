@@ -3,12 +3,12 @@ import { z } from "zod";
 
 /**
  * THE HEALTH VAULT (Medical Data Provider)
- * 
- * Este nodo protege registros médicos sensibles.
- * Implementa:
- * 1. PII Masking: Ofuscación nativa de identidades.
- * 2. WASI Sandbox: Aislamiento V8 y WASM.
- * 3. ZK-Receipts: Comprobantes matemáticos de integridad.
+ *
+ * This node protects sensitive medical records.
+ * Implements:
+ * 1. PII Masking: Native identity obfuscation.
+ * 2. WASI Sandbox: V8 and WASM isolation.
+ * 3. ZK-Receipts: Mathematical integrity proofs.
  */
 async function startHealthVault() {
 	const server = new NmpServer({
@@ -16,33 +16,35 @@ async function startHealthVault() {
 		version: "2.0.0",
 	});
 
-	// Registro de herramienta con Logic-on-Origin
+	// Register tool with Logic-on-Origin
 	server.tool(
 		"ProcessMedicalRecord",
-		"Procesa registros médicos anonimizados mediante WASI",
+		"Processes anonymized medical records via WASI",
 		{
-			recordId: z.string().describe("ID del paciente"),
+			recordId: z.string().describe("Patient ID"),
 		},
 		async (args: { recordId: string }) => {
-			console.log(`🏥 [Health-Vault] Petición recibida para ID: ${args.recordId}`);
+			console.log(
+				`🏥 [Health-Vault] Request received for ID: ${args.recordId}`,
+			);
 
-			// Inicialización de Sandbox
+			// Sandbox initialization
 			const sandbox = new WasiSandbox({
 				allowEnv: false,
 			});
 			await sandbox.init();
 
-			// Ejecución aislada
+			// Isolated execution
 			const result = await sandbox.execute(
 				`return { 
 					status: "Processed", 
 					pii_masked: true, 
 					zk_receipt: "0xABC123..." 
 				};`,
-				[{ id: args.recordId, status: "Healthy" }]
+				[{ id: args.recordId, status: "Healthy" }],
 			);
 
-			// Limpieza
+			// Cleanup
 			await sandbox.teardown();
 
 			return {
@@ -55,10 +57,10 @@ async function startHealthVault() {
 		port: 50051,
 		meshConfig: {
 			bootstrapNodes: ["/ip4/127.0.0.1/tcp/4001"],
-		}
+		},
 	});
 
-	console.log("✅ [Health-Vault] Nodo de Salud activo y blindado.");
+	console.log("✅ [Health-Vault] Health individual node active and shielded.");
 }
 
 startHealthVault().catch(console.error);

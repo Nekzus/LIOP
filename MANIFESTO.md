@@ -27,6 +27,8 @@ The **Neural Mesh Protocol (NMP)** is born from a simple realization:
 
 **Logic-on-Origin (LoO)** is our **Postulate of Origin (Execution Core)**. It states that data is sacred and must never leave its physical location unless it is mathematically aggregated or cryptographically verified.
 
+An NMP Agent interacting with an explicit NMP Server pushes executable logic (in the form of microscopic `.wasm` modules or dynamically transpiled algorithms). The server securely executes this logic within a strict sandbox and returns only the aggregated mathematical results or filtered lists, mathematically negating the possibility of unintentional PII (Personally Identifiable Information) exfiltration due to large-context extraction.
+
 Instead of an Agent asking a server: *"Give me all your database records so I can filter them,"* 
 an NMP Agent tells the server: *"Here is my WebAssembly logic. Run it locally. Give me only the final mathematical percentage."*
 

@@ -2,7 +2,6 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { noise } from "@chainsafe/libp2p-noise";
 import { yamux } from "@chainsafe/libp2p-yamux";
-import { pipe } from "it-pipe";
 import { bootstrap } from "@libp2p/bootstrap";
 import { identify } from "@libp2p/identify";
 import { kadDHT } from "@libp2p/kad-dht";
@@ -10,6 +9,7 @@ import { ping } from "@libp2p/ping";
 import { tcp } from "@libp2p/tcp";
 import { webSockets } from "@libp2p/websockets";
 import { multiaddr } from "@multiformats/multiaddr";
+import { pipe } from "it-pipe";
 import type { Libp2p } from "libp2p";
 import { createLibp2p } from "libp2p";
 import { CID } from "multiformats/cid";
@@ -329,75 +329,95 @@ export class MeshNode {
 
 		// Announce manifest capability to the Mesh DHT for discovery
 		this.announceCapability(NMP_MANIFEST_CAPABILITY).catch((err) => {
-			console.error(`[NMP-Mesh] 🚨 Initial manifest announcement failed: ${err}`);
+			console.error(
+				`[NMP-Mesh] 🚨 Initial manifest announcement failed: ${err}`,
+			);
 		});
 
 		// libp2p v1.x/v3.x handle API uses { stream, connection }
-		this.node.handle(NMP_MANIFEST_PROTOCOL, async (arg: any, connection?: any) => {
-			const stream = arg.stream || arg; // Robust extraction
-			const remotePeer = (arg.connection || connection)?.remotePeer?.toString() || "unknown";
-			
-			console.error(`[NMP-Mesh] 📥 Incoming manifest request from ${remotePeer}.`);
+		this.node.handle(
+			NMP_MANIFEST_PROTOCOL,
+			async (arg: any, connection?: any) => {
+				const stream = arg.stream || arg; // Robust extraction
+				const remotePeer =
+					(arg.connection || connection)?.remotePeer?.toString() || "unknown";
 
-
-			try {
-				const manifest = this.manifestProvider?.();
-				if (!manifest || !stream) {
-					console.error(`[NMP-Mesh] ⚠️ Skipping manifest request (no provider or stream)`);
-					try { await (stream.close || stream.abort)?.(); } catch(e) {}
-					return;
-				}
-
-				const manifestStr = JSON.stringify(manifest);
-				const payload = new TextEncoder().encode(manifestStr);
-				
-				// Write length-prefixed payload (Big Endian 4 bytes)
-				const lengthBuf = Buffer.alloc(4);
-				lengthBuf.writeUInt32BE(payload.length, 0);
-				const fullPacket = Buffer.concat([lengthBuf, Buffer.from(payload)]);
-
-				console.error(`[NMP-Mesh] 🛠️ Serving manifest (${fullPacket.length} bytes) to ${remotePeer} [Tools: ${manifest.tools.map(t => t.name).join(', ')}]`);
+				console.error(
+					`[NMP-Mesh] 📥 Incoming manifest request from ${remotePeer}.`,
+				);
 
 				try {
-					// Modern libp2p (v1.x/v3.0+) uses stream.send() for writing
-					if (typeof stream.send === 'function') {
-						if (!stream.send(fullPacket)) {
-							// Handle backpressure
-							const { pEvent } = await import("p-event");
-							try {
-								await pEvent(stream, "drain", { timeout: 5000 });
-							} catch (e) {
-								console.error(`[NMP-Mesh] ⚠️ Drain timeout or error for ${remotePeer}: ${e instanceof Error ? e.message : String(e)}`);
-							}
-						}
-					} else {
-						// Legacy fallback for older libp2p or custom wrappers
-						await pipe([fullPacket], stream);
+					const manifest = this.manifestProvider?.();
+					if (!manifest || !stream) {
+						console.error(
+							`[NMP-Mesh] ⚠️ Skipping manifest request (no provider or stream)`,
+						);
+						try {
+							await (stream.close || stream.abort)?.();
+						} catch (e) {}
+						return;
 					}
-					console.error(`[NMP-Mesh] ✅ Manifest sent successfully to ${remotePeer}`);
-				} catch (writeErr: any) {
-					console.error(`[NMP-Mesh] 🚨 Write error serving manifest to ${remotePeer}: ${writeErr.message}`);
-				} finally {
-					// Ensure the stream is closed after serving the manifest
+
+					const manifestStr = JSON.stringify(manifest);
+					const payload = new TextEncoder().encode(manifestStr);
+
+					// Write length-prefixed payload (Big Endian 4 bytes)
+					const lengthBuf = Buffer.alloc(4);
+					lengthBuf.writeUInt32BE(payload.length, 0);
+					const fullPacket = Buffer.concat([lengthBuf, Buffer.from(payload)]);
+
+					console.error(
+						`[NMP-Mesh] 🛠️ Serving manifest (${fullPacket.length} bytes) to ${remotePeer} [Tools: ${manifest.tools.map((t) => t.name).join(", ")}]`,
+					);
+
 					try {
-						if (typeof stream.close === 'function') await stream.close();
-						else if (typeof stream.abort === 'function') await stream.abort();
-					} catch (e) {
-						// Ignore close errors
+						// Modern libp2p (v1.x/v3.0+) uses stream.send() for writing
+						if (typeof stream.send === "function") {
+							if (!stream.send(fullPacket)) {
+								// Handle backpressure
+								const { pEvent } = await import("p-event");
+								try {
+									await pEvent(stream, "drain", { timeout: 5000 });
+								} catch (e) {
+									console.error(
+										`[NMP-Mesh] ⚠️ Drain timeout or error for ${remotePeer}: ${e instanceof Error ? e.message : String(e)}`,
+									);
+								}
+							}
+						} else {
+							// Legacy fallback for older libp2p or custom wrappers
+							await pipe([fullPacket], stream);
+						}
+						console.error(
+							`[NMP-Mesh] ✅ Manifest sent successfully to ${remotePeer}`,
+						);
+					} catch (writeErr: any) {
+						console.error(
+							`[NMP-Mesh] 🚨 Write error serving manifest to ${remotePeer}: ${writeErr.message}`,
+						);
+					} finally {
+						// Ensure the stream is closed after serving the manifest
+						try {
+							if (typeof stream.close === "function") await stream.close();
+							else if (typeof stream.abort === "function") await stream.abort();
+						} catch (e) {
+							// Ignore close errors
+						}
 					}
+					return;
+
+					console.error(
+						`[NMP-Mesh] 🚨 Stream has no valid output method (sink or send)`,
+					);
+
+					console.error(`[NMP-Mesh] ✅ Served manifest to ${remotePeer}`);
+				} catch (err: any) {
+					console.error(
+						`[NMP-Mesh] 🚨 Error serving manifest to ${remotePeer}: ${err.message}`,
+					);
 				}
-				return;
-
-
-				console.error(`[NMP-Mesh] 🚨 Stream has no valid output method (sink or send)`);
-
-
-
-				console.error(`[NMP-Mesh] ✅ Served manifest to ${remotePeer}`);
-			} catch (err: any) {
-				console.error(`[NMP-Mesh] 🚨 Error serving manifest to ${remotePeer}: ${err.message}`);
-			}
-		});
+			},
+		);
 
 		console.error(
 			`[NMP-Mesh] 📡 Manifest Protocol registered: ${NMP_MANIFEST_PROTOCOL}`,
@@ -425,7 +445,9 @@ export class MeshNode {
 		// [ALPHA-OPTIMIZATION] Local Loopback Bypass
 		// If we are querying our own manifest, return it directly from the provider.
 		if (peerIdStr === this.node.peerId.toString()) {
-			console.error(`[NMP-Mesh] 🔄 Loopback: Returning local manifest directly for ${peerIdStr}`);
+			console.error(
+				`[NMP-Mesh] 🔄 Loopback: Returning local manifest directly for ${peerIdStr}`,
+			);
 			return this.manifestProvider?.() || null;
 		}
 
@@ -435,8 +457,10 @@ export class MeshNode {
 				// Resolve the target from active connections to ensure PeerId version compatibility
 				let targetPeer: any = null;
 				const connections = this.node.getConnections();
-				const activeConn = connections.find(c => c.remotePeer.toString() === peerIdStr);
-				
+				const activeConn = connections.find(
+					(c) => c.remotePeer.toString() === peerIdStr,
+				);
+
 				if (activeConn) {
 					targetPeer = activeConn.remotePeer;
 				} else {
@@ -448,22 +472,31 @@ export class MeshNode {
 				// Open a protocol stream using high-level dialProtocol for automated it-stream wrapping
 				let stream: any;
 				try {
-					const result: any = await this.node.dialProtocol(targetPeer as any, NMP_MANIFEST_PROTOCOL);
+					const result: any = await this.node.dialProtocol(
+						targetPeer as any,
+						NMP_MANIFEST_PROTOCOL,
+					);
 					stream = result.stream || result;
 				} catch (dialErr) {
 					if (attempt === MAX_ATTEMPTS) {
-						console.error(`[NMP-Mesh] 🚨 Dial error for ${peerIdStr} after ${MAX_ATTEMPTS} attempts: ${dialErr}`);
+						console.error(
+							`[NMP-Mesh] 🚨 Dial error for ${peerIdStr} after ${MAX_ATTEMPTS} attempts: ${dialErr}`,
+						);
 						return null;
 					}
-					const delay = 500 * Math.pow(2, attempt);
-					console.error(`[NMP-Mesh] ⚠️ Dial error for ${peerIdStr} (Attempt ${attempt}). Retrying in ${delay}ms...`);
-					await new Promise(r => setTimeout(r, delay));
+					const delay = 500 * 2 ** attempt;
+					console.error(
+						`[NMP-Mesh] ⚠️ Dial error for ${peerIdStr} (Attempt ${attempt}). Retrying in ${delay}ms...`,
+					);
+					await new Promise((r) => setTimeout(r, delay));
 					continue;
 				}
 
 				// Strategy: Robust Async Reader
-				let source = stream.source || (typeof stream[Symbol.asyncIterator] === "function" ? stream : null);
-				
+				let source =
+					stream.source ||
+					(typeof stream[Symbol.asyncIterator] === "function" ? stream : null);
+
 				// Final attempt: check if it's already an iterable
 				if (!source && typeof stream[Symbol.asyncIterator] === "function") {
 					source = stream;
@@ -477,7 +510,10 @@ export class MeshNode {
 
 				// Read segments until timeout or closure
 				const timeoutPromise = new Promise<never>((_, reject) => {
-					setTimeout(() => reject(new Error("Manifest read timeout (5s)")), 5000);
+					setTimeout(
+						() => reject(new Error("Manifest read timeout (5s)")),
+						5000,
+					);
 				});
 
 				try {
@@ -485,14 +521,19 @@ export class MeshNode {
 						(async () => {
 							for await (const chunk of source) {
 								if (!chunk) continue;
-								
+
 								// Telemetry: inspect chunk structure
-								const bytes = chunk instanceof Uint8Array ? chunk : 
-									(chunk as any).subarray ? (chunk as any).subarray() : 
-									Buffer.from(chunk as any);
-								
+								const bytes =
+									chunk instanceof Uint8Array
+										? chunk
+										: (chunk as any).subarray
+											? (chunk as any).subarray()
+											: Buffer.from(chunk as any);
+
 								if (bytes.length > 0) {
-									console.error(`[NMP-Mesh] 🧩 Received chunk (${bytes.length} bytes) from ${peerIdStr}`);
+									console.error(
+										`[NMP-Mesh] 🧩 Received chunk (${bytes.length} bytes) from ${peerIdStr}`,
+									);
 									chunks.push(bytes);
 								}
 							}
@@ -501,7 +542,9 @@ export class MeshNode {
 					]);
 				} catch (itErr: any) {
 					if (chunks.length === 0) throw itErr;
-					console.error(`[NMP-Mesh] ⚠️ Partial manifest read from ${peerIdStr}: ${itErr.message}`);
+					console.error(
+						`[NMP-Mesh] ⚠️ Partial manifest read from ${peerIdStr}: ${itErr.message}`,
+					);
 				}
 
 				const raw = Buffer.concat(chunks);
@@ -520,12 +563,16 @@ export class MeshNode {
 				return manifest;
 			} catch (err: any) {
 				if (attempt === MAX_ATTEMPTS) {
-					console.error(`[NMP-Mesh] 🚨 Failed to query manifest from ${peerIdStr} after ${MAX_ATTEMPTS} attempts: ${err.message}`);
+					console.error(
+						`[NMP-Mesh] 🚨 Failed to query manifest from ${peerIdStr} after ${MAX_ATTEMPTS} attempts: ${err.message}`,
+					);
 					return null;
 				}
-				const delay = 500 * Math.pow(2, attempt);
-				console.error(`[NMP-Mesh] ⚠️ Query error for ${peerIdStr} (Attempt ${attempt}): ${err.message}. Retrying in ${delay}ms...`);
-				await new Promise(r => setTimeout(r, delay));
+				const delay = 500 * 2 ** attempt;
+				console.error(
+					`[NMP-Mesh] ⚠️ Query error for ${peerIdStr} (Attempt ${attempt}): ${err.message}. Retrying in ${delay}ms...`,
+				);
+				await new Promise((r) => setTimeout(r, delay));
 			}
 		}
 		return null;
@@ -602,7 +649,9 @@ export class MeshNode {
 		const providers: string[] = [];
 		try {
 			const cid = await this.capabilityToCID(hash);
-			console.error(`[NMP-Mesh] 🔍 Querying DHT for ${hash} (CID: ${cid.toString()})...`);
+			console.error(
+				`[NMP-Mesh] 🔍 Querying DHT for ${hash} (CID: ${cid.toString()})...`,
+			);
 
 			// In libp2p v1.x, contentRouting.findProviders returns AsyncIterable<{ id: PeerId, multiaddrs: Multiaddr[] }>
 			let foundAny = false;
@@ -615,7 +664,9 @@ export class MeshNode {
 				}
 			}
 			if (!foundAny) {
-				console.error(`[NMP-Mesh] 💨 DHT search for ${hash} returned zero results (routing table size: ${(this.node.services as any).dht?.routingTable?.size || 0})`);
+				console.error(
+					`[NMP-Mesh] 💨 DHT search for ${hash} returned zero results (routing table size: ${(this.node.services as any).dht?.routingTable?.size || 0})`,
+				);
 			}
 
 			// [DEVELOPER-EXPERIENCE] Local Loopback Discovery
@@ -623,7 +674,9 @@ export class MeshNode {
 			if (this.announcedCapabilities.has(hash)) {
 				const selfId = this.node.peerId.toString();
 				if (!providers.includes(selfId)) {
-					console.error(`[NMP-Mesh] 🔄 Including local node (${selfId}) in results for ${hash}`);
+					console.error(
+						`[NMP-Mesh] 🔄 Including local node (${selfId}) in results for ${hash}`,
+					);
 					providers.push(selfId);
 				}
 			}

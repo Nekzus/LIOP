@@ -9,6 +9,7 @@ use tracing::{info, warn};
 
 /// Root configuration structure parsed from `config.toml`.
 #[derive(Deserialize, Debug, Clone)]
+#[derive(Default)]
 pub struct NmpConfig {
     #[serde(default)]
     pub server: ServerConfig,
@@ -63,16 +64,36 @@ pub struct SecurityConfig {
 }
 
 // Default value functions
-fn default_grpc_addr() -> String { "[::1]:50051".to_string() }
-fn default_p2p_listen() -> String { "/ip4/0.0.0.0/tcp/0".to_string() }
-fn default_p2p_quic_listen() -> String { "/ip4/0.0.0.0/udp/0/quic-v1".to_string() }
-fn default_fuel_limit() -> u64 { 500_000_000 }
-fn default_allowed_dir() -> String { ".".to_string() }
-fn default_max_functions() -> u32 { 50_000 }
-fn default_ttl_seconds() -> u64 { 300 }
-fn default_max_concurrent() -> usize { 1000 }
-fn default_cert_path() -> String { "certs/server.crt".to_string() }
-fn default_key_path() -> String { "certs/server.key".to_string() }
+fn default_grpc_addr() -> String {
+    "[::1]:50051".to_string()
+}
+fn default_p2p_listen() -> String {
+    "/ip4/0.0.0.0/tcp/0".to_string()
+}
+fn default_p2p_quic_listen() -> String {
+    "/ip4/0.0.0.0/udp/0/quic-v1".to_string()
+}
+fn default_fuel_limit() -> u64 {
+    500_000_000
+}
+fn default_allowed_dir() -> String {
+    ".".to_string()
+}
+fn default_max_functions() -> u32 {
+    50_000
+}
+fn default_ttl_seconds() -> u64 {
+    300
+}
+fn default_max_concurrent() -> usize {
+    1000
+}
+fn default_cert_path() -> String {
+    "certs/server.crt".to_string()
+}
+fn default_key_path() -> String {
+    "certs/server.key".to_string()
+}
 
 impl Default for ServerConfig {
     fn default() -> Self {
@@ -113,16 +134,6 @@ impl Default for SecurityConfig {
     }
 }
 
-impl Default for NmpConfig {
-    fn default() -> Self {
-        Self {
-            server: ServerConfig::default(),
-            sandbox: SandboxConfig::default(),
-            session: SessionConfig::default(),
-            security: SecurityConfig::default(),
-        }
-    }
-}
 
 impl SessionConfig {
     /// Returns the TTL as a `Duration` for use with `Instant` comparisons.
@@ -136,8 +147,7 @@ impl NmpConfig {
     /// or falls back to `config.toml` in the working directory.
     /// If no file exists, returns the built-in defaults.
     pub fn load() -> Result<Self, Box<dyn Error>> {
-        let config_path = std::env::var("NMP_CONFIG")
-            .unwrap_or_else(|_| "config.toml".to_string());
+        let config_path = std::env::var("NMP_CONFIG").unwrap_or_else(|_| "config.toml".to_string());
 
         let path = Path::new(&config_path);
         if path.exists() {
@@ -188,7 +198,10 @@ mod tests {
 
     #[test]
     fn ttl_duration_converts_correctly() {
-        let session = SessionConfig { ttl_seconds: 120, ..Default::default() };
+        let session = SessionConfig {
+            ttl_seconds: 120,
+            ..Default::default()
+        };
         assert_eq!(session.ttl_duration(), Duration::from_secs(120));
     }
 }

@@ -92,7 +92,10 @@ mod tests {
 
         assert!(result1.is_valid);
         assert!(result2.is_valid);
-        assert_eq!(bytes1, bytes2, "Identical inputs must produce identical receipts");
+        assert_eq!(
+            bytes1, bytes2,
+            "Identical inputs must produce identical receipts"
+        );
     }
 
     #[test]
@@ -101,7 +104,10 @@ mod tests {
         let (_, bytes_a) = ZkExecutionEngine::prove_wasm_execution(b"wasm_v1", input).unwrap();
         let (_, bytes_b) = ZkExecutionEngine::prove_wasm_execution(b"wasm_v2", input).unwrap();
 
-        assert_ne!(bytes_a, bytes_b, "Different WASM logic must produce unique receipts");
+        assert_ne!(
+            bytes_a, bytes_b,
+            "Different WASM logic must produce unique receipts"
+        );
     }
 
     #[test]
@@ -110,7 +116,10 @@ mod tests {
         let (_, bytes_a) = ZkExecutionEngine::prove_wasm_execution(wasm, b"input_a").unwrap();
         let (_, bytes_b) = ZkExecutionEngine::prove_wasm_execution(wasm, b"input_b").unwrap();
 
-        assert_ne!(bytes_a, bytes_b, "Different input data must produce unique seals");
+        assert_ne!(
+            bytes_a, bytes_b,
+            "Different input data must produce unique seals"
+        );
     }
 
     #[test]
@@ -118,16 +127,23 @@ mod tests {
         let wasm = b"deserialize_test";
         let (_, bytes) = ZkExecutionEngine::prove_wasm_execution(wasm, b"").unwrap();
 
-        let receipt: NmpZkReceipt = bincode::deserialize(&bytes)
-            .expect("Receipt should deserialize from bincode");
+        let receipt: NmpZkReceipt =
+            bincode::deserialize(&bytes).expect("Receipt should deserialize from bincode");
 
-        assert_eq!(receipt.journal.len(), 32, "Journal should be SHA-256 (32 bytes)");
+        assert_eq!(
+            receipt.journal.len(),
+            32,
+            "Journal should be SHA-256 (32 bytes)"
+        );
         assert_eq!(receipt.seal.len(), 32, "Seal should be SHA-256 (32 bytes)");
     }
 
     #[test]
     fn receipt_works_with_empty_inputs() {
         let result = ZkExecutionEngine::prove_wasm_execution(b"", b"");
-        assert!(result.is_ok(), "Empty inputs should still produce a valid receipt");
+        assert!(
+            result.is_ok(),
+            "Empty inputs should still produce a valid receipt"
+        );
     }
 }

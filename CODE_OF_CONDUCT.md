@@ -1,5 +1,5 @@
 # Contributor Covenant Code of Conduct
-*Para la versión en Español, ver la sección más abajo.*
+*Para la versión en Español, ver la sección más abajo.* 
 
 ## Our Pledge
 

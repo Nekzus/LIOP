@@ -48,7 +48,12 @@ pub struct NmpService {
 }
 
 impl NmpService {
-    pub fn new(engine: wasmtime::Engine, session_ttl: Duration, fuel_limit: u64, allowed_dir: String) -> Self {
+    pub fn new(
+        engine: wasmtime::Engine,
+        session_ttl: Duration,
+        fuel_limit: u64,
+        allowed_dir: String,
+    ) -> Self {
         Self {
             engine,
             sessions: Arc::new(Mutex::new(HashMap::new())),
@@ -68,7 +73,10 @@ impl NmpService {
         let window = limits.entry(agent_did.to_string()).or_default();
 
         // Purge timestamps outside the sliding window
-        while window.front().map_or(false, |t| now.duration_since(*t) > RATE_LIMIT_WINDOW) {
+        while window
+            .front()
+            .is_some_and(|t| now.duration_since(*t) > RATE_LIMIT_WINDOW)
+        {
             window.pop_front();
         }
 

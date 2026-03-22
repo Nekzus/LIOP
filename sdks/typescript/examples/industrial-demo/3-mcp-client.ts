@@ -6,10 +6,10 @@ async function main() {
 	console.log("==================================================");
 
 	console.log(
-		"[Claude] 📡 Enviando petición JSON-RPC 'tools/call' a The Sentinel...",
+		"[Claude] 📡 Sending JSON-RPC 'tools/call' request to The Sentinel...",
 	);
 
-	// Un comando MCP puro y transparente (sin saber nada de P2P o ZK)
+	// A pure and transparent MCP command (without knowing anything about P2P or ZK)
 	const request = {
 		jsonrpc: "2.0",
 		id: 1,
@@ -33,12 +33,12 @@ async function main() {
 		const result = await response.json();
 		const t1 = Date.now();
 
-		console.log(`\n[Claude] ✅ Respuesta recibida en ${t1 - t0}ms`);
-		console.log("[Claude] -> Contenido:");
+		console.log(`\n[Claude] ✅ Response received in ${t1 - t0}ms`);
+		console.log("[Claude] -> Content:");
 		console.log(JSON.stringify(result, null, 2));
 	} catch (e: unknown) {
 		const errorMessage = e instanceof Error ? e.message : String(e);
-		console.error(`[Claude] ❌ Fallo la conexión: ${errorMessage}`);
+		console.error(`[Claude] ❌ Connection failed: ${errorMessage}`);
 	}
 }
 

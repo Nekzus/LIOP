@@ -3,11 +3,11 @@ import { z } from "zod";
 
 /**
  * THE BANK VAULT (Financial Data Provider)
- * 
- * Este nodo protege transacciones bancarias.
- * Implementa:
- * 1. PQC Kyber768: Intercambio de llaves Post-Cuántico.
- * 2. AES-256-GCM: Cifrado simétrico de alta velocidad.
+ *
+ * This node protects banking transactions.
+ * Implements:
+ * 1. PQC Kyber768: Post-Quantum Key Encapsulation.
+ * 2. AES-256-GCM: High-speed symmetric encryption.
  */
 async function startBankVault() {
 	const server = new NmpServer({
@@ -17,23 +17,27 @@ async function startBankVault() {
 
 	server.tool(
 		"CheckBalance",
-		"Consulta el saldo cifrado de una cuenta",
+		"Retrieves the encrypted balance for a specific account",
 		{
-			accountNumber: z.string().describe("Número de cuenta"),
+			accountNumber: z.string().describe("Account Number"),
 		},
 		async (args: { accountNumber: string }) => {
-			console.log(`💰 [Bank-Vault] Consulta de saldo para cuenta: ${args.accountNumber}`);
-			
+			console.log(
+				`💰 [Bank-Vault] Balance query for account: ${args.accountNumber}`,
+			);
+
 			return {
-				content: [{ 
-					type: "text", 
-					text: JSON.stringify({
-						account: args.accountNumber,
-						balance: 150000.50,
-						currency: "USD",
-						security: "PQC-Kyber-Enforced"
-					}) 
-				}],
+				content: [
+					{
+						type: "text",
+						text: JSON.stringify({
+							account: args.accountNumber,
+							balance: 150000.5,
+							currency: "USD",
+							security: "PQC-Kyber-Enforced",
+						}),
+					},
+				],
 			};
 		},
 	);
@@ -42,10 +46,10 @@ async function startBankVault() {
 		port: 50052,
 		meshConfig: {
 			bootstrapNodes: ["/ip4/127.0.0.1/tcp/4001"],
-		}
+		},
 	});
 
-	console.log("✅ [Bank-Vault] Banco central activo con cifrado Kyber.");
+	console.log("✅ [Bank-Vault] Central Bank active with Kyber encryption.");
 }
 
 startBankVault().catch(console.error);

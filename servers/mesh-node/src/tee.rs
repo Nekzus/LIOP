@@ -53,7 +53,10 @@ mod tests {
         let nonce = b"test-nonce-12345";
         let report1 = enclave.generate_attestation_report(nonce).unwrap();
         let report2 = enclave.generate_attestation_report(nonce).unwrap();
-        assert_eq!(report1, report2, "Same nonce must produce identical reports");
+        assert_eq!(
+            report1, report2,
+            "Same nonce must produce identical reports"
+        );
         assert_eq!(report1.len(), 32, "Report should be SHA-256 (32 bytes)");
     }
 
@@ -62,6 +65,9 @@ mod tests {
         let enclave = AwsNitroEnclaveStub;
         let report_a = enclave.generate_attestation_report(b"nonce-a").unwrap();
         let report_b = enclave.generate_attestation_report(b"nonce-b").unwrap();
-        assert_ne!(report_a, report_b, "Different nonces must produce different reports");
+        assert_ne!(
+            report_a, report_b,
+            "Different nonces must produce different reports"
+        );
     }
 }

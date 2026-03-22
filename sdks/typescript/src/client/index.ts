@@ -1,4 +1,8 @@
-import { MeshNode, type MeshNodeConfig, type NmpManifest } from "../mesh/node.js";
+import {
+	MeshNode,
+	type MeshNodeConfig,
+	type NmpManifest,
+} from "../mesh/node.js";
 import { NmpRpcClient } from "../rpc/client.js";
 import { AesGcmWrapper } from "../rpc/crypto/aes.js";
 import { Kyber768Wrapper } from "../rpc/crypto/kyber.js";
@@ -84,9 +88,7 @@ export class NmpClient {
 		const manifest = await this.meshNode.queryManifest(providerId);
 		if (manifest) {
 			grpcPort = manifest.grpcPort;
-			console.error(
-				`[NmpClient] 📋 Manifest resolved: gRPC port ${grpcPort}`,
-			);
+			console.error(`[NmpClient] 📋 Manifest resolved: gRPC port ${grpcPort}`);
 		}
 
 		const addrs = await this.meshNode.resolvePeer(providerId);
@@ -118,7 +120,7 @@ export class NmpClient {
 
 		const MAX_ATTEMPTS = 5;
 		let tools: { name: string; description?: string }[] = [];
-		
+
 		for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
 			const providerIds = await this.meshNode.discoverManifestProviders();
 			const seenNames = new Set<string>();
@@ -137,10 +139,12 @@ export class NmpClient {
 			}
 
 			if (tools.length > 0) break;
-			
+
 			if (attempt < MAX_ATTEMPTS) {
-				console.error(`[NmpClient] ⚠️ No tools found (Attempt ${attempt}/${MAX_ATTEMPTS}). Retrying in 200ms...`);
-				await new Promise(r => setTimeout(r, 200));
+				console.error(
+					`[NmpClient] ⚠️ No tools found (Attempt ${attempt}/${MAX_ATTEMPTS}). Retrying in 200ms...`,
+				);
+				await new Promise((r) => setTimeout(r, 200));
 			}
 		}
 
@@ -385,7 +389,7 @@ export class NmpClient {
 			);
 		}
 
-		// This emulates the resource retrieval. 
+		// This emulates the resource retrieval.
 		// In a full implementation, this might be a gRPC call.
 		return {
 			contents: [
