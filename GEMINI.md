@@ -531,3 +531,17 @@ El proyecto funciona bajo un ecosistema `Cargo Workspace` modular:
   - **Refactor de Streams L7:** Sustitución de la escritura manual (`pipe`/`it-pipe`) y métodos internos de Yamux (`sendData`) en el servidor de manifiestos por la API oficial `stream.send()` y `stream.close()`.
   - **Gestión de Backpressure**: Implementación de lógica de espera de evento `drain` mediante `p-event` si el buffer de transmisión está lleno, garantizando resiliencia ante saturaciones de red.
   - **Estabilización de Tipografía**: Inyección de `global.d.ts` para soportar `PromiseWithResolvers` (ES2024), resolviendo incompatibilidades de tipos en dependencias modernas de alto rendimiento.
+
+- **Fase 81: Verificación E2E y Estabilización de Malla [Completado]:**
+  - Resolución definitiva del error `fns.shift(...) is not a function` en el servidor de manifiestos NMP mediante un patrón de escritura directa al sink del stream con fallbacks defensivos.
+  - Optimización de tiempos de espera: Incrementado el timeout de lectura de manifiestos de 3s a 5s para mayor resiliencia en redes con latencia.
+  - Validación exitosa en entorno real: El `nmp-agent` ahora mapea correctamente las herramientas remotas de la malla (Nexus/Bastion) sin crashes de tubería.
+  - Suite de pruebas completa (89/89 tests) superada tras la integración de los arreglos.
+  - Limpieza de procesos y liberación de puertos gRPC bloqueados (50050/50051).
+
+- **Fase 82: PII Shield & SDK Stabilization (Alpha v1.1) [Completado]:**
+  - **Blindaje PII Centralizado**: Se integró el `PiiScanner` directamente en `executeInWorkerPool`, forzando la auditoría de egreso en todas las ejecuciones de lógica (local y remota).
+  - **Seguridad gRPC**: Implementación de validación PII en el flujo `executeLogic`, bloqueando exfiltraciones antes de la salida del servidor.
+  - **Refactor de Streams P2P**: Migración total del servicio de manifiestos a la API `stream.send()` y `p-event`, resolviendo errores de concurrencia y cierres prematuros de tubería.
+  - **Optimización de Recursos**: Ajuste del límite de *fuel* en el Sandbox V8 a 500k para prevenir falsos positivos en entornos de alta latencia.
+  - **Estabilidad de Tests**: Alcanzado el 100% de éxito (89/89 tests) con correcciones en la limpieza de puertos y persistencia de identidades.
