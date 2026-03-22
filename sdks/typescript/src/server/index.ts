@@ -449,12 +449,14 @@ Failure to follow these rules will result in an immediate violation and the exec
 			// [LOGIC-ON-ORIGIN] Intercept code injection directly
 			if (
 				parsedArgs &&
-				typeof (parsedArgs as any).payload === "string" &&
-				(parsedArgs as any).payload.includes("---BEGIN_LOGIC---")
+				typeof (parsedArgs as Record<string, unknown>).payload === "string" &&
+				((parsedArgs as Record<string, unknown>).payload as string).includes(
+					"---BEGIN_LOGIC---",
+				)
 			) {
 				return await this.executeInWorkerPool(
 					parsedArgs,
-					(parsedArgs as any).payload,
+					(parsedArgs as Record<string, unknown>).payload as string,
 				);
 			}
 
@@ -724,7 +726,7 @@ Failure to follow these rules will result in an immediate violation and the exec
 						call.write(errorResponse, () => {
 							call.end();
 						});
-					} catch (writeErr) {
+					} catch (_writeErr) {
 						call.end();
 					}
 				}

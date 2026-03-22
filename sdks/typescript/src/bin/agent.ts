@@ -112,6 +112,7 @@ async function main() {
 	// Initial warming period (2s) then Periodic Discovery Worker (every 10 seconds)
 	// This silently polls the DHT for new nodes and triggers onToolsChanged if the topology shifts.
 	setTimeout(() => {
+		// biome-ignore lint/suspicious/noExplicitAny: access internal for telemetry
 		const rtSize = (meshNode as any).getRoutingTableSize?.() || 0;
 		console.error(
 			`[NMP-Agent] 🛰️ Warm-up complete. Routing Table size: ${rtSize}`,
@@ -124,7 +125,7 @@ async function main() {
 	}, 15000);
 
 	// 4. STDIO Transport implementation
-	process.stdout.on("error", (err: any) => {
+	process.stdout.on("error", (err: Error & { code?: string }) => {
 		if (err.code === "EPIPE") {
 			process.exit(0); // Graceful exit when Claude Desktop disconnects
 		}

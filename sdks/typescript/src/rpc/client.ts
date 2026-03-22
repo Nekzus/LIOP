@@ -13,6 +13,7 @@ import type {
  * Provides a high-level interface for secure intent negotiation and logic execution.
  */
 export class NmpRpcClient {
+	// biome-ignore lint/suspicious/noExplicitAny: internal gRPC client type
 	private client: any;
 
 	constructor(address: string, tls?: NmpTlsOptions) {

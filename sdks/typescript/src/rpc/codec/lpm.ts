@@ -5,6 +5,7 @@
  * [1 byte: Compressed Flag] [4 bytes: Message Length] [Data]
  */
 
+// biome-ignore lint/complexity/noStaticOnlyClass: organizational class pattern
 export class LpmCodec {
 	/**
 	 * Encodes a data buffer into a gRPC Length-Prefixed Message

@@ -1,8 +1,4 @@
-import {
-	MeshNode,
-	type MeshNodeConfig,
-	type NmpManifest,
-} from "../mesh/node.js";
+import { MeshNode, type MeshNodeConfig } from "../mesh/node.js";
 import { NmpRpcClient } from "../rpc/client.js";
 import { AesGcmWrapper } from "../rpc/crypto/aes.js";
 import { Kyber768Wrapper } from "../rpc/crypto/kyber.js";
@@ -42,8 +38,8 @@ export class NmpClient {
 
 			// In Alpha mode (no explicit address), we register a mock manifest
 			// so that discoverTools() has something to find in single-node test environments.
-			this.meshNode.registerManifestHandler(() => ({
-				peerId: this.meshNode!.getPeerId(),
+			this.meshNode?.registerManifestHandler(() => ({
+				peerId: this.meshNode?.getPeerId() || "unknown",
 				grpcPort: 50051,
 				tools: [
 					{
@@ -52,7 +48,7 @@ export class NmpClient {
 					},
 				],
 				resources: [],
-				serverInfo: this.serverInfo!,
+				serverInfo: this.serverInfo || { name: "unknown", version: "0.0.0" },
 			}));
 		}
 	}

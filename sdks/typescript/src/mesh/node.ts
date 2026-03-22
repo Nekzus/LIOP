@@ -90,12 +90,12 @@ export class MeshNode {
 	 */
 	private async loadOrCreateIdentity() {
 		try {
-			// biome-ignore lint/suspicious/noExplicitAny: <libp2p type workaround>
 			const { generateKeyPair, privateKeyFromProtobuf } = (await import(
 				"@libp2p/crypto/keys"
+				// biome-ignore lint/suspicious/noExplicitAny: <libp2p type workaround>
 			)) as any;
-			// biome-ignore lint/suspicious/noExplicitAny: <libp2p type workaround>
 			// @ts-expect-error: libp2p ESM dynamic import type conflict
+			// biome-ignore lint/suspicious/noExplicitAny: <libp2p type workaround>
 			const uint8arrays = (await import("uint8arrays")) as any;
 
 			if (this.config.identityPath) {
@@ -136,9 +136,9 @@ export class MeshNode {
 
 		try {
 			const absolutePath = path.resolve(this.config.identityPath);
-			// biome-ignore lint/suspicious/noExplicitAny: <libp2p type workaround>
 			const { privateKeyToProtobuf } = (await import(
 				"@libp2p/crypto/keys"
+				// biome-ignore lint/suspicious/noExplicitAny: <libp2p type workaround>
 			)) as any;
 			// @ts-expect-error: libp2p ESM dynamic import type conflict
 			const uint8arrays = await import("uint8arrays");
@@ -213,16 +213,26 @@ export class MeshNode {
 
 		const { privateKey, isNew } = result;
 
+		const discovery =
+			this.config.bootstrapNodes && this.config.bootstrapNodes.length > 0
+				? [
+						bootstrap({
+							list: this.config.bootstrapNodes,
+						}),
+					]
+				: undefined;
+
 		this.node = await createLibp2p({
 			privateKey,
 			addresses: {
 				listen: this.config.listenAddresses,
 			},
-			transports: [webSockets(), tcp()],
+			transports: [tcp(), webSockets()],
 			connectionEncrypters: [noise()],
 			streamMuxers: [yamux()],
 			services: {
 				identify: identify(),
+				ping: ping(),
 				dht: kadDHT({
 					protocol: "/ipfs/lan/kad/1.0.0", // SHIFT TO LAN PROTOCOL!
 					clientMode: false,
@@ -230,19 +240,10 @@ export class MeshNode {
 					allowQueryWithZeroPeers: true,
 					// By default kadDHT drops local IP addresses. Override the mapper to keep them.
 					peerInfoMapper: (peer) => peer,
-					logPrefix: "libp2p:dht-lan",
 				}),
-				ping: ping(),
 			},
-			// biome-ignore lint/suspicious/noExplicitAny: libp2p interface version conflict (PeerId/PeerStore mismatch)
-			peerDiscovery: (this.config.bootstrapNodes &&
-			this.config.bootstrapNodes.length > 0
-				? [
-						bootstrap({
-							list: this.config.bootstrapNodes,
-						}),
-					]
-				: undefined) as any,
+			// biome-ignore lint/suspicious/noExplicitAny: libp2p discovery type mismatch
+			peerDiscovery: discovery as any,
 		});
 
 		// Monitor Connectivity Events
@@ -257,6 +258,7 @@ export class MeshNode {
 			console.error(`[NMP-Mesh] 🤝 Connected to peer: ${peerId.toString()}`);
 
 			if (!this.node) return;
+			// biome-ignore lint/suspicious/noExplicitAny: access internal services
 			const dht = (this.node.services as any).dht;
 			if (dht?.routingTable) {
 				console.error(
@@ -337,6 +339,7 @@ export class MeshNode {
 		// libp2p v1.x/v3.x handle API uses { stream, connection }
 		this.node.handle(
 			NMP_MANIFEST_PROTOCOL,
+			// biome-ignore lint/suspicious/noExplicitAny: libp2p v1.x/v3.x polymorphic handler
 			async (arg: any, connection?: any) => {
 				const stream = arg.stream || arg; // Robust extraction
 				const remotePeer =
@@ -354,7 +357,7 @@ export class MeshNode {
 						);
 						try {
 							await (stream.close || stream.abort)?.();
-						} catch (e) {}
+						} catch (_e) {}
 						return;
 					}
 
@@ -391,29 +394,23 @@ export class MeshNode {
 						console.error(
 							`[NMP-Mesh] ✅ Manifest sent successfully to ${remotePeer}`,
 						);
-					} catch (writeErr: any) {
+					} catch (writeErr: unknown) {
 						console.error(
-							`[NMP-Mesh] 🚨 Write error serving manifest to ${remotePeer}: ${writeErr.message}`,
+							`[NMP-Mesh] 🚨 Write error serving manifest to ${remotePeer}: ${writeErr instanceof Error ? writeErr.message : String(writeErr)}`,
 						);
 					} finally {
 						// Ensure the stream is closed after serving the manifest
 						try {
 							if (typeof stream.close === "function") await stream.close();
 							else if (typeof stream.abort === "function") await stream.abort();
-						} catch (e) {
+						} catch (_e) {
 							// Ignore close errors
 						}
 					}
 					return;
-
+				} catch (err: unknown) {
 					console.error(
-						`[NMP-Mesh] 🚨 Stream has no valid output method (sink or send)`,
-					);
-
-					console.error(`[NMP-Mesh] ✅ Served manifest to ${remotePeer}`);
-				} catch (err: any) {
-					console.error(
-						`[NMP-Mesh] 🚨 Error serving manifest to ${remotePeer}: ${err.message}`,
+						`[NMP-Mesh] 🚨 Error serving manifest to ${remotePeer}: ${err instanceof Error ? err.message : String(err)}`,
 					);
 				}
 			},
@@ -454,7 +451,7 @@ export class MeshNode {
 		const MAX_ATTEMPTS = 3;
 		for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
 			try {
-				// Resolve the target from active connections to ensure PeerId version compatibility
+				// biome-ignore lint/suspicious/noExplicitAny: targetPeer can be from connections or from string
 				let targetPeer: any = null;
 				const connections = this.node.getConnections();
 				const activeConn = connections.find(
@@ -470,9 +467,12 @@ export class MeshNode {
 				}
 
 				// Open a protocol stream using high-level dialProtocol for automated it-stream wrapping
+				// biome-ignore lint/suspicious/noExplicitAny: stream type varies by transport
 				let stream: any;
 				try {
+					// biome-ignore lint/suspicious/noExplicitAny: complex libp2p dial types
 					const result: any = await this.node.dialProtocol(
+						// biome-ignore lint/suspicious/noExplicitAny: PeerId type mismatch
 						targetPeer as any,
 						NMP_MANIFEST_PROTOCOL,
 					);
@@ -526,9 +526,12 @@ export class MeshNode {
 								const bytes =
 									chunk instanceof Uint8Array
 										? chunk
-										: (chunk as any).subarray
-											? (chunk as any).subarray()
-											: Buffer.from(chunk as any);
+										: // biome-ignore lint/suspicious/noExplicitAny: chunks can be Buffer/Uint8Array hybrids
+											(chunk as any).subarray
+											? // biome-ignore lint/suspicious/noExplicitAny: chunks can be Buffer/Uint8Array hybrids
+												(chunk as any).subarray()
+											: // biome-ignore lint/suspicious/noExplicitAny: chunks can be Buffer/Uint8Array hybrids
+												Buffer.from(chunk as any);
 
 								if (bytes.length > 0) {
 									console.error(
@@ -540,10 +543,10 @@ export class MeshNode {
 						})(),
 						timeoutPromise,
 					]);
-				} catch (itErr: any) {
+				} catch (itErr: unknown) {
 					if (chunks.length === 0) throw itErr;
 					console.error(
-						`[NMP-Mesh] ⚠️ Partial manifest read from ${peerIdStr}: ${itErr.message}`,
+						`[NMP-Mesh] ⚠️ Partial manifest read from ${peerIdStr}: ${itErr instanceof Error ? itErr.message : String(itErr)}`,
 					);
 				}
 
@@ -561,16 +564,16 @@ export class MeshNode {
 				);
 
 				return manifest;
-			} catch (err: any) {
+			} catch (err: unknown) {
 				if (attempt === MAX_ATTEMPTS) {
 					console.error(
-						`[NMP-Mesh] 🚨 Failed to query manifest from ${peerIdStr} after ${MAX_ATTEMPTS} attempts: ${err.message}`,
+						`[NMP-Mesh] 🚨 Failed to query manifest from ${peerIdStr} after ${MAX_ATTEMPTS} attempts: ${err instanceof Error ? err.message : String(err)}`,
 					);
 					return null;
 				}
 				const delay = 500 * 2 ** attempt;
 				console.error(
-					`[NMP-Mesh] ⚠️ Query error for ${peerIdStr} (Attempt ${attempt}): ${err.message}. Retrying in ${delay}ms...`,
+					`[NMP-Mesh] ⚠️ Query error for ${peerIdStr} (Attempt ${attempt}): ${err instanceof Error ? err.message : String(err)}. Retrying in ${delay}ms...`,
 				);
 				await new Promise((r) => setTimeout(r, delay));
 			}
@@ -664,8 +667,12 @@ export class MeshNode {
 				}
 			}
 			if (!foundAny) {
+				const services = this.node.services as {
+					dht?: { routingTable?: { size: number } };
+				};
+				const dhtSize = services.dht?.routingTable?.size || 0;
 				console.error(
-					`[NMP-Mesh] 💨 DHT search for ${hash} returned zero results (routing table size: ${(this.node.services as any).dht?.routingTable?.size || 0})`,
+					`[NMP-Mesh] 💨 DHT search for ${hash} returned zero results (routing table size: ${dhtSize})`,
 				);
 			}
 

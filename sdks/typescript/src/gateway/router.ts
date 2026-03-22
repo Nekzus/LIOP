@@ -56,7 +56,7 @@ export class NmpMcpRouter {
 				}));
 
 				return {
-					peerId: this.meshNode!.getPeerId(),
+					peerId: this.meshNode?.getPeerId() || "unknown",
 					grpcPort: this.defaultRpcPort,
 					tools: [
 						{
@@ -81,7 +81,6 @@ export class NmpMcpRouter {
 		}
 	}
 
-	// biome-ignore lint/suspicious/noExplicitAny: MCP JSON-RPC dispatch is polymorphic
 	public async dispatch(request: {
 		method: string;
 		// biome-ignore lint/suspicious/noExplicitAny: MCP params are polymorphic
@@ -201,6 +200,7 @@ export class NmpMcpRouter {
 				if (this.manifestCache.size === 0) {
 					for (let i = 0; i < 10; i++) {
 						const connections =
+							// biome-ignore lint/suspicious/noExplicitAny: access internal nodes for connection count
 							(this.meshNode as any).node?.getConnections().length || 0;
 						if (connections > 0) {
 							console.error(
@@ -230,7 +230,8 @@ export class NmpMcpRouter {
 						attempt < MANIFEST_DISCOVERY_RETRIES;
 						attempt++
 					) {
-						providerIds = await this.meshNode!.discoverManifestProviders();
+						providerIds =
+							(await this.meshNode?.discoverManifestProviders()) || [];
 						if (providerIds.length > 0) break;
 						if (attempt < MANIFEST_DISCOVERY_RETRIES - 1) {
 							console.error(
@@ -243,9 +244,12 @@ export class NmpMcpRouter {
 					// 1.2 Fallback to all active connections
 					if (providerIds.length === 0) {
 						const activePeers =
+							// biome-ignore lint/suspicious/noExplicitAny: access internal nodes
 							(this.meshNode as any).node
 								?.getConnections()
-								.map((c: any) => c.remotePeer.toString()) || [];
+								.map((c: { remotePeer: { toString: () => string } }) =>
+									c.remotePeer.toString(),
+								) || [];
 						if (activePeers.length > 0) {
 							console.error(
 								`[NMP-Router] 🛠️ DHT empty. Using ${activePeers.length} active connections as fallback.`,
@@ -327,6 +331,7 @@ export class NmpMcpRouter {
 				}
 
 				// Store discovery stats for NmpMeshStatus diagnostics
+				// biome-ignore lint/suspicious/noExplicitAny: private stats for telemetry
 				(this as any)._discoveryStats = {
 					candidates: providerIds.length,
 					success: successCount,
@@ -446,6 +451,7 @@ export class NmpMcpRouter {
 			// Trigger a proactive refresh when status is requested to force discovery
 			this.refreshManifestCache(true).catch(() => {});
 
+			// biome-ignore lint/suspicious/noExplicitAny: private stats for telemetry
 			const stats = (this as any)._discoveryStats || {
 				candidates: 0,
 				success: 0,
@@ -458,12 +464,18 @@ export class NmpMcpRouter {
 				0,
 			);
 			const connections = this.meshNode
-				? (this.meshNode as any).node?.getConnections().length
+				? // biome-ignore lint/suspicious/noExplicitAny: access internal nodes
+					(this.meshNode as any).node?.getConnections().length
 				: 0;
 			const bootstrapCount =
-				(this.meshNode as any).config?.bootstrapNodes?.length || 0;
+				// biome-ignore lint/suspicious/noExplicitAny: access internal config
+				this.meshNode && (this.meshNode as any).config?.bootstrapNodes
+					? // biome-ignore lint/suspicious/noExplicitAny: access internal config
+						(this.meshNode as any).config.bootstrapNodes.length
+					: 0;
 			const routingTableSize = this.meshNode
-				? (this.meshNode as any).getRoutingTableSize()
+				? // biome-ignore lint/suspicious/noExplicitAny: access internal nodes
+					(this.meshNode as any).getRoutingTableSize()
 				: 0;
 
 			const cachedToolList = Array.from(this.manifestCache.entries())

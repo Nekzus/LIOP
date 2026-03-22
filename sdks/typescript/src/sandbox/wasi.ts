@@ -67,8 +67,10 @@ export class WasiSandbox {
 					output: "WASM_SUCCESS",
 					fuelConsumed: Math.floor(duration * 1000),
 				};
-			} catch (error: any) {
-				throw new Error(`WASM Execution failed: ${error.message}`);
+			} catch (error: unknown) {
+				throw new Error(
+					`WASM Execution failed: ${error instanceof Error ? error.message : String(error)}`,
+				);
 			}
 		} else {
 			// Path B: V8 Isolate Fallback (node:vm)
