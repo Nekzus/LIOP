@@ -640,12 +640,34 @@ export class NmpMcpRouter {
 		const addrs = await this.meshNode.resolvePeer(peerId);
 		let targetAddr: string | null = null;
 
+		// [NMP-ALPHA] Check if the peer is running on the same physical machine
+		// by comparing its advertised IPs against our local OS interfaces.
+		const os = await import("node:os");
+		const localInterfaces = Object.values(os.networkInterfaces())
+			.flat()
+			.filter((i) => i?.family === "IPv4")
+			.map((i) => i?.address);
+
+		// Loop through all advertised addresses to find the optimal target
 		for (const addr of addrs) {
 			const parts = addr.split("/");
 			const ipIdx = parts.indexOf("ip4");
 			if (ipIdx !== -1) {
-				targetAddr = `${parts[ipIdx + 1]}:${grpcPort}`;
-				break;
+				const advertisedIp = parts[ipIdx + 1];
+
+				// Loopback priority or Same-Machine detection
+				if (
+					advertisedIp === "127.0.0.1" ||
+					localInterfaces.includes(advertisedIp)
+				) {
+					targetAddr = `127.0.0.1:${grpcPort}`;
+					break; // Supreme priority for local execution
+				}
+
+				// Default to first discovered valid external IP
+				if (!targetAddr) {
+					targetAddr = `${advertisedIp}:${grpcPort}`;
+				}
 			}
 		}
 
@@ -690,7 +712,15 @@ export class NmpMcpRouter {
 						return resolve({
 							jsonrpc: "2.0",
 							id,
-							error: { code: -32001, message: "PQC Handshake Failed" },
+							result: {
+								content: [
+									{
+										type: "text",
+										text: `PQC Handshake Failed: ${err?.message || "Rejected"}`,
+									},
+								],
+								isError: true,
+							},
 						});
 					}
 
@@ -738,7 +768,12 @@ export class NmpMcpRouter {
 						resolve({
 							jsonrpc: "2.0",
 							id,
-							error: { code: -32603, message: `NMP Error: ${e.message}` },
+							result: {
+								content: [
+									{ type: "text", text: `NMP gRPC Error: ${e.message}` },
+								],
+								isError: true,
+							},
 						}),
 					);
 				},
