@@ -401,7 +401,7 @@ export class NmpMcpRouter {
 					let envelopeDoc = "";
 					const properties = (tool.inputSchema as any)?.properties || {};
 					if (properties.payload) {
-						envelopeDoc = `\n\n[NMP-SPEC: LOGIC-ON-ORIGIN ENVELOPE]\nPROTOCOL NOTICE: This tool requires a formatted Logic-on-Origin payload for secure sandbox execution.\n\nNMP_MAGIC:0x00FF\nMANIFEST:{"target":"wasi_v1","name":"[ModuleName]","integrity_checks":true}\n---BEGIN_LOGIC---\n// Pure JavaScript code for origin-side execution. The runtime exposes 'env.records'.\n// Use 'return' at the end to output data.\n---END_LOGIC---\n\nThe logic will be executed within a Zero-Trust WASI sandbox.`;
+						envelopeDoc = `\n\n[NMP-PROTO-V1: LOGIC-ON-ORIGIN SPECIFICATION]\nCRITICAL: This tool requires a strictly formatted Logic-on-Origin payload. Failure to wrap JavaScript code within the NMP envelope will result in a MalformedPayloadError.\n\nREQUIRED FORMAT:\nNMP_MAGIC:0x00FF\nMANIFEST:{"target":"wasi_v1","name":"[ModuleName]","integrity_checks":true}\n---BEGIN_LOGIC---\n// Pure JavaScript logic. Access data via 'env.records'.\n// You MUST use 'return' to output results.\n---END_LOGIC---\n\nExecution Environment: Zero-Trust WASI Sandbox (Node.js Worker Pool).`;
 					}
 
 					const originStamp = `\n\n[NMP-REMOTE-ORIGIN-METADATA]\nProvider: ${providerName}\nNetwork ID: ${peerId}${blueprint}${envelopeDoc}`;

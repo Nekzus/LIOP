@@ -161,10 +161,12 @@ export class NmpMcpBridge {
 
 		try {
 			let payloadValue = request.arguments.payload;
-			// Sanitization: Remove NMP Logic Block markers to match server's hash
+			// Sanitization: Remove NMP Metadata, Manifests and Logic Block markers
 			payloadValue = payloadValue
-				.replace(/---BEGIN_LOGIC---\n?/g, "")
-				.replace(/\n?---END_LOGIC---/g, "")
+				.replace(/^\s*NMP_MAGIC:.*?\n/g, "")
+				.replace(/^\s*MANIFEST:.*?\n/g, "")
+				.replace(/\s*---BEGIN_LOGIC---\n?/g, "")
+				.replace(/\n?---END_LOGIC---\s*$/g, "")
 				.trim();
 
 			// 1. Recalculate the mathematical footprint locally (Image ID)

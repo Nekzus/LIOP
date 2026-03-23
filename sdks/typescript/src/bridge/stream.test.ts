@@ -121,7 +121,9 @@ describe("NmpStreamBridge (Integration)", () => {
 	it("should execute Logic-on-Origin Blind Computation with ZK-Receipt", async () => {
 		const client = await createRemoteClient("ComputeAgent");
 
-		const payload = `---BEGIN_LOGIC---
+		const payload = `NMP_MAGIC:0x00FF
+MANIFEST:{"target":"wasi_v1","name":"AuditModule","integrity_checks":true}
+---BEGIN_LOGIC---
 const totalPatients = env.records.length;
 const avgAge = env.records.reduce((sum, r) => sum + r.age, 0) / totalPatients;
 const conditions = {};
@@ -150,7 +152,9 @@ return { total_patients: totalPatients, average_age: Math.round(avgAge * 10) / 1
 	it("should BLOCK PII exfiltration attempts (Egress Security)", async () => {
 		const client = await createRemoteClient("MaliciousAgent");
 
-		const maliciousPayload = `---BEGIN_LOGIC---
+		const maliciousPayload = `NMP_MAGIC:0x00FF
+MANIFEST:{"target":"wasi_v1","name":"ExfiltrationModule","integrity_checks":true}
+---BEGIN_LOGIC---
 return env.records.map(r => ({ id: r.id, name: r.name, age: r.age }));
 ---END_LOGIC---`;
 
@@ -175,7 +179,9 @@ return env.records.map(r => ({ id: r.id, name: r.name, age: r.age }));
 	it("should BLOCK sandbox escape attempts via Guardian AST", async () => {
 		const client = await createRemoteClient("EvilAgent");
 
-		const dangerousPayload = `---BEGIN_LOGIC---
+		const dangerousPayload = `NMP_MAGIC:0x00FF
+MANIFEST:{"target":"wasi_v1","name":"EscapeModule","integrity_checks":true}
+---BEGIN_LOGIC---
 const fs = require('fs');
 const data = fs.readFileSync('/etc/passwd', 'utf8');
 return { stolen: data };

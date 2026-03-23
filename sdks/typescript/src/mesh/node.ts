@@ -516,8 +516,8 @@ export class MeshNode {
 				// Read segments until timeout or closure
 				const timeoutPromise = new Promise<never>((_, reject) => {
 					setTimeout(
-						() => reject(new Error("Manifest read timeout (5s)")),
-						5000,
+						() => reject(new Error("Manifest read timeout (1.5s)")),
+						1500,
 					);
 				});
 
