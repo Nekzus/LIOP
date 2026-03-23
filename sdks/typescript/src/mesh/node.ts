@@ -33,8 +33,14 @@ export interface NmpManifest {
 		uri: string;
 		description?: string;
 		mimeType?: string;
+		text?: string;
 	}>;
 	serverInfo: { name: string; version: string };
+	taxonomy?: {
+		domain: string;
+		clearanceTier: number;
+		executionTypes: string[];
+	};
 }
 
 export interface MeshNodeConfig {
@@ -511,8 +517,8 @@ export class MeshNode {
 				// Read segments until timeout or closure
 				const timeoutPromise = new Promise<never>((_, reject) => {
 					setTimeout(
-						() => reject(new Error("Manifest read timeout (5s)")),
-						5000,
+						() => reject(new Error("Manifest read timeout (1.5s)")),
+						1500,
 					);
 				});
 

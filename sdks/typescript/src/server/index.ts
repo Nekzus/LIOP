@@ -69,11 +69,24 @@ export class NmpServer {
 		{ capability_hash: string; kyber_sk: Uint8Array }
 	> = new Map();
 
+	private static readonly NMP_LOGIC_REGEX =
+		/\s*NMP_MAGIC:0x00FF\s*\n?\s*MANIFEST:(?<manifest>\{[\s\S]*?\})\s*\n?\s*---BEGIN_LOGIC---\n?(?<logic>[\s\S]*?)\n?---END_LOGIC---/m;
+
+	private extractLogic(payload: string): string | null {
+		const match = payload.match(NmpServer.NMP_LOGIC_REGEX);
+		return match?.groups?.logic ? match.groups.logic.trim() : null;
+	}
+
 	constructor(
 		private serverInfo: ServerInfo,
 		private config?: {
 			capabilities?: Record<string, unknown>;
 			security?: { piiPatterns?: PiiRule[]; forbiddenKeys?: string[] };
+			taxonomy?: {
+				domain?: string;
+				clearanceTier?: number;
+				executionTypes?: string[];
+			};
 		},
 	) {
 		this.piiScanner = new PiiScanner(
@@ -156,17 +169,16 @@ export class NmpServer {
 		if (shape.payload && shape.payload instanceof z.ZodString) {
 			const blockedKeys = this.config?.security?.forbiddenKeys || [];
 
-			finalDescription += `\n\nIMPORTANT FORMAT REQUIREMENTS:\nThe payload string MUST encapsulate valid executable JavaScript code between strict boundaries:\n\n---BEGIN_LOGIC---\n// Your JS code here. The runtime exposes 'env.records' array.\n// EXTREMELY IMPORTANT 1: You MUST use the 'return' statement at the end of your logic to output the final data, otherwise the result will be undefined.\n// EXTREMELY IMPORTANT 2 (DYNAMIC RETURN STRUCTURE): You MUST format your JSON output keys in the EXACT SAME LANGUAGE as the user's initial prompt/query (i.e. if asked in Spanish, use Spanish keys like 'promedio').`;
+			finalDescription += `\n\n[NMP-PROTO-V1: LOGIC-ON-ORIGIN SPECIFICATION]\nCRITICAL: This tool requires a strictly formatted Logic-on-Origin payload. Failure to wrap JavaScript code within the NMP envelope will result in a MalformedPayloadError.\n\nREQUIRED FORMAT:\nNMP_MAGIC:0x00FF\nMANIFEST:{"target":"wasi_v1","name":"[ModuleName]","integrity_checks":true}\n---BEGIN_LOGIC---\n// Pure JavaScript logic. Access data via 'env.records'.\n// You MUST use 'return' to output results.\n---END_LOGIC---\n\nExecution Environment: Zero-Trust WASI Sandbox (Node.js Worker Pool).`;
 
 			if (blockedKeys.length > 0) {
-				finalDescription += `\n// SECURITY RESTRICTION: Do NOT include any of the following fields in your returned objects to prevent PII leaks: ${blockedKeys.join(", ")}`;
+				finalDescription += `\n// SECURITY RESTRICTION: Do NOT include any of the following fields: ${blockedKeys.join(", ")}`;
 			}
 
 			if (this.activeSchema) {
-				finalDescription += `\n\nSTRICT SCHEMA ADHERENCE:\nThe 'env.records' array contains objects with the EXACT following structure. ONLY use these fields. Do NOT guess or use fallbacks (e.g. do not use 'gender' if not listed below):\n${JSON.stringify(this.activeSchema, null, 2)}`;
+				finalDescription += `\n\nSTRICT SCHEMA ADHERENCE:\nThe 'env.records' array contains objects with: ${JSON.stringify(this.activeSchema)}`;
 			}
 
-			finalDescription += `\n---END_LOGIC---`;
 			finalDescription += `\n\nOptional: You can include an "__nmp_bypass_ast_cache" boolean parameter set to true to force AST re-evaluation.`;
 
 			finalHandler = async (
@@ -204,6 +216,7 @@ export class NmpServer {
 					.createHash("sha256")
 					.update(payloadValue)
 					.digest("hex");
+				const logic = this.extractLogic(payloadValue);
 				const cached = this.logicCache.get(payloadHash);
 
 				if (
@@ -212,22 +225,15 @@ export class NmpServer {
 					now - cached.timestamp < this.CACHE_TTL_MS
 				) {
 					// Hash verified. Skips boundaries check (already validated!). Extract logic directly.
-					const logicMatch = payloadValue.match(
-						/---BEGIN_LOGIC---\n([\s\S]*)\n---END_LOGIC---/,
-					);
-					if (logicMatch && logicMatch.length >= 2) {
-						(args as Record<string, unknown>).payload = logicMatch[1].trim();
+					if (logic) {
+						(args as Record<string, unknown>).payload = logic;
 
 						// DELEGATE TO WORKER POOL: Parallel PQC & Sandboxing
-						return await this.executeInWorkerPool(args, logicMatch[1].trim());
+						return await this.executeInWorkerPool(args, logic);
 					}
 				}
 
-				const logicMatch = payloadValue.match(
-					/---BEGIN_LOGIC---\n([\s\S]*)\n---END_LOGIC---/,
-				);
-
-				if (!logicMatch || logicMatch.length < 2) {
+				if (!logic) {
 					stats.failures++;
 					stats.lastAttempt = now;
 					this.connectionStats.set(clientId, stats);
@@ -235,7 +241,7 @@ export class NmpServer {
 						content: [
 							{
 								type: "text",
-								text: "Error: Malformed payload. Missing magic bytes or logic boundaries.\nYou MUST wrap your logic exactly like this:\n---BEGIN_LOGIC---\n// code\n---END_LOGIC---",
+								text: 'Error: Malformed payload. Missing NMP_MAGIC, MANIFEST, or boundaries.\nYou MUST wrap your logic exactly like this:\n\nNMP_MAGIC:0x00FF\nMANIFEST:{"target":"wasi_v1","name":"DynamicAudit","integrity_checks":true}\n---BEGIN_LOGIC---\n// Your JS code here\n---END_LOGIC---',
 							},
 						],
 						isError: true,
@@ -243,14 +249,16 @@ export class NmpServer {
 				}
 
 				try {
+					// Logic check already performed above, extraction is guaranteed at this point.
+					// biome-ignore lint/style/noNonNullAssertion: safe extraction after check
+					const logic = this.extractLogic(
+						(args as Record<string, unknown>).payload as string,
+					)!;
 					// Extract pure logic and deliver it to the developer's function
-					(args as Record<string, unknown>).payload = logicMatch[1].trim();
+					(args as Record<string, unknown>).payload = logic;
 
 					// DELEGATE TO WORKER POOL: Parallel PQC & Sandboxing (Includes PII Shield)
-					const result = await this.executeInWorkerPool(
-						args,
-						logicMatch[1].trim(),
-					);
+					const result = await this.executeInWorkerPool(args, logic);
 
 					if (!result.isError) {
 						this.connectionStats.set(clientId, {
@@ -341,25 +349,28 @@ export class NmpServer {
 							role: "user",
 							content: {
 								type: "text",
-								text: `You are the "Blind Analyst" of the Neural Mesh Protocol (NMP).
-Your objective is to perform Logic-on-Origin injections safely and securely without ever seeing the raw data.
+								text: `You are the "Blind Analyst" operating within the Neural Mesh Protocol (NMP) ecosystem.
+Your objective is to perform secure Logic-on-Origin injections. You must process remote data without ever requesting its extraction.
 
-CRITICAL RULES:
-1. NEVER attempt to export or return Personally Identifiable Information (PII) such as IDs, names, or raw individual records. The egress filter (The Shield) will block your response instantly.
-2. Return your execution results stringified as a valid JSON object. Ensure the data adheres strictly to the user's intent while respecting the privacy, security, and schema constraints of the system.
-3. When using tools that require a 'payload', your JavaScript code MUST be strictly encapsulated between these exact boundaries:
----BEGIN_LOGIC---
-// your javascript here
----END_LOGIC---
-4. The runtime provides a global 'env' scope containing the target data ecosystem. Ensure your logic handles the data structures safely.
-5. DYNAMIC RETURN STRUCTURE: You MUST format your JSON output keys in the EXACT SAME LANGUAGE as the user's initial prompt/query. If the user asks in Spanish, use Spanish keys (e.g., 'cantidad', 'promedio'). Do not default to English keys unless requested in English.
-6. STRICT SCHEMA ADHERENCE: Only use the fields explicitly defined in the provided 'Data Dictionary' or schema. Do NOT attempt to guess, fallback, or use fields not present in the schema (e.g., do not use 'gender' if it is not in the schema).${
+INDUSTRIAL CONSTRAINTS & PROTOCOL RULES:
+1. DATA PRIVACY: NEVER attempt to export Personally Identifiable Information (PII). The NMP Egress Shield will block any response containing raw IDs, names, or addresses.
+2. AGGREGATION FIRST: Always prefer returning counts, averages, or anonymized summaries.
+3. PAYLOAD ENCAPSULATION: Your JavaScript payloads MUST strictly adhere to the NMPv1 Envelope. DO NOT include markdown backticks or leading text inside the 'payload' argument.
+   Structure:
+   NMP_MAGIC:0x00FF
+   MANIFEST:{"target":"wasi_v1","name":"AnalysisTask","integrity_checks":true}
+   ---BEGIN_LOGIC---
+   // Your JS Code Here
+   ---END_LOGIC---
+4. RUNTIME SCOPE: The execution environment provides a global 'env' object. Use 'env.records' to access the target dataset.
+5. LOCALIZATION: Format all JSON response keys in the language used by the user in their query (e.g., use Spanish keys if the query is in Spanish).
+6. SCHEMA RIGIDITY: Only use fields defined in the 'Data Dictionary'. Usage of non-existent fields will trigger a sandbox runtime exception.${
 									this.activeSchema
-										? `\n\nCURRENT DATA SCHEMA:\n${JSON.stringify(this.activeSchema, null, 2)}`
+										? `\n\nCURRENT DATA DICTIONARY (STRICT):\n${JSON.stringify(this.activeSchema, null, 2)}`
 										: ""
 								}
 
-Failure to follow these rules will result in an immediate violation and the execution will be aborted.`,
+Protocol Adherence is mandatory for successful execution.`,
 							},
 						},
 					],
@@ -449,15 +460,15 @@ Failure to follow these rules will result in an immediate violation and the exec
 			// [LOGIC-ON-ORIGIN] Intercept code injection directly
 			if (
 				parsedArgs &&
-				typeof (parsedArgs as Record<string, unknown>).payload === "string" &&
-				((parsedArgs as Record<string, unknown>).payload as string).includes(
-					"---BEGIN_LOGIC---",
-				)
+				typeof (parsedArgs as Record<string, unknown>).payload === "string"
 			) {
-				return await this.executeInWorkerPool(
-					parsedArgs,
-					(parsedArgs as Record<string, unknown>).payload as string,
-				);
+				const payload = (parsedArgs as Record<string, unknown>)
+					.payload as string;
+				const logic = this.extractLogic(payload);
+				if (logic) {
+					(parsedArgs as Record<string, unknown>).payload = logic;
+					return await this.executeInWorkerPool(parsedArgs, logic);
+				}
 			}
 
 			const result = await entry.handler(parsedArgs, {});
@@ -583,11 +594,12 @@ Failure to follow these rules will result in an immediate violation and the exec
 				inputSchema: t.inputSchema as Record<string, unknown>,
 			}));
 
-			const resources = this.listResources().map((r) => ({
+			const resources = Array.from(this.resources.values()).map((r) => ({
 				name: r.name,
 				uri: r.uri,
 				description: r.description,
 				mimeType: r.mimeType,
+				text: r.contentText,
 			}));
 
 			return {

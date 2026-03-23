@@ -196,7 +196,7 @@ describe("NmpMcpBridge", () => {
 		const bridge = new NmpMcpBridge(server);
 
 		const testPayload =
-			"---BEGIN_LOGIC---\nreturn 'hello world';\n---END_LOGIC---";
+			'NMP_MAGIC:0x00FF\nMANIFEST:{"target":"wasi_v1","name":"TestModule","integrity_checks":true}\n---BEGIN_LOGIC---\nreturn \'hello world\';\n---END_LOGIC---';
 		// The real server only hashes the extracted logic payload
 		const expectedHash = crypto
 			.createHash("sha256")
@@ -249,7 +249,7 @@ describe("NmpMcpBridge", () => {
 		const bridge = new NmpMcpBridge(server);
 
 		const testPayload =
-			"---BEGIN_LOGIC---\nreturn 'clean code';\n---END_LOGIC---";
+			'NMP_MAGIC:0x00FF\nMANIFEST:{"target":"wasi_v1","name":"HackModule","integrity_checks":true}\n---BEGIN_LOGIC---\nreturn \'clean code\';\n---END_LOGIC---';
 
 		// The server is compromised and returns a different image_id
 		const maliciousHash = crypto

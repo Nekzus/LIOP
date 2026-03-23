@@ -7,6 +7,10 @@
 - **Idioma de Planificación (Español):** Todas las interacciones, discusiones en chat, y documentos de planificación (incluyendo este `GEMINI.md` y `task.md`) deben y serán mantenidos en **Español**.
 - **Bitácora Viva:** Es mandatorio que este documento `GEMINI.md`, al igual que el listado de tareas, se mantengan continua y obligatoriamente actualizados con ***cada*** modificación, refactor o avance arquitectónico del proyecto.
 
+## 🛡️ Salvaguardas de Infraestructura (Windows + pnpm)
+- **[CRÍTICO] No usar `git clean -fdx`:** En este entorno Windows que utiliza `pnpm` con *hardlinks/symlinks* para el monorepo, este comando es destructivo. Elimina los archivos reales dentro de la estructura virtual pero deja los directorios "fantasma", lo que corrompe fatalmente `node_modules`. 
+- **Limpieza Segura:** Para limpiar el proyecto sin romper las dependencias, utilizar limpiezas selectivas eliminando manualmente carpetas como `/dist`, `/target`, `/coverage` y `*.log`. Si se requiere una limpieza total de git, SIEMPRE se debe ejecutar un `pnpm install --no-frozen-lockfile` y un rebuild completo inmediatamente después.
+
 ## Visión del Proyecto
 NMP es una red nativa cifrada, P2P y multiplexada (gRPC/QUIC) diseñada para ser la evolución y el sucesor natural del **Model Context Protocol (MCP)**.
 - **Paradigma Core:** *Logic-on-Origin*. En lugar de extraer gigabytes de un servidor remoto hacia un LLM, el LLM emite un micro-módulo WebAssembly (WASM) al servidor. Este WASM contiene la lógica condicional, la cual se procesa de forma segura ("Zero Trust") bajo `Wasi` aislando toda interacción no autorizada del host.
@@ -107,12 +111,18 @@ El proyecto funciona bajo un ecosistema `Cargo Workspace` modular:
     - **Protocolo LAN-DHT:** Implementación de `/ipfs/lan/kad/1.0.0` para garantizar el descubrimiento dinámico en redes locales y privadas, saltando las restricciones de IPs privadas del DHT público.
     - **Zero-Hardcode Discovery:** Eliminación total de mapeos estáticos de puertos en el `Router`, delegando la resolución de capacidades (`nmp:manifest`) íntegramente a la red P2P mediante `dialProtocol` de alta fidelidad y normalización de objetos `PeerId` nativos extraídos de conexiones activas.
     - **Robustez de Bootstrap (Agent)::** Búsqueda multi-ruta de `nexus.multiaddr` (CWD, Home, Binary Dir) y retardo de calentamiento de 3s para garantizar la conectividad inicial.
-    - **Yamux Native Fallback:** Desarrollo de un sistema de respuesta (Server) y consulta (Client) de bajo nivel para el protocolo de manifiesto, compatible con flujos crudos de Yamux mediante adaptadores de eventos asíncronos (`sendData` / `on('data')`).
-    - **Depuración de Muxers:** Eliminación completa del soporte para `mplex` (en desuso), consolidando `yamux` como el estándar único de multiplexación para la malla NMP.
-    - **Verificación Multi-Nodo:** Validación exitosa de una malla de 3 nodos (Nexus, Vault, Bank) resolviendo herramientas dinámicamente desde un agente externo.
+  - **Fase 33.2: Precision Logic Extraction & Industrial Parity [Completado]:**
+    - **Unificación de Extracción:** Implementación del helper `extractLogic` en `NmpServer` para centralizar la des-encapsulación del sobre NMP v1 en `tool()` y `callTool()`.
+    - **Resiliencia a Espacios:** El motor de captura ahora ignora espacios en blanco y saltos de línea iniciales/finales, eliminando el error `Unexpected token ':'` cuando los LLMs envían payloads con preámbulos.
+    - **Sincronización del Bridge ZK:** Actualización de `NmpMcpBridge` para limpiar rigurosamente las cabeceras `NMP_MAGIC` y `MANIFEST` antes de la verificación matemática del `ImageID`, restaurando la integridad del escudo Zero-Trust.
+    - **Instrucciones Industriales Stricto-Sensu:** Refinamiento de la identidad "Blind Analyst" en el sistema de prompts, exigiendo adherencia absoluta al protocolo para eliminar fallos de "Malformed Payload".
+    - **Validación Universal:** Suite de 90 tests completada exitosamente, confirmando la paridad entre el worker pool, el servidor gRPC y el bridge MCP.
+  - **Fase 33.3: Global Resource Attachment Fix [Completado]:**
+    - **Manifiesto Enriquecido:** Extensión del protocolo `/nmp/manifest/1.0.0` para que transporte nativamente el contenido textual de los recursos de metadatos (ej., Diccionarios de Datos).
+    - **Resolución Transparente:** Capacitación de `NmpMcpRouter` para interceptar llamadas `resources/read` fallidas localmente y derivarlas al `manifestCache` global, garantizando que Claude Desktop pueda asimilar instantáneamente contextos (schemas) P2P sin originar Round-Trips inter-nodos adicionales.
 
 ---
-**Estado Final de la Sesión:** El ecosistema NMP evoluciona de un framework de desarrollo a una herramienta de usuario final ("Full Power in the Package"). El Agente CLI Zero-Config marca el inicio de la fase de adopción masiva del protocolo.
+**Estado Final de la Sesión:** El ecosistema NMP alcanza el estadio de **Industrial High-Fidelity**. La arquitectura es ahora inmune a variaciones sintácticas del LLM, garantizando una ejecución Logic-on-Origin fluida, segura y profesional en toda la malla.
 
   - **[Fase 7] Arquitectura Zero-Knowledge (ZK-SNARKs)**: Inyectada la abstracción del motor de pruebas `risc0-zkvm` en el core de Rust (`zk.rs`). Permite al Servidor generar *ZK-Receipts* (Journal + Seal) asíncronos y empaquetarlos a lo largo del protocolo gRPC, concediendo al LLM pruebas matemáticas certeras de que el modelo computacional fue íntegro y exacto.
   - **[Fase 8] Blindaje Físico Computacional (TEE)**: Estructurado el contenedor de atestación remota nativo (`tee.rs`) para instanciar entornos como AWS Nitro Enclaves. Garantiza "Computación Ciega", cifrando y aislando la RAM de `wasi` a nivel hardware, previniendo inspecciones directas del Host o proveedor Cloud.

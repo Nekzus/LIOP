@@ -155,6 +155,35 @@ export class NmpMcpRouter {
 					const result = this.nmpServer.readResource(params.uri as string);
 					return { jsonrpc: "2.0", id, result };
 				} catch (err: unknown) {
+					// Fallback: Resolve remotely from manifest cache
+					const targetUri = params.uri as string;
+					for (const { manifest } of this.manifestCache.values()) {
+						const remoteResource = manifest.resources.find(
+							(r) => r.uri === targetUri,
+						);
+						if (remoteResource) {
+							console.error(
+								`[NMP-Router] 📋 Resolved resource ${targetUri} from cache (Peer: ${manifest.peerId})`,
+							);
+							return {
+								jsonrpc: "2.0",
+								id,
+								result: {
+									contents: [
+										{
+											uri: remoteResource.uri,
+											mimeType: remoteResource.mimeType || "text/plain",
+											text:
+												remoteResource.text ||
+												remoteResource.description ||
+												"No content provided",
+										},
+									],
+								},
+							};
+						}
+					}
+
 					return {
 						jsonrpc: "2.0",
 						id,
@@ -384,7 +413,28 @@ export class NmpMcpRouter {
 				if (!seenNames.has(tool.name)) {
 					const augmentedTool = { ...tool };
 					const providerName = manifest.serverInfo?.name || "Unknown Provider";
-					const originStamp = `\n\n[🛡️ NMP Zero-Trust Origin]\nProvider: ${providerName}\nNetwork ID: ${peerId}`;
+
+					let blueprint = "";
+					if (manifest.taxonomy) {
+						blueprint = `\n\n[NMP-PROTO: TAXONOMY]\nDomain: ${manifest.taxonomy.domain}\nClearance Tier: ${manifest.taxonomy.clearanceTier}`;
+						if (
+							manifest.taxonomy.executionTypes &&
+							manifest.taxonomy.executionTypes.length > 0
+						) {
+							blueprint += `\nExecution Types: ${manifest.taxonomy.executionTypes.join(", ")}`;
+						}
+					}
+
+					// 🛡️ NMP Logic-on-Origin Detection:
+					// If the tool has a 'payload' property, it requires the Full NMP Envelope.
+					let envelopeDoc = "";
+					// biome-ignore lint/suspicious/noExplicitAny: internal schema extraction
+					const properties = (tool.inputSchema as any)?.properties || {};
+					if (properties.payload) {
+						envelopeDoc = `\n\n[NMP-PROTO-V1: LOGIC-ON-ORIGIN SPECIFICATION]\nCRITICAL: This tool requires a strictly formatted Logic-on-Origin payload. Failure to wrap JavaScript code within the NMP envelope will result in a MalformedPayloadError.\n\nREQUIRED FORMAT:\nNMP_MAGIC:0x00FF\nMANIFEST:{"target":"wasi_v1","name":"[ModuleName]","integrity_checks":true}\n---BEGIN_LOGIC---\n// Pure JavaScript logic. Access data via 'env.records'.\n// You MUST use 'return' to output results.\n---END_LOGIC---\n\nExecution Environment: Zero-Trust WASI Sandbox (Node.js Worker Pool).`;
+					}
+
+					const originStamp = `\n\n[NMP-REMOTE-ORIGIN-METADATA]\nProvider: ${providerName}\nNetwork ID: ${peerId}${blueprint}${envelopeDoc}`;
 
 					augmentedTool.description = augmentedTool.description
 						? `${augmentedTool.description}${originStamp}`
@@ -428,7 +478,19 @@ export class NmpMcpRouter {
 				if (!seenUris.has(resource.uri)) {
 					const augmentedResource = { ...resource };
 					const providerName = manifest.serverInfo?.name || "Unknown Provider";
-					const originStamp = `\n\n[🛡️ NMP Zero-Trust Origin]\nProvider: ${providerName}\nNetwork ID: ${peerId}`;
+
+					let blueprint = "";
+					if (manifest.taxonomy) {
+						blueprint = `\n\n[🛡️ NMP Zero-Trust Blueprint]\nDomain: ${manifest.taxonomy.domain}\nClearance Tier: ${manifest.taxonomy.clearanceTier}`;
+						if (
+							manifest.taxonomy.executionTypes &&
+							manifest.taxonomy.executionTypes.length > 0
+						) {
+							blueprint += `\nExecution Types: ${manifest.taxonomy.executionTypes.join(", ")}`;
+						}
+					}
+
+					const originStamp = `\n\n[🛡️ NMP Zero-Trust Origin]\nProvider: ${providerName}\nNetwork ID: ${peerId}${blueprint}`;
 
 					augmentedResource.description = augmentedResource.description
 						? `${augmentedResource.description}${originStamp}`
