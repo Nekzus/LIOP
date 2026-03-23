@@ -155,6 +155,35 @@ export class NmpMcpRouter {
 					const result = this.nmpServer.readResource(params.uri as string);
 					return { jsonrpc: "2.0", id, result };
 				} catch (err: unknown) {
+					// Fallback: Resolve remotely from manifest cache
+					const targetUri = params.uri as string;
+					for (const { manifest } of this.manifestCache.values()) {
+						const remoteResource = manifest.resources.find(
+							(r) => r.uri === targetUri,
+						);
+						if (remoteResource) {
+							console.error(
+								`[NMP-Router] 📋 Resolved resource ${targetUri} from cache (Peer: ${manifest.peerId})`,
+							);
+							return {
+								jsonrpc: "2.0",
+								id,
+								result: {
+									contents: [
+										{
+											uri: remoteResource.uri,
+											mimeType: remoteResource.mimeType || "text/plain",
+											text:
+												remoteResource.text ||
+												remoteResource.description ||
+												"No content provided",
+										},
+									],
+								},
+							};
+						}
+					}
+
 					return {
 						jsonrpc: "2.0",
 						id,

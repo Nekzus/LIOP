@@ -33,6 +33,7 @@ export interface NmpManifest {
 		uri: string;
 		description?: string;
 		mimeType?: string;
+		text?: string;
 	}>;
 	serverInfo: { name: string; version: string };
 	taxonomy?: {

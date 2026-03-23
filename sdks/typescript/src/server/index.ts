@@ -594,11 +594,12 @@ Protocol Adherence is mandatory for successful execution.`,
 				inputSchema: t.inputSchema as Record<string, unknown>,
 			}));
 
-			const resources = this.listResources().map((r) => ({
+			const resources = Array.from(this.resources.values()).map((r) => ({
 				name: r.name,
 				uri: r.uri,
 				description: r.description,
 				mimeType: r.mimeType,
+				text: r.contentText,
 			}));
 
 			return {

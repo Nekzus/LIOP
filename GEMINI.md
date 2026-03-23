@@ -117,6 +117,9 @@ El proyecto funciona bajo un ecosistema `Cargo Workspace` modular:
     - **Sincronización del Bridge ZK:** Actualización de `NmpMcpBridge` para limpiar rigurosamente las cabeceras `NMP_MAGIC` y `MANIFEST` antes de la verificación matemática del `ImageID`, restaurando la integridad del escudo Zero-Trust.
     - **Instrucciones Industriales Stricto-Sensu:** Refinamiento de la identidad "Blind Analyst" en el sistema de prompts, exigiendo adherencia absoluta al protocolo para eliminar fallos de "Malformed Payload".
     - **Validación Universal:** Suite de 90 tests completada exitosamente, confirmando la paridad entre el worker pool, el servidor gRPC y el bridge MCP.
+  - **Fase 33.3: Global Resource Attachment Fix [Completado]:**
+    - **Manifiesto Enriquecido:** Extensión del protocolo `/nmp/manifest/1.0.0` para que transporte nativamente el contenido textual de los recursos de metadatos (ej., Diccionarios de Datos).
+    - **Resolución Transparente:** Capacitación de `NmpMcpRouter` para interceptar llamadas `resources/read` fallidas localmente y derivarlas al `manifestCache` global, garantizando que Claude Desktop pueda asimilar instantáneamente contextos (schemas) P2P sin originar Round-Trips inter-nodos adicionales.
 
 ---
 **Estado Final de la Sesión:** El ecosistema NMP alcanza el estadio de **Industrial High-Fidelity**. La arquitectura es ahora inmune a variaciones sintácticas del LLM, garantizando una ejecución Logic-on-Origin fluida, segura y profesional en toda la malla.
