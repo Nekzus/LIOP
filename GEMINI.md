@@ -7,6 +7,10 @@
 - **Idioma de Planificación (Español):** Todas las interacciones, discusiones en chat, y documentos de planificación (incluyendo este `GEMINI.md` y `task.md`) deben y serán mantenidos en **Español**.
 - **Bitácora Viva:** Es mandatorio que este documento `GEMINI.md`, al igual que el listado de tareas, se mantengan continua y obligatoriamente actualizados con ***cada*** modificación, refactor o avance arquitectónico del proyecto.
 
+## 🛡️ Salvaguardas de Infraestructura (Windows + pnpm)
+- **[CRÍTICO] No usar `git clean -fdx`:** En este entorno Windows que utiliza `pnpm` con *hardlinks/symlinks* para el monorepo, este comando es destructivo. Elimina los archivos reales dentro de la estructura virtual pero deja los directorios "fantasma", lo que corrompe fatalmente `node_modules`. 
+- **Limpieza Segura:** Para limpiar el proyecto sin romper las dependencias, utilizar limpiezas selectivas eliminando manualmente carpetas como `/dist`, `/target`, `/coverage` y `*.log`. Si se requiere una limpieza total de git, SIEMPRE se debe ejecutar un `pnpm install --no-frozen-lockfile` y un rebuild completo inmediatamente después.
+
 ## Visión del Proyecto
 NMP es una red nativa cifrada, P2P y multiplexada (gRPC/QUIC) diseñada para ser la evolución y el sucesor natural del **Model Context Protocol (MCP)**.
 - **Paradigma Core:** *Logic-on-Origin*. En lugar de extraer gigabytes de un servidor remoto hacia un LLM, el LLM emite un micro-módulo WebAssembly (WASM) al servidor. Este WASM contiene la lógica condicional, la cual se procesa de forma segura ("Zero Trust") bajo `Wasi` aislando toda interacción no autorizada del host.
