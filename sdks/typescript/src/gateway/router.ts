@@ -399,6 +399,7 @@ export class NmpMcpRouter {
 					// 🛡️ NMP Logic-on-Origin Detection:
 					// If the tool has a 'payload' property, it requires the Full NMP Envelope.
 					let envelopeDoc = "";
+					// biome-ignore lint/suspicious/noExplicitAny: internal schema extraction
 					const properties = (tool.inputSchema as any)?.properties || {};
 					if (properties.payload) {
 						envelopeDoc = `\n\n[NMP-PROTO-V1: LOGIC-ON-ORIGIN SPECIFICATION]\nCRITICAL: This tool requires a strictly formatted Logic-on-Origin payload. Failure to wrap JavaScript code within the NMP envelope will result in a MalformedPayloadError.\n\nREQUIRED FORMAT:\nNMP_MAGIC:0x00FF\nMANIFEST:{"target":"wasi_v1","name":"[ModuleName]","integrity_checks":true}\n---BEGIN_LOGIC---\n// Pure JavaScript logic. Access data via 'env.records'.\n// You MUST use 'return' to output results.\n---END_LOGIC---\n\nExecution Environment: Zero-Trust WASI Sandbox (Node.js Worker Pool).`;

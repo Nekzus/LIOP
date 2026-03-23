@@ -171,7 +171,6 @@ export class NmpServer {
 
 			finalDescription += `\n\n[NMP-PROTO-V1: LOGIC-ON-ORIGIN SPECIFICATION]\nCRITICAL: This tool requires a strictly formatted Logic-on-Origin payload. Failure to wrap JavaScript code within the NMP envelope will result in a MalformedPayloadError.\n\nREQUIRED FORMAT:\nNMP_MAGIC:0x00FF\nMANIFEST:{"target":"wasi_v1","name":"[ModuleName]","integrity_checks":true}\n---BEGIN_LOGIC---\n// Pure JavaScript logic. Access data via 'env.records'.\n// You MUST use 'return' to output results.\n---END_LOGIC---\n\nExecution Environment: Zero-Trust WASI Sandbox (Node.js Worker Pool).`;
 
-
 			if (blockedKeys.length > 0) {
 				finalDescription += `\n// SECURITY RESTRICTION: Do NOT include any of the following fields: ${blockedKeys.join(", ")}`;
 			}
@@ -250,7 +249,11 @@ export class NmpServer {
 				}
 
 				try {
-					const logic = this.extractLogic((args as Record<string, unknown>).payload as string)!;
+					// Logic check already performed above, extraction is guaranteed at this point.
+					// biome-ignore lint/style/noNonNullAssertion: safe extraction after check
+					const logic = this.extractLogic(
+						(args as Record<string, unknown>).payload as string,
+					)!;
 					// Extract pure logic and deliver it to the developer's function
 					(args as Record<string, unknown>).payload = logic;
 
@@ -459,7 +462,8 @@ Protocol Adherence is mandatory for successful execution.`,
 				parsedArgs &&
 				typeof (parsedArgs as Record<string, unknown>).payload === "string"
 			) {
-				const payload = (parsedArgs as Record<string, unknown>).payload as string;
+				const payload = (parsedArgs as Record<string, unknown>)
+					.payload as string;
 				const logic = this.extractLogic(payload);
 				if (logic) {
 					(parsedArgs as Record<string, unknown>).payload = logic;
