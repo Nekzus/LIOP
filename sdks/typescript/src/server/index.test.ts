@@ -182,7 +182,7 @@ describe("NmpServer", () => {
 		});
 		expect(res1.isError).toBe(true);
 		expect(res1.content[0].text).toContain(
-			"Malformed payload. Missing magic bytes",
+			"Malformed payload. Missing NMP_MAGIC, MANIFEST",
 		);
 
 		// Second call - should fail again with same payload (stat counter incremental)
@@ -192,7 +192,7 @@ describe("NmpServer", () => {
 		});
 		expect(res2.isError).toBe(true);
 		expect(res2.content[0].text).toContain(
-			"Malformed payload. Missing magic bytes",
+			"Malformed payload. Missing NMP_MAGIC, MANIFEST",
 		);
 
 		// After repeated attempts, should start accumulating connection failure logs (THROTTLE internally tested elsewhere)

@@ -7,41 +7,60 @@ async function main() {
 	console.log("🔮  THE ORACLE: NMP Real-time Data Provider");
 	console.log("==================================================");
 
-	const server = new NmpServer({
-		name: "the-oracle",
-		version: "1.0.0",
-		capabilities: { tools: {} },
-	});
+	const server = new NmpServer(
+		{
+			name: "SIMULATION-the-oracle",
+			version: "1.0.0",
+			capabilities: { tools: {} },
+		},
+		{
+			taxonomy: {
+				domain: "📈 Market Data (SIMULATED)",
+				clearanceTier: 1,
+				executionTypes: ["Open Endpoints"],
+			},
+		},
+	);
+
+	// Load realistic data
+	const marketData = await fs.readFile(
+		new URL("./data/market_ticks.json", import.meta.url),
+		"utf-8",
+	);
+	const ticks = JSON.parse(marketData);
+	server.setSandboxData(ticks);
+
+	// Expose data dictionary for Zero-Trust LLM guidance
+	server.dataDictionary(
+		{
+			type: "array",
+			items: {
+				type: "object",
+				properties: {
+					ticker: { type: "string" },
+					companyName: { type: "string" },
+					price: { type: "number" },
+					change: { type: "string" },
+					volume: { type: "string" },
+					peRatio: { type: "number" },
+					marketCap: { type: "string" },
+				},
+			},
+		},
+		"Market Data Schema (SYNTHETIC)",
+		"nmp://schema/market-data-synthetic",
+	);
 
 	server.tool(
-		"GetStockPrice",
-		"Fetches the real-time stock price for a given ticker symbol.",
-		{ ticker: z.string() },
+		"Analyze_Synthetic_Market_Data",
+		"DISCLAIMER: This is a SIMULATION using SYNTHETIC data. Securely analyzes real-time market ticks via NMP Logic-on-Origin for protocol demonstration.",
+		{ payload: z.string() },
 		async (args) => {
 			console.log(
-				`\n[The Oracle] 📈 Zero-Trust Execution Triggered for GetStockPrice`,
+				`\n[The Oracle] 📈 Zero-Trust Execution Triggered for AnalyzeMarketData`,
 			);
-			console.log(`[The Oracle] -> Querying Market Data for: ${args.ticker}`);
-			const prices: Record<string, string> = {
-				AAPL: "$210.50",
-				MSFT: "$415.20",
-				GOOGL: "$175.80",
-			};
 			return {
-				content: [
-					{
-						type: "text",
-						text: JSON.stringify(
-							{
-								ticker: args.ticker.toUpperCase(),
-								price: prices[args.ticker.toUpperCase()] || "Unknown Ticker",
-								timestamp: new Date().toISOString(),
-							},
-							null,
-							2,
-						),
-					},
-				],
+				content: [{ type: "text", text: args.payload }],
 			};
 		},
 	);

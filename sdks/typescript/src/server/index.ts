@@ -74,6 +74,11 @@ export class NmpServer {
 		private config?: {
 			capabilities?: Record<string, unknown>;
 			security?: { piiPatterns?: PiiRule[]; forbiddenKeys?: string[] };
+			taxonomy?: {
+				domain?: string;
+				clearanceTier?: number;
+				executionTypes?: string[];
+			};
 		},
 	) {
 		this.piiScanner = new PiiScanner(
@@ -156,17 +161,17 @@ export class NmpServer {
 		if (shape.payload && shape.payload instanceof z.ZodString) {
 			const blockedKeys = this.config?.security?.forbiddenKeys || [];
 
-			finalDescription += `\n\nIMPORTANT FORMAT REQUIREMENTS:\nThe payload string MUST encapsulate valid executable JavaScript code between strict boundaries:\n\n---BEGIN_LOGIC---\n// Your JS code here. The runtime exposes 'env.records' array.\n// EXTREMELY IMPORTANT 1: You MUST use the 'return' statement at the end of your logic to output the final data, otherwise the result will be undefined.\n// EXTREMELY IMPORTANT 2 (DYNAMIC RETURN STRUCTURE): You MUST format your JSON output keys in the EXACT SAME LANGUAGE as the user's initial prompt/query (i.e. if asked in Spanish, use Spanish keys like 'promedio').`;
+			finalDescription += `\n\n[NMP-SPEC-V1: LOGIC-ON-ORIGIN ENVELOPE]\nPROTOCOL NOTICE: This tool requires a formatted Logic-on-Origin payload for secure sandbox execution.\n\nNMP_MAGIC:0x00FF\nMANIFEST:{"target":"wasi_v1","name":"[ModuleName]","integrity_checks":true}\n---BEGIN_LOGIC---\n// Pure JavaScript code for origin-side execution. The runtime exposes 'env.records'.\n// Use 'return' to export the computation results.\n---END_LOGIC---\n\nThe logic will be executed within a Zero-Trust WASI sandbox.`;
+
 
 			if (blockedKeys.length > 0) {
-				finalDescription += `\n// SECURITY RESTRICTION: Do NOT include any of the following fields in your returned objects to prevent PII leaks: ${blockedKeys.join(", ")}`;
+				finalDescription += `\n// SECURITY RESTRICTION: Do NOT include any of the following fields: ${blockedKeys.join(", ")}`;
 			}
 
 			if (this.activeSchema) {
-				finalDescription += `\n\nSTRICT SCHEMA ADHERENCE:\nThe 'env.records' array contains objects with the EXACT following structure. ONLY use these fields. Do NOT guess or use fallbacks (e.g. do not use 'gender' if not listed below):\n${JSON.stringify(this.activeSchema, null, 2)}`;
+				finalDescription += `\n\nSTRICT SCHEMA ADHERENCE:\nThe 'env.records' array contains objects with: ${JSON.stringify(this.activeSchema)}`;
 			}
 
-			finalDescription += `\n---END_LOGIC---`;
 			finalDescription += `\n\nOptional: You can include an "__nmp_bypass_ast_cache" boolean parameter set to true to force AST re-evaluation.`;
 
 			finalHandler = async (
@@ -213,18 +218,18 @@ export class NmpServer {
 				) {
 					// Hash verified. Skips boundaries check (already validated!). Extract logic directly.
 					const logicMatch = payloadValue.match(
-						/---BEGIN_LOGIC---\n([\s\S]*)\n---END_LOGIC---/,
+						/\s*NMP_MAGIC:0x00FF\s*\n?\s*MANIFEST:(\{[\s\S]*?\})\s*\n?\s*---BEGIN_LOGIC---\n?([\s\S]*?)\n?---END_LOGIC---/m,
 					);
-					if (logicMatch && logicMatch.length >= 2) {
-						(args as Record<string, unknown>).payload = logicMatch[1].trim();
+					if (logicMatch && logicMatch.length >= 3) {
+						(args as Record<string, unknown>).payload = logicMatch[2].trim();
 
 						// DELEGATE TO WORKER POOL: Parallel PQC & Sandboxing
-						return await this.executeInWorkerPool(args, logicMatch[1].trim());
+						return await this.executeInWorkerPool(args, logicMatch[2].trim());
 					}
 				}
 
 				const logicMatch = payloadValue.match(
-					/---BEGIN_LOGIC---\n([\s\S]*)\n---END_LOGIC---/,
+					/NMP_MAGIC:0x00FF\s*\n?\s*MANIFEST:(\{[\s\S]*?\})\s*\n?\s*---BEGIN_LOGIC---\n?([\s\S]*?)\n?---END_LOGIC---/m,
 				);
 
 				if (!logicMatch || logicMatch.length < 2) {
@@ -235,7 +240,7 @@ export class NmpServer {
 						content: [
 							{
 								type: "text",
-								text: "Error: Malformed payload. Missing magic bytes or logic boundaries.\nYou MUST wrap your logic exactly like this:\n---BEGIN_LOGIC---\n// code\n---END_LOGIC---",
+								text: 'Error: Malformed payload. Missing NMP_MAGIC, MANIFEST, or boundaries.\nYou MUST wrap your logic exactly like this:\n\nNMP_MAGIC:0x00FF\nMANIFEST:{"target":"wasi_v1","name":"DynamicAudit","integrity_checks":true}\n---BEGIN_LOGIC---\n// Your JS code here\n---END_LOGIC---',
 							},
 						],
 						isError: true,
@@ -244,12 +249,12 @@ export class NmpServer {
 
 				try {
 					// Extract pure logic and deliver it to the developer's function
-					(args as Record<string, unknown>).payload = logicMatch[1].trim();
+					(args as Record<string, unknown>).payload = logicMatch[2].trim();
 
 					// DELEGATE TO WORKER POOL: Parallel PQC & Sandboxing (Includes PII Shield)
 					const result = await this.executeInWorkerPool(
 						args,
-						logicMatch[1].trim(),
+						logicMatch[2].trim(),
 					);
 
 					if (!result.isError) {

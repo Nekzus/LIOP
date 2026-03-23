@@ -35,6 +35,11 @@ export interface NmpManifest {
 		mimeType?: string;
 	}>;
 	serverInfo: { name: string; version: string };
+	taxonomy?: {
+		domain: string;
+		clearanceTier: number;
+		executionTypes: string[];
+	};
 }
 
 export interface MeshNodeConfig {

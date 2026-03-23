@@ -1,0 +1,38 @@
+[
+  {
+    "id": "PAT-7721",
+    "name": "Evelyn Reed",
+    "age": 42,
+    "bloodType": "O+",
+    "diagnosis": "Hypertension",
+    "lastVisit": "2026-01-15",
+    "medications": ["Lisinopril", "Amlodipine"]
+  },
+  {
+    "id": "PAT-1092",
+    "name": "Marcus Thorne",
+    "age": 58,
+    "bloodType": "A-",
+    "diagnosis": "Type 2 Diabetes",
+    "lastVisit": "2026-02-20",
+    "medications": ["Metformin", "Glipizide"]
+  },
+  {
+    "id": "PAT-4432",
+    "name": "Sarah Chen",
+    "age": 29,
+    "bloodType": "B+",
+    "diagnosis": "Acute Bronchitis",
+    "lastVisit": "2026-03-05",
+    "medications": ["Albuterol", "Amoxicillin"]
+  },
+  {
+    "id": "PAT-8819",
+    "name": "Julian Vane",
+    "age": 65,
+    "bloodType": "AB+",
+    "diagnosis": "Osteoarthritis",
+    "lastVisit": "2025-12-10",
+    "medications": ["Celecoxib", "Glucosamine"]
+  }
+]

@@ -384,7 +384,27 @@ export class NmpMcpRouter {
 				if (!seenNames.has(tool.name)) {
 					const augmentedTool = { ...tool };
 					const providerName = manifest.serverInfo?.name || "Unknown Provider";
-					const originStamp = `\n\n[🛡️ NMP Zero-Trust Origin]\nProvider: ${providerName}\nNetwork ID: ${peerId}`;
+
+					let blueprint = "";
+					if (manifest.taxonomy) {
+						blueprint = `\n\n[NMP-PROTO: TAXONOMY]\nDomain: ${manifest.taxonomy.domain}\nClearance Tier: ${manifest.taxonomy.clearanceTier}`;
+						if (
+							manifest.taxonomy.executionTypes &&
+							manifest.taxonomy.executionTypes.length > 0
+						) {
+							blueprint += `\nExecution Types: ${manifest.taxonomy.executionTypes.join(", ")}`;
+						}
+					}
+
+					// 🛡️ NMP Logic-on-Origin Detection:
+					// If the tool has a 'payload' property, it requires the Full NMP Envelope.
+					let envelopeDoc = "";
+					const properties = (tool.inputSchema as any)?.properties || {};
+					if (properties.payload) {
+						envelopeDoc = `\n\n[NMP-SPEC: LOGIC-ON-ORIGIN ENVELOPE]\nPROTOCOL NOTICE: This tool requires a formatted Logic-on-Origin payload for secure sandbox execution.\n\nNMP_MAGIC:0x00FF\nMANIFEST:{"target":"wasi_v1","name":"[ModuleName]","integrity_checks":true}\n---BEGIN_LOGIC---\n// Pure JavaScript code for origin-side execution. The runtime exposes 'env.records'.\n// Use 'return' at the end to output data.\n---END_LOGIC---\n\nThe logic will be executed within a Zero-Trust WASI sandbox.`;
+					}
+
+					const originStamp = `\n\n[NMP-REMOTE-ORIGIN-METADATA]\nProvider: ${providerName}\nNetwork ID: ${peerId}${blueprint}${envelopeDoc}`;
 
 					augmentedTool.description = augmentedTool.description
 						? `${augmentedTool.description}${originStamp}`
@@ -428,7 +448,19 @@ export class NmpMcpRouter {
 				if (!seenUris.has(resource.uri)) {
 					const augmentedResource = { ...resource };
 					const providerName = manifest.serverInfo?.name || "Unknown Provider";
-					const originStamp = `\n\n[🛡️ NMP Zero-Trust Origin]\nProvider: ${providerName}\nNetwork ID: ${peerId}`;
+
+					let blueprint = "";
+					if (manifest.taxonomy) {
+						blueprint = `\n\n[🛡️ NMP Zero-Trust Blueprint]\nDomain: ${manifest.taxonomy.domain}\nClearance Tier: ${manifest.taxonomy.clearanceTier}`;
+						if (
+							manifest.taxonomy.executionTypes &&
+							manifest.taxonomy.executionTypes.length > 0
+						) {
+							blueprint += `\nExecution Types: ${manifest.taxonomy.executionTypes.join(", ")}`;
+						}
+					}
+
+					const originStamp = `\n\n[🛡️ NMP Zero-Trust Origin]\nProvider: ${providerName}\nNetwork ID: ${peerId}${blueprint}`;
 
 					augmentedResource.description = augmentedResource.description
 						? `${augmentedResource.description}${originStamp}`

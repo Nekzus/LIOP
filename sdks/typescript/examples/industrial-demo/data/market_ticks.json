@@ -1,0 +1,38 @@
+[
+  {
+    "ticker": "AAPL",
+    "companyName": "Apple Inc.",
+    "price": 210.50,
+    "change": "+1.2%",
+    "volume": "54.2M",
+    "peRatio": 32.1,
+    "marketCap": "3.2T"
+  },
+  {
+    "ticker": "NVDA",
+    "companyName": "NVIDIA Corporation",
+    "price": 895.40,
+    "change": "+3.5%",
+    "volume": "102.1M",
+    "peRatio": 74.5,
+    "marketCap": "2.2T"
+  },
+  {
+    "ticker": "MSFT",
+    "companyName": "Microsoft Corporation",
+    "price": 415.20,
+    "change": "-0.4%",
+    "volume": "22.5M",
+    "peRatio": 35.8,
+    "marketCap": "3.1T"
+  },
+  {
+    "ticker": "GOOGL",
+    "companyName": "Alphabet Inc.",
+    "price": 175.80,
+    "change": "+0.8%",
+    "volume": "18.9M",
+    "peRatio": 27.4,
+    "marketCap": "2.1T"
+  }
+]

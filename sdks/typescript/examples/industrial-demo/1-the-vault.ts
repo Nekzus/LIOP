@@ -1,3 +1,4 @@
+import * as fs from "node:fs/promises";
 import { z } from "zod";
 import { NmpServer } from "../../src/server/index.js";
 
@@ -7,37 +8,58 @@ async function main() {
 	console.log("==================================================");
 
 	// 1. Initialize NMP Server with the Data Capability
-	const server = new NmpServer({
-		name: "the-vault",
-		version: "1.0.0",
-		capabilities: { tools: {} },
-	});
+	const server = new NmpServer(
+		{
+			name: "SIMULATION-the-vault",
+			version: "1.0.0",
+			capabilities: { tools: {} },
+		},
+		{
+			taxonomy: {
+				domain: "🏥 Healthcare (SIMULATED)",
+				clearanceTier: 5,
+				executionTypes: ["Blind AST Logic", "Zero-Trust Worker Pool"],
+			},
+		},
+	);
+
+	// Load realistic data
+	const recordsData = await fs.readFile(
+		new URL("./data/vault_records.json", import.meta.url),
+		"utf-8",
+	);
+	const records = JSON.parse(recordsData);
+	server.setSandboxData(records);
+
+	// Expose data dictionary for Zero-Trust LLM guidance
+	server.dataDictionary(
+		{
+			type: "array",
+			items: {
+				type: "object",
+				properties: {
+					id: { type: "string", description: "Patient Unique ID (PAT-XXXX)" },
+					name: { type: "string" },
+					age: { type: "number" },
+					bloodType: { type: "string" },
+					diagnosis: { type: "string" },
+					lastVisit: { type: "string", format: "date" },
+					medications: { type: "array", items: { type: "string" } },
+				},
+			},
+		},
+		"Medical Records Schema (SYNTHETIC)",
+		"nmp://schema/medical-records-synthetic",
+	);
 
 	server.tool(
-		"ProcessMedicalRecord",
-		"Processes sensitive medical data blinded securely via NMP Zero-Trust WASM",
-		{ patientId: z.string() },
+		"Analyze_Synthetic_Medical_Records",
+		"DISCLAIMER: This is a SIMULATION using SYNTHETIC data. Performs secure Logic-on-Origin processing on the medical records dataset for protocol demonstration.",
+		{ payload: z.string() },
 		async (args) => {
 			console.log(`\n[The Vault] ⚠️ Authorized Zero-Trust Execution Triggered`);
-			console.log(
-				`[The Vault] -> Processing DB Record for Patient: ${args.patientId}`,
-			);
 			return {
-				content: [
-					{
-						type: "text",
-						text: JSON.stringify(
-							{
-								status: "success",
-								patientId: args.patientId,
-								diagnoses: ["Hypertension", "Type 2 Diabetes"],
-								lastVisit: "2026-03-01T10:00:00Z",
-							},
-							null,
-							2,
-						),
-					},
-				],
+				content: [{ type: "text", text: args.payload }],
 			};
 		},
 	);
@@ -45,7 +67,6 @@ async function main() {
 	// Read Nexus Address
 	const bootstrapNodes: string[] = [];
 	try {
-		const fs = await import("node:fs/promises");
 		const addr = await fs.readFile("nexus.multiaddr", "utf-8");
 		bootstrapNodes.push(addr.trim());
 		console.log(`[The Vault] Discovered Nexus at ${addr.trim()}`);
@@ -72,7 +93,6 @@ async function main() {
 	// Tools are auto-announced to DHT by connectToMesh()
 
 	// 5. Write the actual multiaddr to a file for Sentinel/Agent to bootstrap
-	const fs = await import("node:fs/promises");
 	const multiaddrs = meshNode.getMultiaddrs();
 	// Prefer IPv4 TCP / 127.0.0.1 for local testing
 	const p2pAddr =
