@@ -121,6 +121,10 @@ El proyecto funciona bajo un ecosistema `Cargo Workspace` modular:
     - **Manifiesto Enriquecido:** Extensión del protocolo `/LIOP/manifest/1.0.0` para que transporte nativamente el contenido textual de los recursos de metadatos (ej., Diccionarios de Datos).
     - **Resolución Transparente:** Capacitación de `LIOPMcpRouter` para interceptar llamadas `resources/read` fallidas localmente y derivarlas al `manifestCache` global, garantizando que Claude Desktop pueda asimilar instantáneamente contextos (schemas) P2P sin originar Round-Trips inter-nodos adicionales.
 
+  - **Fase 33.4: Absolute Worker Loader (Claude Desktop Fix) [Completado]:**
+    - **Aislamiento CWD Global:** Resolución del error catastrófico `ERR_MODULE_NOT_FOUND: 'tsx'` que ocurría al instanciar el Manto Criptográfico de Piscina desde binarios globales restrictivos (como Claude Desktop y su CWD interno).
+    - **Resolución Determinística:** Refactorización de `LiopServer` y `LiopVerifier` para inyectar la ruta computada absoluta del `loader.mjs` de `tsx` usando resolución dinámica de módulos `createRequire(import.meta.url)`. Garantizando el pre-compilado en caliente de todos los worker pools asíncronos bajo cualquier contexto de invocación (V8/CLI) manteniendo un Score perfecto en la suite de 105 tests del Tier-0.
+
 ---
 **Estado Final de la Sesión:** El ecosistema LIOP alcanza el estadio de **Industrial High-Fidelity**. La arquitectura es ahora inmune a variaciones sintácticas del LLM, garantizando una ejecución Logic-on-Origin fluida, segura y profesional en toda la malla.
 

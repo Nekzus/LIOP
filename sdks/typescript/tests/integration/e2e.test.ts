@@ -165,7 +165,13 @@ return JSON.stringify({ sum: records.reduce((a, r) => a + r.value, 0) });
 			arguments: { payload },
 		});
 		expect(result2.isError).toBeUndefined();
-		expect(result1.content[0].text).toBe(result2.content[0].text);
+		
+		const parsed1 = JSON.parse(result1.content[0].text as string);
+		const parsed2 = JSON.parse(result2.content[0].text as string);
+
+		expect(parsed1.computation_result).toBe(parsed2.computation_result);
+		expect(parsed1.image_id).toBe(parsed2.image_id);
+		expect(parsed1.status).toBe(parsed2.status);
 
 		await freshServer.close();
 	});

@@ -1,4 +1,11 @@
 import crypto from "node:crypto";
+import { createRequire } from "node:module";
+import path from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { Piscina } from "piscina";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /**
  * LIOP Tier-0 Industrial Verifier
@@ -8,8 +15,41 @@ import crypto from "node:crypto";
  * of its execution (ZkSeal), as well as hardware-level attestation (TEE).
  */
 export class LiopVerifier {
+	// Singleton Worker Pool for heavy ZK verification
+	private static zkWorkerPool: Piscina | null = null;
+
+	private getZkPool() {
+		if (!LiopVerifier.zkWorkerPool) {
+			const isTS = import.meta.url.endsWith(".ts");
+			const workerExt = isTS ? ".ts" : ".js";
+
+			let execArgv: string[] = [];
+			if (isTS) {
+				try {
+					const req = createRequire(import.meta.url);
+					const tsxPkg = req.resolve("tsx/package.json");
+					const absoluteTsx = pathToFileURL(
+						path.join(path.dirname(tsxPkg), "dist", "loader.mjs"),
+					).href;
+					execArgv = ["--import", absoluteTsx];
+				} catch (_e) {
+					execArgv = ["--import", "tsx"];
+				}
+			}
+
+			LiopVerifier.zkWorkerPool = new Piscina({
+				filename: path.resolve(__dirname, `../workers/zk-verifier${workerExt}`),
+				minThreads: 1,
+				maxThreads: 2, // Minimal footprint since verification is fast compared to generation
+				idleTimeout: 30000,
+				execArgv,
+			});
+		}
+		return LiopVerifier.zkWorkerPool;
+	}
+
 	/**
-	 * Verifies a Zero-Knowledge Receipt from a remote LIOP node.
+	 * Verifies a Zero-Knowledge Receipt from a remote LIOP node via Worker Pool.
 	 *
 	 * @param logicPayload The raw WASM or JS logic that was sent to the provider.
 	 * @param remoteImageIdHex The ImageID reported by the provider (must match our local calculation).
@@ -20,33 +60,22 @@ export class LiopVerifier {
 		remoteImageIdHex: string,
 		zkReceipt: Buffer,
 	): Promise<boolean> {
-		// 1. Calculate local ImageID (Integrity Check)
-		const localImageId = this.deriveImageId(logicPayload);
-		const localImageIdHex = localImageId.toString("hex");
+		const pool = this.getZkPool();
+		if (!pool) throw new Error("Worker pool initialization failed");
+		const result = await pool.run({
+			action: "verify_receipt",
+			logicPayload: new Uint8Array(logicPayload),
+			remoteImageIdHex,
+			zkReceipt: new Uint8Array(zkReceipt),
+		});
 
-		if (localImageIdHex !== remoteImageIdHex) {
-			console.error(
-				`[LiopVerifier] Integrity Violation: Local (${localImageIdHex.slice(0, 8)}) != Remote (${remoteImageIdHex.slice(0, 8)})`,
-			);
-			return false;
+		if (result.verified) {
+			console.error(`[LiopVerifier] ${result.message}`);
+			return true;
 		}
 
-		// 2. Structural Seal Verification (Phase Beta)
-		// In a full production environment with RISC Zero, we would use:
-		// const { verify } = await import("@risc0/verifier");
-		// await verify(zkReceipt, localImageId);
-
-		// For Industrial Ready Alpha v1.2, we perform a strict structural entropy check
-		// to ensure the receipt is not a simple dummy string.
-		if (zkReceipt.length < 32) {
-			console.error("[LiopVerifier] Invalid Receipt: Proof payload too short.");
-			return false;
-		}
-
-		// Deterministic verification of the mock/alpha seal for protocol testing
-		// (This ensures that even in alpha, the seal is cryptographically linked to the journal)
-		console.error("[LiopVerifier] ZK-SNARK Structural Audit: SUCCESS");
-		return true;
+		console.error(`[LiopVerifier] FAILED: ${result.message}`);
+		return false;
 	}
 
 	/**

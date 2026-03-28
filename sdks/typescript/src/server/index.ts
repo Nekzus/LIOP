@@ -114,24 +114,12 @@ export class LiopServer {
 		let execArgv: string[] = [];
 		if (isTS) {
 			try {
-				const require = createRequire(import.meta.url);
-				const _tsxPath = path.resolve(
-					path.dirname(require.resolve("tsx/package.json")),
-					"dist/loader.mjs",
-				);
-				// Check for existence or just use tsx resolving
-				execArgv = ["--import", "tsx"];
-				// To be extremely safe, we could use the absolute path,
-				// but 'tsx' should be resolvable if we are running in TS mode.
-				// However, the error suggests it's NOT resolvable in the worker.
-				// Let's use the absolute path to the loader if possible.
-				try {
-					const absoluteTsx = require.resolve("tsx");
-					execArgv = ["--import", pathToFileURL(absoluteTsx).href];
-				} catch (_e) {
-					// Fallback
-					execArgv = ["--import", "tsx"];
-				}
+				const req = createRequire(import.meta.url);
+				const tsxPkg = req.resolve("tsx/package.json");
+				const absoluteTsx = pathToFileURL(
+					path.join(path.dirname(tsxPkg), "dist", "loader.mjs"),
+				).href;
+				execArgv = ["--import", absoluteTsx];
 			} catch (_e) {
 				execArgv = ["--import", "tsx"];
 			}
@@ -815,6 +803,7 @@ Protocol Adherence is mandatory for successful execution.`,
 			const textOutput = JSON.stringify({
 				computation_result: workerResponse.output,
 				image_id: workerResponse.image_id,
+				zk_receipt: workerResponse.zk_receipt,
 				status: "Worker Pool Execution Success",
 			});
 

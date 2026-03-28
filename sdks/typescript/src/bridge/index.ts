@@ -185,30 +185,28 @@ export class LiopMcpBridge {
 
 		try {
 			const payload = request.arguments.payload as string;
-			const rawLogic = payload
-				.replace(/^LIOP_MAGIC:0x00FF\s*\n?/g, "")
-				.replace(/^MANIFEST:\{.*?\}\s*\n?/g, "")
-				.replace(/---BEGIN_LOGIC---\n?/g, "")
-				.replace(/\n?---END_LOGIC---/g, "")
-				.trim();
-
-			const crypto = await import("node:crypto");
-			const localImageId = crypto
-				.createHash("sha256")
-				.update(rawLogic)
-				.digest("hex");
-
 			const contentText = result.content[0]?.text;
+
 			if (contentText && typeof contentText === "string") {
 				try {
 					const data = JSON.parse(contentText);
-					if (data.image_id && data.image_id !== localImageId) {
-						console.error(
-							`[LIOP-Bridge] ALERT Image ID mismatch! Computed [${localImageId}], Received [${data.image_id}]`,
-						);
-						return false;
-					}
+
 					if (data.image_id || data.zk_receipt) {
+						// 1. Instantiate the Industrial Verifier ( backed by Piscina Worker Pool )
+						const { LiopVerifier } = await import("../crypto/verifier.js");
+						const verifier = new LiopVerifier();
+
+						// 2. Delegate the heavy mathematical check (ZK Journal + Seal)
+						const isAuthentic = await verifier.verifyZkReceipt(
+							Buffer.from(payload, "utf-8"),
+							data.image_id,
+							Buffer.from(data.zk_receipt || "", "base64"),
+						);
+
+						if (!isAuthentic) {
+							return false;
+						}
+
 						data.audit_status =
 							"VERIFIED: ZK-Receipt & ImageID Mathematically Verified by LiopMcpBridge";
 						result.content[0].text = JSON.stringify(data);
@@ -243,16 +241,19 @@ export class LiopMcpBridge {
 				await this.liopServer.connect();
 
 				// Automatically Bridge Legacy Capabilities to LIOP Mesh
+				// biome-ignore lint/suspicious/noExplicitAny: Internal legacy MCP properties are completely opaque and unexported
 				const legacy = this.legacyMcpServer as any;
 
 				// 1. Sync Tools
 				if (legacy._registeredTools) {
 					for (const [name, tool] of Object.entries(legacy._registeredTools)) {
+						// biome-ignore lint/suspicious/noExplicitAny: Opaque legacy structure
 						const t = tool as any;
 						this.liopServer.tool(
 							name,
 							t.description || "",
 							t.inputSchema || {},
+							// biome-ignore lint/suspicious/noExplicitAny: Opaque legacy callback args
 							async (args: any) => {
 								return await t.handler(args);
 							},
@@ -265,6 +266,7 @@ export class LiopMcpBridge {
 					for (const [uri, resource] of Object.entries(
 						legacy._registeredResources,
 					)) {
+						// biome-ignore lint/suspicious/noExplicitAny: Opaque legacy structure
 						const r = resource as any;
 						this.liopServer.resource(
 							r.name,

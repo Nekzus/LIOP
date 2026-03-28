@@ -16,9 +16,12 @@ export interface WorkerData {
 	aesNonce?: Uint8Array;
 }
 
-export default async function processLogicExecution(
-	data: WorkerData,
-): Promise<{ image_id: string; output: string; fuel_consumed: number }> {
+export default async function processLogicExecution(data: WorkerData): Promise<{
+	image_id: string;
+	output: string;
+	fuel_consumed: number;
+	zk_receipt?: string;
+}> {
 	const {
 		ciphertext,
 		secretKeyObj,
@@ -125,16 +128,28 @@ export default async function processLogicExecution(
 		);
 
 		// 5. Generate ZK Receipt Mock / Cryptographic Proof of Execution
-		const hasher = crypto.createHash("sha256");
-		hasher.update(
+		// Simulate the computational overhead of running the logic inside a zkVM Prover like RISC Zero (~50ms test)
+		await new Promise((resolve) => setTimeout(resolve, 50));
+
+		const logicBuffer =
 			decryptedPayload instanceof Buffer
 				? decryptedPayload
-				: Buffer.from(decryptedPayload),
-		);
+				: Buffer.from(decryptedPayload);
+
+		const hasher = crypto.createHash("sha256");
+		hasher.update(logicBuffer);
 		const imageId = hasher.digest("hex");
+
+		// Phase 5: Structured ZK-Receipt (Journal + Seal)
+		// Alpha payload with minimum entropy representing the cryptographic Seal
+		const dummySeal = crypto.randomBytes(64).toString("hex");
+		const zkReceipt = Buffer.from(
+			`JOURNAL:${imageId}|SEAL:${dummySeal}`,
+		).toString("base64");
 
 		return {
 			image_id: imageId,
+			zk_receipt: zkReceipt,
 			output: result.output,
 			fuel_consumed: result.fuelConsumed,
 		};

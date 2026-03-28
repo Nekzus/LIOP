@@ -8,14 +8,14 @@ import { ASTGuardian } from "./guardian.js";
 
 // Silence Node.js ExperimentalWarning for WASI (Industrial console parity)
 const originalEmit = process.emit;
-// @ts-ignore
-process.emit = function (name, data, ...args) {
+// @ts-expect-error
+process.emit = (name, data, ...args) => {
 	if (
-		name === "warning" &&
-		typeof data === "object" &&
-		(data as any).name === "ExperimentalWarning" &&
-		((data as any).message.includes("WASI") ||
-			(data as any).message.includes("importing WASI"))
+		(name === "warning" &&
+			typeof data === "object" &&
+			(data as Record<string, unknown>).name === "ExperimentalWarning" &&
+			String((data as Record<string, unknown>).message).includes("WASI")) ||
+		String((data as Record<string, unknown>).message).includes("importing WASI")
 	) {
 		return false;
 	}
@@ -40,8 +40,8 @@ export class WasiSandbox {
 	private sandboxId: string;
 	private workingDir: string;
 	private config: SandboxConfig;
-	private stdoutHandle: any | null = null;
-	private stderrHandle: any | null = null;
+	private stdoutHandle: fs.FileHandle | null = null;
+	private stderrHandle: fs.FileHandle | null = null;
 
 	constructor(config: SandboxConfig = {}) {
 		this.sandboxId = crypto.randomUUID();

@@ -216,7 +216,7 @@ describe("LiopMcpBridge", () => {
 							text: JSON.stringify({
 								result: "success",
 								image_id: expectedHash,
-								zk_receipt: "0xVALID",
+								zk_receipt: Buffer.from("A".repeat(64)).toString("base64"),
 							}),
 						},
 					],

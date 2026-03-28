@@ -254,9 +254,12 @@ export class LiopClient {
 				return;
 			}
 			let resultFulfilled = false;
+			let hasReceivedData = false;
 
 			stream.on("data", async (response: LogicResponse) => {
 				if (resultFulfilled) return;
+				hasReceivedData = true;
+
 				console.error(
 					"[LiopClient] Logic Executed. Verification in progress...",
 				);
@@ -299,7 +302,9 @@ export class LiopClient {
 			});
 
 			stream.on("end", () => {
-				if (!resultFulfilled) {
+				// We don't throw here if we already received a response block that is currently
+				// undergoing ZK Verification in the Piscina worker pool.
+				if (!hasReceivedData && !resultFulfilled) {
 					reject(new Error("Logic-on-Origin stream closed without results."));
 				}
 			});
