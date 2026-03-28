@@ -100,7 +100,7 @@ return {
 		client.verifyZkReceipt = async () => false;
 
 		await expect(client.callTool(toolRequest, realPayload)).rejects.toThrow(
-			"ZK-Receipt verification failed",
+			"ZK-Receipt verification failed. ImageID mismatch.",
 		);
 
 		client.verifyZkReceipt = originalVerify;

@@ -155,8 +155,17 @@ export class LiopClient {
 		const toolName = request.name;
 		console.error(`[LiopClient] 🔍 Resolving Tool: ${toolName}`);
 
-		const dynamicAddress = await this.resolveCapability(toolName);
-		const rpcClient = this.getOrCreateRpcClient(toolName, dynamicAddress);
+		// [ALPHA-FIX] Bypass DHT discovery if we are already statically connected to a provider (Enterprise/Test mode)
+		let rpcClient = this.rpcClients.get("static");
+
+		if (!rpcClient) {
+			const dynamicAddress = await this.resolveCapability(toolName);
+			rpcClient = this.getOrCreateRpcClient(toolName, dynamicAddress);
+		} else {
+			console.error(
+				`[LiopClient] ⚡ Using existing static gRPC connection for ${toolName}.`,
+			);
+		}
 
 		console.error(`[LiopClient] 🤝 Negotiating intent for ${toolName}...`);
 		const intentResponse = (await rpcClient.negotiateIntent({
