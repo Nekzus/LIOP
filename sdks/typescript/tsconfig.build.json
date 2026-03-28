@@ -10,6 +10,7 @@
 		"tests",
 		"**/*.test.ts",
 		"examples",
-		"**/*.spec.ts"
+		"**/*.spec.ts",
+		"scripts"
 	]
 }

@@ -125,6 +125,11 @@ El proyecto funciona bajo un ecosistema `Cargo Workspace` modular:
     - **Aislamiento CWD Global:** Resolución del error catastrófico `ERR_MODULE_NOT_FOUND: 'tsx'` que ocurría al instanciar el Manto Criptográfico de Piscina desde binarios globales restrictivos (como Claude Desktop y su CWD interno).
     - **Resolución Determinística:** Refactorización de `LiopServer` y `LiopVerifier` para inyectar la ruta computada absoluta del `loader.mjs` de `tsx` usando resolución dinámica de módulos `createRequire(import.meta.url)`. Garantizando el pre-compilado en caliente de todos los worker pools asíncronos bajo cualquier contexto de invocación (V8/CLI) manteniendo un Score perfecto en la suite de 105 tests del Tier-0.
 
+  - **Fase 33.5: Centralización de Metadatos y Rebranding Automatizado [Completado]:**
+    - **Única Fuente de Verdad:** Implementación de `liop-metadata.json` en la raíz como el oráculo central para el nombre del repositorio, URLs de documentación y ramas por defecto.
+    - **Automatización de Sincronización:** Creación del script `sync-metadata.ts` que propaga cambios de identidad instantáneamente a través de `package.json`, `docs.json`, `README.md` y todos los archivos `.mdx` del monorepo.
+    - **Migración Industrial:** Actualización masiva de todos los enlaces hacia `Nekzus/Neural-Mesh-Protocol` y la rama `main`, eliminando rastros de nombres antiguos y garantizando la resolución perfecta de enlaces en el portal Mintlify.
+
 ---
 **Estado Final de la Sesión:** El ecosistema LIOP alcanza el estadio de **Industrial High-Fidelity**. La arquitectura es ahora inmune a variaciones sintácticas del LLM, garantizando una ejecución Logic-on-Origin fluida, segura y profesional en toda la malla.
 

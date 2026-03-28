@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { LIOPHybridGateway } from "../src/gateway/hybrid.js";
+import { LiopHybridGateway } from "../src/gateway/hybrid.js";
 import { LiopServer } from "../src/server/index.js";
 
 async function main() {
@@ -54,9 +54,7 @@ async function main() {
 		},
 	);
 
-	const hybridGateway = new LIOPHybridGateway(theVaultServer, {
-		rpcPort: RPC_PORT,
-	});
+	const hybridGateway = new LiopHybridGateway(theVaultServer, null, RPC_PORT);
 	await hybridGateway.listen(3000, "0.0.0.0");
 	console.log(
 		`[VAULT-SERVER] LIOP Unified Mock Server READY (forbiddenKeys: id, name).`,
