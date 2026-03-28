@@ -208,7 +208,7 @@ export class LiopClient {
 			`[LiopClient] Encapsulating Post-Quantum Shared Secret for ${request.name}...`,
 		);
 		const { ciphertext: kyberCiphertext, sharedSecret } =
-			Kyber768Wrapper.encapsulateAsymmetric(publicKey);
+			await Kyber768Wrapper.encapsulateAsymmetric(publicKey);
 
 		// 3. Symmetric Sealing (AES-256-GCM)
 		console.error(`[LiopClient] Sealing WASM Payload and Inputs...`);

@@ -1,6 +1,6 @@
 import { Buffer } from "node:buffer";
 
-import kyber from "crystals-kyber";
+import { createMlKem768 } from "mlkem";
 import { describe, expect, it } from "vitest";
 import { AesGcmWrapper } from "../rpc/crypto/aes.js";
 import processLogicExecution from "./logic-execution.js";
@@ -35,14 +35,12 @@ describe("WorkerPool: logic-execution PQC & Sandbox", () => {
 	});
 
 	it("should decrypt and execute a Post-Quantum Encapsulated Payload (isEncrypted: true)", async () => {
-		// 1. Generate PQC Keys exactly like the actual handshake
-		const pk_sk = kyber.KeyGen768();
-		const pk = pk_sk[0];
-		const sk = pk_sk[1];
+		// 1. Generate PQC Keys using FIPS 203 ML-KEM-768
+		const kem = await createMlKem768();
+		const [pk, sk] = kem.generateKeyPair();
 
-		const c_ss = kyber.Encrypt768(pk);
-		const ciphertext = c_ss[0];
-		const sharedSecret = c_ss[1]; // Client's symmetric shared secret
+		const sender = await createMlKem768();
+		const [ciphertext, sharedSecret] = sender.encap(pk);
 
 		// 2. Client AES Encrypts the payload with the PQC shared secret
 		const payloadContent = Buffer.from(`
@@ -73,8 +71,11 @@ describe("WorkerPool: logic-execution PQC & Sandbox", () => {
 	});
 
 	it("should fail gracefully if AES-GCM Authentication Tag is tampered", async () => {
-		const pk_sk = kyber.KeyGen768();
-		const c_ss = kyber.Encrypt768(pk_sk[0]);
+		const kem = await createMlKem768();
+		const [pk, sk] = kem.generateKeyPair();
+
+		const sender = await createMlKem768();
+		const [ciphertext, sharedSecret] = sender.encap(pk);
 
 		const payloadContent = Buffer.from(`
 			function liop_main() {
@@ -82,16 +83,16 @@ describe("WorkerPool: logic-execution PQC & Sandbox", () => {
 			}
 		`);
 		const { ciphertext: finalCiphertext, nonce: aesNonce } =
-			AesGcmWrapper.encryptPayload(payloadContent, c_ss[1]);
+			AesGcmWrapper.encryptPayload(payloadContent, sharedSecret);
 
-		// Corrupt the AUth Tag (last 16 bytes)
+		// Corrupt the Auth Tag (last 16 bytes)
 		finalCiphertext[finalCiphertext.length - 1] ^= 0xff;
 
 		await expect(
 			processLogicExecution({
-				ciphertext: new Uint8Array(c_ss[0]),
-				secretKeyObj: Array.from(new Uint8Array(pk_sk[1])),
-				kyberPublicKey: new Uint8Array(pk_sk[0]),
+				ciphertext: new Uint8Array(ciphertext),
+				secretKeyObj: Array.from(new Uint8Array(sk)),
+				kyberPublicKey: new Uint8Array(pk),
 				wasmBinary: finalCiphertext,
 				aesNonce,
 				inputs: {},

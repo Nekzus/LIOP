@@ -1,6 +1,6 @@
 import { Buffer } from "node:buffer";
 import crypto from "node:crypto";
-import kyber from "crystals-kyber";
+import { createMlKem768 } from "mlkem";
 import { ASTGuardian } from "../sandbox/guardian.js";
 import { WasiSandbox } from "../sandbox/wasi.js";
 
@@ -36,8 +36,8 @@ export default async function processLogicExecution(
 		// 1. Decapsulate Kyber secret
 		const sk = new Uint8Array(secretKeyObj);
 		const ct = new Uint8Array(ciphertext);
-		const sharedSecret = kyber.Decrypt768(ct, sk);
-		// ML-KEM-768 produces a 32-byte shared secret directly compatible with AES-256
+		const kem = await createMlKem768();
+		const sharedSecret = kem.decap(ct, sk);
 		const aesKey = Buffer.from(sharedSecret);
 
 		// 2. Decrypt Main Payload (WASM/JS Code)

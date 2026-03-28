@@ -775,7 +775,7 @@ export class LiopMcpRouter {
 					capability_hash: capabilityHash,
 					proof_of_intent: Buffer.from([]),
 				},
-				(err: Error | null, response: IntentResponse) => {
+				async (err: Error | null, response: IntentResponse) => {
 					if (err || !response.accepted) {
 						return resolve({
 							jsonrpc: "2.0",
@@ -793,7 +793,9 @@ export class LiopMcpRouter {
 					}
 
 					const { ciphertext, sharedSecret } =
-						Kyber768Wrapper.encapsulateAsymmetric(response.kyber_public_key);
+						await Kyber768Wrapper.encapsulateAsymmetric(
+							response.kyber_public_key,
+						);
 					const proxyLogic = `return { "__liop_proxy_tool": "${toolName}", "__liop_proxy_args": env.args };`;
 					const nonce = crypto.randomBytes(12);
 

@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import * as grpc from "@grpc/grpc-js";
-import { Piscina } from "piscina";
+import { FixedQueue, Piscina } from "piscina";
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { type LiopManifest, MeshNode } from "../mesh/node.js";
@@ -36,6 +36,7 @@ export interface LiopServerOptions {
 		enabled?: boolean;
 		minThreads?: number;
 		maxThreads?: number;
+		idleTimeout?: number;
 	};
 	security?: {
 		piiPatterns?: PiiRule[];
@@ -153,7 +154,10 @@ export class LiopServer {
 			),
 			minThreads: this.config?.workerPool?.minThreads ?? (isTest ? 0 : 2),
 			maxThreads: this.config?.workerPool?.maxThreads ?? (isTest ? 1 : 8),
-			idleTimeout: 1000,
+			idleTimeout:
+				this.config?.workerPool?.idleTimeout ?? (isTest ? 500 : 5000),
+			maxQueue: "auto",
+			taskQueue: new FixedQueue(),
 			execArgv,
 		});
 	}
@@ -662,8 +666,9 @@ Protocol Adherence is mandatory for successful execution.`,
 				);
 
 				// Standard dynamic import to avoid potential circularity
-				import("../rpc/crypto/kyber.js").then(({ Kyber768Wrapper }) => {
-					const { publicKey, secretKey } = Kyber768Wrapper.generateKeyPair();
+				import("../rpc/crypto/kyber.js").then(async ({ Kyber768Wrapper }) => {
+					const { publicKey, secretKey } =
+						await Kyber768Wrapper.generateKeyPair();
 
 					const sessionToken = crypto.randomUUID();
 					this.sessions.set(sessionToken, {
@@ -858,7 +863,7 @@ Protocol Adherence is mandatory for successful execution.`,
 	 */
 	public async close(): Promise<void> {
 		if (this.workerPool) {
-			await this.workerPool.destroy();
+			await this.workerPool.close({ force: true });
 		}
 		if (this.rpcServer) {
 			await this.rpcServer.stop();

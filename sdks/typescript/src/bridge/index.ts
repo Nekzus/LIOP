@@ -248,35 +248,37 @@ export class LiopMcpBridge {
 
 				// Automatically Bridge Legacy Capabilities to LIOP Mesh
 				const legacy = this.legacyMcpServer as any;
-				
+
 				// 1. Sync Tools
 				if (legacy._registeredTools) {
 					for (const [name, tool] of Object.entries(legacy._registeredTools)) {
 						const t = tool as any;
 						this.liopServer.tool(
-							name, 
-							t.description || "", 
-							t.inputSchema || {}, 
+							name,
+							t.description || "",
+							t.inputSchema || {},
 							async (args: any) => {
 								return await t.handler(args);
-							}
+							},
 						);
 					}
 				}
 
 				// 2. Sync Resources
 				if (legacy._registeredResources) {
-					for (const [uri, resource] of Object.entries(legacy._registeredResources)) {
+					for (const [uri, resource] of Object.entries(
+						legacy._registeredResources,
+					)) {
 						const r = resource as any;
 						this.liopServer.resource(
-							r.name, 
-							uri, 
-							r.metadata?.description || "", 
-							r.metadata?.mimeType || "application/octet-stream", 
+							r.name,
+							uri,
+							r.metadata?.description || "",
+							r.metadata?.mimeType || "application/octet-stream",
 							async () => {
 								const res = await r.readCallback(new URL(uri));
 								return res.contents[0].text;
-							}
+							},
 						);
 					}
 				}

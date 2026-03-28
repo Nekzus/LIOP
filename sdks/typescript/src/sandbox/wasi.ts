@@ -130,7 +130,8 @@ export class WasiSandbox {
 
 				const duration = performance.now() - startTime;
 				return {
-					output: stdout || (stderr ? `Error: ${stderr}` : "WASM_EXECUTION_SUCCESS"),
+					output:
+						stdout || (stderr ? `Error: ${stderr}` : "WASM_EXECUTION_SUCCESS"),
 					fuelConsumed: Math.floor(duration * 1000),
 				};
 			} catch (error: unknown) {
