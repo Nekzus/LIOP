@@ -196,16 +196,16 @@ export class MeshNode {
 			if (!this.node) return;
 
 			console.error(
-				`[LIOP-Mesh] 🔄 Re-announcing ${this.announcedCapabilities.size} capabilities to updated routing table...`,
+				`[LIOP-Mesh] Re-announcing ${this.announcedCapabilities.size} capabilities to updated routing table...`,
 			);
 
 			for (const hash of this.announcedCapabilities) {
 				try {
 					const cid = await this.capabilityToCID(hash);
 					await this.node.contentRouting.provide(cid);
-					console.error(`[LIOP-Mesh] ✅ Re-announced: ${hash}`);
+					console.error(`[LIOP-Mesh] Re-announced: ${hash}`);
 				} catch (e) {
-					console.error(`[LIOP-Mesh] ⚠️ Re-announce failed for ${hash}: ${e}`);
+					console.error(`[LIOP-Mesh] Re-announce failed for ${hash}: ${e}`);
 				}
 			}
 		} finally {
@@ -255,20 +255,20 @@ export class MeshNode {
 		// Monitor Connectivity Events
 		this.node.addEventListener("peer:discovery", (evt) => {
 			console.error(
-				`[LIOP-Mesh] 🔎 Discovered peer: ${evt.detail.id.toString()}`,
+				`[LIOP-Mesh] Discovered peer: ${evt.detail.id.toString()}`,
 			);
 		});
 
 		this.node.addEventListener("peer:connect", (evt) => {
 			const peerId = evt.detail;
-			console.error(`[LIOP-Mesh] 🤝 Connected to peer: ${peerId.toString()}`);
+			console.error(`[LIOP-Mesh] Connected to peer: ${peerId.toString()}`);
 
 			if (!this.node) return;
 			// biome-ignore lint/suspicious/noExplicitAny: access internal services
 			const dht = (this.node.services as any).dht;
 			if (dht?.routingTable) {
 				console.error(
-					`[LIOP-Mesh] 📍 Adding ${peerId.toString()} to DHT Routing Table`,
+					`[LIOP-Mesh] Adding ${peerId.toString()} to DHT Routing Table`,
 				);
 				dht.routingTable.add(peerId).catch((err: unknown) => {
 					console.error(
@@ -338,7 +338,7 @@ export class MeshNode {
 		// Announce manifest capability to the Mesh DHT for discovery
 		this.announceCapability(LIOP_MANIFEST_CAPABILITY).catch((err) => {
 			console.error(
-				`[LIOP-Mesh] 🚨 Initial manifest announcement failed: ${err}`,
+				`[LIOP-Mesh] Initial manifest announcement failed: ${err}`,
 			);
 		});
 
@@ -352,14 +352,14 @@ export class MeshNode {
 					(arg.connection || connection)?.remotePeer?.toString() || "unknown";
 
 				console.error(
-					`[LIOP-Mesh] 📥 Incoming manifest request from ${remotePeer}.`,
+					`[LIOP-Mesh] Incoming manifest request from ${remotePeer}.`,
 				);
 
 				try {
 					const manifest = this.manifestProvider?.();
 					if (!manifest || !stream) {
 						console.error(
-							`[LIOP-Mesh] ⚠️ Skipping manifest request (no provider or stream)`,
+							`[LIOP-Mesh] Skipping manifest request (no provider or stream)`,
 						);
 						try {
 							await (stream.close || stream.abort)?.();
@@ -376,7 +376,7 @@ export class MeshNode {
 					const fullPacket = Buffer.concat([lengthBuf, Buffer.from(payload)]);
 
 					console.error(
-						`[LIOP-Mesh] 🛠️ Serving manifest (${fullPacket.length} bytes) to ${remotePeer} [Tools: ${manifest.tools.map((t) => t.name).join(", ")}]`,
+						`[LIOP-Mesh] Serving manifest (${fullPacket.length} bytes) to ${remotePeer} [Tools: ${manifest.tools.map((t) => t.name).join(", ")}]`,
 					);
 
 					try {
@@ -398,11 +398,11 @@ export class MeshNode {
 							await pipe([fullPacket], stream);
 						}
 						console.error(
-							`[LIOP-Mesh] ✅ Manifest sent successfully to ${remotePeer}`,
+							`[LIOP-Mesh] Manifest sent successfully to ${remotePeer}`,
 						);
 					} catch (writeErr: unknown) {
 						console.error(
-							`[LIOP-Mesh] 🚨 Write error serving manifest to ${remotePeer}: ${writeErr instanceof Error ? writeErr.message : String(writeErr)}`,
+							`[LIOP-Mesh] Write error serving manifest to ${remotePeer}: ${writeErr instanceof Error ? writeErr.message : String(writeErr)}`,
 						);
 					} finally {
 						// Ensure the stream is closed after serving the manifest
@@ -416,14 +416,14 @@ export class MeshNode {
 					return;
 				} catch (err: unknown) {
 					console.error(
-						`[LIOP-Mesh] 🚨 Error serving manifest to ${remotePeer}: ${err instanceof Error ? err.message : String(err)}`,
+						`[LIOP-Mesh] Error serving manifest to ${remotePeer}: ${err instanceof Error ? err.message : String(err)}`,
 					);
 				}
 			},
 		);
 
 		console.error(
-			`[LIOP-Mesh] 📡 Manifest Protocol registered: ${LIOP_MANIFEST_PROTOCOL}`,
+			`[LIOP-Mesh] Manifest Protocol registered: ${LIOP_MANIFEST_PROTOCOL}`,
 		);
 	}
 
@@ -449,7 +449,7 @@ export class MeshNode {
 		// If we are querying our own manifest, return it directly from the provider.
 		if (peerIdStr === this.node.peerId.toString()) {
 			console.error(
-				`[LIOP-Mesh] 🔄 Loopback: Returning local manifest directly for ${peerIdStr}`,
+				`[LIOP-Mesh] Loopback: Returning local manifest directly for ${peerIdStr}`,
 			);
 			return this.manifestProvider?.() || null;
 		}
@@ -486,13 +486,13 @@ export class MeshNode {
 				} catch (dialErr) {
 					if (attempt === MAX_ATTEMPTS) {
 						console.error(
-							`[LIOP-Mesh] 🚨 Dial error for ${peerIdStr} after ${MAX_ATTEMPTS} attempts: ${dialErr}`,
+							`[LIOP-Mesh] Dial error for ${peerIdStr} after ${MAX_ATTEMPTS} attempts: ${dialErr}`,
 						);
 						return null;
 					}
 					const delay = 500 * 2 ** attempt;
 					console.error(
-						`[LIOP-Mesh] ⚠️ Dial error for ${peerIdStr} (Attempt ${attempt}). Retrying in ${delay}ms...`,
+						`[LIOP-Mesh] Dial error for ${peerIdStr} (Attempt ${attempt}). Retrying in ${delay}ms...`,
 					);
 					await new Promise((r) => setTimeout(r, delay));
 					continue;
@@ -541,7 +541,7 @@ export class MeshNode {
 
 								if (bytes.length > 0) {
 									console.error(
-										`[LIOP-Mesh] 🧩 Received chunk (${bytes.length} bytes) from ${peerIdStr}`,
+										`[LIOP-Mesh] Received chunk (${bytes.length} bytes) from ${peerIdStr}`,
 									);
 									chunks.push(bytes);
 								}
@@ -552,7 +552,7 @@ export class MeshNode {
 				} catch (itErr: unknown) {
 					if (chunks.length === 0) throw itErr;
 					console.error(
-						`[LIOP-Mesh] ⚠️ Partial manifest read from ${peerIdStr}: ${itErr instanceof Error ? itErr.message : String(itErr)}`,
+						`[LIOP-Mesh] Partial manifest read from ${peerIdStr}: ${itErr instanceof Error ? itErr.message : String(itErr)}`,
 					);
 				}
 
@@ -566,20 +566,20 @@ export class MeshNode {
 				const manifest: LiopManifest = JSON.parse(jsonStr);
 
 				console.error(
-					`[LIOP-Mesh] 📋 Received manifest from ${peerIdStr}: ${manifest.tools.length} tools`,
+					`[LIOP-Mesh] Received manifest from ${peerIdStr}: ${manifest.tools.length} tools`,
 				);
 
 				return manifest;
 			} catch (err: unknown) {
 				if (attempt === MAX_ATTEMPTS) {
 					console.error(
-						`[LIOP-Mesh] 🚨 Failed to query manifest from ${peerIdStr} after ${MAX_ATTEMPTS} attempts: ${err instanceof Error ? err.message : String(err)}`,
+						`[LIOP-Mesh] Failed to query manifest from ${peerIdStr} after ${MAX_ATTEMPTS} attempts: ${err instanceof Error ? err.message : String(err)}`,
 					);
 					return null;
 				}
 				const delay = 500 * 2 ** attempt;
 				console.error(
-					`[LIOP-Mesh] ⚠️ Query error for ${peerIdStr} (Attempt ${attempt}): ${err instanceof Error ? err.message : String(err)}. Retrying in ${delay}ms...`,
+					`[LIOP-Mesh] Query error for ${peerIdStr} (Attempt ${attempt}): ${err instanceof Error ? err.message : String(err)}. Retrying in ${delay}ms...`,
 				);
 				await new Promise((r) => setTimeout(r, delay));
 			}
@@ -643,7 +643,7 @@ export class MeshNode {
 			for await (const peer of this.node.contentRouting.findProviders(cid)) {
 				if (peer.id.toString() === selfId) {
 					console.error(
-						`[LIOP-Mesh] ✨ Self-verification success: Node is providing ${hash}`,
+						`[LIOP-Mesh] Self-verification success: Node is providing ${hash}`,
 					);
 					break;
 				}
@@ -659,7 +659,7 @@ export class MeshNode {
 		try {
 			const cid = await this.capabilityToCID(hash);
 			console.error(
-				`[LIOP-Mesh] 🔍 Querying DHT for ${hash} (CID: ${cid.toString()})...`,
+				`[LIOP-Mesh] Querying DHT for ${hash} (CID: ${cid.toString()})...`,
 			);
 
 			// In libp2p v1.x, contentRouting.findProviders returns AsyncIterable<{ id: PeerId, multiaddrs: Multiaddr[] }>
@@ -667,7 +667,7 @@ export class MeshNode {
 			for await (const peer of this.node.contentRouting.findProviders(cid)) {
 				foundAny = true;
 				const peerId = peer.id.toString();
-				console.error(`[LIOP-Mesh] ✨ Found provider: ${peerId}`);
+				console.error(`[LIOP-Mesh] Found provider: ${peerId}`);
 				if (!providers.includes(peerId)) {
 					providers.push(peerId);
 				}
@@ -678,7 +678,7 @@ export class MeshNode {
 				};
 				const dhtSize = services.dht?.routingTable?.size || 0;
 				console.error(
-					`[LIOP-Mesh] 💨 DHT search for ${hash} returned zero results (routing table size: ${dhtSize})`,
+					`[LIOP-Mesh] DHT search for ${hash} returned zero results (routing table size: ${dhtSize})`,
 				);
 			}
 
@@ -688,19 +688,19 @@ export class MeshNode {
 				const selfId = this.node.peerId.toString();
 				if (!providers.includes(selfId)) {
 					console.error(
-						`[LIOP-Mesh] 🔄 Including local node (${selfId}) in results for ${hash}`,
+						`[LIOP-Mesh] Including local node (${selfId}) in results for ${hash}`,
 					);
 					providers.push(selfId);
 				}
 			}
 		} catch (error: unknown) {
 			console.error(
-				`[LIOP-Mesh] 🚨 Error finding providers for ${hash}: ${error instanceof Error ? error.message : String(error)}`,
+				`[LIOP-Mesh] Error finding providers for ${hash}: ${error instanceof Error ? error.message : String(error)}`,
 			);
 		}
 
 		console.error(
-			`[LIOP-Mesh] 🏁 DHT search for ${hash} finished. Found ${providers.length} providers.`,
+			`[LIOP-Mesh] DHT search for ${hash} finished. Found ${providers.length} providers.`,
 		);
 		return providers;
 	}

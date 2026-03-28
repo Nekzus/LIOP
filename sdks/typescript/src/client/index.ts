@@ -36,7 +36,7 @@ export class LiopClient {
 		this.meshNode = new MeshNode(options?.meshConfig);
 		await this.meshNode.start();
 		console.error(
-			`[LiopClient] 🌍 Mesh Node synchronized. PeerID: ${this.meshNode.getPeerId()}`,
+			`[LiopClient] Mesh Node synchronized. PeerID: ${this.meshNode.getPeerId()}`,
 		);
 
 		if (address) {
@@ -45,7 +45,7 @@ export class LiopClient {
 				new LiopRpcClient(address, this.tlsOptions),
 			);
 			this.serverInfo = { name: `LiopServer (${address})`, version: "1.0.0" };
-			console.error(`[LiopClient] 🔗 Static gRPC configured for: ${address}`);
+			console.error(`[LiopClient] Static gRPC configured for: ${address}`);
 		} else {
 			this.serverInfo = { name: "LiopServer (Mesh Alpha)", version: "1.0.0" };
 		}
@@ -62,7 +62,7 @@ export class LiopClient {
 			);
 
 		console.error(
-			`[LiopClient] 📡 Querying Mesh DHT for Provider: ${toolName}...`,
+			`[LiopClient] Querying Mesh DHT for Provider: ${toolName}...`,
 		);
 		const providers = await this.meshNode.findProviders(toolName);
 
@@ -74,14 +74,14 @@ export class LiopClient {
 
 		const providerId = providers[0];
 		console.error(
-			`[LiopClient] ✅ Identified Alpha Provider PeerID: ${providerId}`,
+			`[LiopClient] Identified Alpha Provider PeerID: ${providerId}`,
 		);
 
 		let grpcPort = 50051;
 		const manifest = await this.meshNode.queryManifest(providerId);
 		if (manifest) {
 			grpcPort = manifest.grpcPort;
-			console.error(`[LiopClient] 📋 Manifest resolved: gRPC port ${grpcPort}`);
+			console.error(`[LiopClient] Manifest resolved: gRPC port ${grpcPort}`);
 		}
 
 		const addrs = await this.meshNode.resolvePeer(providerId);
@@ -90,7 +90,7 @@ export class LiopClient {
 			if (parts[1] === "ip4") {
 				const grpcHost = `${parts[2]}:${grpcPort}`;
 				console.error(
-					`[LiopClient] 🧭 Translated Multiaddr to gRPC Target: ${grpcHost}`,
+					`[LiopClient] Translated Multiaddr to gRPC Target: ${grpcHost}`,
 				);
 				return grpcHost;
 			}
@@ -109,7 +109,7 @@ export class LiopClient {
 			throw new Error("Client must be connected before discovering tools.");
 		}
 
-		console.error(`[LiopClient] 🔍 Discovery started...`);
+		console.error(`[LiopClient] Discovery started...`);
 		const providerIds = await this.meshNode.discoverManifestProviders();
 		const tools: { name: string; description?: string }[] = [];
 		const seenNames = new Set<string>();
@@ -153,7 +153,7 @@ export class LiopClient {
 		}
 
 		const toolName = request.name;
-		console.error(`[LiopClient] 🔍 Resolving Tool: ${toolName}`);
+		console.error(`[LiopClient] Resolving Tool: ${toolName}`);
 
 		// [ALPHA-FIX] Bypass DHT discovery if we are already statically connected to a provider (Enterprise/Test mode)
 		let rpcClient = this.rpcClients.get("static");
@@ -163,11 +163,11 @@ export class LiopClient {
 			rpcClient = this.getOrCreateRpcClient(toolName, dynamicAddress);
 		} else {
 			console.error(
-				`[LiopClient] ⚡ Using existing static gRPC connection for ${toolName}.`,
+				`[LiopClient] Using existing static gRPC connection for ${toolName}.`,
 			);
 		}
 
-		console.error(`[LiopClient] 🤝 Negotiating intent for ${toolName}...`);
+		console.error(`[LiopClient] Negotiating intent for ${toolName}...`);
 		const intentResponse = (await rpcClient.negotiateIntent({
 			agent_did: "liop-client-alpha",
 			capability_hash: toolName,
@@ -193,7 +193,7 @@ export class LiopClient {
 
 		if (!publicKey) {
 			console.error(
-				"[LiopClient] 🚨 Critical Error: Kyber Public Key not found in IntentResponse.",
+				"[LiopClient] Critical Error: Kyber Public Key not found in IntentResponse.",
 				intentResponse,
 			);
 			throw new Error(
@@ -203,13 +203,13 @@ export class LiopClient {
 
 		// 2. Post-Quantum Encapsulation (ML-KEM-768)
 		console.error(
-			`[LiopClient] 🔒 Encapsulating Post-Quantum Shared Secret for ${request.name}...`,
+			`[LiopClient] Encapsulating Post-Quantum Shared Secret for ${request.name}...`,
 		);
 		const { ciphertext: kyberCiphertext, sharedSecret } =
 			Kyber768Wrapper.encapsulateAsymmetric(publicKey);
 
 		// 3. Symmetric Sealing (AES-256-GCM)
-		console.error(`[LiopClient] 🛡️ Sealing WASM Payload and Inputs...`);
+		console.error(`[LiopClient] Sealing WASM Payload and Inputs...`);
 
 		const _safePayload = _wasmPayload || Buffer.from("");
 
@@ -256,7 +256,7 @@ export class LiopClient {
 			stream.on("data", async (response: LogicResponse) => {
 				if (resultFulfilled) return;
 				console.error(
-					"[LiopClient] ✅ Logic Executed. Verification in progress...",
+					"[LiopClient] Logic Executed. Verification in progress...",
 				);
 
 				try {
@@ -290,7 +290,7 @@ export class LiopClient {
 
 			stream.on("error", (err) => {
 				if (resultFulfilled) return;
-				console.error("[LiopClient] ❌ Stream Error:", err);
+				console.error("[LiopClient] Stream Error:", err);
 				reject(err);
 			});
 
@@ -351,13 +351,13 @@ export class LiopClient {
 
 			if (localImageId !== remoteCryptographicProofHex) {
 				console.error(
-					`[LiopClient] 🚨 FATAL: Mathematical Proof Mismatch (Hack Detected). Expected [${localImageId}], Received [${remoteCryptographicProofHex}]`,
+					`[LiopClient] FATAL: Mathematical Proof Mismatch (Hack Detected). Expected [${localImageId}], Received [${remoteCryptographicProofHex}]`,
 				);
 				return false;
 			}
 			return true;
 		} catch (error) {
-			console.error(`[LiopClient] 🚨 Validation failed:`, error);
+			console.error(`[LiopClient] Validation failed:`, error);
 			return false;
 		}
 	}
@@ -372,7 +372,7 @@ export class LiopClient {
 		if (!this.meshNode) {
 			throw new Error("Client must be connected before reading resources.");
 		}
-		console.error(`[LiopClient] 🔍 Querying Mesh for Resource: ${uri}...`);
+		console.error(`[LiopClient] Querying Mesh for Resource: ${uri}...`);
 
 		// For now, in Alpha v3, we assume the resource is provided by an active provider.
 		// A more complex implementation would use resolveCapability(uri).

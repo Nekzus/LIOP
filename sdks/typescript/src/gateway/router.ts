@@ -75,7 +75,7 @@ export class LiopMcpRouter {
 			// Proactively announce manifest capability to the mesh
 			this.meshNode.announceManifest().catch((err: any) => {
 				console.error(
-					`[LIOP-Router] ⚠️ Failed to announce manifest: ${err.message}`,
+					`[LIOP-Router] Failed to announce manifest: ${err.message}`,
 				);
 			});
 		}
@@ -163,7 +163,7 @@ export class LiopMcpRouter {
 						);
 						if (remoteResource) {
 							console.error(
-								`[LIOP-Router] 📋 Resolved resource ${targetUri} from cache (Peer: ${manifest.peerId})`,
+								`[LIOP-Router] Resolved resource ${targetUri} from cache (Peer: ${manifest.peerId})`,
 							);
 							return {
 								jsonrpc: "2.0",
@@ -233,12 +233,12 @@ export class LiopMcpRouter {
 							(this.meshNode as any).node?.getConnections().length || 0;
 						if (connections > 0) {
 							console.error(
-								`[LIOP-Router] 🤝 P2P Connection established. Starting discovery...`,
+								`[LIOP-Router] P2P Connection established. Starting discovery...`,
 							);
 							break;
 						}
 						console.error(
-							`[LIOP-Router] ⏳ Waiting for P2P connections (attempt ${i + 1}/10)...`,
+							`[LIOP-Router] Waiting for P2P connections (attempt ${i + 1}/10)...`,
 						);
 						await new Promise((r) => setTimeout(r, 1000));
 					}
@@ -264,7 +264,7 @@ export class LiopMcpRouter {
 						if (providerIds.length > 0) break;
 						if (attempt < MANIFEST_DISCOVERY_RETRIES - 1) {
 							console.error(
-								`[LIOP-Router] 🔄 DHT discovery attempt ${attempt + 1}/${MANIFEST_DISCOVERY_RETRIES}...`,
+								`[LIOP-Router] DHT discovery attempt ${attempt + 1}/${MANIFEST_DISCOVERY_RETRIES}...`,
 							);
 							await new Promise((r) => setTimeout(r, 1000));
 						}
@@ -281,7 +281,7 @@ export class LiopMcpRouter {
 								) || [];
 						if (activePeers.length > 0) {
 							console.error(
-								`[LIOP-Router] 🛠️ DHT empty. Using ${activePeers.length} active connections as fallback.`,
+								`[LIOP-Router] DHT empty. Using ${activePeers.length} active connections as fallback.`,
 							);
 							providerIds = activePeers;
 						}
@@ -291,7 +291,7 @@ export class LiopMcpRouter {
 
 					if (coldAttempt < MAX_COLD_ATTEMPTS - 1) {
 						console.error(
-							`[LIOP-Router] ⚠️ Initial discovery failed (0 providers). Retrying in 1s (${coldAttempt + 1}/${MAX_COLD_ATTEMPTS})...`,
+							`[LIOP-Router] Initial discovery failed (0 providers). Retrying in 1s (${coldAttempt + 1}/${MAX_COLD_ATTEMPTS})...`,
 						);
 						await new Promise((r) => setTimeout(r, 1000));
 					}
@@ -299,14 +299,14 @@ export class LiopMcpRouter {
 
 				if (providerIds.length === 0) {
 					console.error(
-						`[LIOP-Router] 🛑 No manifest providers found after all attempts.`,
+						`[LIOP-Router] No manifest providers found after all attempts.`,
 					);
 					return;
 				}
 
 				if (!silent) {
 					console.error(
-						`[LIOP-Router] 📡 Discovered ${providerIds.length} candidate manifest providers`,
+						`[LIOP-Router] Discovered ${providerIds.length} candidate manifest providers`,
 					);
 				}
 
@@ -332,7 +332,7 @@ export class LiopMcpRouter {
 						// Add a small delay between queries to avoid muxer saturation
 						await new Promise((r) => setTimeout(r, 100));
 
-						console.error(`[LIOP-Router] 📡 Querying manifest from: ${peerId}`);
+						console.error(`[LIOP-Router] Querying manifest from: ${peerId}`);
 						const manifest = await this.meshNode.queryManifest(peerId);
 						if (manifest) {
 							this.manifestCache.set(peerId, {
@@ -342,17 +342,17 @@ export class LiopMcpRouter {
 							cacheUpdated = true;
 							successCount++;
 							console.error(
-								`[LIOP-Router] ✨ Manifest received from ${peerId} (${manifest.tools.length} tools)`,
+								`[LIOP-Router] Manifest received from ${peerId} (${manifest.tools.length} tools)`,
 							);
 						} else {
 							errorCount++;
 							console.error(
-								`[LIOP-Router] ⚠️ Manifest query returned NULL for ${peerId}`,
+								`[LIOP-Router] Manifest query returned NULL for ${peerId}`,
 							);
 						}
 					} catch (err: any) {
 						console.error(
-							`[LIOP-Router] 🚨 Fatal error querying manifest from ${peerId}:`,
+							`[LIOP-Router] Fatal error querying manifest from ${peerId}:`,
 							err instanceof Error ? err.message : String(err),
 						);
 						errorCount++;
@@ -376,7 +376,7 @@ export class LiopMcpRouter {
 
 					if (newCount !== prevCount && this.onToolsChanged) {
 						console.error(
-							"[LIOP-Router] 🔔 Mesh topology updated! Emitting notifications/tools/list_changed.",
+							"[LIOP-Router] Mesh topology updated! Emitting notifications/tools/list_changed.",
 						);
 						this.onToolsChanged();
 					}
@@ -577,12 +577,12 @@ export class LiopMcpRouter {
 				.join("\n");
 
 			const statusText = [
-				`🌐 LIOP Mesh Status: ${meshState === "Active" ? "🟢 Active" : "🔴 Offline"}`,
-				`🆔 Local Agent Identity: ${localPeerId}`,
-				`📊 Network: ${connections} Conns | ${routingTableSize} DHT Peers | ${bootstrapCount} Bootstraps`,
+				`LIOP Mesh Status: ${meshState === "Active" ? "Active" : "Offline"}`,
+				`Local Agent Identity: ${localPeerId}`,
+				`Network: ${connections} Conns | ${routingTableSize} DHT Peers | ${bootstrapCount} Bootstraps`,
 				bootstrapCount > 0 ? `\nActive Bootstraps:\n${bootstrapList}\n` : "",
-				`🔎 Discovery: ${stats.candidates} Candidates | ${stats.success} OK | ${stats.failures} FAIL`,
-				`🛠️ Tooling: ${providerCount} Providers | ${cachedTools} Total Remote Tools`,
+				`Discovery: ${stats.candidates} Candidates | ${stats.success} OK | ${stats.failures} FAIL`,
+				`Tooling: ${providerCount} Providers | ${cachedTools} Total Remote Tools`,
 				cachedTools > 0
 					? `\nDiscovered Remote Tools (Zero-Trust Origins):\n${cachedToolList}`
 					: "\nNo remote tools discovered yet.",
@@ -626,7 +626,7 @@ export class LiopMcpRouter {
 			const grpcTarget = this.resolveGrpcTarget(toolName);
 			if (grpcTarget) {
 				console.error(
-					`[LIOP-Router] 📋 Resolved ${toolName} via manifest cache → ${grpcTarget}`,
+					`[LIOP-Router] Resolved ${toolName} via manifest cache -> ${grpcTarget}`,
 				);
 				const manifestClient = new liopV1.LogicMesh(
 					grpcTarget,
@@ -741,7 +741,7 @@ export class LiopMcpRouter {
 		}
 
 		console.error(
-			`[LIOP-Router] 🧭 Dynamic route: ${toolName} → ${targetAddr} (PeerID: ${peerId})`,
+			`[LIOP-Router] Dynamic route: ${toolName} -> ${targetAddr} (PeerID: ${peerId})`,
 		);
 
 		const remoteClient = new liopV1.LogicMesh(

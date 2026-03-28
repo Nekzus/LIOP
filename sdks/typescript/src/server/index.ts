@@ -307,7 +307,7 @@ export class LiopServer {
 		if (this.meshNode) {
 			this.meshNode.announceCapability(name).catch((err) => {
 				console.error(
-					`[LIOP-Mesh] 🚨 Failed to auto-announce tool ${name}: ${err.message}`,
+					`[LIOP-Mesh] Failed to auto-announce tool ${name}: ${err.message}`,
 				);
 			});
 		}
@@ -626,7 +626,7 @@ Protocol Adherence is mandatory for successful execution.`,
 			negotiateIntent: (call, callback) => {
 				const request = call.request;
 				console.error(
-					`[LIOP-RPC] 🤝 Negotiating intent for capability: ${request.capability_hash}`,
+					`[LIOP-RPC] Negotiating intent for capability: ${request.capability_hash}`,
 				);
 
 				// Standard dynamic import to avoid potential circularity
@@ -652,7 +652,7 @@ Protocol Adherence is mandatory for successful execution.`,
 			) => {
 				const request = call.request;
 				console.error(
-					`[LIOP-RPC] 🚀 Executing Logic-on-Origin for session: ${request.session_token}`,
+					`[LIOP-RPC] Executing Logic-on-Origin for session: ${request.session_token}`,
 				);
 
 				const session = this.sessions.get(request.session_token);
@@ -685,7 +685,7 @@ Protocol Adherence is mandatory for successful execution.`,
 						const decoded = JSON.parse(finalOutput);
 						if (decoded.__liop_proxy_tool) {
 							console.error(
-								`[LIOP-RPC] ⚡ Executing Proxied Tool: ${decoded.__liop_proxy_tool}`,
+								`[LIOP-RPC] Executing Proxied Tool: ${decoded.__liop_proxy_tool}`,
 							);
 							const toolResult = await this.callTool({
 								name: decoded.__liop_proxy_tool,
@@ -713,7 +713,7 @@ Protocol Adherence is mandatory for successful execution.`,
 					]);
 					if (violation) {
 						console.error(
-							`[LIOP-RPC] 🚨 PII Leak blocked in gRPC stream: ${violation}`,
+							`[LIOP-RPC] PII Leak blocked in gRPC stream: ${violation}`,
 						);
 						response.semantic_evidence = `[LIOP] Egress Security Violation. Output blocked due to PII leakage (${violation}).`;
 						response.is_error = true;
@@ -724,7 +724,7 @@ Protocol Adherence is mandatory for successful execution.`,
 					});
 				} catch (error: unknown) {
 					const e = error as Error;
-					console.error(`[LIOP-RPC] 🚨 Execution Error: ${e.message}`);
+					console.error(`[LIOP-RPC] Execution Error: ${e.message}`);
 
 					// Send error response before closing, avoiding "stream closed without results"
 					const errorResponse: LogicResponse = {
@@ -747,7 +747,7 @@ Protocol Adherence is mandatory for successful execution.`,
 
 		await this.rpcServer.listen(port);
 		console.error(
-			`[LIOP-SDK] 🌍 Node successfully announced to Mesh. PeerID: ${this.meshNode.getPeerId()}`,
+			`[LIOP-SDK] Node successfully announced to Mesh. PeerID: ${this.meshNode.getPeerId()}`,
 		);
 	}
 
@@ -789,7 +789,7 @@ Protocol Adherence is mandatory for successful execution.`,
 			const violation = this.piiScanner.scan(content);
 			if (violation) {
 				console.error(
-					`[LIOP-SDK] 🚨 PII Leak blocked in local execution: ${violation}`,
+					`[LIOP-SDK] PII Leak blocked in local execution: ${violation}`,
 				);
 				return {
 					content: [

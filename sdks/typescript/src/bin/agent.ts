@@ -62,7 +62,7 @@ async function main() {
 					const addr = fs.readFileSync(nexusPath, "utf8").trim();
 					if (addr && !bootstrapNodes.includes(addr)) {
 						bootstrapNodes.push(addr);
-						console.error(`[LIOP-Agent] 📍 Found bootstrap at: ${nexusPath}`);
+						console.error(`[LIOP-Agent] Found bootstrap at: ${nexusPath}`);
 						break;
 					}
 				}
@@ -76,10 +76,10 @@ async function main() {
 	// It will only serve local tools until peers are discovered.
 	if (bootstrapNodes.length === 0) {
 		console.error(
-			"[LIOP-Agent] ⚠️ No bootstrap nodes configured. Operating in standalone mode.",
+			"[LIOP-Agent] No bootstrap nodes configured. Operating in standalone mode.",
 		);
 		console.error(
-			"[LIOP-Agent] 💡 Pass a multiaddr as argument or create 'nexus.multiaddr' file.",
+			"[LIOP-Agent] Pass a multiaddr as argument or create 'nexus.multiaddr' file.",
 		);
 	}
 
@@ -115,7 +115,7 @@ async function main() {
 		// biome-ignore lint/suspicious/noExplicitAny: access internal for telemetry
 		const rtSize = (meshNode as any).getRoutingTableSize?.() || 0;
 		console.error(
-			`[LIOP-Agent] 🛰️ Warm-up complete. Routing Table size: ${rtSize}`,
+			`[LIOP-Agent] Warm-up complete. Routing Table size: ${rtSize}`,
 		);
 		router.refreshManifestCache(true).catch(() => {});
 	}, 2000);
@@ -153,12 +153,12 @@ async function main() {
 	});
 
 	// Status directed only to stderr
-	console.error(`[LIOP-Agent] 🛡️ Guarding Claude Desktop via STDIO.`);
+	console.error(`[LIOP-Agent] Guarding Claude Desktop via STDIO.`);
 	console.error(
-		`[LIOP-Agent] 🌐 P2P Mesh: Joined (${bootstrapNodes.length} bootstraps)`,
+		`[LIOP-Agent] P2P Mesh: Joined (${bootstrapNodes.length} bootstraps)`,
 	);
 	console.error(
-		"[LIOP-Agent] 📡 Tool discovery: Dynamic via /liop/manifest/1.0.0",
+		"[LIOP-Agent] Tool discovery: Dynamic via /liop/manifest/1.0.0",
 	);
 
 	process.on("SIGINT", async () => {
@@ -168,6 +168,6 @@ async function main() {
 }
 
 main().catch((err) => {
-	console.error(`[LIOP-Agent] 🚨 Fatal Error: ${err.message}`);
+	console.error(`[LIOP-Agent] Fatal Error: ${err.message}`);
 	process.exit(1);
 });
