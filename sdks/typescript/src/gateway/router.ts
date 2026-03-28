@@ -1,5 +1,6 @@
 import * as crypto from "node:crypto";
-import type { LiopManifest } from "../mesh/index.js";
+import { LiopVerifier } from "../crypto/verifier.js";
+import type { LiopManifest, MeshNode } from "../mesh/index.js";
 import { Kyber768Wrapper } from "../rpc/crypto/kyber.js";
 import { liopV1 } from "../rpc/proto.js";
 import { createChannelCredentials } from "../rpc/tls.js";
@@ -31,12 +32,15 @@ export class LiopMcpRouter {
 	/** Guards against concurrent discovery storms */
 	private currentDiscovery: Promise<void> | null = null;
 
+	/** Verifier for Tier-0 integrity checks */
+	private verifier: LiopVerifier = new LiopVerifier();
+
 	/** Callback when new remote tools are discovered */
 	public onToolsChanged?: () => void;
 
 	constructor(
 		private liopServer: LiopServer,
-		private meshNode: any | null = null,
+		private meshNode: MeshNode | null = null,
 		private defaultRpcPort = 50051,
 	) {
 		// Auto-register manifest handler if mesh node is provided
@@ -73,9 +77,9 @@ export class LiopMcpRouter {
 			});
 
 			// Proactively announce manifest capability to the mesh
-			this.meshNode.announceManifest().catch((err: any) => {
+			this.meshNode.announceManifest().catch((err: unknown) => {
 				console.error(
-					`[LIOP-Router] Failed to announce manifest: ${err.message}`,
+					`[LIOP-Router] Failed to announce manifest: ${err instanceof Error ? err.message : String(err)}`,
 				);
 			});
 		}
@@ -350,7 +354,7 @@ export class LiopMcpRouter {
 								`[LIOP-Router] Manifest query returned NULL for ${peerId}`,
 							);
 						}
-					} catch (err: any) {
+					} catch (err: unknown) {
 						console.error(
 							`[LIOP-Router] Fatal error querying manifest from ${peerId}:`,
 							err instanceof Error ? err.message : String(err),
@@ -813,11 +817,37 @@ export class LiopMcpRouter {
 					});
 
 					let resultBody = "";
+					let lastResponse: LogicResponse | null = null;
 					call.on("data", (grpcRes: LogicResponse) => {
 						resultBody += grpcRes.semantic_evidence;
+						lastResponse = grpcRes;
 					});
-					call.on("end", () => {
+					call.on("end", async () => {
 						try {
+							if (lastResponse) {
+								const isValid = await this.verifier.verifyZkReceipt(
+									Buffer.from(proxyLogic),
+									Buffer.from(lastResponse.cryptographic_proof).toString("hex"),
+									Buffer.from(lastResponse.zk_receipt),
+								);
+
+								if (!isValid) {
+									return resolve({
+										jsonrpc: "2.0",
+										id,
+										result: {
+											content: [
+												{
+													type: "text",
+													text: "SECURITY ALERT: Remote response failed cryptographic integrity audit.",
+												},
+											],
+											isError: true,
+										},
+									});
+								}
+							}
+
 							const parsedResult = JSON.parse(resultBody);
 							resolve({ jsonrpc: "2.0", id, result: parsedResult });
 						} catch (_e) {

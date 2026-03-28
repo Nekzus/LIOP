@@ -1,8 +1,7 @@
 import * as http from "node:http";
 import * as http2 from "node:http2";
 import * as net from "node:net";
-import type { MeshNode, MeshNodeConfig } from "../mesh/index.js";
-import type { LiopTlsOptions } from "../rpc/tls.js";
+import type { MeshNode } from "../mesh/index.js";
 import type { LiopServer } from "../server/index.js";
 import { LiopMcpRouter } from "./router.js";
 
@@ -164,7 +163,7 @@ export class LiopHybridGateway {
 			}
 		}
 		return new Promise((resolve, reject) => {
-			const shutdown = async () => {
+			const _shutdown = async () => {
 				console.error(
 					"[LIOP-Gateway] Disconnecting MCP session and releasing ports...",
 				);

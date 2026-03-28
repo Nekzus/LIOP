@@ -96,13 +96,14 @@ return {
 		// (Actually in callTool, the verification is done on the wasmPayload passed as argument)
 
 		// Let's mock a verification failure by overriding verifyZkReceipt intermittently
-		const originalVerify = client.verifyZkReceipt;
-		client.verifyZkReceipt = async () => false;
-
+		// Mocking the new industrial verifier
+		const originalVerify = client.verifier.verifyZkReceipt;
+		client.verifier.verifyZkReceipt = async () => false;
+		
 		await expect(client.callTool(toolRequest, realPayload)).rejects.toThrow(
-			"ZK-Receipt verification failed. ImageID mismatch.",
+			"PROTOCOL INTEGRITY VIOLATION: ZK-Receipt verification failed.",
 		);
-
-		client.verifyZkReceipt = originalVerify;
+		
+		client.verifier.verifyZkReceipt = originalVerify;
 	});
 });

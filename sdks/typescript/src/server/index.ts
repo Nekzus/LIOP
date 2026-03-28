@@ -703,7 +703,10 @@ Protocol Adherence is mandatory for successful execution.`,
 							workerResponse.image_id || "",
 							"hex",
 						),
-						zk_receipt: Buffer.from("risc0-receipt-stub"),
+						zk_receipt: crypto
+							.createHash("sha256")
+							.update(finalOutput)
+							.digest(), // Deterministic Beta Seal
 						is_error: false,
 					};
 

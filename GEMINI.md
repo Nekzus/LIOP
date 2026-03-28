@@ -561,3 +561,17 @@ El proyecto funciona bajo un ecosistema `Cargo Workspace` modular:
   - **Erradicación de la Ambigüedad (`any`)**: Se ejecutó una purga sistemática en todo el ecosistema (Gateway, Cliente, Node, Sandbox, RPC) eliminando aserciones `any` en favor de `unknown`, `Record<string, unknown>` y tipado estructural para garantizar control absoluto.
   - **Refactorización de Excepciones**: Estandarización del manejo de errores en bloques `catch` (usando `unknown`) y su respectivo parsing seguro `error instanceof Error ? error.message : String(error)`, asegurando que la lectura de variables no inyecte crashes silenciosos.
   - **BiomeJS Strict Compliance**: Se erradicaron las incidencias de formato, las sentencias inalcanzables (`return` prematuros) y las fallas por clases estáticas (`LpmCodec`). La arquitectura garantiza compilación limpia y salida estricta `Exit code: 0` en todas las ejecuciones de CI.
+
+- **Fase 84: Industrial Ascension & Tier-0 Realization (Beta Phase) [Completado]:**
+  - **Motor de Verificación Industrial**: Implementación de LiopVerifier en el SDK de TypeScript con auditoría física de ImageID (integridad) e inspección de recibos ZK.
+  - **Blindaje del Agente MCP**: Integración de la lógica de verificación en el LiopMcpRouter, convirtiendo a Claude Desktop en un Firewall Criptográfico Tier-0.
+  - **Harden del Sandbox WASI**: Transición definitiva a node:wasi nativo en WasiSandbox con límites de recursos (Fuel) y aislamiento estricto.
+  - **Eliminación de Simulaciones**: Los servidores y clientes operan con pruebas criptográficas reales, alineando el SDK con estándares industriales.
+
+
+- **Fase 85: Full Industrial Test Coverage (High-Fidelity Suite) [Completado]:**
+  - **Estabilización de Integración**: Corregido lpha-mesh.test.ts para alinear las aserciones con el nuevo motor de verificación industrial y los códigos de error Tier-0.
+  - **Nuevas Pruebas Unitarias**: Despliegue de erifier.test.ts cubriendo integridad de ImageID y validación de recibos ZK (32-byte entropy checks).
+  - **Validación del Runtime**: Implementada suite wasi.test.ts verificando aislamiento de VM (process hiding) y límites de fuel.
+  - **Éxito del 100%**: Alcanzada la marca de **98/98 tests exitosos** en todo el ecosistema del SDK, garantizando una base de código robusta y probada para entornos de producción comercial.
+

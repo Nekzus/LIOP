@@ -1,3 +1,4 @@
+import { LiopVerifier } from "../crypto/verifier.js";
 import {
 	type LiopManifest,
 	MeshNode,
@@ -20,6 +21,7 @@ export class LiopClient {
 	private manifests: Map<string, LiopManifest> = new Map();
 	private tlsOptions?: LiopTlsOptions;
 	private serverInfo?: { name: string; version: string };
+	public verifier: LiopVerifier = new LiopVerifier();
 
 	constructor(tls?: LiopTlsOptions) {
 		this.tlsOptions = tls;
@@ -260,7 +262,7 @@ export class LiopClient {
 				);
 
 				try {
-					const isValid = await this.verifyZkReceipt(
+					const isValid = await this.verifier.verifyZkReceipt(
 						_safePayload,
 						Buffer.from(response.cryptographic_proof).toString("hex"),
 						Buffer.from(response.zk_receipt),
@@ -268,7 +270,9 @@ export class LiopClient {
 
 					if (!isValid) {
 						reject(
-							new Error("ZK-Receipt verification failed. ImageID mismatch."),
+							new Error(
+								"PROTOCOL INTEGRITY VIOLATION: ZK-Receipt verification failed.",
+							),
 						);
 						return;
 					}
@@ -309,57 +313,6 @@ export class LiopClient {
 			this.rpcClients.set(peerId, client);
 		}
 		return client;
-	}
-
-	/**
-	 * Verify ZK-Receipt natively (Called internally when parsing gRPC streams)
-	 */
-	public async verifyZkReceipt(
-		logicPayload: Buffer,
-		remoteCryptographicProofHex: string,
-		_remoteZkReceiptBuffer: Buffer,
-	): Promise<boolean> {
-		try {
-			const crypto = await import("node:crypto");
-			let processedPayload: Buffer | string = logicPayload;
-
-			// Sanitization must match the server-side worker logic
-			const isWasm =
-				logicPayload[0] === 0x00 &&
-				logicPayload[1] === 0x61 &&
-				logicPayload[2] === 0x73 &&
-				logicPayload[3] === 0x6d;
-
-			if (!isWasm) {
-				processedPayload = logicPayload
-					.toString("utf-8")
-					.replace(/^LIOP_MAGIC:.*?\n/g, "")
-					.replace(/^MANIFEST:.*?\n/g, "")
-					.replace(/---BEGIN_LOGIC---\n?/g, "")
-					.replace(/\n?---END_LOGIC---/g, "")
-					.trim();
-			}
-
-			const localImageId = crypto
-				.createHash("sha256")
-				.update(
-					typeof processedPayload === "string"
-						? Buffer.from(processedPayload)
-						: processedPayload,
-				)
-				.digest("hex");
-
-			if (localImageId !== remoteCryptographicProofHex) {
-				console.error(
-					`[LiopClient] FATAL: Mathematical Proof Mismatch (Hack Detected). Expected [${localImageId}], Received [${remoteCryptographicProofHex}]`,
-				);
-				return false;
-			}
-			return true;
-		} catch (error) {
-			console.error(`[LiopClient] Validation failed:`, error);
-			return false;
-		}
 	}
 
 	/**
