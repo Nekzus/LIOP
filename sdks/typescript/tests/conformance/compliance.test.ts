@@ -1,18 +1,18 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { z } from "zod";
-import { NmpServer } from "../../src/server/index.js";
+import { LiopServer } from "../../src/server/index.js";
 
 /**
  * MCP Protocol Conformance Tests
  *
- * Validates that NmpServer strictly adheres to Model Context Protocol
+ * Validates that LiopServer strictly adheres to Model Context Protocol
  * specification for tools, resources, prompts, and server info.
  */
 describe("MCP Protocol Conformance", () => {
-	let server: NmpServer;
+	let server: LiopServer;
 
 	beforeAll(() => {
-		server = new NmpServer(
+		server = new LiopServer(
 			{
 				name: "ConformanceTestServer",
 				version: "1.0.0",
@@ -111,14 +111,14 @@ describe("MCP Protocol Conformance", () => {
 		it("should register and list resources with MCP-compliant fields", () => {
 			server.resource(
 				"TestDataset",
-				"nmp://test/dataset",
+				"liop://test/dataset",
 				"A test dataset",
 				"application/json",
 				'{"records": []}',
 			);
 
 			const resources = server.listResources();
-			const dataset = resources.find((r) => r.uri === "nmp://test/dataset");
+			const dataset = resources.find((r) => r.uri === "liop://test/dataset");
 			expect(dataset).toBeDefined();
 			expect(dataset?.name).toBe("TestDataset");
 			expect(dataset?.description).toBe("A test dataset");
@@ -127,19 +127,19 @@ describe("MCP Protocol Conformance", () => {
 
 		it("should reject duplicate URI registration", () => {
 			expect(() =>
-				server.resource("DuplicateDataset", "nmp://test/dataset"),
-			).toThrow("Resource URI already registered: nmp://test/dataset");
+				server.resource("DuplicateDataset", "liop://test/dataset"),
+			).toThrow("Resource URI already registered: liop://test/dataset");
 		});
 
 		it("should read resource content by URI", () => {
-			const result = server.readResource("nmp://test/dataset");
+			const result = server.readResource("liop://test/dataset");
 			expect(result.contents).toBeInstanceOf(Array);
-			expect(result.contents[0].uri).toBe("nmp://test/dataset");
+			expect(result.contents[0].uri).toBe("liop://test/dataset");
 			expect(result.contents[0].text).toBe('{"records": []}');
 		});
 
 		it("should throw for unknown URI", () => {
-			expect(() => server.readResource("nmp://unknown")).toThrow(
+			expect(() => server.readResource("liop://unknown")).toThrow(
 				"Resource not found",
 			);
 		});
@@ -190,11 +190,11 @@ describe("MCP Protocol Conformance", () => {
 		it("should execute prompt handler and return messages", async () => {
 			const result = await server.getPrompt({
 				name: "greeting",
-				arguments: { name: "NMP" },
+				arguments: { name: "LIOP" },
 			});
 			expect(result.messages).toBeInstanceOf(Array);
 			expect(result.messages[0].role).toBe("assistant");
-			expect(result.messages[0].content).toHaveProperty("text", "Hello, NMP!");
+			expect(result.messages[0].content).toHaveProperty("text", "Hello, LIOP!");
 		});
 
 		it("should throw for unknown prompt", async () => {
@@ -205,12 +205,12 @@ describe("MCP Protocol Conformance", () => {
 	});
 
 	describe("Zero-Shot Autonomy", () => {
-		it("should register the nmp_blind_analyst prompt", () => {
+		it("should register the liop_blind_analyst prompt", () => {
 			server.enableZeroShotAutonomy();
 			const prompts = server.listPrompts();
-			const blind = prompts.find((p) => p.name === "nmp_blind_analyst");
+			const blind = prompts.find((p) => p.name === "liop_blind_analyst");
 			expect(blind).toBeDefined();
-			expect(blind?.description).toContain("Neural Mesh Protocol");
+			expect(blind?.description).toContain("Logic-Injection-on-Origin Protocol");
 		});
 	});
 });

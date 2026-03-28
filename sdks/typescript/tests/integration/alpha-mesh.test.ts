@@ -1,14 +1,14 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { z } from "zod";
-import { NmpClient } from "../../src/client/index.js";
-import { NmpServer } from "../../src/server/index.js";
+import { LiopClient } from "../../src/client/index.js";
+import { LiopServer } from "../../src/server/index.js";
 
-describe("NMP Alpha Mesh Integration", () => {
-	let server: NmpServer;
-	let client: NmpClient;
+describe("LIOP Alpha Mesh Integration", () => {
+	let server: LiopServer;
+	let client: LiopClient;
 
 	beforeAll(async () => {
-		server = new NmpServer({ name: "AlphaNode", version: "1.1.0" });
+		server = new LiopServer({ name: "AlphaNode", version: "1.1.0" });
 
 		// Set some records in the sandbox
 		server.setSandboxData([
@@ -16,7 +16,7 @@ describe("NMP Alpha Mesh Integration", () => {
 			{ id: "P002", age: 30, condition: "Healthy" },
 		]);
 
-		// Register a tool with NMP zero-shot autonomy (autodetects payload)
+		// Register a tool with LIOP zero-shot autonomy (autodetects payload)
 		server.tool(
 			"calculate_stats",
 			"Calculates aggregates over medical data",
@@ -28,7 +28,7 @@ describe("NMP Alpha Mesh Integration", () => {
 
 		await server.connectToMesh({ port: 50063 });
 
-		client = new NmpClient();
+		client = new LiopClient();
 		await client.connect("localhost:50063");
 	}, 60000);
 
@@ -54,7 +54,7 @@ return {
 			},
 		};
 
-		// In NMP Alpha, client.callTool takes the wasmPayload (the logic)
+		// In LIOP Alpha, client.callTool takes the wasmPayload (the logic)
 		const wasmPayload = Buffer.from(toolRequest.arguments.payload);
 
 		// This will trigger: Intent Negotiation -> PQC Handshake -> AES Sealing -> gRPC ExecuteLogic -> Worker Pool -> ZK Verification
@@ -71,7 +71,7 @@ return {
 	}, 20000);
 
 	it("should reject execution if ZK-Receipt ImageID mismatch detected", async () => {
-		const client = new NmpClient();
+		const client = new LiopClient();
 		await client.connect("localhost:50063");
 
 		const toolRequest = {

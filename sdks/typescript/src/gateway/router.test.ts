@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import type { MeshNode } from "../mesh/index.js";
-import type { NmpServer } from "../server/index.js";
-import { NmpMcpRouter } from "./router.js";
+import type { LiopServer } from "../server/index.js";
+import { LiopMcpRouter } from "./router.js";
 
-describe("NmpMcpRouter", () => {
+describe("LiopMcpRouter", () => {
 	it("should return remote resource from manifest cache on resources/read fallback", async () => {
 		const mockServer = {
 			getServerInfo: () => ({ name: "test", version: "1" }),
@@ -12,7 +12,7 @@ describe("NmpMcpRouter", () => {
 			readResource: () => {
 				throw new Error("Resource not found locally");
 			},
-		} as unknown as NmpServer;
+		} as unknown as LiopServer;
 
 		const mockMeshNode = {
 			registerManifestHandler: vi.fn(),
@@ -20,7 +20,7 @@ describe("NmpMcpRouter", () => {
 			getPeerId: () => "local-peer",
 		} as unknown as MeshNode;
 
-		const router = new NmpMcpRouter(mockServer, mockMeshNode);
+		const router = new LiopMcpRouter(mockServer, mockMeshNode);
 
 		// Inject mock data into manifestCache using any cast to access private field
 		// biome-ignore lint/suspicious/noExplicitAny: testing private field
@@ -36,7 +36,7 @@ describe("NmpMcpRouter", () => {
 						resources: [
 							{
 								name: "Remote Schema",
-								uri: "nmp://remote/schema",
+								uri: "liop://remote/schema",
 								description: "A remote test schema",
 								mimeType: "application/json",
 								text: '{"foo": "bar"}',
@@ -50,12 +50,12 @@ describe("NmpMcpRouter", () => {
 
 		const response = await router.dispatch({
 			method: "resources/read",
-			params: { uri: "nmp://remote/schema" },
+			params: { uri: "liop://remote/schema" },
 			id: 1,
 		});
 
 		expect(response.error).toBeUndefined();
-		expect(response.result.contents[0].uri).toBe("nmp://remote/schema");
+		expect(response.result.contents[0].uri).toBe("liop://remote/schema");
 		expect(response.result.contents[0].text).toBe('{"foo": "bar"}');
 		expect(response.result.contents[0].mimeType).toBe("application/json");
 	});

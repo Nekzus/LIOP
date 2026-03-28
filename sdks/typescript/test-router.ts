@@ -1,9 +1,9 @@
-import { NmpMcpRouter } from "./src/gateway/router.js";
-import { NmpServer } from "./src/server/index.js";
+import { LiopMcpRouter } from "./src/gateway/router.js";
+import { LiopServer } from "./src/server/index.js";
 import { MeshNode } from "./src/mesh/index.js";
 
 async function run() {
-    const server = new NmpServer({ name: "test-client", version: "1.0", capabilities: { tools: {} } });
+    const server = new LiopServer({ name: "test-client", version: "1.0", capabilities: { tools: {} } });
     
     // Config like agent.ts
     const bootstrapNodes: string[] = [];
@@ -19,7 +19,7 @@ async function run() {
         }
     });
 
-    const router = new NmpMcpRouter(server, server.getMeshNode());
+    const router = new LiopMcpRouter(server, server.getMeshNode());
 
     console.log("Waiting for discovery to find oracle...");
     await new Promise(r => setTimeout(r, 3000));

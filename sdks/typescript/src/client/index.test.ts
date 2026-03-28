@@ -2,11 +2,11 @@
 
 import { Buffer } from "node:buffer";
 import { describe, expect, it } from "vitest";
-import { NmpClient } from "./index.js";
+import { LiopClient } from "./index.js";
 
-describe("NmpClient", () => {
+describe("LiopClient", () => {
 	it("should throw an error if attempting to execute without connection", async () => {
-		const client = new NmpClient();
+		const client = new LiopClient();
 
 		const _mockServerPublicKey = new Uint8Array(1184);
 		const mockWasmPayload = Buffer.from("mock");
@@ -20,12 +20,12 @@ describe("NmpClient", () => {
 	});
 
 	it("should successfully connect and mock capability discovery", async () => {
-		const client = new NmpClient();
+		const client = new LiopClient();
 		await client.connect();
 
 		const serverInfo = client.getServerInfo();
 		expect(serverInfo).toBeDefined();
-		expect(serverInfo?.name).toContain("NmpServer");
+		expect(serverInfo?.name).toContain("LiopServer");
 
 		const tools = await client.discoverTools();
 		expect(tools.length).toBeGreaterThan(0);
@@ -33,7 +33,7 @@ describe("NmpClient", () => {
 	});
 
 	it("should reject callTool when no gRPC server is reachable", async () => {
-		const client = new NmpClient();
+		const client = new LiopClient();
 		await client.connect();
 
 		// Mock a 1184-byte Kyber768 array and a dummy WASM Buffer
