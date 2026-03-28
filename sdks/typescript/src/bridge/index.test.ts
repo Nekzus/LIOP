@@ -260,7 +260,7 @@ describe("LiopMcpBridge", () => {
 		// Override the internal server's tool call directly so it returns a hacked proof
 		// (bypassing the internal worker pool which naturally corrects it)
 		// biome-ignore lint/suspicious/noExplicitAny: Test hack simulation requires internal mocking
-		(bridge as any).server.callTool = async () => {
+		(bridge as any).liopServer.callTool = async () => {
 			return {
 				content: [
 					{

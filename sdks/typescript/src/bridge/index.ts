@@ -1,5 +1,6 @@
-import type { Server as McpServer } from "@modelcontextprotocol/sdk/server/index.js";
-import type { LiopServer, LiopServerOptions } from "../server/index.js";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { LiopServerOptions } from "../server/index.js";
+import { LiopServer } from "../server/index.js";
 import type { CallToolRequest, CallToolResult } from "../types.js";
 
 export interface LiopBridgeOptions {
@@ -25,11 +26,11 @@ export class LiopMcpBridge {
 		private options: LiopBridgeOptions = {},
 	) {
 		// Determine mode: Exposing LIOP to MCP (Claude) or Wrapping MCP to LIOP (Mesh)
-		if (source.constructor.name === "LiopServer") {
-			this.liopServer = source as LiopServer;
+		if (source instanceof LiopServer) {
+			this.liopServer = source;
 			console.error("[LIOP-Bridge] Mode: EXPOSE (LIOP -> MCP Stdio)");
-		} else {
-			this.legacyMcpServer = source as McpServer;
+		} else if (source instanceof McpServer) {
+			this.legacyMcpServer = source;
 			console.error("[LIOP-Bridge] Mode: WRAP (Legacy MCP -> LIOP Mesh)");
 		}
 	}
@@ -104,10 +105,13 @@ export class LiopMcpBridge {
 		}
 
 		if (method === "prompts/get") {
+			if (!params?.name) {
+				return this.errorResponse(id, -32602, "Missing prompt name");
+			}
 			try {
 				const result = await this.liopServer.getPrompt({
-					name: params?.name as string,
-					arguments: params?.arguments as Record<string, string> | undefined,
+					name: params.name as string,
+					arguments: params.arguments as Record<string, string> | undefined,
 				});
 				return this.successResponse(id, result);
 			} catch (err: unknown) {
@@ -116,8 +120,11 @@ export class LiopMcpBridge {
 		}
 
 		if (method === "resources/read") {
+			if (!params?.uri) {
+				return this.errorResponse(id, -32602, "Missing resource URI");
+			}
 			try {
-				const result = this.liopServer.readResource(params?.uri as string);
+				const result = this.liopServer.readResource(params.uri as string);
 				return this.successResponse(id, result);
 			} catch (err: unknown) {
 				return this.errorResponse(id, -32000, (err as Error).message);
@@ -125,9 +132,12 @@ export class LiopMcpBridge {
 		}
 
 		if (method === "tools/call") {
+			if (!params?.name) {
+				return this.errorResponse(id, -32602, "Missing tool name");
+			}
 			const request: CallToolRequest = {
-				name: params?.name as string,
-				arguments: (params?.arguments as Record<string, unknown>) || {},
+				name: params.name as string,
+				arguments: (params.arguments as Record<string, unknown>) || {},
 			};
 
 			try {
