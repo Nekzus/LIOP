@@ -254,9 +254,7 @@ export class MeshNode {
 
 		// Monitor Connectivity Events
 		this.node.addEventListener("peer:discovery", (evt) => {
-			console.error(
-				`[LIOP-Mesh] Discovered peer: ${evt.detail.id.toString()}`,
-			);
+			console.error(`[LIOP-Mesh] Discovered peer: ${evt.detail.id.toString()}`);
 		});
 
 		this.node.addEventListener("peer:connect", (evt) => {
@@ -337,9 +335,7 @@ export class MeshNode {
 
 		// Announce manifest capability to the Mesh DHT for discovery
 		this.announceCapability(LIOP_MANIFEST_CAPABILITY).catch((err) => {
-			console.error(
-				`[LIOP-Mesh] Initial manifest announcement failed: ${err}`,
-			);
+			console.error(`[LIOP-Mesh] Initial manifest announcement failed: ${err}`);
 		});
 
 		// libp2p v1.x/v3.x handle API uses { stream, connection }

@@ -1,9 +1,9 @@
 import type { Buffer } from "node:buffer";
-import { NmpServer } from "@nekzus/neural-mesh/server";
+import { LiopServer } from "@nekzus/liop/server";
 import { GuardianAST } from "./lib/guardian.js";
 import { WasiSandbox } from "./lib/sandbox.js";
 
-const server = new NmpServer({
+const server = new LiopServer({
 	name: "Strategic-Data-Node-Alpha",
 	version: "1.2.0-industrial",
 });

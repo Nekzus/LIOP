@@ -1,5 +1,4 @@
-// "The Blind Analyst" - Hi-Fi NMP Dynamic Agent
-import { NmpCompiler } from "./lib/nmp-compiler.js";
+import { LiopCompiler } from "./lib/liop-compiler.js";
 
 // -- Analysis Scenarios (The Power) --
 
@@ -53,7 +52,7 @@ async function main() {
 	switch (scenarioArg) {
 		case "hypertension":
 			console.log(`🔧 [Compiler] Compiling Strict Medical Filter...`);
-			payload = NmpCompiler.compileAnalysis(
+			payload = LiopCompiler.compileAnalysis(
 				SCENARIO_HYPERTENSION,
 				"HypertensionAnalytics",
 			);
@@ -62,7 +61,7 @@ async function main() {
 			console.log(
 				`🔧 [Compiler] Compiling Statistical Transformation (Anonymized)...`,
 			);
-			payload = NmpCompiler.compileAnalysis(
+			payload = LiopCompiler.compileAnalysis(
 				SCENARIO_AVERAGE_AGE,
 				"AgeAnalytics",
 			);
@@ -74,14 +73,14 @@ async function main() {
 			console.log(
 				`⚠️  [Compiler] WARNING: This attack should be blocked in Zero-Time by the Guardian AST.`,
 			);
-			payload = NmpCompiler.compileRaw(SCENARIO_AST_ATTACK, "MalwareAST");
+			payload = LiopCompiler.compileRaw(SCENARIO_AST_ATTACK, "MalwareAST");
 			break;
 		case "fuel-exhaustion":
 			console.log(`⚠️  [Compiler] Compiling Logic Bomb (Infinite Loop)...`);
 			console.log(
 				`⚠️  [Compiler] WARNING: The WASI Sandbox should stop this by amputating the Fuel.`,
 			);
-			payload = NmpCompiler.compileAnalysis(
+			payload = LiopCompiler.compileAnalysis(
 				SCENARIO_FUEL_EXHAUSTION,
 				"LogicBomb",
 			);
@@ -109,7 +108,7 @@ async function main() {
 		const { theVaultServer } = await import("./server-node.js");
 
 		const result = await theVaultServer.callTool({
-			name: "nmp_audit_sandbox",
+			name: "liop_audit_sandbox",
 			arguments: { payload },
 		});
 

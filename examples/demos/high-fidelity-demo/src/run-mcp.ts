@@ -1,6 +1,6 @@
 // MCP Bridge for "The Vault" - Execution from Cursor/Claude Desktop
-import { NmpMcpBridge } from "@nekzus/neural-mesh/bridge";
-import { NmpHybridGateway } from "@nekzus/neural-mesh/gateway";
+import { NmpMcpBridge } from "@nekzus/liop/bridge";
+import { LiopHybridGateway } from "@nekzus/liop/gateway";
 import { theVaultServer } from "./server-node.js";
 
 async function main() {
@@ -12,8 +12,8 @@ async function main() {
 	// NmpMcpBridge wraps The Vault and brings up the JSON-RPC protocol over stdio for local IDEs
 	const stdioBridge = new NmpMcpBridge(theVaultServer);
 
-	// NmpHybridGateway provides the single-port multiplexer for HTTP/MCP and gRPC/NMP
-	const hybridGateway = new NmpHybridGateway(theVaultServer);
+	// LiopHybridGateway provides the single-port multiplexer for HTTP/MCP and gRPC/NMP
+	const hybridGateway = new LiopHybridGateway(theVaultServer);
 
 	// Start Hybrid Gateway (Network)
 	const serverPromise = hybridGateway.listen(3000, '::');

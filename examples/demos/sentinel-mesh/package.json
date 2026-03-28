@@ -9,7 +9,7 @@
         "start:sentinel": "tsx src/sentinel-gateway.ts"
     },
     "dependencies": {
-        "@nekzus/neural-mesh": "workspace:*",
+        "@nekzus/liop": "workspace:*",
         "chalk": "^5.3.0",
         "cli-table3": "^0.6.5",
         "piscina": "^5.1.4",

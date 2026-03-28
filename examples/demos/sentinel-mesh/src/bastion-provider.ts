@@ -1,5 +1,5 @@
 // "The Bastion" - NMP Secure Data Provider
-import { NmpServer } from "@nekzus/neural-mesh/server";
+import { LiopServer } from "@nekzus/liop/server";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -22,8 +22,8 @@ async function main() {
     }
     const { nexus } = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
 
-    // 2. NmpServer Initialization with PII Patterns
-    const server = new NmpServer(
+    // 2. LiopServer Initialization with PII Patterns
+    const server = new LiopServer(
         {
             name: "Bastion-Industrial-Provider",
             version: "1.0.0",

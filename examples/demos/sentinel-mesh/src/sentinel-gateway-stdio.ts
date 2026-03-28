@@ -1,8 +1,8 @@
 // "The Sentinel Stdio Bridge" - Connecting Claude Desktop to NMP via Stdio
-import { NmpHybridGateway } from "@nekzus/neural-mesh/gateway";
-import { NmpServer } from "@nekzus/neural-mesh/server";
-import { MeshNode } from "@nekzus/neural-mesh/mesh";
-import { NmpClient } from "@nekzus/neural-mesh/client";
+import { LiopHybridGateway } from "@nekzus/liop/gateway";
+import { LiopServer } from "@nekzus/liop/server";
+import { MeshNode } from "@nekzus/liop/mesh";
+import { LiopClient } from "@nekzus/liop/client";
 import { z } from "zod";
 import fs from "node:fs";
 import path from "node:path";
@@ -28,10 +28,10 @@ async function main() {
     await meshNode.start();
 
     // 3. Initialize Mesh Client
-    const meshClient = new NmpClient({ meshNode });
+    const meshClient = new LiopClient({ meshNode });
 
     // 4. Setup Virtual Server
-    const virtualServer = new NmpServer({
+    const virtualServer = new LiopServer({
         name: "Sentinel-Stdio-Bridge",
         version: "1.0.0"
     });
@@ -57,7 +57,7 @@ async function main() {
     // 6. Initialize the Hybrid Gateway
     // Since we registered the tool locally and the handler uses meshClient, 
     // the gateway will resolve it via our virtualServer.
-    const gateway = new NmpHybridGateway(virtualServer, {
+    const gateway = new LiopHybridGateway(virtualServer, {
         rpcPort: 50059
     });
 

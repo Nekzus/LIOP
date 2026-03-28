@@ -1,4 +1,4 @@
-import { NmpCompiler } from "./lib/nmp-compiler.js";
+import { LiopCompiler } from "./lib/liop-compiler.js";
 import { theVaultServer } from "./server-node.js";
 
 const SCENARIO_DIABETES = `
@@ -12,14 +12,14 @@ function(records) {
 
 async function main() {
 	console.log(`🤖 Compiling Medical Filter for Diabetes...`);
-	const payload = NmpCompiler.compileAnalysis(
+	const payload = LiopCompiler.compileAnalysis(
 		SCENARIO_DIABETES,
 		"DiabetesAnalytics",
 	);
 
 	console.log(`🚀 Sending Logic-on-Origin Payload to The Vault...`);
 	const result = await theVaultServer.callTool({
-		name: "nmp_audit_sandbox",
+		name: "liop_audit_sandbox",
 		arguments: { payload }, // HERE IS THE REQUIRED PAYLOAD
 	});
 

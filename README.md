@@ -16,7 +16,7 @@
 
 **LIOP** is a next-generation, high-performance binary transport mesh designed for advanced AI Agent communication. It is the conceptual and technical evolution of the Model Context Protocol (MCP), radically shifting the paradigm from **pulling massive data** to secure **Logic-Injection-on-Origin (LIO)** execution.
 
-> Instead of moving terabytes of data to the AI, NMP moves lightweight, sandboxed logic to the data.
+> Instead of moving terabytes of data to the AI, LIOP moves lightweight, sandboxed logic to the data.
 
 ## The Problem
 
@@ -44,7 +44,7 @@ MANIFEST:{"target":"wasi_v1","name":"AuditModule","integrity_checks":true}
 This is a **polyglot monorepo** organized into clear, isolated modules:
 
 ```
-Neural-Mesh-Protocol/ (LIOP)
+LIOP-Protocol/ (LIOP)
 ├── sdks/
 │   ├── typescript/          # @nekzus/liop (NPM package)
 │   └── rust/                # liop-core & liop-client (Cargo crates)
@@ -57,7 +57,7 @@ Neural-Mesh-Protocol/ (LIOP)
 │   ├── demos/               # High-fidelity & educational demos
 │   └── wasm-filters/        # Example WASM payloads (filter, watchdog)
 ├── tools/
-│   └── nmp-cli/             # Developer CLI for Health/Negotiate checks
+│   └── liop-cli/            # Developer CLI for Health/Negotiate checks
 ├── docs/                    # Mintlify documentation portal
 ├── tests/                   # E2E integration tests
 ├── MANIFESTO.md             # Project philosophy & vision
@@ -90,7 +90,7 @@ The developer-facing SDK, published as [`@nekzus/liop`](https://www.npmjs.com/pa
 
 ### 2. Rust SDK — `sdks/rust/`
 
-The native Rust crates providing zero-overhead bindings to the NMP mesh.
+The native Rust crates providing zero-overhead bindings to the LIOP mesh.
 
 | Crate | Description |
 |---|---|

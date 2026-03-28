@@ -1,8 +1,8 @@
 // "The Sentinel" - NMP Hybrid Gateway for Claude (Simple SSE Edition)
-import { NmpHybridGateway } from "@nekzus/neural-mesh/gateway";
-import { NmpServer } from "@nekzus/neural-mesh/server";
-import { MeshNode } from "@nekzus/neural-mesh/mesh";
-import { NmpClient } from "@nekzus/neural-mesh/client";
+import { LiopHybridGateway } from "@nekzus/liop/gateway";
+import { LiopServer } from "@nekzus/liop/server";
+import { MeshNode } from "@nekzus/liop/mesh";
+import { LiopClient } from "@nekzus/liop/client";
 import { z } from "zod";
 import fs from "node:fs";
 import path from "node:path";
@@ -30,10 +30,10 @@ async function main() {
     await meshNode.start();
 
     // 3. Initialize Mesh Client
-    const meshClient = new NmpClient({ meshNode });
+    const meshClient = new LiopClient({ meshNode });
 
     // 4. Setup Virtual Server
-    const virtualServer = new NmpServer({
+    const virtualServer = new LiopServer({
         name: "Sentinel-Mesh-Gateway",
         version: "1.0.0"
     });
@@ -53,9 +53,7 @@ async function main() {
     );
 
     // 6. Initialize the Hybrid Gateway (Multiplexer)
-    const gateway = new NmpHybridGateway(virtualServer, {
-        rpcPort: 50051 // Internal RPC port
-    });
+    const gateway = new LiopHybridGateway(virtualServer, meshNode, 50051);
 
     // 7. Start the SSE/HTTP listener on port 3000
     await gateway.listen(3000);

@@ -8,7 +8,7 @@ import processLogicExecution from "./logic-execution.js";
 describe("WorkerPool: logic-execution PQC & Sandbox", () => {
 	it("should execute a transparent plaintext Javascript payload (isEncrypted: false)", async () => {
 		const payload = Buffer.from(`
-			function nmp_main(env) {
+			function liop_main(env) {
 				const result = env.records ? env.records.length : 0;
 				return JSON.stringify({ count: result });
 			}
@@ -46,7 +46,7 @@ describe("WorkerPool: logic-execution PQC & Sandbox", () => {
 
 		// 2. Client AES Encrypts the payload with the PQC shared secret
 		const payloadContent = Buffer.from(`
-			function nmp_main() {
+			function liop_main() {
 				return JSON.stringify({ msg: "Secure payload decrypted successfully!" });
 			}
 		`);
@@ -77,7 +77,7 @@ describe("WorkerPool: logic-execution PQC & Sandbox", () => {
 		const c_ss = kyber.Encrypt768(pk_sk[0]);
 
 		const payloadContent = Buffer.from(`
-			function nmp_main() {
+			function liop_main() {
 				return "I will not run";
 			}
 		`);

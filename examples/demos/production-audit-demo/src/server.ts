@@ -1,13 +1,13 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { NmpServer } from "@nekzus/neural-mesh/server";
+import { LiopServer } from "@nekzus/liop/server";
 import { z } from "zod";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_PATH = path.resolve(__dirname, "../data/medical_records.json");
 
-const server = new NmpServer({
+const server = new LiopServer({
 	name: "Production-Data-Node",
 	version: "1.0.0",
 });

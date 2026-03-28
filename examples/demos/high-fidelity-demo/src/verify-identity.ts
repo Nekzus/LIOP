@@ -1,10 +1,10 @@
-import { MeshNode } from "@nekzus/neural-mesh/mesh";
+import { MeshNode } from "@nekzus/liop/mesh";
 import path from "node:path";
 import fs from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const identityPath = path.resolve(__dirname, "..", "data", "test-identity.json");
+const identityPath = path.resolve(__dirname, "..", "data", "liop-identity.json");
 
 console.log("Checking identity persistence...");
 console.log(`Target path: ${identityPath}`);

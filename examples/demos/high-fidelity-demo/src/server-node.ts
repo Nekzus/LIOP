@@ -1,6 +1,6 @@
 // "The Vault" - Hi-Fi NMP Data Node
 
-import { NmpServer, PII_PATTERNS } from "@nekzus/neural-mesh/server";
+import { LiopServer, PII_PATTERNS } from "@nekzus/liop/server";
 import { z } from "zod";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -14,9 +14,9 @@ console.error("██████╔╝███████║█████�
 console.error("██╔══██╗██╔══██║╚════██║██╔══╝  ");
 console.error("██████╔╝██║  ██║███████║███████╗");
 console.error("╚═════╝ ╚═╝  ╚═╝╚══════╝╚══════╝");
-console.error(">>> THE VAULT (High-Fidelity NMP Server) is online.\n");
+console.error(">>> THE VAULT (High-Fidelity LIOP Server) is online.\n");
 
-export const theVaultServer = new NmpServer(
+export const theVaultServer = new LiopServer(
 	{ name: "TheVault", version: "1.0.0" },
 	{
 		capabilities: { tools: { listChanged: true } },
@@ -76,7 +76,7 @@ theVaultServer.dataDictionary(
 theVaultServer.enableZeroShotAutonomy();
 
 theVaultServer.tool(
-	"nmp_audit_sandbox",
+	"liop_audit_sandbox",
 	"Inject remote WASM/JS code for blind analysis over sensitive medical data. Protected by Guardian AST and WASI Fuel Limits.",
 	{
 		payload: z
@@ -86,7 +86,7 @@ theVaultServer.tool(
 			),
 	},
 	async ({ payload }) => {
-		// NOTE: In Fase 45, NmpServer's middleware automatically intercepts
+		// NOTE: In Fase 45, LiopServer's middleware automatically intercepts
 		// any payload containing ---BEGIN_LOGIC--- and executes it in 
 		// the Worker Pool using the injected data context (setSandboxData).
 		// This handler only executes if the middleware is bypassed or for non-Logic payloads.
@@ -106,7 +106,7 @@ await theVaultServer.connectToMesh({
 	port: 50051,
 	meshConfig: {
 		listenAddresses: ["/ip4/0.0.0.0/tcp/4001", "/ip4/0.0.0.0/tcp/4002/ws"],
-		identityPath: path.resolve(__dirname, "../data/nmp-identity.json")
+		identityPath: path.resolve(__dirname, "../data/liop-identity.json")
 	}
 }).catch(err => {
 	console.error(`[The Vault] Mesh Connection Failed: ${err.message}`);

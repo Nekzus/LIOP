@@ -19,7 +19,7 @@ export class WasiSandbox {
 
 	constructor(config: SandboxConfig = {}) {
 		this.sandboxId = crypto.randomUUID();
-		this.workingDir = path.join(os.tmpdir(), "nmp_sandbox", this.sandboxId);
+		this.workingDir = path.join(os.tmpdir(), "liop_sandbox", this.sandboxId);
 		this.config = config;
 	}
 
@@ -32,7 +32,7 @@ export class WasiSandbox {
 		this.wasi = new WASI({
 			version: "preview1",
 			args: [],
-			env: this.config.allowEnv ? process.env : { NMP_SANDBOX: "true" },
+			env: this.config.allowEnv ? process.env : { LIOP_SANDBOX: "true" },
 			preopens: {
 				"/sandbox": this.workingDir,
 				...this.config.allowedDirectories,
@@ -42,7 +42,7 @@ export class WasiSandbox {
 
 	/**
 	 * Executes a given WebAssembly module or JS logic safely.
-	 * Implements the NMP Tier-0 V8 Isolation Fallback.
+	 * Implements the LIOP Tier-0 V8 Isolation Fallback.
 	 */
 	public async execute(
 		compiledLogic: Buffer | string,
@@ -94,11 +94,11 @@ export class WasiSandbox {
 						// Execute the logic provided by the user
 						${compiledLogic}
 
-						// NMP Pattern: If nmp_main is defined, call it.
+						// LIOP Pattern: If liop_main is defined, call it.
 						// Otherwise, the logic itself should have returned a value 
 						// (if wrapped in this IIFE).
-						if (typeof nmp_main === 'function') {
-							return nmp_main(env);
+						if (typeof liop_main === 'function') {
+							return liop_main(env);
 						}
 					} catch(e) {
 						return "RuntimeException: " + e.message;

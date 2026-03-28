@@ -1,6 +1,6 @@
 // "The Network Analyst" - Hi-Fi NMP gRPC Client
-import { NmpClient } from "@nekzus/neural-mesh/client";
-import { NmpCompiler } from "./lib/nmp-compiler.js";
+import { LiopClient } from "@nekzus/liop/client";
+import { LiopCompiler } from "./lib/liop-compiler.js";
 
 // -- Analysis Scenarios --
 const SCENARIO_HYPERTENSION = `
@@ -36,7 +36,7 @@ async function main() {
     const addressMatch = rawArgs.match(/--address=([^\s]+)/);
     const address = addressMatch ? addressMatch[1] : "localhost:50051";
 
-    console.log(`\n🌐 [NMP-Network-Agent] Initializing Real-Time Mesh Client...`);
+    console.log(`🌐 [LIOP-Network-Agent] Initializing Real-Time Mesh Client...`);
     console.log(`🌐 Target Node: ${address}`);
     console.log(`🌐 Selected Scenario: [${scenarioArg}]`);
 
@@ -59,22 +59,22 @@ async function main() {
             process.exit(1);
     }
 
-    // NMP Logic-on-Origin Packaging
-    const payload = NmpCompiler.compileAnalysis(logicString, name);
+    // LIOP Logic-on-Origin Packaging
+    const payload = LiopCompiler.compileAnalysis(logicString, name);
     const wasmPayload = Buffer.from(payload);
 
-    const client = new NmpClient();
+    const client = new LiopClient();
 
     try {
         // 1. Connection (gRPC Channel Initialization) - Force type to any to bypass stale IDE cache if needed
         await (client as any).connect(address);
 
-        // 2. Full NMP Execution Lifecycle (Intent -> PQC Handshake -> AES -> Execution -> ZK)
-        console.log(`🚀 [NMP-Stack] Triggering Secured Logic-on-Origin Execution...`);
+        // 2. Full LIOP Execution Lifecycle (Intent -> PQC Handshake -> AES -> Execution -> ZK)
+        console.log(`🚀 [LIOP-Stack] Triggering Secured Logic-on-Origin Execution...`);
 
         const result = await (client as any).callTool(
             {
-                name: "nmp_audit_sandbox",
+                name: "liop_audit_sandbox",
                 arguments: {}
             },
             wasmPayload
@@ -87,11 +87,11 @@ async function main() {
             console.error(result.content[0].text);
         } else {
             console.log(`\n======================================================`);
-            console.log(`💎 NMP-gRPC SUCCESS: Analysis Complete`);
+            console.log(`💎 LIOP-gRPC SUCCESS: Analysis Complete`);
             console.log(`======================================================`);
 
             const rawOutput = result.content[0].text as string;
-            // The result from NmpClient already includes the semantic evidence (unwrapped)
+            // The result from LiopClient already includes the semantic evidence (unwrapped)
             console.log(`📊 Result from Remote Sandbox:`, rawOutput);
             console.log(`✅ [Identity] Cryptographic Integrity Verified.`);
         }

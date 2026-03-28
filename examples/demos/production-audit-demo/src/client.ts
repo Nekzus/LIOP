@@ -1,6 +1,6 @@
-import { NmpClient } from "@nekzus/neural-mesh/client";
+import { LiopClient } from "@nekzus/liop/client";
 
-const client = new NmpClient();
+const client = new LiopClient();
 
 async function main() {
 	console.log(

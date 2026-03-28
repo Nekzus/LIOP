@@ -11,7 +11,7 @@
 		"test": "vitest run"
 	},
 	"dependencies": {
-		"@nekzus/neural-mesh": "workspace:*"
+		"@nekzus/liop": "workspace:*"
 	},
 	"devDependencies": {
 		"vitest": "^4.0.18"
