@@ -6,11 +6,11 @@
 
   <h1>Logic-Injection-on-Origin Protocol (LIOP) — TypeScript SDK</h1>
 <p align="center">
-  <a href="https://github.com/Nekzus/LIOP/actions/workflows/ci.yml"><img src="https://github.com/Nekzus/LIOP/actions/workflows/ci.yml/badge.svg?event=push" alt="Github Workflow"></a>
+  <a href="https://github.com/Nekzus/Neural-Mesh-Protocol/actions/workflows/ci.yml"><img src="https://github.com/Nekzus/Neural-Mesh-Protocol/actions/workflows/ci.yml/badge.svg?event=push" alt="Github Workflow"></a>
   <a href="https://www.npmjs.com/package/@nekzus/liop"><img src="https://img.shields.io/npm/v/@nekzus/liop.svg" alt="npm version"></a>
   <a href="https://www.npmjs.com/package/@nekzus/liop"><img src="https://img.shields.io/npm/dm/@nekzus/liop.svg" alt="npm-month"></a>
   <a href="https://www.npmjs.com/package/@nekzus/liop"><img src="https://img.shields.io/npm/dt/@nekzus/liop.svg?style=flat" alt="npm-total"></a>
-  <a href="https://github.com/Nekzus/LIOP/blob/main/LICENSE"><img src="https://img.shields.io/github/license/Nekzus/LIOP.svg" alt="License"></a>
+  <a href="https://github.com/Nekzus/Neural-Mesh-Protocol/blob/main/LICENSE"><img src="https://img.shields.io/github/license/Nekzus/LIOP.svg" alt="License"></a>
   <a href="https://liop.mintlify.app/"><img src="https://img.shields.io/badge/docs-mintlify-0D9373?style=flat" alt="Docs"></a>
   <a href="https://deepwiki.com/Nekzus/LIOP"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
   <a href="https://paypal.me/maseortega"><img src="https://img.shields.io/badge/donate-paypal-blue.svg?style=flat-square" alt="Donate"></a>
@@ -391,14 +391,14 @@ This package is continuously tested across multiple platforms and Node.js versio
 ## Related
 
 - [LIOP Documentation](https://liop.mintlify.app/) — Full conceptual and API documentation
-- [LIOP Specification](https://github.com/Nekzus/LIOP/blob/main/protocol/SPECIFICATION.md) — Technical specification
-- [LIOP Manifesto](https://github.com/Nekzus/LIOP/blob/main/MANIFESTO.md) — Project philosophy
-- [Contributing Guide](https://github.com/Nekzus/LIOP/blob/main/CONTRIBUTING.md) — How to contribute
-- [Rust Mesh Node](https://github.com/Nekzus/LIOP/tree/main/servers/liop-node) — Native high-performance backend
-- [LIOP CLI](https://github.com/Nekzus/LIOP/tree/main/tools/liop-cli) — Developer diagnostics
+- [LIOP Specification](https://github.com/Nekzus/Neural-Mesh-Protocol/blob/main/protocol/SPECIFICATION.md) — Technical specification
+- [LIOP Manifesto](https://github.com/Nekzus/Neural-Mesh-Protocol/blob/main/MANIFESTO.md) — Project philosophy
+- [Contributing Guide](https://github.com/Nekzus/Neural-Mesh-Protocol/blob/main/CONTRIBUTING.md) — How to contribute
+- [Rust Mesh Node](https://github.com/Nekzus/Neural-Mesh-Protocol/tree/main/servers/liop-node) — Native high-performance backend
+- [LIOP CLI](https://github.com/Nekzus/Neural-Mesh-Protocol/tree/main/tools/liop-cli) — Developer diagnostics
 
 ---
 
 ## License
 
-[MIT](https://github.com/Nekzus/LIOP/blob/main/LICENSE) © [Nekzus](https://github.com/Nekzus)
+[MIT](https://github.com/Nekzus/Neural-Mesh-Protocol/blob/main/LICENSE) © [Nekzus](https://github.com/Nekzus)

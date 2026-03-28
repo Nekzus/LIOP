@@ -1,39 +1,40 @@
 {
-    "name": "liop",
-    "version": "1.0.0-alpha.2",
-    "private": true,
-    "description": "Logic-Injection-on-Origin Protocol (LIOP) - Official High-Performance WebAssembly Logic-on-Origin Execution Sandbox",
-    "author": "Nekzus",
-    "license": "MIT",
-    "type": "module",
-    "homepage": "https://nekzus-32.mintlify.app/",
-    "scripts": {
-        "build": "pnpm --filter @nekzus/liop build",
-        "test": "pnpm --filter @nekzus/liop test",
-        "lint": "pnpm --filter @nekzus/liop lint",
-        "format": "pnpm --filter @nekzus/liop format",
-        "check": "pnpm --filter @nekzus/liop check",
-        "semantic-release": "semantic-release --branches main",
-        "commit": "cz"
-    },
-    "config": {
-        "commitizen": {
-            "path": "cz-conventional-changelog"
-        }
-    },
-    "devDependencies": {
-        "@semantic-release/changelog": "^6.0.3",
-        "@semantic-release/git": "^10.0.1",
-        "@semantic-release/github": "^10.3.5",
-        "@semantic-release/npm": "^10.0.6",
-        "@semantic-release/release-notes-generator": "^14.0.3",
-        "commitizen": "^4.3.1",
-        "conventional-changelog-conventionalcommits": "^8.0.0",
-        "cz-conventional-changelog": "^3.3.0",
-        "semantic-release": "^24.2.1"
-    },
-    "engines": {
-        "node": ">=20.0"
-    },
-    "packageManager": "pnpm@10.33.0"
+  "name": "liop",
+  "version": "1.0.0-alpha.2",
+  "private": true,
+  "description": "Logic-Injection-on-Origin Protocol (LIOP) - Official High-Performance WebAssembly Logic-on-Origin Execution Sandbox",
+  "author": "Nekzus",
+  "license": "MIT",
+  "type": "module",
+  "homepage": "https://nekzus-32.mintlify.app/",
+  "scripts": {
+    "build": "pnpm --filter @nekzus/liop build",
+    "test": "pnpm --filter @nekzus/liop test",
+    "lint": "pnpm --filter @nekzus/liop lint",
+    "format": "pnpm --filter @nekzus/liop format",
+    "check": "pnpm --filter @nekzus/liop check",
+    "semantic-release": "semantic-release --branches main",
+    "commit": "cz",
+    "sync-metadata": "pnpm --filter @nekzus/liop exec tsx scripts/sync-metadata.ts"
+  },
+  "config": {
+    "commitizen": {
+      "path": "cz-conventional-changelog"
+    }
+  },
+  "devDependencies": {
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/git": "^10.0.1",
+    "@semantic-release/github": "^10.3.5",
+    "@semantic-release/npm": "^10.0.6",
+    "@semantic-release/release-notes-generator": "^14.0.3",
+    "commitizen": "^4.3.1",
+    "conventional-changelog-conventionalcommits": "^8.0.0",
+    "cz-conventional-changelog": "^3.3.0",
+    "semantic-release": "^24.2.1"
+  },
+  "engines": {
+    "node": ">=20.0"
+  },
+  "packageManager": "pnpm@10.33.0"
 }

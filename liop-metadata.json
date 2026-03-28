@@ -1,0 +1,16 @@
+{
+  "repo": {
+    "owner": "Nekzus",
+    "name": "Neural-Mesh-Protocol",
+    "branch": "main"
+  },
+  "docs": {
+    "url": "https://nekzus-32.mintlify.app/",
+    "name": "LIOP Protocol"
+  },
+  "author": {
+    "name": "Nekzus",
+    "email": "maseortega@gmail.com",
+    "website": "https://github.com/Nekzus"
+  }
+}
