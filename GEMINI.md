@@ -581,3 +581,4 @@ El proyecto funciona bajo un ecosistema `Cargo Workspace` modular:
   - **Alias de Conveniencia**: Implementación del método .connect() como un alias de .connectToMesh().
   - **Puente Bi-direccional (LiopMcpBridge)**: Evolución del adaptador para soportar el modo 'Wrap Legacy Server'.
   - **Documentación de Cierre**: Adición de guías de 'Shutdown Seguro' (server.close()) en los manuales MDX.
+$phase

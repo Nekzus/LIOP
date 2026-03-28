@@ -30,6 +30,24 @@ export type ToolHandler<T extends z.ZodRawShape = z.ZodRawShape> = (
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+export interface LiopServerOptions {
+	capabilities?: Record<string, unknown>;
+	workerPool?: {
+		enabled?: boolean;
+		minThreads?: number;
+		maxThreads?: number;
+	};
+	security?: {
+		piiPatterns?: PiiRule[];
+		forbiddenKeys?: string[];
+	};
+	taxonomy?: {
+		domain?: string;
+		clearanceTier?: number;
+		executionTypes?: string[];
+	};
+}
+
 export class LiopServer {
 	private logicCache: Map<string, { hash: string; timestamp: number }> =
 		new Map();
@@ -79,15 +97,7 @@ export class LiopServer {
 
 	constructor(
 		private serverInfo: ServerInfo,
-		private config?: {
-			capabilities?: Record<string, unknown>;
-			security?: { piiPatterns?: PiiRule[]; forbiddenKeys?: string[] };
-			taxonomy?: {
-				domain?: string;
-				clearanceTier?: number;
-				executionTypes?: string[];
-			};
-		},
+		private config?: LiopServerOptions,
 	) {
 		this.piiScanner = new PiiScanner(
 			this.config?.security?.piiPatterns || [],
@@ -139,11 +149,27 @@ export class LiopServer {
 				__dirname,
 				`../workers/logic-execution${workerExt}`,
 			),
-			minThreads: isTest ? 0 : 2,
-			maxThreads: isTest ? 1 : 8,
+			minThreads: this.config?.workerPool?.minThreads ?? (isTest ? 0 : 2),
+			maxThreads: this.config?.workerPool?.maxThreads ?? (isTest ? 1 : 8),
 			idleTimeout: 1000,
 			execArgv,
 		});
+	}
+
+	/**
+	 * Convenience alias for connectToMesh(), matching official documentation.
+	 */
+	public async connect(
+		options: {
+			port?: number;
+			meshConfig?: {
+				listenAddresses?: string[];
+				bootstrapNodes?: string[];
+				identityPath?: string;
+			};
+		} = {},
+	): Promise<void> {
+		return this.connectToMesh(options);
 	}
 
 	/**
