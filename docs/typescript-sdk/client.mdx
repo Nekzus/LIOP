@@ -1,20 +1,20 @@
 ---
-title: "NmpClient"
-description: "Routing intent and injecting autonomous logic via the Neural Mesh"
+title: "LiopClient"
+description: "Routing intent and injecting autonomous logic via the Logic-Injection-on-Origin Protocol"
 ---
 
-The `NmpClient` class is the orchestrator for Agent Nodes. It connects your Node.js or edge application to the Kademlia DHT Mesh, validates cryptographic identities, and dispatches WebAssembly logic payloads directly to remote Data Nodes (Servers).
+The `LiopClient` class is the orchestrator for Agent Nodes. It connects your Node.js or edge application to the Kademlia DHT Mesh, validates cryptographic identities, and dispatches WebAssembly logic payloads directly to remote Data Nodes (Servers).
 
-Unlike traditional REST clients that just `<fetch>` static JSON endpoints, an `NmpClient` literally pushes its logic functions across the internet to be executed natively at the server.
+Unlike traditional REST clients that just `<fetch>` static JSON endpoints, a `LiopClient` literally pushes its logic functions across the internet to be executed natively at the server.
 
 ## Initialization and Configuration
 
 Connecting to the Mesh requires instantiating the client with identification metadata and security properties.
 
 ```typescript
-import { NmpClient } from "@nekzus/neural-mesh";
+import { LiopClient } from "@nekzus/liop";
 
-const client = new NmpClient(
+const client = new LiopClient(
   {
     name: "ForensicLogAgent",
     version: "1.0.0",
@@ -31,14 +31,14 @@ const client = new NmpClient(
 
 ### Configuration Options
 
-When creating an `NmpClient`, the second argument configures its network footprint:
+When creating a `LiopClient`, the second argument configures its network footprint:
 
 *   **`capabilities.roots`**: Declares if this agent supports specific protocol standards (like root hierarchy changes notifications).
 *   **`capabilities.quantumResistant`**: Forces the client to enforce Post-Quantum Handshakes (`Kyber768`) and symmetric encryption (`AES-256-GCM`) when dispatching WASM binaries to remote Data Nodes, guaranteeing maximum security against quantum decryption algorithms.
 
 ## Connecting to the Mesh
 
-Unlike MCP which requires a direct stdio pipe or a hardcoded SSE URL, NMP uses decentralized peer-to-peer routing. 
+Unlike MCP which requires a direct stdio pipe or a hardcoded SSE URL, LIOP uses decentralized peer-to-peer routing. 
 You provide a **Peer ID** (the unique Ed25519 identity of the Server you want to reach), and libp2p handles NAT traversal automatically.
 
 ```typescript
@@ -74,7 +74,7 @@ try {
 
 ## Creating Watchdogs (Push Subscriptions)
 
-The true power of Logic-on-Origin is the ability to spawn **Watchdogs**. Instead of manually polling `client.callTool()` every 5 seconds, you upload a persistent watcher module.
+The true power of Logic-Injection-on-Origin is the ability to spawn **Watchdogs**. Instead of manually polling `client.callTool()` every 5 seconds, you upload a persistent watcher module.
 
 ```typescript
 // Deploy a persistent watcher module to a server
@@ -91,7 +91,7 @@ await client.deployWatchdog(
 
 ## Cryptographic Validation (The ZK Shield)
 
-While the network layer is encrypted using symmetric AES-256-GCM, the `NmpClient` fundamentally doubts the execution origin. 
+While the network layer is encrypted using symmetric AES-256-GCM, the `LiopClient` fundamentally doubts the execution origin. 
 
 When `callTool` returns from the remote Data Node, the payload might contain an `image_id` hash or a `zk_receipt` (if the server is running inside a TEE). To mathematically prove the server executed the exact WASM binary you originally sent (and not a tampered one), you must invoke the cryptographic verifier:
 
@@ -106,19 +106,19 @@ if (!isAuthentic) {
   throw new Error("🚨 FATAL: Mathematical Proof Mismatch (Hack Detected)");
 }
 ```
-*Note: The `NmpMcpBridge` automatically runs this capability natively on behalf of legacy MCP clients, intercepting any hallucinated JSONs automatically.*
+*Note: The `LiopMcpBridge` automatically runs this capability natively on behalf of legacy MCP clients, intercepting any hallucinated JSONs automatically.*
 
 ## Error Handling & Zero-Trust Rejections
 
 Because the Server enforces a strict `WASI` sandbox and uses the *Zero-Time Guardian* to inspect your `.wasm` payload BEFORE execution, your client must be prepared to handle sandbox rejections.
 
 ```typescript
-import { NmpError, ErrorCode } from "@nekzus/neural-mesh";
+import { LiopError, ErrorCode } from "@nekzus/liop";
 
 try {
   await client.callTool("PeerID", "read_file", { path: "/etc/passwd" });
 } catch (error) {
-  if (error instanceof NmpError) {
+  if (error instanceof LiopError) {
     if (error.code === ErrorCode.CapabilityViolation) {
       console.error("🚨 Sandbox Execution Halted: Unauthorized file system access attempted.");
     }

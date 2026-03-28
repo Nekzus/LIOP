@@ -80,7 +80,7 @@
         </marker>
     </defs>
 
-    <text x="400" y="35" text-anchor="middle" class="arch-text-dark arch-title-dark">NEURAL MESH TOPOLOGY</text>
+    <text x="400" y="35" text-anchor="middle" class="arch-text-dark arch-title-dark">LIOP MESH TOPOLOGY</text>
 
     <rect x="40" y="60" width="200" height="300" class="arch-box-transparent-dark" />
     <text x="140" y="90" text-anchor="middle" class="arch-text-dark arch-title-dark">Agent Node</text>
@@ -95,7 +95,7 @@
     <path d="M 140 245 L 140 265" class="arch-line-dark" marker-end="url(#arch-arrowhead-dark)" />
 
     <rect x="60" y="270" width="160" height="45" class="arch-box-highlight-dark" />
-    <text x="140" y="297" text-anchor="middle" class="arch-text-dark">NmpClient</text>
+    <text x="140" y="297" text-anchor="middle" class="arch-text-dark">LiopClient</text>
 
     <rect x="300" y="60" width="200" height="300" class="arch-box-transparent-dark" />
     <text x="400" y="90" text-anchor="middle" class="arch-text-dark arch-title-dark">The Mesh</text>
@@ -125,7 +125,7 @@
     <text x="660" y="110" text-anchor="middle" class="arch-text-dark arch-subtitle-dark">Server Module</text>
 
     <rect x="580" y="130" width="160" height="40" class="arch-box-highlight-dark" />
-    <text x="660" y="155" text-anchor="middle" class="arch-text-dark">NmpServer (gRPC)</text>
+    <text x="660" y="155" text-anchor="middle" class="arch-text-dark">LiopServer (gRPC)</text>
     <path d="M 660 170 L 660 185" class="arch-line-dark" marker-end="url(#arch-arrowhead-dark)" />
 
     <rect x="580" y="190" width="160" height="35" class="arch-box-dark" />

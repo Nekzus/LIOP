@@ -1,10 +1,10 @@
 import * as crypto from "node:crypto";
-import type { MeshNode, NmpManifest } from "../mesh/index.js";
+import type { LiopManifest } from "../mesh/index.js";
 import { Kyber768Wrapper } from "../rpc/crypto/kyber.js";
-import { nmpV1 } from "../rpc/proto.js";
+import { liopV1 } from "../rpc/proto.js";
 import { createChannelCredentials } from "../rpc/tls.js";
 import type { IntentResponse, LogicResponse } from "../rpc/types.js";
-import type { NmpServer } from "../server/index.js";
+import type { LiopServer } from "../server/index.js";
 
 /** Time-to-live for cached manifests (seconds) */
 const MANIFEST_CACHE_TTL_S = 30;
@@ -13,19 +13,19 @@ const MANIFEST_CACHE_TTL_S = 30;
 const MANIFEST_DISCOVERY_RETRIES = 5;
 
 /**
- * NMP MCP Router
+ * LIOP MCP Router
  *
- * Core logic for routing MCP requests to local or remote NMP providers.
+ * Core logic for routing MCP requests to local or remote LIOP providers.
  * Decoupled from transport (HTTP/Stdio).
  *
  * All tool discovery and port resolution is DYNAMIC via the
- * /nmp/manifest/1.0.0 protocol stream over Kademlia DHT.
+ * /liop/manifest/1.0.0 protocol stream over Kademlia DHT.
  */
-export class NmpMcpRouter {
+export class LiopMcpRouter {
 	/** Cached manifests from remote peers. Key = PeerID */
 	private manifestCache: Map<
 		string,
-		{ manifest: NmpManifest; cachedAt: number }
+		{ manifest: LiopManifest; cachedAt: number }
 	> = new Map();
 
 	/** Guards against concurrent discovery storms */
@@ -35,20 +35,20 @@ export class NmpMcpRouter {
 	public onToolsChanged?: () => void;
 
 	constructor(
-		private nmpServer: NmpServer,
-		private meshNode: MeshNode | null = null,
+		private liopServer: LiopServer,
+		private meshNode: any | null = null,
 		private defaultRpcPort = 50051,
 	) {
 		// Auto-register manifest handler if mesh node is provided
 		if (this.meshNode) {
 			this.meshNode.registerManifestHandler(() => {
-				const remoteTools = this.nmpServer.listTools().map((t) => ({
+				const remoteTools = this.liopServer.listTools().map((t) => ({
 					name: t.name,
 					description: t.description,
 					inputSchema: t.inputSchema as Record<string, unknown>,
 				}));
 
-				const resources = this.nmpServer.listResources().map((r) => ({
+				const resources = this.liopServer.listResources().map((r) => ({
 					name: r.name,
 					uri: r.uri,
 					description: r.description,
@@ -60,22 +60,22 @@ export class NmpMcpRouter {
 					grpcPort: this.defaultRpcPort,
 					tools: [
 						{
-							name: "NmpMeshStatus",
+							name: "LiopMeshStatus",
 							description:
-								"NmpMeshStatus: Returns the current dynamic diagnostic status of the Zero-Trust Neural Mesh.",
+								"LiopMeshStatus: Returns the current dynamic diagnostic status of the Zero-Trust Neural Mesh.",
 							inputSchema: { type: "object", properties: {} },
 						},
 						...remoteTools,
 					],
 					resources,
-					serverInfo: this.nmpServer.getServerInfo(),
+					serverInfo: this.liopServer.getServerInfo(),
 				};
 			});
 
 			// Proactively announce manifest capability to the mesh
-			this.meshNode.announceManifest().catch((err) => {
+			this.meshNode.announceManifest().catch((err: any) => {
 				console.error(
-					`[NMP-Router] ⚠️ Failed to announce manifest: ${err.message}`,
+					`[LIOP-Router] ⚠️ Failed to announce manifest: ${err.message}`,
 				);
 			});
 		}
@@ -90,7 +90,7 @@ export class NmpMcpRouter {
 		// biome-ignore lint/suspicious/noExplicitAny: MCP response is polymorphic
 	}): Promise<any> {
 		const { method, params, id } = request;
-		console.error(`[NMP-Router] Processing: ${method}`);
+		console.error(`[LIOP-Router] Processing: ${method}`);
 
 		switch (method) {
 			case "initialize":
@@ -104,7 +104,7 @@ export class NmpMcpRouter {
 							resources: { listChanged: true },
 							prompts: { listChanged: true },
 						},
-						serverInfo: this.nmpServer.getServerInfo(),
+						serverInfo: this.liopServer.getServerInfo(),
 					},
 				};
 			case "notifications/initialized":
@@ -113,7 +113,7 @@ export class NmpMcpRouter {
 			case "ping":
 				return { jsonrpc: "2.0", id, result: {} };
 			case "tools/list": {
-				const localTools = this.nmpServer.listTools();
+				const localTools = this.liopServer.listTools();
 				const remoteTools = await this.getRemoteTools();
 
 				// Inject a mandatory static diagnostic tool.
@@ -121,9 +121,9 @@ export class NmpMcpRouter {
 				// Claude Desktop silently hides the connector if it receives an empty array initially,
 				// which broke the UX due to the ~3s warm-up time of the Kademlia DHT.
 				const diagnosticTool = {
-					name: "NmpMeshStatus",
+					name: "LiopMeshStatus",
 					description:
-						"NmpMeshStatus: Returns the current dynamic diagnostic status of the Zero-Trust Neural Mesh.",
+						"LiopMeshStatus: Returns the current dynamic diagnostic status of the Zero-Trust Neural Mesh.",
 					inputSchema: { type: "object", properties: {} },
 				};
 
@@ -134,9 +134,9 @@ export class NmpMcpRouter {
 				};
 			}
 			case "tools/call":
-				return this.transcodeMcpToNmp(id, params);
+				return this.transcodeMcpToLiop(id, params);
 			case "resources/list": {
-				const localResources = this.nmpServer.listResources();
+				const localResources = this.liopServer.listResources();
 				const remoteResources = await this.getRemoteResources();
 				return {
 					jsonrpc: "2.0",
@@ -152,7 +152,7 @@ export class NmpMcpRouter {
 						error: { code: -32602, message: "Missing resource uri" },
 					};
 				try {
-					const result = this.nmpServer.readResource(params.uri as string);
+					const result = this.liopServer.readResource(params.uri as string);
 					return { jsonrpc: "2.0", id, result };
 				} catch (err: unknown) {
 					// Fallback: Resolve remotely from manifest cache
@@ -163,7 +163,7 @@ export class NmpMcpRouter {
 						);
 						if (remoteResource) {
 							console.error(
-								`[NMP-Router] 📋 Resolved resource ${targetUri} from cache (Peer: ${manifest.peerId})`,
+								`[LIOP-Router] 📋 Resolved resource ${targetUri} from cache (Peer: ${manifest.peerId})`,
 							);
 							return {
 								jsonrpc: "2.0",
@@ -198,7 +198,7 @@ export class NmpMcpRouter {
 				return {
 					jsonrpc: "2.0",
 					id,
-					result: { prompts: this.nmpServer.listPrompts() },
+					result: { prompts: this.liopServer.listPrompts() },
 				};
 			default:
 				return {
@@ -210,9 +210,9 @@ export class NmpMcpRouter {
 	}
 
 	/**
-	 * Discovers and caches manifests from all remote NMP providers in the mesh.
-	 * Uses Kademlia DHT to find "nmp:manifest" providers, then opens
-	 * /nmp/manifest/1.0.0 protocol streams to retrieve their full metadata.
+	 * Discovers and caches manifests from all remote LIOP providers in the mesh.
+	 * Uses Kademlia DHT to find "liop:manifest" providers, then opens
+	 * /liop/manifest/1.0.0 protocol streams to retrieve their full metadata.
 	 */
 	public async refreshManifestCache(silent = false): Promise<void> {
 		if (!this.meshNode) return;
@@ -233,12 +233,12 @@ export class NmpMcpRouter {
 							(this.meshNode as any).node?.getConnections().length || 0;
 						if (connections > 0) {
 							console.error(
-								`[NMP-Router] 🤝 P2P Connection established. Starting discovery...`,
+								`[LIOP-Router] 🤝 P2P Connection established. Starting discovery...`,
 							);
 							break;
 						}
 						console.error(
-							`[NMP-Router] ⏳ Waiting for P2P connections (attempt ${i + 1}/10)...`,
+							`[LIOP-Router] ⏳ Waiting for P2P connections (attempt ${i + 1}/10)...`,
 						);
 						await new Promise((r) => setTimeout(r, 1000));
 					}
@@ -264,7 +264,7 @@ export class NmpMcpRouter {
 						if (providerIds.length > 0) break;
 						if (attempt < MANIFEST_DISCOVERY_RETRIES - 1) {
 							console.error(
-								`[NMP-Router] 🔄 DHT discovery attempt ${attempt + 1}/${MANIFEST_DISCOVERY_RETRIES}...`,
+								`[LIOP-Router] 🔄 DHT discovery attempt ${attempt + 1}/${MANIFEST_DISCOVERY_RETRIES}...`,
 							);
 							await new Promise((r) => setTimeout(r, 1000));
 						}
@@ -281,7 +281,7 @@ export class NmpMcpRouter {
 								) || [];
 						if (activePeers.length > 0) {
 							console.error(
-								`[NMP-Router] 🛠️ DHT empty. Using ${activePeers.length} active connections as fallback.`,
+								`[LIOP-Router] 🛠️ DHT empty. Using ${activePeers.length} active connections as fallback.`,
 							);
 							providerIds = activePeers;
 						}
@@ -291,7 +291,7 @@ export class NmpMcpRouter {
 
 					if (coldAttempt < MAX_COLD_ATTEMPTS - 1) {
 						console.error(
-							`[NMP-Router] ⚠️ Initial discovery failed (0 providers). Retrying in 1s (${coldAttempt + 1}/${MAX_COLD_ATTEMPTS})...`,
+							`[LIOP-Router] ⚠️ Initial discovery failed (0 providers). Retrying in 1s (${coldAttempt + 1}/${MAX_COLD_ATTEMPTS})...`,
 						);
 						await new Promise((r) => setTimeout(r, 1000));
 					}
@@ -299,14 +299,14 @@ export class NmpMcpRouter {
 
 				if (providerIds.length === 0) {
 					console.error(
-						`[NMP-Router] 🛑 No manifest providers found after all attempts.`,
+						`[LIOP-Router] 🛑 No manifest providers found after all attempts.`,
 					);
 					return;
 				}
 
 				if (!silent) {
 					console.error(
-						`[NMP-Router] 📡 Discovered ${providerIds.length} candidate manifest providers`,
+						`[LIOP-Router] 📡 Discovered ${providerIds.length} candidate manifest providers`,
 					);
 				}
 
@@ -332,7 +332,7 @@ export class NmpMcpRouter {
 						// Add a small delay between queries to avoid muxer saturation
 						await new Promise((r) => setTimeout(r, 100));
 
-						console.error(`[NMP-Router] 📡 Querying manifest from: ${peerId}`);
+						console.error(`[LIOP-Router] 📡 Querying manifest from: ${peerId}`);
 						const manifest = await this.meshNode.queryManifest(peerId);
 						if (manifest) {
 							this.manifestCache.set(peerId, {
@@ -342,24 +342,24 @@ export class NmpMcpRouter {
 							cacheUpdated = true;
 							successCount++;
 							console.error(
-								`[NMP-Router] ✨ Manifest received from ${peerId} (${manifest.tools.length} tools)`,
+								`[LIOP-Router] ✨ Manifest received from ${peerId} (${manifest.tools.length} tools)`,
 							);
 						} else {
 							errorCount++;
 							console.error(
-								`[NMP-Router] ⚠️ Manifest query returned NULL for ${peerId}`,
+								`[LIOP-Router] ⚠️ Manifest query returned NULL for ${peerId}`,
 							);
 						}
-					} catch (err) {
+					} catch (err: any) {
 						console.error(
-							`[NMP-Router] 🚨 Fatal error querying manifest from ${peerId}:`,
+							`[LIOP-Router] 🚨 Fatal error querying manifest from ${peerId}:`,
 							err instanceof Error ? err.message : String(err),
 						);
 						errorCount++;
 					}
 				}
 
-				// Store discovery stats for NmpMeshStatus diagnostics
+				// Store discovery stats for LiopMeshStatus diagnostics
 				// biome-ignore lint/suspicious/noExplicitAny: private stats for telemetry
 				(this as any)._discoveryStats = {
 					candidates: providerIds.length,
@@ -376,7 +376,7 @@ export class NmpMcpRouter {
 
 					if (newCount !== prevCount && this.onToolsChanged) {
 						console.error(
-							"[NMP-Router] 🔔 Mesh topology updated! Emitting notifications/tools/list_changed.",
+							"[LIOP-Router] 🔔 Mesh topology updated! Emitting notifications/tools/list_changed.",
 						);
 						this.onToolsChanged();
 					}
@@ -406,7 +406,7 @@ export class NmpMcpRouter {
 
 		// biome-ignore lint/suspicious/noExplicitAny: Tool schema is polymorphic
 		const tools: any[] = [];
-		const seenNames = new Set(this.nmpServer.listTools().map((t) => t.name));
+		const seenNames = new Set(this.liopServer.listTools().map((t) => t.name));
 
 		for (const [peerId, { manifest }] of this.manifestCache.entries()) {
 			for (const tool of manifest.tools) {
@@ -425,16 +425,16 @@ export class NmpMcpRouter {
 						}
 					}
 
-					// 🛡️ NMP Logic-on-Origin Detection:
-					// If the tool has a 'payload' property, it requires the Full NMP Envelope.
+					// 🛡️ LIOP Logic-on-Origin Detection:
+					// If the tool has a 'payload' property, it requires the Full LIOP Envelope.
 					let envelopeDoc = "";
 					// biome-ignore lint/suspicious/noExplicitAny: internal schema extraction
 					const properties = (tool.inputSchema as any)?.properties || {};
 					if (properties.payload) {
-						envelopeDoc = `\n\n[NMP-PROTO-V1: LOGIC-ON-ORIGIN SPECIFICATION]\nCRITICAL: This tool requires a strictly formatted Logic-on-Origin payload. Failure to wrap JavaScript code within the NMP envelope will result in a MalformedPayloadError.\n\nREQUIRED FORMAT:\nNMP_MAGIC:0x00FF\nMANIFEST:{"target":"wasi_v1","name":"[ModuleName]","integrity_checks":true}\n---BEGIN_LOGIC---\n// Pure JavaScript logic. Access data via 'env.records'.\n// You MUST use 'return' to output results.\n---END_LOGIC---\n\nExecution Environment: Zero-Trust WASI Sandbox (Node.js Worker Pool).`;
+						envelopeDoc = `\n\n[LIOP-PROTO-V1: LOGIC-ON-ORIGIN SPECIFICATION]\nCRITICAL: This tool requires a strictly formatted Logic-on-Origin payload. Failure to wrap JavaScript code within the LIOP envelope will result in a MalformedPayloadError.\n\nREQUIRED FORMAT:\nLIOP_MAGIC:0x00FF\nMANIFEST:{"target":"wasi_v1","name":"[ModuleName]","integrity_checks":true}\n---BEGIN_LOGIC---\n// Pure JavaScript logic. Access data via 'env.records'.\n// You MUST use 'return' to output results.\n---END_LOGIC---\n\nExecution Environment: Zero-Trust WASI Sandbox (Node.js Worker Pool).`;
 					}
 
-					const originStamp = `\n\n[NMP-REMOTE-ORIGIN-METADATA]\nProvider: ${providerName}\nNetwork ID: ${peerId}${blueprint}${envelopeDoc}`;
+					const originStamp = `\n\n[LIOP-REMOTE-ORIGIN-METADATA]\nProvider: ${providerName}\nNetwork ID: ${peerId}${blueprint}${envelopeDoc}`;
 
 					augmentedTool.description = augmentedTool.description
 						? `${augmentedTool.description}${originStamp}`
@@ -471,7 +471,7 @@ export class NmpMcpRouter {
 			description?: string;
 			mimeType?: string;
 		}> = [];
-		const seenUris = new Set(this.nmpServer.listResources().map((r) => r.uri));
+		const seenUris = new Set(this.liopServer.listResources().map((r) => r.uri));
 
 		for (const [peerId, { manifest }] of this.manifestCache.entries()) {
 			for (const resource of manifest.resources) {
@@ -521,11 +521,11 @@ export class NmpMcpRouter {
 	}
 
 	// biome-ignore lint/suspicious/noExplicitAny: MCP JSON-RPC params/id are polymorphic
-	private async transcodeMcpToNmp(id: any, params: any): Promise<any> {
+	private async transcodeMcpToLiop(id: any, params: any): Promise<any> {
 		const toolName = params.name;
 
 		// Intercept the static diagnostic tool
-		if (toolName === "NmpMeshStatus") {
+		if (toolName === "LiopMeshStatus") {
 			// Trigger a proactive refresh when status is requested to force discovery
 			this.refreshManifestCache(true).catch(() => {});
 
@@ -577,7 +577,7 @@ export class NmpMcpRouter {
 				.join("\n");
 
 			const statusText = [
-				`🌐 NMP Mesh Status: ${meshState === "Active" ? "🟢 Active" : "🔴 Offline"}`,
+				`🌐 LIOP Mesh Status: ${meshState === "Active" ? "🟢 Active" : "🔴 Offline"}`,
 				`🆔 Local Agent Identity: ${localPeerId}`,
 				`📊 Network: ${connections} Conns | ${routingTableSize} DHT Peers | ${bootstrapCount} Bootstraps`,
 				bootstrapCount > 0 ? `\nActive Bootstraps:\n${bootstrapList}\n` : "",
@@ -604,7 +604,9 @@ export class NmpMcpRouter {
 			};
 		}
 
-		const isLocal = this.nmpServer.listTools().some((t) => t.name === toolName);
+		const isLocal = this.liopServer
+			.listTools()
+			.some((t) => t.name === toolName);
 
 		if (!isLocal && this.meshNode) {
 			// Phase 1: Try DHT-based dynamic provider discovery
@@ -624,9 +626,9 @@ export class NmpMcpRouter {
 			const grpcTarget = this.resolveGrpcTarget(toolName);
 			if (grpcTarget) {
 				console.error(
-					`[NMP-Router] 📋 Resolved ${toolName} via manifest cache → ${grpcTarget}`,
+					`[LIOP-Router] 📋 Resolved ${toolName} via manifest cache → ${grpcTarget}`,
 				);
-				const manifestClient = new nmpV1.NeuralMesh(
+				const manifestClient = new liopV1.LogicMesh(
 					grpcTarget,
 					createChannelCredentials(),
 				);
@@ -637,7 +639,7 @@ export class NmpMcpRouter {
 		// If no remote provider found, try local execution
 		if (isLocal) {
 			try {
-				const result = await this.nmpServer.callTool({
+				const result = await this.liopServer.callTool({
 					name: toolName,
 					arguments: params.arguments || {},
 				});
@@ -702,7 +704,7 @@ export class NmpMcpRouter {
 		const addrs = await this.meshNode.resolvePeer(peerId);
 		let targetAddr: string | null = null;
 
-		// [NMP-ALPHA] Check if the peer is running on the same physical machine
+		// [LIOP-ALPHA] Check if the peer is running on the same physical machine
 		// by comparing its advertised IPs against our local OS interfaces.
 		const os = await import("node:os");
 		const localInterfaces = Object.values(os.networkInterfaces())
@@ -739,10 +741,10 @@ export class NmpMcpRouter {
 		}
 
 		console.error(
-			`[NMP-Router] 🧭 Dynamic route: ${toolName} → ${targetAddr} (PeerID: ${peerId})`,
+			`[LIOP-Router] 🧭 Dynamic route: ${toolName} → ${targetAddr} (PeerID: ${peerId})`,
 		);
 
-		const remoteClient = new nmpV1.NeuralMesh(
+		const remoteClient = new liopV1.LogicMesh(
 			targetAddr,
 			createChannelCredentials(),
 		);
@@ -765,7 +767,7 @@ export class NmpMcpRouter {
 
 			client.negotiateIntent(
 				{
-					agent_did: "did:nmp:identity:mcp:proxy",
+					agent_did: "did:liop:identity:mcp:proxy",
 					capability_hash: capabilityHash,
 					proof_of_intent: Buffer.from([]),
 				},
@@ -788,7 +790,7 @@ export class NmpMcpRouter {
 
 					const { ciphertext, sharedSecret } =
 						Kyber768Wrapper.encapsulateAsymmetric(response.kyber_public_key);
-					const proxyLogic = `return { "__nmp_proxy_tool": "${toolName}", "__nmp_proxy_args": env.args };`;
+					const proxyLogic = `return { "__liop_proxy_tool": "${toolName}", "__liop_proxy_args": env.args };`;
 					const nonce = crypto.randomBytes(12);
 
 					const sealedLogic = this.encryptWithNonce(

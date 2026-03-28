@@ -4,24 +4,24 @@ description: "The 6 architectural layers of the Neural Mesh Protocol."
 ---
 
 > © 2026 Mauricio Ortega aka. Nekzus & Organización Nekzus Solutions.
-> The **Neural Mesh Protocol (NMP) Specification** is licensed under the [Creative Commons Attribution 4.0 International License (CC BY 4.0)](https://creativecommons.org/licenses/by/4.0/).
+> The **Logic-Injection-on-Origin Protocol (LIOP) Specification** is licensed under the [Creative Commons Attribution 4.0 International License (CC BY 4.0)](https://creativecommons.org/licenses/by/4.0/).
 > **Attribution Required / Atribución Requerida:** Any use, adaptation, or distribution of these architectural concepts must explicitly attribute **Mauricio Ortega (Nekzus)** and **Nekzus Solutions**, and include an official link to this project.
 
 ## 1. Introduction
-The Neural Mesh Protocol (NMP) is a decentralized, high-performance binary transport mesh engineered for robust Machine-to-Machine (M2M) artificial intelligence communication. It replaces the classical Context-Pulling architecture of typical Agent networks with the **Logic-on-Origin (LoO)** paradigm.
+The Logic-Injection-on-Origin Protocol (LIOP) is a decentralized, high-performance binary transport mesh engineered for robust Machine-to-Machine (M2M) artificial intelligence communication. It replaces the classical Context-Pulling architecture of typical Agent networks with the **Logic-on-Origin (LoO)** paradigm.
 
 ## 2. The Logic-on-Origin (LoO) Postulate
 **Postulate of Origin (Execution Core):** Data must never be pulled to intelligence. Intelligence must be pushed to the data.
 
-An NMP Agent interacting with an explicit NMP Server pushes executable logic (in the form of microscopic `.wasm` modules or dynamically transpiled algorithms). The server securely executes this logic within a strict sandbox and returns only the aggregated mathematical results or filtered lists, mathematically negating the possibility of unintentional PII (Personally Identifiable Information) exfiltration due to large-context extraction.
+An LIOP Agent interacting with an explicit LIOP Server pushes executable logic (in the form of microscopic `.wasm` modules or dynamically transpiled algorithms). The server securely executes this logic within a strict sandbox and returns only the aggregated mathematical results or filtered lists, mathematically negating the possibility of unintentional PII (Personally Identifiable Information) exfiltration due to large-context extraction.
 
 ## 3. Topographical Architecture
 
 ### 3.1 Network Layer (libp2p & Mesh Networking)
-- NMP operates atop a decentralized `libp2p` overlay.
+- LIOP operates atop a decentralized `libp2p` overlay.
 - Servers (Data Nodes) bind to TCP/QUIC ports and advertise themselves as long-running daemons.
 - Clients (Agent Injectors) connect ad-hoc.
-- NMP completely eliminates centralized brokering or hubs.
+- LIOP completely eliminates centralized brokering or hubs.
 
 ### 3.2 Transport & Multiplexing
 - Connections use Multiplexing via Yamux or Mplex, allowing hundreds of concurrent `Logic-on-Origin` injections to occur over a single opened TCP socket without Head-Of-Line Blocking.

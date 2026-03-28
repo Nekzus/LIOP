@@ -1,5 +1,5 @@
 /**
- * TypeScript interfaces reflecting nmp_core.proto (NMP v1)
+ * TypeScript interfaces reflecting liop_core.proto (LIOP v1)
  * Optimized for logic-on-origin and high-performance serialization.
  */
 

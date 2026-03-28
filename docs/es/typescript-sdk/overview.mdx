@@ -1,11 +1,11 @@
 ---
 title: "Visión General del SDK TypeScript"
-description: "Llevando el poder de la Neural Mesh al ecosistema Node.js"
+description: "Llevando el poder de LIOP al ecosistema Node.js"
 ---
 
-El SDK oficial `@nekzus/neural-mesh` proporciona un conjunto de herramientas completo y fuertemente tipado para construir Clientes NMP (Agent Nodes) y Servidores NMP (Data Nodes) en TypeScript y JavaScript.
+El SDK oficial `@nekzus/liop` proporciona un conjunto de herramientas completo y fuertemente tipado para construir Clientes LIOP (Agent Nodes) y Servidores LIOP (Data Nodes) en TypeScript y JavaScript.
 
-Si estás migrando desde el Model Context Protocol (MCP), la API te resultará muy familiar. NMP fue diseñado para ofrecer una experiencia de desarrollo de **reemplazo directo** (drop-in replacement), abstrayendo la complejidad de Protobuf, WebAssembly y Kademlia DHT bajo clases de TypeScript sencillas.
+Si estás migrando desde el Model Context Protocol (MCP), la API te resultará muy familiar. LIOP fue diseñado para ofrecer una experiencia de desarrollo de **reemplazo directo** (drop-in replacement), abstrayendo la complejidad de Protobuf, WebAssembly y la red P2P bajo clases de TypeScript sencillas.
 
 ## Arquitectura del Paquete
 
@@ -13,33 +13,33 @@ El SDK se publica en npm como un único paquete que contiene tanto la lógica de
 
 <CodeGroup>
 ```bash npm
-npm install @nekzus/neural-mesh zod
+npm install @nekzus/liop zod
 ```
 ```bash pnpm
-pnpm add @nekzus/neural-mesh zod
+pnpm add @nekzus/liop zod
 ```
 ```bash yarn
-yarn add @nekzus/neural-mesh zod
+yarn add @nekzus/liop zod
 ```
 </CodeGroup>
 
 <Note>
-  Recomendamos instalar `zod` junto al SDK. Al igual que en la especificación MCP, NMP utiliza Zod para garantizar que los argumentos de ejecución coincidan con el manifiesto de capacidades del servidor.
+  Recomendamos instalar `zod` junto al SDK. Al igual que en la especificación MCP, LIOP utiliza Zod para garantizar que los argumentos de ejecución coincidan con el manifiesto de capacidades del servidor.
 </Note>
 
 ## Funcionamiento Interno: El Compilador Javy
 
-Si NMP inyecta lógica compilada en WebAssembly (`.wasm`), ¿cómo es posible desarrollar Agentes puramente en TypeScript?
+Si LIOP inyecta lógica compilada en WebAssembly (`.wasm`), ¿cómo es posible desarrollar Agentes puramente en TypeScript?
 
 El SDK incluye un puente de compilación nativo. Cuando un Agente TypeScript invoca `.execute()`, el SDK serializa el payload de JavaScript, lo empaqueta usando un motor similar a Javy en un módulo `.wasm` restrictivo y lo inyecta en la malla a través de gRPC. El desarrollador nunca tiene que escribir ni compilar Rust/Wasm manualmente.
 
-## Características Enterprise de Vanguardia
+## Características Industriales de Vanguardia
 
-El SDK TypeScript mantiene paridad arquitectónica con el núcleo en Rust, asegurando restricciones Zero-Trust de grado empresarial:
+El SDK TypeScript mantiene paridad arquitectónica con el núcleo en Rust, asegurando restricciones Zero-Trust de grado profesional:
 
 - **Criptografía Post-Cuántica (ML-KEM-768):** Encapsulación asimétrica (`crystals-kyber`) y autenticación simétrica AES-256-GCM de extremo a extremo.
 - **Transporte Híbrido (QUIC/TCP/WS):** Capa unificada P2P veloz usando QUIC para mínima latencia.
-- **Seguridad en Profundidad:** Soporte nativo para TLS/mTLS, configuraciones descentralizadas y Rate-Limiting por ventana deslizante anti-DoS.
+- **Seguridad en Profundidad:** Soporte nativo para TLS/mTLS, configuraciones descentralizadas y Rate-Limiting anti-DoS.
 - **Guardian-TS (Inspección AST):** Mitigación proactiva de escapes del sandbox mediante el análisis del binario antes de su ejecución.
 - **ZK-Receipt Ready:** Soporte nativo para Pruebas Cero Conocimiento matemáticas contra zkVMs.
 - **Escalado Multi-Core (Worker Pool):** Alto rendimiento mediante `piscina`, delegando el descifrado y la ejecución de sandboxes a hilos del SO independientes del Event Loop de V8.
@@ -49,27 +49,27 @@ El SDK TypeScript mantiene paridad arquitectónica con el núcleo en Rust, asegu
 El SDK exporta tres clases principales:
 
 <CardGroup cols={3}>
-  <Card title="NmpServer" icon="server" href="/es/typescript-sdk/server">
-    El receptor de datos. Expone capacidades locales y archivos, y maneja la intención de Logic-on-Origin de forma segura.
+  <Card title="LiopServer" icon="server" href="/es/typescript-sdk/server">
+    El receptor de datos. Expone capacidades locales y archivos, y maneja la intención de Logic-Injection-on-Origin de forma segura.
   </Card>
-  <Card title="NmpClient" icon="robot" href="/es/typescript-sdk/client">
+  <Card title="LiopClient" icon="robot" href="/es/typescript-sdk/client">
     El nodo de inteligencia. Busca capacidades en la malla e inyecta payloads WASM para procesar datos.
   </Card>
-  <Card title="NmpMcpBridge" icon="bridge-water" href="/es/typescript-sdk/server#nmpmcpbridge">
-    El Traductor de Legado. Puentea instantáneamente `tools` y `resources` entre clientes MCP JSON-RPC heredados y tu red NMP de alto rendimiento.
+  <Card title="LiopMcpBridge" icon="bridge-water" href="/es/typescript-sdk/server#liopmcpbridge">
+    El Traductor de Legado. Puentea instantáneamente `tools` y `resources` entre clientes MCP JSON-RPC heredados y tu red LIOP de alto rendimiento.
   </Card>
 </CardGroup>
 
 ## Deep Dive: Pool Transaccional Multi-Core
 
-NMP rompe la limitación de hilo único de Node.js mediante el enrutamiento de la carga criptográfica a hilos aislados del SO.
+LIOP rompe la limitación de hilo único de Node.js mediante el enrutamiento de la carga criptográfica a hilos aislados del SO.
 
 <Frame>
-  <img className="block dark:hidden w-full" src="/images/animated-sdk-flow-light.svg" alt="Flujo Arquitectónico del SDK NMP" />
-  <img className="hidden dark:block w-full" src="/images/animated-sdk-flow-dark.svg" alt="Flujo Arquitectónico del SDK NMP" />
+  <img className="block dark:hidden w-full" src="/images/animated-sdk-flow-light.svg" alt="Flujo Arquitectónico del SDK LIOP" />
+  <img className="hidden dark:block w-full" src="/images/animated-sdk-flow-dark.svg" alt="Flujo Arquitectónico del SDK LIOP" />
 </Frame>
 
 ## Comenzando
 
-- Construye un [Neural Server](/es/typescript-sdk/server) para proteger tus datos.
-- Diseña un [Neural Client](/es/typescript-sdk/client) para buscar inteligencia.
+- Construye un [Data Server](/es/typescript-sdk/server) para proteger tus datos.
+- Diseña un [Intelligence Client](/es/typescript-sdk/client) para buscar conocimiento en la malla.

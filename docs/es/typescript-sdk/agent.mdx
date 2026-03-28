@@ -1,38 +1,38 @@
 ---
-title: "NMP Agent (CLI)"
+title: "LIOP Agent (CLI)"
 description: "Pasarela de seguridad Zero-Config para aplicaciones de IA de escritorio"
 ---
 
-El **NMP Agent** es una utilidad de línea de comandos lista para producción incluida en el paquete `@nekzus/neural-mesh`. Actúa como un puente entre las interfaces de IA estándar (como **Claude Desktop** o **Cursor**) y el protocolo descentralizado **Neural Mesh Protocol**.
+El **LIOP Agent** es una utilidad de línea de comandos lista para producción incluida en el paquete `@nekzus/liop`. Actúa como un puente entre las interfaces de IA estándar (como **Claude Desktop** o **Cursor**) y el protocolo descentralizado **Logic-Injection-on-Origin Protocol**.
 
-En lugar de programar un servidor personalizado, los usuarios pueden simplemente ejecutar el agente para obtener instantáneamente capacidades de "Logic-on-Origin".
+En lugar de programar un servidor personalizado, los usuarios pueden simplemente ejecutar el agente para obtener instantáneamente capacidades de "Logic-Injection-on-Origin".
 
 ## Instalación
 
 El agente se distribuye a través del paquete principal del SDK. Puedes ejecutarlo directamente usando `npx`:
 
 ```bash
-npx -y @nekzus/neural-mesh
+npx -y @nekzus/liop
 ```
 
-O instalarlo globalmente para tener el comando `nmp-agent` disponible en todo el sistema:
+O instalarlo globalmente para tener el comando `liop-agent` disponible en todo el sistema:
 
 ```bash
-npm install -g @nekzus/neural-mesh
-nmp-agent
+npm install -g @nekzus/liop
+liop-agent
 ```
 
 ## 🤖 Integración con Claude Desktop
 
-NMP está diseñado para ser un reemplazo directo de los servidores MCP. Para añadir las herramientas de Neural Mesh a tu experiencia en Claude Desktop, actualiza tu archivo de configuración:
+LIOP está diseñado para ser un reemplazo directo de los servidores MCP. Para añadir las herramientas de la red LIOP a tu experiencia en Claude Desktop, actualiza tu archivo de configuración:
 
 <CodeGroup>
 ```json Windows (%APPDATA%\Claude\claude_desktop_config.json)
 {
   "mcpServers": {
-    "neural-mesh": {
+    "liop-protocol": {
       "command": "npx",
-      "args": ["-y", "@nekzus/neural-mesh"]
+      "args": ["-y", "@nekzus/liop"]
     }
   }
 }
@@ -40,40 +40,40 @@ NMP está diseñado para ser un reemplazo directo de los servidores MCP. Para a�
 ```json macOS (~/Library/Application Support/Claude/claude_desktop_config.json)
 {
   "mcpServers": {
-    "neural-mesh": {
+    "liop-protocol": {
       "command": "npx",
-      "args": ["-y", "@nekzus/neural-mesh"]
+      "args": ["-y", "@nekzus/liop"]
     }
   }
 }
 ```
 </CodeGroup>
 
-Una vez configurado, reinicia Claude Desktop. Verás el estado 🛡️ **NMP Guard** en tus logs de error.
+Una vez configurado, reinicia Claude Desktop. Verás el estado 🛡️ **LIOP Guard** en tus logs de error indicando que la malla está activa.
 
 ## Características Principales
 
 ### 1. Persistencia de Identidad
 El agente genera un **PeerID** único (par de claves Ed25519) la primera vez que se ejecuta. Esta identidad se almacena en:
-`~/.nmp/identity.json`
+`~/.liop/identity.json`
 
 > [!IMPORTANT]
-> Si cambias de máquina, copiar esta carpeta te permitirá mantener tu reputación y accesos verificados en la Malla.
+> Si cambias de máquina, copiar esta carpeta te permitirá mantener tu reputación y accesos verificados en la red.
 
 ### 2. Enrutamiento Autónomo
-El agente utiliza el `NmpMcpRouter` internamente. Cuando recibe una llamada de herramienta desde Claude:
-1. Consulta la **DHT Kademlia** para encontrar nodos que provean esa herramienta.
+El agente utiliza el `LiopMcpRouter` internamente. Cuando recibe una llamada de herramienta desde Claude:
+1. Consulta la red P2P descentralizada para encontrar nodos que provean esa herramienta.
 2. Establece un túnel seguro **Kyber768 + AES-256-GCM**.
-3. Ejecuta la lógica en el servidor remoto y devuelve el resultado verificado.
+3. Inyecta la lógica en el servidor remoto y devuelve el resultado verificado binariamente.
 
 ### 3. Descubrimiento de Bootstrap
-Por defecto, el agente se conecta al **NMP Alpha Nexus** oficial. Sin embargo, puedes apuntarlo a cualquier nodo bootstrap de la malla:
+Por defecto, el agente se conecta al **LIOP Alpha Nexus** oficial. Sin embargo, puedes apuntarlo a cualquier nodo bootstrap de la red:
 
 ```bash
-npx @nekzus/neural-mesh /ip4/1.2.3.4/tcp/4001/p2p/PEER_ID
+npx @nekzus/liop /ip4/1.2.3.4/tcp/4001/p2p/PEER_ID
 ```
 
 ## Seguridad y Diagnóstico
 El agente solo se comunica a través de **STDIO**. Imprime logs de estado y eventos de descubrimiento estrictamente en `stderr`, asegurando que el canal `stdout` permanezca limpio para los mensajes JSON-RPC 2.0 requeridos por el cliente LLM.
 
-Si encuentras problemas de conexión, busca el icono 🛡️ en la consola para verificar el estado de la Malla.
+Si encuentras problemas de conexión, busca el icono 🛡️ en la consola para verificar el estado de la comunicación y el handshake criptográfico.

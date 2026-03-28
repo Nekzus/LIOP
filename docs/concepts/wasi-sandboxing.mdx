@@ -1,11 +1,11 @@
 ---
 title: "WASI Sandboxing"
-description: "How NMP isolates execution through the WebAssembly System Interface"
+description: "How LIOP isolates execution through the WebAssembly System Interface"
 ---
 
-The biggest paradigm shift from MCP to NMP is the concept of **Logic-on-Origin**. However, executing arbitrary binary logic from remote internet agents on your local infrastructure introduces immense security consequences.
+The biggest paradigm shift from MCP to LIOP is the concept of **Logic-on-Origin**. However, executing arbitrary binary logic from remote internet agents on your local infrastructure introduces immense security consequences.
 
-To solve this, NMP relies entirely on mathematical CPU-level isolation provided by **WASI (WebAssembly System Interface)**, utilizing the Bytecode Alliance's `Wasmtime` engine.
+To solve this, LIOP relies entirely on mathematical CPU-level isolation provided by **WASI (WebAssembly System Interface)**, utilizing the Bytecode Alliance's `Wasmtime` engine.
 
 ## What is WASI?
 
@@ -13,7 +13,7 @@ When a Node.js or Python tool executes in MCP, it relies on the operating system
 
 **WASI flips the security model.** WebAssembly is a memory-safe, purely mathematical compute format. By default, a `.wasm` module literally lacks the CPU instructions to talk to the operating system, disk, clock, or network. WASI is the strictly controlled bridge that re-introduces these features exactly, and only, when explicitly granted.
 
-## The NMP Sandbox Lifecycle
+## The LIOP Sandbox Lifecycle
 
 When an Agent Node injects a WebAssembly module into a Data Node, the following security barriers activate:
 
@@ -33,10 +33,10 @@ If the agent asks to read `/var/log/nginx/` and the server allows it as `/logs`,
 `Wasmtime` boots the engine with strict limiters:
 - **Maximum Execution Time:** If the module enters an infinite loop, the runtime kills it via Out-Of-Fuel exhaustion.
 - **Maximum Memory Limit:** If the module attempts a buffer overflow or tries to allocate memory beyond its cap (e.g., 50MB), it triggers an uncatchable OOM Trap.
-- **Zero Sockets:** The Agent logic runs completely offline inside the Server. It cannot open a port, connect to the internet, or exfiltrate data directly over a TCP socket. Its only output is what it `returns` to the NMP invocation orchestrator.
-- **Node.js Parity (V8 Isolation):** In local development or SDK Demos (where WebAssembly isn't pre-installed), NMP utilizes identical strict boundaries via the `node:vm` module (`vm.createContext(Object.create(null))`). This establishes absolute hardware-level containment, explicitly stripping the Sandbox of Node globals (`process`, `require`, `fs`), thereby eliminating any possibility of Host-System escalation.
+- **Zero Sockets:** The Agent logic runs completely offline inside the Server. It cannot open a port, connect to the internet, or exfiltrate data directly over a TCP socket. Its only output is what it `returns` to the LIOP invocation orchestrator.
+- **Node.js Parity (V8 Isolation):** In local development or SDK Demos (where WebAssembly isn't pre-installed), LIOP utilizes identical strict boundaries via the `node:vm` module (`vm.createContext(Object.create(null))`). This establishes absolute hardware-level containment, explicitly stripping the Sandbox of Node globals (`process`, `require`, `fs`), thereby eliminating any possibility of Host-System escalation.
 - **Non-Blocking Pool:** The Sandbox execution is inherently computationally heavy. To prevent Node.js servers from freezing, the `@nekzus/neural-mesh` isolates this entire lifecycle inside native `worker_threads` (via `piscina`), achieving parallel throughput identical to the native Mesh-Node.
 
 ## Moving towards Component Model (Preview 2)
 
-NMP is eagerly adopting **WASI Preview 2 (The Component Model)**. This will allow Agent modules to share complex, strongly-typed JSON and Protobuf structs across the boundary (Agent Language -> Rust Engine), completely eliminating manual string-parsing overhead between the Sandbox and the Host.
+LIOP is eagerly adopting **WASI Preview 2 (The Component Model)**. This will allow Agent modules to share complex, strongly-typed JSON and Protobuf structs across the boundary (Agent Language -> Rust Engine), completely eliminating manual string-parsing overhead between the Sandbox and the Host.

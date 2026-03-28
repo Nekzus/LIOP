@@ -1,14 +1,14 @@
 ---
 title: "Inicio Rápido"
-description: "Comienza con NMP en menos de 5 minutos usando el SDK de TypeScript"
+description: "Comienza con LIOP en menos de 5 minutos usando el SDK de TypeScript"
 ---
 
-El ecosistema `@nekzus/neural-mesh` está diseñado para ser potente pero familiar. Si has construido servidores para MCP, la transición a NMP es casi directa.
+El ecosistema `@nekzus/liop` está diseñado para ser potente pero familiar. Si has construido servidores para MCP, la transición a LIOP es casi directa.
 
-En esta guía, crearemos un Servidor NMP que expone una herramienta y un Cliente que la invoca.
+En esta guía, crearemos un Servidor LIOP que expone una herramienta y un Cliente que la invoca.
 
 <Note>
-  Internamente, NMP compila tu lógica a WebAssembly y la inyecta vía P2P. El SDK abstrae todo esto para que te enfoques en la lógica de negocio.
+  Internamente, LIOP compila tu lógica a WebAssembly y la inyecta vía P2P. El SDK abstrae todo esto para que te enfoques en la lógica de negocio.
 </Note>
 
 ## 1. Instalación
@@ -17,28 +17,28 @@ Instala el SDK en tu proyecto de Node.js o TypeScript.
 
 <CodeGroup>
 ```bash npm
-npm install @nekzus/neural-mesh zod
+npm install @nekzus/liop zod
 ```
 ```bash pnpm
-pnpm add @nekzus/neural-mesh zod
+pnpm add @nekzus/liop zod
 ```
 ```bash yarn
-yarn add @nekzus/neural-mesh zod
+yarn add @nekzus/liop zod
 ```
 </CodeGroup>
 
-## 2. Crear un Servidor NMP (Data Node)
+## 2. Crear un Servidor LIOP (Data Node)
 
-Un Servidor NMP actúa como un Nodo de Datos. Se conecta a la malla y espera lógica inyectada de agentes remotos.
+Un Servidor LIOP actúa como un Nodo de Datos. Se conecta a la malla y espera lógica inyectada de agentes remotos.
 
 Crea un archivo llamado `server.ts`:
 
 ```typescript server.ts
-import { NmpServer } from '@nekzus/neural-mesh';
+import { LiopServer } from '@nekzus/liop';
 import { z } from 'zod';
 
 // Inicializa el servidor con identidad
-const server = new NmpServer({
+const server = new LiopServer({
   name: "MyLocalDataNode",
   version: "1.0.0"
 });
@@ -49,7 +49,7 @@ server.tool(
   "Analiza tablas masivas directamente en el origen.",
   { query: z.string() },
   async ({ query }) => {
-    console.log(`[Server] Ejecutando Logic-on-Origin: ${query}`);
+    console.log(`[Server] Ejecutando Logic-Injection-on-Origin: ${query}`);
     
     // Aquí se procesarían los datos locales (ej. 5GB)
     // Solo el resultado final sale del servidor
@@ -62,29 +62,29 @@ server.tool(
 // Inicia la conexión y anúncialo en la malla DHT Kademlia
 async function main() {
   await server.connect();
-  console.log("Servidor NMP escuchando en la malla...");
+  console.log("Servidor LIOP escuchando en la malla...");
 }
 
 main().catch(console.error);
 ```
 
-## 3. Crear un Cliente NMP (Agent Node)
+## 3. Crear un Cliente LIOP (Agent Node)
 
 El Cliente actúa como la Inteligencia. Descubre servidores e inyecta solicitudes (intenciones).
 
 Crea un archivo llamado `client.ts`:
 
 ```typescript client.ts
-import { NmpClient } from '@nekzus/neural-mesh';
+import { LiopClient } from '@nekzus/liop';
 
 async function main() {
-  const client = new NmpClient({
+  const client = new LiopClient({
     name: "AI_Research_Agent",
     version: "2.5.1"
   });
 
   await client.connect();
-  console.log("Conectado al Neural Mesh Protocol...");
+  console.log("Conectado al Logic-Injection-on-Origin Protocol...");
 
   try {
     // Descubre el servidor e inyecta la lógica
@@ -107,13 +107,13 @@ main().catch(console.error);
 Primero, inicia el servidor:
 ```bash
 npx tsx server.ts
-# Salida: Servidor NMP escuchando en la malla...
+# Salida: Servidor LIOP escuchando en la malla...
 ```
 
 En otra terminal, lanza el Agente:
 ```bash
 npx tsx client.ts
-# Salida: Conectado al Neural Mesh Protocol...
+# Salida: Conectado al Logic-Injection-on-Origin Protocol...
 # Salida: Resultado verificado matemáticamente:
 # Salida: Resultado de la consulta: SELECT * FROM massive_table WHERE anomaly = true
 ```
@@ -122,7 +122,7 @@ npx tsx client.ts
 
 A diferencia de las APIs tradicionales:
 1. Tu Cliente descubrió el Servidor instantáneamente mediante **Kademlia P2P**.
-2. Un handshake **Kyber Post-Cuántico** aseguró la comunicación.
+2. Un handshake **Kyber768 Post-Cuántico** aseguró la comunicación.
 3. La consulta se serializó en un formato **binario Protobuf** ultra compacto.
 4. La ejecución ocurrió dentro de un **sandbox WASI** en el servidor, aislado del host físico.
 
@@ -131,5 +131,5 @@ A diferencia de las APIs tradicionales:
 Ahora que has ejecutado tu primera misión en la malla, explora la arquitectura para aprovechar Watchdogs y Pruebas ZK.
 
 <Card title="Arquitectura del Core" icon="sitemap" href="/es/concepts/architecture">
-  Aprende cómo la capa de datos y transporte se sinergizan en NMP.
+  Aprende cómo la capa de datos y transporte se sinergizan en LIOP.
 </Card>

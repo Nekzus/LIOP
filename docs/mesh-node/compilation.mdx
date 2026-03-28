@@ -16,12 +16,12 @@ rustup target add wasm32-wasi
 ```
 
 <Note>
-  NMP currently targets WASI Preview 1 (`wasm32-wasi`). We are actively monitoring `wasm32-wasip2` (The Component Model) and will migrate the `Wasmtime` engine to support strongly-typed complex objects crossing the engine boundary in our next release.
+  LIOP currently targets WASI Preview 1 (`wasm32-wasi`). We are actively monitoring `wasm32-wasip2` (The Component Model) and will migrate the `Wasmtime` engine to support strongly-typed complex objects crossing the engine boundary in our next release.
 </Note>
 
 ## Writing a Filter
 
-A typical NMP Filter is standard Rust code, with the caveat that network and threading operations will panic if invoked, due to the Sandboxing constraints on the destination server.
+A typical LIOP Filter is standard Rust code, with the caveat that network and threading operations will panic if invoked, due to the Sandboxing constraints on the destination server.
 
 ```rust src/main.rs
 use std::env;
@@ -53,7 +53,7 @@ To compile your logic into the `.wasm` injection payload, run Cargo targeting th
 cargo build --target wasm32-wasi --release
 ```
 
-The resulting microscopic file (e.g., `target/wasm32-wasi/release/filter.wasm`) is what the `nmp-client` loads into memory and streams to the peer over the network.
+The resulting microscopic file (e.g., `target/wasm32-wasi/release/filter.wasm`) is what the `liop-client` loads into memory and streams to the peer over the network.
 
 ## Testing Locally
 

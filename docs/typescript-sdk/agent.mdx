@@ -1,38 +1,38 @@
 ---
-title: "NMP Agent (CLI)"
+title: "LIOP Agent (CLI)"
 description: "Zero-Config security gateway for desktop AI applications"
 ---
 
-The **NMP Agent** is a pre-compiled, production-ready CLI utility included with the `@nekzus/neural-mesh` package. It acts as a bridge between standard AI interfaces (like **Claude Desktop** or **Cursor**) and the decentralized **Neural Mesh Protocol**.
+The **LIOP Agent** is a pre-compiled, production-ready CLI utility included with the `@nekzus/liop` package. It acts as a bridge between standard AI interfaces (like **Claude Desktop** or **Cursor**) and the decentralized **Logic-Injection-on-Origin Protocol**.
 
-Instead of writing a custom server, users can simply run the agent to instantly gain "Logic-on-Origin" capabilities.
+Instead of writing a custom server, users can simply run the agent to instantly gain "Logic-Injection-on-Origin" capabilities.
 
 ## Installation
 
 The agent is distributed via the main SDK package. You can run it directly using `npx`:
 
 ```bash
-npx -y @nekzus/neural-mesh
+npx -y @nekzus/liop
 ```
 
-Or install it globally to have the `nmp-agent` command available system-wide:
+Or install it globally to have the `liop-agent` command available system-wide:
 
 ```bash
-npm install -g @nekzus/neural-mesh
-nmp-agent
+npm install -g @nekzus/liop
+liop-agent
 ```
 
 ## 🤖 Claude Desktop Integration
 
-NMP is designed to be a drop-in replacement for MCP servers. To add Neural Mesh tools to your Claude Desktop experience, update your configuration file:
+LIOP is designed to be a drop-in replacement for MCP servers. To add LIOP tools to your Claude Desktop experience, update your configuration file:
 
 <CodeGroup>
 ```json Windows (%APPDATA%\Claude\claude_desktop_config.json)
 {
   "mcpServers": {
-    "neural-mesh": {
+    "liop-agent": {
       "command": "npx",
-      "args": ["-y", "@nekzus/neural-mesh"]
+      "args": ["-y", "@nekzus/liop"]
     }
   }
 }
@@ -40,37 +40,37 @@ NMP is designed to be a drop-in replacement for MCP servers. To add Neural Mesh 
 ```json macOS (~/Library/Application Support/Claude/claude_desktop_config.json)
 {
   "mcpServers": {
-    "neural-mesh": {
+    "liop-agent": {
       "command": "npx",
-      "args": ["-y", "@nekzus/neural-mesh"]
+      "args": ["-y", "@nekzus/liop"]
     }
   }
 }
 ```
 </CodeGroup>
 
-Once configured, restart Claude Desktop. You will see the 🛡️ **NMP Guard** status in your logs.
+Once configured, restart Claude Desktop. You will see the 🛡️ **LIOP Guard** status in your logs.
 
 ## Core Features
 
 ### 1. Identity Persistence
 The agent generates a unique **PeerID** (Ed25519 keypair) the first time it runs. This identity is stored in:
-`~/.nmp/identity.json`
+`~/.liop/identity.json`
 
 > [!IMPORTANT]
 > If you move to a different machine, copying this folder will allow you to keep your reputation and verified access across the Mesh.
 
 ### 2. Autonomous Routing
-The agent uses the `NmpMcpRouter` internally. When a tool call is received from Claude:
+The agent uses the `LiopMcpRouter` internally. When a tool call is received from Claude:
 1. It queries the **Kademlia DHT** to find nodes providing that tool.
 2. It establishes a **Kyber768 + AES-256-GCM** secure tunnel.
 3. It executes the logic on the remote server and returns the verified result.
 
 ### 3. Bootstrap Discovery
-By default, the agent connects to the official **NMP Alpha Nexus**. However, you can point it to any mesh bootstrap node:
+By default, the agent connects to the official **LIOP Alpha Nexus**. However, you can point it to any mesh bootstrap node:
 
 ```bash
-npx @nekzus/neural-mesh /ip4/1.2.3.4/tcp/4001/p2p/PEER_ID
+npx @nekzus/liop /ip4/1.2.3.4/tcp/4001/p2p/PEER_ID
 ```
 
 ## Security & Diagnostics

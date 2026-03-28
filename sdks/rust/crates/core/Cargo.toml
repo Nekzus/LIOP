@@ -1,5 +1,5 @@
 [package]
-name = "nmp-core"
+name = "liop-core"
 version = "0.1.0"
 edition = "2021"
 

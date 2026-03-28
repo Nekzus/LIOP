@@ -1,18 +1,22 @@
-import type { NmpServer } from "../server/index.js";
+import type { LiopServer } from "../server/index.js";
 import type { CallToolRequest, CallToolResult } from "../types.js";
 
 /**
- * NmpMcpBridge acts as a bidirectional adapter.
- * It allows legacy JSON-RPC MCP clients to connect exactly as they used to,
- * intercepting those textual payloads and routing them directly to the modern
- * NmpServer logic (or eventually packaging them to WASM).
+ * LIOP MCP Bridge
+ * A bi-directional bridge that allows legacy MCP clients to interact with
+ * a LIOP-supported environment.
  */
-export class NmpMcpBridge {
-	constructor(private internalServer: NmpServer) {}
+export class LiopMcpBridge {
+	private server: LiopServer;
+
+	constructor(server: LiopServer) {
+		this.server = server;
+		console.error("[LIOP-Bridge] Adapter initialized.");
+	}
 
 	/**
 	 * Handles an incoming standard MCP JSON-RPC 2.0 payload containing `callTool`
-	 * and pipes it to the fast `NmpServer` validation layer.
+	 * and pipes it to the fast `LiopServer` validation layer.
 	 */
 	public async handleJsonRpcRequest(
 		payload: Record<string, unknown>,
@@ -35,7 +39,7 @@ export class NmpMcpBridge {
 					tools: {},
 				},
 				serverInfo: {
-					name: "NmpServer-TheVault",
+					name: "LiopServer-TheVault",
 					version: "1.0-alpha",
 				},
 			});
@@ -51,17 +55,17 @@ export class NmpMcpBridge {
 		// --- End MCP Protocol Lifecycle ---
 
 		if (method === "tools/list") {
-			const tools = this.internalServer.listTools();
+			const tools = this.server.listTools();
 			return this.successResponse(id, { tools });
 		}
 
 		if (method === "resources/list") {
-			const resources = this.internalServer.listResources();
+			const resources = this.server.listResources();
 			return this.successResponse(id, { resources });
 		}
 
 		if (method === "prompts/list") {
-			const prompts = this.internalServer.listPrompts();
+			const prompts = this.server.listPrompts();
 			return this.successResponse(id, { prompts });
 		}
 
@@ -70,7 +74,7 @@ export class NmpMcpBridge {
 				return this.errorResponse(id, -32602, "Missing prompt name in params");
 			}
 			try {
-				const result = await this.internalServer.getPrompt({
+				const result = await this.server.getPrompt({
 					name: params.name as string,
 					arguments: params.arguments as Record<string, string> | undefined,
 				});
@@ -85,7 +89,7 @@ export class NmpMcpBridge {
 				return this.errorResponse(id, -32602, "Missing resource uri in params");
 			}
 			try {
-				const result = this.internalServer.readResource(params.uri as string);
+				const result = this.server.readResource(params.uri as string);
 				return this.successResponse(id, result);
 			} catch (err: unknown) {
 				return this.errorResponse(id, -32000, (err as Error).message);
@@ -103,8 +107,7 @@ export class NmpMcpBridge {
 			};
 
 			try {
-				const result: CallToolResult =
-					await this.internalServer.callTool(request);
+				const result: CallToolResult = await this.server.callTool(request);
 
 				const isVerified = await this.verifyZkReceipt(request, result);
 				if (!isVerified) {
@@ -112,7 +115,7 @@ export class NmpMcpBridge {
 						content: [
 							{
 								type: "text",
-								text: "🚨 [NMP ZERO-TRUST SHIELD] ZK Verification Failed. The mathematical ImageID does not match the original payload. Execution aborted for security.",
+								text: "🚨 [LIOP ZERO-TRUST SHIELD] ZK Verification Failed. The mathematical ImageID does not match the original payload. Execution aborted for security.",
 							},
 						],
 						isError: true,
@@ -160,23 +163,23 @@ export class NmpMcpBridge {
 		}
 
 		try {
-			let payloadValue = request.arguments.payload;
-			// Sanitization: Remove NMP Metadata, Manifests and Logic Block markers
-			payloadValue = payloadValue
-				.replace(/^\s*NMP_MAGIC:.*?\n/g, "")
-				.replace(/^\s*MANIFEST:.*?\n/g, "")
-				.replace(/\s*---BEGIN_LOGIC---\n?/g, "")
-				.replace(/\n?---END_LOGIC---\s*$/g, "")
+			const payload = request.arguments.payload as string;
+			// [LIOP-ALPHA] Strip LIOP envelopes to restore raw logic for ImageID verification
+			const rawLogic = payload
+				.replace(/^LIOP_MAGIC:.*?\n/g, "")
+				.replace(/^MANIFEST:.*?\n/g, "")
+				.replace(/---BEGIN_LOGIC---\n?/g, "")
+				.replace(/\n?---END_LOGIC---/g, "")
 				.trim();
 
 			// 1. Recalculate the mathematical footprint locally (Image ID)
 			const crypto = await import("node:crypto");
 			const localImageId = crypto
 				.createHash("sha256")
-				.update(payloadValue)
+				.update(rawLogic)
 				.digest("hex");
 
-			// 2. Extract from NmpServer's JSON-Stringified response
+			// 2. Extract from LiopServer's JSON-Stringified response
 			const contentText = result.content[0]?.text;
 			if (contentText && typeof contentText === "string") {
 				try {
@@ -185,7 +188,7 @@ export class NmpMcpBridge {
 					// If the server provided an image_id but it doesn't match our local calculation
 					if (data.image_id && data.image_id !== localImageId) {
 						console.error(
-							`\n[NMP-Bridge] 🚨 FATAL: Image ID mismatch! Computed [${localImageId}], Received [${data.image_id}]`,
+							`\n[LIOP-Bridge] 🚨 FATAL: Image ID mismatch! Computed [${localImageId}], Received [${data.image_id}]`,
 						);
 						return false; // HACK DETECTED
 					}
@@ -193,7 +196,7 @@ export class NmpMcpBridge {
 					// If the seal is valid, we inject audit evidence to the LLM
 					if (data.image_id || data.zk_receipt) {
 						data.audit_status =
-							"✅ ZK-Receipt & ImageID Mathematically Verified by NmpMcpBridge";
+							"✅ ZK-Receipt & ImageID Mathematically Verified by LiopMcpBridge";
 						result.content[0].text = JSON.stringify(data);
 					}
 				} catch {
@@ -202,7 +205,7 @@ export class NmpMcpBridge {
 			}
 			return true;
 		} catch (e) {
-			console.error("[NMP ZK-Verifier] Critical validation failure:", e);
+			console.error("[LIOP ZK-Verifier] Critical validation failure:", e);
 			return false; // Hack attempt or modification
 		}
 	}
@@ -221,9 +224,9 @@ export class NmpMcpBridge {
 
 		const shutdown = async () => {
 			console.error(
-				"[NMP-Bridge] Disconnecting MCP session and releasing ports...",
+				"[LIOP-Bridge] Disconnecting MCP session and releasing ports...",
 			);
-			await this.internalServer.close();
+			await this.server.close();
 			process.exit(0);
 		};
 
@@ -254,7 +257,7 @@ export class NmpMcpBridge {
 								listChanged: true,
 							},
 						},
-						serverInfo: this.internalServer.getServerInfo(),
+						serverInfo: this.server.getServerInfo(),
 					});
 					process.stdout.write(`${JSON.stringify(response)}\n`);
 					return;
@@ -270,7 +273,7 @@ export class NmpMcpBridge {
 				}
 			} catch (e: unknown) {
 				console.error(
-					`[NMP-Bridge] Error processing JSON-RPC payload: ${(e as Error).message}`,
+					`[LIOP-Bridge] Error processing JSON-RPC payload: ${(e as Error).message}`,
 				);
 			}
 		});

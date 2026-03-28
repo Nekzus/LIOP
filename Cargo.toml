@@ -2,9 +2,9 @@
 members = [
     "sdks/rust/crates/core",
     "sdks/rust/crates/client",
-    "servers/mesh-node",
+    "servers/liop-node",
     "examples/wasm-filters/wasm-filter",
     "examples/wasm-filters/wasm-watchdog",
-    "tools/nmp-cli"
+    "tools/liop-cli"
 ]
 resolver = "2"

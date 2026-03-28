@@ -1,20 +1,20 @@
 <div align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://res.cloudinary.com/dsvsl0b0b/image/upload/v1772730727/Neural-Mesh-Protocol/bxasdalv9vwyt7m45vnb.svg">
-    <img alt="Neural Mesh Protocol Logo" src="https://res.cloudinary.com/dsvsl0b0b/image/upload/v1772730741/Neural-Mesh-Protocol/koych4jotjoldgo4ydpk.svg" width="700">
+    <source media="(prefers-color-scheme: dark)" srcset="https://res.cloudinary.com/dsvsl0b0b/image/upload/v1774702621/Neural-Mesh-Protocol/qaqsa28yrtpnxnbclv3p.svg?v=20260328">
+    <img alt="Logic-Injection-on-Origin Protocol Logo" src="https://res.cloudinary.com/dsvsl0b0b/image/upload/v1774702621/Neural-Mesh-Protocol/hoanw0m6tybpz5fbl12n.svg?v=20260328" width="700">
   </picture>
 <p align="center">
-  <a href="https://github.com/Nekzus/Neural-Mesh-Protocol/blob/main/LICENSE"><img src="https://img.shields.io/github/license/Nekzus/Neural-Mesh-Protocol.svg" alt="License"></a>
-  <a href="https://nekzus-32.mintlify.app/"><img src="https://img.shields.io/badge/docs-mintlify-0D9373?style=flat" alt="Docs"></a>
-  <a href="https://deepwiki.com/Nekzus/Neural-Mesh-Protocol"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
+  <a href="https://github.com/Nekzus/LIOP/blob/main/LICENSE"><img src="https://img.shields.io/github/license/Nekzus/LIOP.svg" alt="License"></a>
+  <a href="https://liop.mintlify.app/"><img src="https://img.shields.io/badge/docs-mintlify-0D9373?style=flat" alt="Docs"></a>
+  <a href="https://deepwiki.com/Nekzus/LIOP"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
   <a href="https://paypal.me/maseortega"><img src="https://img.shields.io/badge/donate-paypal-blue.svg?style=flat-square" alt="Donate"></a>
 </p>
 
 </div>
 
-# Neural Mesh Protocol (NMP)
+# Logic-Injection-on-Origin Protocol (LIOP)
 
-**NMP** is a next-generation, high-performance binary transport mesh designed for advanced AI Agent communication. It is the conceptual and technical evolution of the Model Context Protocol (MCP), radically shifting the paradigm from **pulling massive data** to secure **Logic-on-Origin** execution.
+**LIOP** is a next-generation, high-performance binary transport mesh designed for advanced AI Agent communication. It is the conceptual and technical evolution of the Model Context Protocol (MCP), radically shifting the paradigm from **pulling massive data** to secure **Logic-Injection-on-Origin (LIO)** execution.
 
 > Instead of moving terabytes of data to the AI, NMP moves lightweight, sandboxed logic to the data.
 
@@ -22,20 +22,16 @@
 
 In the rapid evolution of autonomous agents, transferring gigabytes of raw data to central AI nodes for filtering, parsing, or reasoning is increasingly inefficient, slow, and expensive. Current protocols force agents to download entire datasets to extract a few relevant insights, wasting bandwidth, tokens, and time.
 
-## The NMP Solution: Logic-on-Origin
+## The LIOP Solution: Logic-Injection-on-Origin
 
-NMP introduces a **decentralized, Zero-Trust architectural model** where AI agents inject ultra-lightweight, sandboxed execution modules (WebAssembly) directly into the data source. The data never leaves its origin.
+LIOP introduces a **decentralized, Zero-Trust architectural model** where AI agents inject ultra-lightweight, sandboxed execution modules (WebAssembly) directly into the data source. The data never leaves its origin.
 
 ```
-AI Agent (LLM/SDK)  ──WASM Payload──>  Data Server (Host)
-                                         |
-                                    Guardian AST
-                                         |
-                                    Wasmtime WASI Sandbox
-                                         |
-                                      ZK Prover
-                                         |
-AI Agent (LLM/SDK)  <──Result + Proof──  Data Server (Host)
+LIOP_MAGIC:0x00FF
+MANIFEST:{"target":"wasi_v1","name":"AuditModule","integrity_checks":true}
+---BEGIN_LOGIC---
+...
+---END_LOGIC---
 ```
 
 **Key benefits:**
@@ -48,14 +44,14 @@ AI Agent (LLM/SDK)  <──Result + Proof──  Data Server (Host)
 This is a **polyglot monorepo** organized into clear, isolated modules:
 
 ```
-Neural-Mesh-Protocol/
+Neural-Mesh-Protocol/ (LIOP)
 ├── sdks/
-│   ├── typescript/          # @nekzus/neural-mesh (NPM package)
-│   └── rust/                # nmp-core & nmp-client (Cargo crates)
+│   ├── typescript/          # @nekzus/liop (NPM package)
+│   └── rust/                # liop-core & liop-client (Cargo crates)
 ├── servers/
-│   └── mesh-node/           # nmp-server (Wasmtime + gRPC + libp2p)
+│   └── liop-node/           # liop-server (Wasmtime + gRPC + libp2p)
 ├── protocol/
-│   ├── proto/               # Protobuf v3 service definitions
+│   ├── proto/               # Protobuf v3 service definitions (liop_core.proto)
 │   └── SPECIFICATION.md     # Formal protocol specification
 ├── examples/
 │   ├── demos/               # High-fidelity & educational demos
@@ -74,13 +70,13 @@ Neural-Mesh-Protocol/
 
 ### 1. TypeScript SDK — `sdks/typescript/`
 
-The developer-facing SDK, published as [`@nekzus/neural-mesh`](https://www.npmjs.com/package/@nekzus/neural-mesh) on NPM. Designed as a **drop-in replacement for MCP** with native NMP capabilities.
+The developer-facing SDK, published as [`@nekzus/liop`](https://www.npmjs.com/package/@nekzus/liop) on NPM. Designed as a **drop-in replacement for MCP** with native LIOP capabilities.
 
 | Feature | Description |
 |---|---|
-| `NmpServer` | Register tools, resources, and prompts with Zod schema validation |
-| `NmpClient` | Discover and invoke remote tools via P2P mesh |
-| `NmpMcpBridge` | JSON-RPC 2.0 adapter for legacy MCP clients (Claude Desktop, Cursor) |
+| `LiopServer` | Register tools, resources, and prompts with Zod schema validation |
+| `LiopClient` | Discover and invoke remote tools via P2P mesh |
+| `LiopMcpBridge` | JSON-RPC 2.0 adapter for legacy MCP clients (Claude Desktop, Cursor) |
 | Guardian AST | Static analysis of WASM imports to prevent sandbox escapes |
 | PII Shield | Real-time detection and blocking of sensitive data (Email, Credit Card, IP, Phone) |
 | Worker Pool | Multi-threaded execution via Piscina for non-blocking cryptography |
@@ -98,8 +94,8 @@ The native Rust crates providing zero-overhead bindings to the NMP mesh.
 
 | Crate | Description |
 |---|---|
-| `nmp-core` | Shared Protobuf definitions compiled with `tonic` + `prost` |
-| `nmp-client` | High-level agent interface with Kyber PQC, AES-256-GCM encryption, and Kademlia DHT discovery |
+| `liop-core` | Shared Protobuf definitions compiled with `tonic` + `prost` |
+| `liop-client` | High-level agent interface with Kyber PQC, AES-256-GCM encryption, and Kademlia DHT discovery |
 
 [Read the Rust SDK Documentation](./sdks/rust/README.md)
 
@@ -111,7 +107,7 @@ The high-performance Data Node host, written in Rust. This is where injected WAS
 
 | Module | Description |
 |---|---|
-| `executor.rs` | Wasmtime + WASI sandbox with fuel-based CPU limits and `nmp::push_event` host syscall |
+| `executor.rs` | Wasmtime + WASI sandbox with fuel-based CPU limits and `liop::push_event` host syscall |
 | `guardian.rs` | Zero-Time AST structural scanning via `wasmparser` — rejects malicious imports before JIT |
 | `grpc.rs` | Tonic gRPC server with PQC intent negotiation, Rate-Limiting, and streaming |
 | `p2p.rs` | libp2p Kademlia DHT for decentralized peer discovery over Noise/TCP/QUIC |
@@ -140,7 +136,7 @@ The high-performance Data Node host, written in Rust. This is where injected WAS
 ### Install the TypeScript SDK
 
 ```bash
-npm install @nekzus/neural-mesh
+npm install @nekzus/liop
 ```
 
 ### Run the Zero-Config Agent (CLI)
@@ -148,7 +144,7 @@ npm install @nekzus/neural-mesh
 For end-users wanting to integrate with **Claude Desktop** instantly:
 
 ```bash
-npx -y @nekzus/neural-mesh
+npx -y @nekzus/liop
 ```
 
 ### Build the Rust Backend
@@ -166,8 +162,8 @@ cargo test
 
 ## Documentation
 
-- [Official Documentation Portal (Mintlify)](https://nekzus-32.mintlify.app/)
-- [Ask DeepWiki about NMP](https://deepwiki.com/Nekzus/Neural-Mesh-Protocol)
+- [Official Documentation Portal (Mintlify)](https://liop.mintlify.app/)
+- [Ask DeepWiki about LIOP](https://deepwiki.com/Nekzus/LIOP)
 - [Protocol Specification](./protocol/SPECIFICATION.md)
 - [Project Manifesto](./MANIFESTO.md)
 

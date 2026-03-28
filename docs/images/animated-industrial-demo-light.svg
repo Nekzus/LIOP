@@ -4,8 +4,8 @@
     <path id="path-req-mcp" d="M 220 160 L 400 160" fill="none" />
     <path id="path-res-mcp" d="M 400 280 L 220 280" fill="none" />
     
-    <path id="path-req-nmp" d="M 620 160 L 800 160" fill="none" />
-    <path id="path-res-nmp" d="M 800 280 L 620 280" fill="none" />
+    <path id="path-req-liop" d="M 620 160 L 800 160" fill="none" />
+    <path id="path-res-liop" d="M 800 280 L 620 280" fill="none" />
   </defs>
 
   <style>

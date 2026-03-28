@@ -1,13 +1,13 @@
 import crypto from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { NmpServer } from "../server/index.js";
-import { NmpMcpBridge } from "./index.js";
+import { LiopServer } from "../server/index.js";
+import { LiopMcpBridge } from "./index.js";
 
-describe("NmpMcpBridge", () => {
+describe("LiopMcpBridge", () => {
 	it("should error on invalid JSON-RPC version", async () => {
-		const server = new NmpServer({ name: "test", version: "1" });
-		const bridge = new NmpMcpBridge(server);
+		const server = new LiopServer({ name: "test", version: "1" });
+		const bridge = new LiopMcpBridge(server);
 
 		// biome-ignore lint/suspicious/noExplicitAny: test assertion bounds
 		const res: any = await bridge.handleJsonRpcRequest({
@@ -20,12 +20,12 @@ describe("NmpMcpBridge", () => {
 	});
 
 	it("should list tools using standard MCP ping", async () => {
-		const server = new NmpServer({ name: "test", version: "1" });
+		const server = new LiopServer({ name: "test", version: "1" });
 		server.tool("example", "Test tool", { param: z.string() }, async () => ({
 			content: [],
 		}));
 
-		const bridge = new NmpMcpBridge(server);
+		const bridge = new LiopMcpBridge(server);
 		// biome-ignore lint/suspicious/noExplicitAny: test assertion bounds
 		const res: any = await bridge.handleJsonRpcRequest({
 			jsonrpc: "2.0",
@@ -39,12 +39,12 @@ describe("NmpMcpBridge", () => {
 	});
 
 	it("should natively route a tools/call request and execute it", async () => {
-		const server = new NmpServer({ name: "test", version: "1" });
+		const server = new LiopServer({ name: "test", version: "1" });
 		server.tool("greet", "Greeting", { name: z.string() }, async ({ name }) => {
 			return { content: [{ type: "text", text: `Hello ${name}` }] };
 		});
 
-		const bridge = new NmpMcpBridge(server);
+		const bridge = new LiopMcpBridge(server);
 		const payload = {
 			jsonrpc: "2.0",
 			id: "req_2",
@@ -59,8 +59,8 @@ describe("NmpMcpBridge", () => {
 	});
 
 	it("should gracefully handle missing parameters in tools/call", async () => {
-		const server = new NmpServer({ name: "test", version: "1" });
-		const bridge = new NmpMcpBridge(server);
+		const server = new LiopServer({ name: "test", version: "1" });
+		const bridge = new LiopMcpBridge(server);
 
 		// biome-ignore lint/suspicious/noExplicitAny: test assertion bounds
 		const res: any = await bridge.handleJsonRpcRequest({
@@ -75,24 +75,24 @@ describe("NmpMcpBridge", () => {
 	});
 
 	it("should handle resources/read correctly", async () => {
-		const server = new NmpServer({ name: "test", version: "1" });
-		server.resource("test_res", "nmp://test", "desc", "text/plain", "content");
-		const bridge = new NmpMcpBridge(server);
+		const server = new LiopServer({ name: "test", version: "1" });
+		server.resource("test_res", "liop://test", "desc", "text/plain", "content");
+		const bridge = new LiopMcpBridge(server);
 
 		// biome-ignore lint/suspicious/noExplicitAny: test assertion bounds
 		const res: any = await bridge.handleJsonRpcRequest({
 			jsonrpc: "2.0",
 			id: 4,
 			method: "resources/read",
-			params: { uri: "nmp://test" },
+			params: { uri: "liop://test" },
 		});
 
 		expect(res.result.contents[0].text).toBe("content");
 	});
 
 	it("should error if resources/read misses uri", async () => {
-		const server = new NmpServer({ name: "test", version: "1" });
-		const bridge = new NmpMcpBridge(server);
+		const server = new LiopServer({ name: "test", version: "1" });
+		const bridge = new LiopMcpBridge(server);
 
 		// biome-ignore lint/suspicious/noExplicitAny: test assertion bounds
 		const res: any = await bridge.handleJsonRpcRequest({
@@ -107,15 +107,15 @@ describe("NmpMcpBridge", () => {
 	});
 
 	it("should catch errors thrown by internalServer.readResource", async () => {
-		const server = new NmpServer({ name: "test", version: "1" });
-		const bridge = new NmpMcpBridge(server);
+		const server = new LiopServer({ name: "test", version: "1" });
+		const bridge = new LiopMcpBridge(server);
 
 		// biome-ignore lint/suspicious/noExplicitAny: test assertion bounds
 		const res: any = await bridge.handleJsonRpcRequest({
 			jsonrpc: "2.0",
 			id: 6,
 			method: "resources/read",
-			params: { uri: "nmp://not-found" },
+			params: { uri: "liop://not-found" },
 		});
 
 		expect(res.error).toBeDefined();
@@ -123,12 +123,12 @@ describe("NmpMcpBridge", () => {
 	});
 
 	it("should catch internal execution errors in tools/call", async () => {
-		const server = new NmpServer({ name: "test", version: "1" });
+		const server = new LiopServer({ name: "test", version: "1" });
 		server.tool("fail", "Fail Tool", {}, async () => {
 			throw new Error("Simulated failure");
 		});
 
-		const bridge = new NmpMcpBridge(server);
+		const bridge = new LiopMcpBridge(server);
 
 		// biome-ignore lint/suspicious/noExplicitAny: test assertion bounds
 		const res: any = await bridge.handleJsonRpcRequest({
@@ -145,8 +145,8 @@ describe("NmpMcpBridge", () => {
 	});
 
 	it("should return Method not found for unknown methods", async () => {
-		const server = new NmpServer({ name: "test", version: "1" });
-		const bridge = new NmpMcpBridge(server);
+		const server = new LiopServer({ name: "test", version: "1" });
+		const bridge = new LiopMcpBridge(server);
 
 		// biome-ignore lint/suspicious/noExplicitAny: test assertion bounds
 		const res: any = await bridge.handleJsonRpcRequest({
@@ -160,8 +160,8 @@ describe("NmpMcpBridge", () => {
 	});
 
 	it("should return error if prompts/get misses name", async () => {
-		const server = new NmpServer({ name: "test", version: "1" });
-		const bridge = new NmpMcpBridge(server);
+		const server = new LiopServer({ name: "test", version: "1" });
+		const bridge = new LiopMcpBridge(server);
 
 		// biome-ignore lint/suspicious/noExplicitAny: test assertion bounds
 		const res: any = await bridge.handleJsonRpcRequest({
@@ -176,8 +176,8 @@ describe("NmpMcpBridge", () => {
 	});
 
 	it("should catch error if prompts/get fails", async () => {
-		const server = new NmpServer({ name: "test", version: "1" });
-		const bridge = new NmpMcpBridge(server);
+		const server = new LiopServer({ name: "test", version: "1" });
+		const bridge = new LiopMcpBridge(server);
 
 		// biome-ignore lint/suspicious/noExplicitAny: test assertion bounds
 		const res: any = await bridge.handleJsonRpcRequest({
@@ -192,11 +192,11 @@ describe("NmpMcpBridge", () => {
 	});
 
 	it("should allow execution when image_id mathematically matches the payload (Zero-Trust Success)", async () => {
-		const server = new NmpServer({ name: "test", version: "1.0.0" });
-		const bridge = new NmpMcpBridge(server);
+		const server = new LiopServer({ name: "test", version: "1.0.0" });
+		const bridge = new LiopMcpBridge(server);
 
 		const testPayload =
-			'NMP_MAGIC:0x00FF\nMANIFEST:{"target":"wasi_v1","name":"TestModule","integrity_checks":true}\n---BEGIN_LOGIC---\nreturn \'hello world\';\n---END_LOGIC---';
+			'LIOP_MAGIC:0x00FF\nMANIFEST:{"target":"wasi_v1","name":"TestModule","integrity_checks":true}\n---BEGIN_LOGIC---\nreturn \'hello world\';\n---END_LOGIC---';
 		// The real server only hashes the extracted logic payload
 		const expectedHash = crypto
 			.createHash("sha256")
@@ -245,11 +245,11 @@ describe("NmpMcpBridge", () => {
 	});
 
 	it("should BLOCK execution and return MCP error when image_id is adulterated (Hack Simulation)", async () => {
-		const server = new NmpServer({ name: "test", version: "1.0.0" });
-		const bridge = new NmpMcpBridge(server);
+		const server = new LiopServer({ name: "test", version: "1.0.0" });
+		const bridge = new LiopMcpBridge(server);
 
 		const testPayload =
-			'NMP_MAGIC:0x00FF\nMANIFEST:{"target":"wasi_v1","name":"HackModule","integrity_checks":true}\n---BEGIN_LOGIC---\nreturn \'clean code\';\n---END_LOGIC---';
+			'LIOP_MAGIC:0x00FF\nMANIFEST:{"target":"wasi_v1","name":"HackModule","integrity_checks":true}\n---BEGIN_LOGIC---\nreturn \'clean code\';\n---END_LOGIC---';
 
 		// The server is compromised and returns a different image_id
 		const maliciousHash = crypto
@@ -292,7 +292,7 @@ describe("NmpMcpBridge", () => {
 
 		const contentText = response.result.content[0].text;
 		expect(contentText).toContain(
-			"🚨 [NMP ZERO-TRUST SHIELD] ZK Verification Failed",
+			"🚨 [LIOP ZERO-TRUST SHIELD] ZK Verification Failed",
 		);
 	});
 });

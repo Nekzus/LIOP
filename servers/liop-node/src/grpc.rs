@@ -1,9 +1,9 @@
-// NMP gRPC Service Implementation
+// LIOP (Logic-Injection-on-Origin Protocol) gRPC Service Implementation
 
 use tracing::{debug, error, info, warn};
 
-use nmp_core::v1::neural_mesh_server::NeuralMesh;
-use nmp_core::v1::{IntentRequest, IntentResponse, LogicRequest, LogicResponse};
+use liop_core::v1::logic_mesh_server::LogicMesh;
+use liop_core::v1::{IntentRequest, IntentResponse, LogicRequest, LogicResponse};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 use tonic::{Request, Response, Status};
@@ -36,7 +36,7 @@ impl SessionEntry {
 const RATE_LIMIT_MAX_REQUESTS: usize = 10;
 const RATE_LIMIT_WINDOW: Duration = Duration::from_secs(60);
 
-pub struct NmpService {
+pub struct LiopService {
     engine: wasmtime::Engine,
     sessions: Arc<Mutex<HashMap<String, SessionEntry>>>,
     session_ttl: Duration,
@@ -47,7 +47,7 @@ pub struct NmpService {
     rate_limits: Arc<Mutex<HashMap<String, VecDeque<Instant>>>>,
 }
 
-impl NmpService {
+impl LiopService {
     pub fn new(
         engine: wasmtime::Engine,
         session_ttl: Duration,
@@ -108,13 +108,13 @@ impl NmpService {
 }
 
 #[tonic::async_trait]
-impl NeuralMesh for NmpService {
+impl LogicMesh for LiopService {
     async fn negotiate_intent(
         &self,
         request: Request<IntentRequest>,
     ) -> Result<Response<IntentResponse>, Status> {
         let req = request.into_inner();
-        info!(agent_did = %req.agent_did, "Received NMP Intent Negotiation");
+        info!(agent_did = %req.agent_did, "Received LIOP Intent Negotiation");
 
         // Anti-DoS: enforce sliding window rate-limit per agent
         self.check_rate_limit(&req.agent_did)?;

@@ -6,8 +6,8 @@ import * as grpc from "@grpc/grpc-js";
 import { Piscina } from "piscina";
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
-import { MeshNode, type NmpManifest } from "../mesh/node.js";
-import { NmpRpcServer } from "../rpc/server.js";
+import { type LiopManifest, MeshNode } from "../mesh/node.js";
+import { LiopRpcServer } from "../rpc/server.js";
 import type { LogicRequest, LogicResponse } from "../rpc/types.js";
 import type {
 	CallToolRequest,
@@ -30,7 +30,7 @@ export type ToolHandler<T extends z.ZodRawShape = z.ZodRawShape> = (
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-export class NmpServer {
+export class LiopServer {
 	private logicCache: Map<string, { hash: string; timestamp: number }> =
 		new Map();
 	private connectionStats: Map<
@@ -63,17 +63,17 @@ export class NmpServer {
 	private piiScanner: PiiScanner;
 	private workerPool: Piscina;
 	private meshNode: MeshNode | null = null;
-	private rpcServer: NmpRpcServer | null = null;
+	private rpcServer: LiopRpcServer | null = null;
 	private sessions: Map<
 		string,
 		{ capability_hash: string; kyber_sk: Uint8Array }
 	> = new Map();
 
-	private static readonly NMP_LOGIC_REGEX =
-		/\s*NMP_MAGIC:0x00FF\s*\n?\s*MANIFEST:(?<manifest>\{[\s\S]*?\})\s*\n?\s*---BEGIN_LOGIC---\n?(?<logic>[\s\S]*?)\n?---END_LOGIC---/m;
+	private static readonly LIOP_LOGIC_REGEX =
+		/\s*LIOP_MAGIC:0x00FF\s*\n?\s*MANIFEST:(?<manifest>\{[\s\S]*?\})\s*\n?\s*---BEGIN_LOGIC---\n?(?<logic>[\s\S]*?)\n?---END_LOGIC---/m;
 
 	private extractLogic(payload: string): string | null {
-		const match = payload.match(NmpServer.NMP_LOGIC_REGEX);
+		const match = payload.match(LiopServer.LIOP_LOGIC_REGEX);
 		return match?.groups?.logic ? match.groups.logic.trim() : null;
 	}
 
@@ -165,11 +165,11 @@ export class NmpServer {
 		let finalDescription = description;
 		let finalHandler = handler;
 
-		// NMP Zero-Shot Autonomy Middleware: Detect Logic-on-Origin tools
+		// LIOP Zero-Shot Autonomy Middleware: Detect Logic-on-Origin tools
 		if (shape.payload && shape.payload instanceof z.ZodString) {
 			const blockedKeys = this.config?.security?.forbiddenKeys || [];
 
-			finalDescription += `\n\n[NMP-PROTO-V1: LOGIC-ON-ORIGIN SPECIFICATION]\nCRITICAL: This tool requires a strictly formatted Logic-on-Origin payload. Failure to wrap JavaScript code within the NMP envelope will result in a MalformedPayloadError.\n\nREQUIRED FORMAT:\nNMP_MAGIC:0x00FF\nMANIFEST:{"target":"wasi_v1","name":"[ModuleName]","integrity_checks":true}\n---BEGIN_LOGIC---\n// Pure JavaScript logic. Access data via 'env.records'.\n// You MUST use 'return' to output results.\n---END_LOGIC---\n\nExecution Environment: Zero-Trust WASI Sandbox (Node.js Worker Pool).`;
+			finalDescription += `\n\n[LIOP-PROTO-V1: LOGIC-ON-ORIGIN SPECIFICATION]\nCRITICAL: This tool requires a strictly formatted Logic-on-Origin payload. Failure to wrap JavaScript code within the LIOP envelope will result in a MalformedPayloadError.\n\nREQUIRED FORMAT:\nLIOP_MAGIC:0x00FF\nMANIFEST:{"target":"wasi_v1","name":"[ModuleName]","integrity_checks":true}\n---BEGIN_LOGIC---\n// Pure JavaScript logic. Access data via 'env.records'.\n// You MUST use 'return' to output results.\n---END_LOGIC---\n\nExecution Environment: Zero-Trust WASI Sandbox (Node.js Worker Pool).`;
 
 			if (blockedKeys.length > 0) {
 				finalDescription += `\n// SECURITY RESTRICTION: Do NOT include any of the following fields: ${blockedKeys.join(", ")}`;
@@ -179,7 +179,7 @@ export class NmpServer {
 				finalDescription += `\n\nSTRICT SCHEMA ADHERENCE:\nThe 'env.records' array contains objects with: ${JSON.stringify(this.activeSchema)}`;
 			}
 
-			finalDescription += `\n\nOptional: You can include an "__nmp_bypass_ast_cache" boolean parameter set to true to force AST re-evaluation.`;
+			finalDescription += `\n\nOptional: You can include an "__liop_bypass_ast_cache" boolean parameter set to true to force AST re-evaluation.`;
 
 			finalHandler = async (
 				args: z.infer<z.ZodObject<T>>,
@@ -200,7 +200,7 @@ export class NmpServer {
 						content: [
 							{
 								type: "text",
-								text: "NMP_THROTTLED: Too many violations. Cooling down for 60 seconds.",
+								text: "LIOP_THROTTLED: Too many violations. Cooling down for 60 seconds.",
 							},
 						],
 						isError: true,
@@ -210,7 +210,7 @@ export class NmpServer {
 				const payloadValue = (args as Record<string, unknown>)
 					.payload as string;
 				const bypassCache =
-					(args as Record<string, unknown>).__nmp_bypass_ast_cache === true;
+					(args as Record<string, unknown>).__liop_bypass_ast_cache === true;
 
 				const payloadHash = crypto
 					.createHash("sha256")
@@ -241,7 +241,7 @@ export class NmpServer {
 						content: [
 							{
 								type: "text",
-								text: 'Error: Malformed payload. Missing NMP_MAGIC, MANIFEST, or boundaries.\nYou MUST wrap your logic exactly like this:\n\nNMP_MAGIC:0x00FF\nMANIFEST:{"target":"wasi_v1","name":"DynamicAudit","integrity_checks":true}\n---BEGIN_LOGIC---\n// Your JS code here\n---END_LOGIC---',
+								text: 'Error: Malformed payload. Missing LIOP_MAGIC, MANIFEST, or boundaries.\nYou MUST wrap your logic exactly like this:\n\nLIOP_MAGIC:0x00FF\nMANIFEST:{"target":"wasi_v1","name":"DynamicAudit","integrity_checks":true}\n---BEGIN_LOGIC---\n// Your JS code here\n---END_LOGIC---',
 							},
 						],
 						isError: true,
@@ -303,11 +303,11 @@ export class NmpServer {
 			schema,
 		});
 
-		// [NMP-ALPHA] Auto-announce capability to the Mesh P2P DHT if node is active
+		// [LIOP-ALPHA] Auto-announce capability to the Mesh P2P DHT if node is active
 		if (this.meshNode) {
 			this.meshNode.announceCapability(name).catch((err) => {
 				console.error(
-					`[NMP-Mesh] 🚨 Failed to auto-announce tool ${name}: ${err.message}`,
+					`[LIOP-Mesh] 🚨 Failed to auto-announce tool ${name}: ${err.message}`,
 				);
 			});
 		}
@@ -338,26 +338,26 @@ export class NmpServer {
 	 */
 	public enableZeroShotAutonomy(): void {
 		this.prompt(
-			"nmp_blind_analyst",
-			"The official Neural Mesh Protocol system prompt. Instructs the LLM on how to securely inject Logic-on-Origin without violating PII or safety constraints.",
+			"liop_blind_analyst",
+			"The official Logic-Injection-on-Origin Protocol system prompt. Instructs the LLM on how to securely inject Logic-on-Origin without violating PII or safety constraints.",
 			[],
 			(_request) => {
 				return {
-					description: "NMP Blind Analyst Instructions",
+					description: "LIOP Blind Analyst Instructions",
 					messages: [
 						{
 							role: "user",
 							content: {
 								type: "text",
-								text: `You are the "Blind Analyst" operating within the Neural Mesh Protocol (NMP) ecosystem.
+								text: `You are the "Blind Analyst" operating within the Logic-Injection-on-Origin Protocol (LIOP) ecosystem.
 Your objective is to perform secure Logic-on-Origin injections. You must process remote data without ever requesting its extraction.
 
 INDUSTRIAL CONSTRAINTS & PROTOCOL RULES:
-1. DATA PRIVACY: NEVER attempt to export Personally Identifiable Information (PII). The NMP Egress Shield will block any response containing raw IDs, names, or addresses.
+1. DATA PRIVACY: NEVER attempt to export Personally Identifiable Information (PII). The LIOP Egress Shield will block any response containing raw IDs, names, or addresses.
 2. AGGREGATION FIRST: Always prefer returning counts, averages, or anonymized summaries.
-3. PAYLOAD ENCAPSULATION: Your JavaScript payloads MUST strictly adhere to the NMPv1 Envelope. DO NOT include markdown backticks or leading text inside the 'payload' argument.
+3. PAYLOAD ENCAPSULATION: Your JavaScript payloads MUST strictly adhere to the LIOPv1 Envelope. DO NOT include markdown backticks or leading text inside the 'payload' argument.
    Structure:
-   NMP_MAGIC:0x00FF
+   LIOP_MAGIC:0x00FF
    MANIFEST:{"target":"wasi_v1","name":"AnalysisTask","integrity_checks":true}
    ---BEGIN_LOGIC---
    // Your JS Code Here
@@ -401,7 +401,7 @@ Protocol Adherence is mandatory for successful execution.`,
 	public dataDictionary(
 		schema: Record<string, unknown>,
 		name: string = "Global Medical Data Dictionary",
-		uri: string = "nmp://schema/global",
+		uri: string = "liop://schema/global",
 		description: string = "Exposes the internal database schema for Zero-Shot Autonomy planning",
 	): void {
 		this.activeSchema = schema;
@@ -433,7 +433,7 @@ Protocol Adherence is mandatory for successful execution.`,
 	 */
 	public clearAstCache(): void {
 		this.logicCache.clear();
-		console.error("[NMP-SDK] AST Security Cache cleared by Admin.");
+		console.error("[LIOP-SDK] AST Security Cache cleared by Admin.");
 	}
 
 	/**
@@ -452,9 +452,9 @@ Protocol Adherence is mandatory for successful execution.`,
 			// Re-inject the bypass flag if present since Zod might strip unrecognized keys
 			if (
 				(request.arguments as Record<string, unknown>)
-					?.__nmp_bypass_ast_cache === true
+					?.__liop_bypass_ast_cache === true
 			) {
-				(parsedArgs as Record<string, unknown>).__nmp_bypass_ast_cache = true;
+				(parsedArgs as Record<string, unknown>).__liop_bypass_ast_cache = true;
 			}
 
 			// [LOGIC-ON-ORIGIN] Intercept code injection directly
@@ -584,10 +584,10 @@ Protocol Adherence is mandatory for successful execution.`,
 		this.meshNode = new MeshNode(options.meshConfig);
 		await this.meshNode.start();
 
-		// 2. Register NMP Manifest Protocol Handler
+		// 2. Register LIOP Manifest Protocol Handler
 		// This allows remote peers to query our tool/resource metadata dynamically.
 		const meshNodeRef = this.meshNode;
-		this.meshNode.registerManifestHandler((): NmpManifest => {
+		this.meshNode.registerManifestHandler((): LiopManifest => {
 			const tools = this.listTools().map((t) => ({
 				name: t.name,
 				description: t.description,
@@ -620,13 +620,13 @@ Protocol Adherence is mandatory for successful execution.`,
 		await this.meshNode.announceManifest().catch(console.error);
 
 		// 5. Initialize gRPC Server (Execution)
-		this.rpcServer = new NmpRpcServer();
+		this.rpcServer = new LiopRpcServer();
 
 		this.rpcServer.addService({
 			negotiateIntent: (call, callback) => {
 				const request = call.request;
 				console.error(
-					`[NMP-RPC] 🤝 Negotiating intent for capability: ${request.capability_hash}`,
+					`[LIOP-RPC] 🤝 Negotiating intent for capability: ${request.capability_hash}`,
 				);
 
 				// Standard dynamic import to avoid potential circularity
@@ -652,7 +652,7 @@ Protocol Adherence is mandatory for successful execution.`,
 			) => {
 				const request = call.request;
 				console.error(
-					`[NMP-RPC] 🚀 Executing Logic-on-Origin for session: ${request.session_token}`,
+					`[LIOP-RPC] 🚀 Executing Logic-on-Origin for session: ${request.session_token}`,
 				);
 
 				const session = this.sessions.get(request.session_token);
@@ -683,13 +683,13 @@ Protocol Adherence is mandatory for successful execution.`,
 					// If the execution resulted in a special proxy command, handle it
 					try {
 						const decoded = JSON.parse(finalOutput);
-						if (decoded.__nmp_proxy_tool) {
+						if (decoded.__liop_proxy_tool) {
 							console.error(
-								`[NMP-RPC] ⚡ Executing Proxied Tool: ${decoded.__nmp_proxy_tool}`,
+								`[LIOP-RPC] ⚡ Executing Proxied Tool: ${decoded.__liop_proxy_tool}`,
 							);
 							const toolResult = await this.callTool({
-								name: decoded.__nmp_proxy_tool,
-								arguments: decoded.__nmp_proxy_args || {},
+								name: decoded.__liop_proxy_tool,
+								arguments: decoded.__liop_proxy_args || {},
 							});
 							finalOutput = JSON.stringify(toolResult);
 						}
@@ -713,9 +713,9 @@ Protocol Adherence is mandatory for successful execution.`,
 					]);
 					if (violation) {
 						console.error(
-							`[NMP-RPC] 🚨 PII Leak blocked in gRPC stream: ${violation}`,
+							`[LIOP-RPC] 🚨 PII Leak blocked in gRPC stream: ${violation}`,
 						);
-						response.semantic_evidence = `[NMP] Egress Security Violation. Output blocked due to PII leakage (${violation}).`;
+						response.semantic_evidence = `[LIOP] Egress Security Violation. Output blocked due to PII leakage (${violation}).`;
 						response.is_error = true;
 					}
 
@@ -724,7 +724,7 @@ Protocol Adherence is mandatory for successful execution.`,
 					});
 				} catch (error: unknown) {
 					const e = error as Error;
-					console.error(`[NMP-RPC] 🚨 Execution Error: ${e.message}`);
+					console.error(`[LIOP-RPC] 🚨 Execution Error: ${e.message}`);
 
 					// Send error response before closing, avoiding "stream closed without results"
 					const errorResponse: LogicResponse = {
@@ -747,7 +747,7 @@ Protocol Adherence is mandatory for successful execution.`,
 
 		await this.rpcServer.listen(port);
 		console.error(
-			`[NMP-SDK] 🌍 Node successfully announced to Mesh. PeerID: ${this.meshNode.getPeerId()}`,
+			`[LIOP-SDK] 🌍 Node successfully announced to Mesh. PeerID: ${this.meshNode.getPeerId()}`,
 		);
 	}
 
@@ -789,13 +789,13 @@ Protocol Adherence is mandatory for successful execution.`,
 			const violation = this.piiScanner.scan(content);
 			if (violation) {
 				console.error(
-					`[NMP-SDK] 🚨 PII Leak blocked in local execution: ${violation}`,
+					`[LIOP-SDK] 🚨 PII Leak blocked in local execution: ${violation}`,
 				);
 				return {
 					content: [
 						{
 							type: "text",
-							text: `[NMP] Egress Security Violation. Output blocked due to PII leakage (${violation}).`,
+							text: `[LIOP] Egress Security Violation. Output blocked due to PII leakage (${violation}).`,
 						},
 					],
 					isError: true,

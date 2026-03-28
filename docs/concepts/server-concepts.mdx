@@ -1,17 +1,17 @@
 ---
 title: "Server Concepts"
-description: "Understanding how an NMP Data Node protects resources and executes logic"
+description: "Understanding how an LIOP Data Node protects resources and executes logic"
 ---
 
-In the Neural Mesh Protocol, a "Server" is historically termed a **Data Node**. Unlike a traditional web server that passively serves JSON responses upon request, an NMP Server is an active Execution Engine. Its primary duty is to receive foreign logic, strictly isolate it, and allow it to operate on local data.
+In the Logic-Injection-on-Origin Protocol (LIOP), a "Server" is historically termed a **Data Node**. Unlike a traditional web server that passively serves JSON responses upon request, an LIOP Server is an active Execution Engine. Its primary duty is to receive foreign logic, strictly isolate it, and allow it to operate on local data.
 
-To accomplish this securely, NMP Servers expose three foundational primitives: **Modules**, **Capabilities**, and **Watchdogs**.
+To accomplish this securely, LIOP Servers expose three foundational primitives: **Modules**, **Capabilities**, and **Watchdogs**.
 
 ## 1. WebAssembly Modules (The Logic)
 
 In legacy protocols (like MCP), servers define static "Tools" (e.g., `calculate_sum`, `read_log`), and the AI instructs the server to execute them. 
 
-In NMP, the Server does not need to pre-program endless tools. Instead, it exposes an **Execution Interface**.
+In LIOP, the Server does not need to pre-program endless tools. Instead, it exposes an **Execution Interface**.
 The Agent sends a completely dynamic **WebAssembly Module (`.wasm`)** containing its own novel logic.
 
 <Frame>
@@ -21,7 +21,7 @@ The Agent sends a completely dynamic **WebAssembly Module (`.wasm`)** containing
 
 ### How it works:
 *   The Agent complies its reasoning (e.g., "Find all error logs containing IP 192.168.1.1 and group them by timestamp") into a tiny binary cross-platform WASM blob.
-*   The NMP Server receives this blob via gRPC.
+*   The LIOP Server receives this blob via gRPC.
 *   Instead of executing it natively, the Server spins up an ephemeral **WASI Sandbox** (using Bytecode Alliance's `Wasmtime`) and injects the WASM module into it.
 *   **Extreme Scalability:** Both the Rust backend and the TS SDK leverage advanced threading models (Native OS Threads and Node.js `piscina` Worker Pools) to process thousands of these sandboxes concurrently without blocking the Main Event Loop.
 
@@ -31,7 +31,7 @@ This allows infinite capabilities without requiring the server administrator to 
 
 If the server executes arbitrary code via WASM, how is it secure? Through **Capabilities-Based Security**.
 
-Capabilities are the NMP equivalent of MCP "Resources", but radically more secure. By default, a running WASM module in NMP has **absolute zero access** to anything:
+Capabilities are the LIOP equivalent of MCP "Resources", but radically more secure. By default, a running WASM module in LIOP has **absolute zero access** to anything:
 - No file system read/write.
 - No network socket access.
 - No environment variables.
@@ -45,11 +45,11 @@ The WASM module can now read the nginx logs at blinding speed, but if the malici
 
 ## 3. Watchdogs (Persistent Asynchronous Events)
 
-One of NMP's most powerful features is **Watchdogs**, superseding the concept of simple prompts or manual polling.
+One of LIOP's most powerful features is **Watchdogs**, superseding the concept of simple prompts or manual polling.
 
 AI applications often need to monitor a server (e.g., "Tell me when memory usage exceeds 90%"). In HTTP/REST or JSON-RPC, the AI must constantly send manual requests every 5 seconds, wasting massive network bandwidth and LLM tokens.
 
-**NMP push architecture solves this:**
+**LIOP push architecture solves this:**
 *   The Agent sends a Watchdog WASM Module to the Data Node.
 *   The Server parses it and lets it "sleep" perpetually in a passive, low-resource background thread.
 *   The WASM module connects locally to the system streams.
@@ -59,7 +59,7 @@ This creates true real-time autonomous systems with zero polling overhead.
 
 ## 4. Trust & Evidence (Enterprise TEE Execution Sandbox)
 
-In Tier-0 Enterprise Environments, the Neural Mesh Server fundamentally evolves past standard OS-level sandboxing. The server provides Mathematical and Physical evidence utilizing a **TEE (Trusted Execution Environment) Sandbox**.
+In Tier-0 Enterprise Environments, the Logic-Injection-on-Origin Server fundamentally evolves past standard OS-level sandboxing. The server provides Mathematical and Physical evidence utilizing a **TEE (Trusted Execution Environment) Sandbox**.
 
 <Frame>
   <img className="block dark:hidden w-full" src="/images/animated-tee-flow-light.svg" alt="TEE Execution Sandbox Flow" />
@@ -82,7 +82,7 @@ Inside the TEE, the `Wasmtime` engine boots the WASI context. Since WebAssembly 
 When the `.wasm` finishes outputting data, the result passes to the **Zero-Knowledge Prover** (e.g., `RISC Zero` integration). This module generates a mathematical *Receipt* (consisting of a Journal and a cryptographic Seal). The returned packet proves unconditionally to the Agent that the specific logic payload executed flawlessly, and the output was not tampered with by the execution Node.
 
 ## 5. TypeScript Server & MCP Bridge (The SDK Node)
-While the Rust Dataplane dominates heavy WASI Sandboxing and Mathematical Evidence, the Neural Mesh Ecosystem also provides a lightweight, pure-TypeScript Server implementation (`@nekzus/neural-mesh`). 
+While the Rust Dataplane dominates heavy WASI Sandboxing and Mathematical Evidence, the LIOP Ecosystem also provides a lightweight, pure-TypeScript Server implementation (`@nekzus/liop`). 
 
 This Server acts primarily as a backward-compatibility layer and local endpoint for Agent logic.
 
@@ -98,11 +98,11 @@ This Server acts primarily as a backward-compatibility layer and local endpoint 
 4. **Native Node.js Execution**: The registered Tool Handler executes locally (using standard Node.js/TypeScript code) rather than isolating itself in a sandboxed WebAssembly boundary.
 5. **JSON-RPC Response**: The finding returns seamlessly down the pipeline formatted as a legacy `result` block.
 
-This guarantees that developers can immediately adopt `@nekzus/neural-mesh` and serve their existing Tools into the NMP ecosystem with **Zero-Code modifications**, slowly transitioning towards full *WASM Logic-on-Origin* payloads when required.
+This guarantees that developers can immediately adopt `@nekzus/liop` and serve their existing Tools into the LIOP ecosystem with **Zero-Code modifications**, slowly transitioning towards full *WASM Logic-on-Origin* payloads when required.
 
 ## 6. Advanced Security & Data Dictionary
 
-To ensure the highest level of Zero-Shot Autonomy (where the AI makes its own plans), NMP Servers must provide metadata about their internal structures.
+To ensure the highest level of Zero-Shot Autonomy (where the AI makes its own plans), LIOP Servers must provide metadata about their internal structures.
 
 ### Data Dictionary (Anti-Hallucination)
 When an Agent executes foreign logic, it might "hallucinate" fields that don't exist (e.g., trying to access `gender` in a database that only has `age`). To prevent this, developers should use the `dataDictionary` method:
@@ -115,7 +115,7 @@ server.dataDictionary({
 });
 ```
 
-The SDK's **Reactive Sync** engine will automatically inject this schema directly into the `nmp_blind_analyst` **System Prompt**. By explicitly detailing the available fields, NMP forces the LLM to adopt a **Strict Schema Adherence** policy, drastically reducing hallucination risks during logic generation.
+The SDK's **Reactive Sync** engine will automatically inject this schema directly into the `liop_blind_analyst` **System Prompt**. By explicitly detailing the available fields, LIOP forces the LLM to adopt a **Strict Schema Adherence** policy, drastically reducing hallucination risks during logic generation.
 
 ### Sandbox Data Injection
 While `dataDictionary` teaches the *Agent* what the data looks like, you must actually inject the real data into the *Execution Sandbox* for the WASM/JS logic to process.
@@ -143,7 +143,7 @@ const server = new NmpServer({
 The **O(1) Egress Filter** will use a high-performance memory `Set` to scan every return object and block any key matching these terms, even if they are nested deep within a JSON structure.
 
 ### Dynamic Return Structure (Native Auto-i18n)
-NMP introduces an architectural pattern where cross-border language translation friction is non-existent.
+LIOP introduces an architectural pattern where cross-border language translation friction is non-existent.
 
 When a Data Node registers its capabilities, it intrinsically embeds a structural directive into the payload definition (`DYNAMIC RETURN STRUCTURE`). This forces the executing agent to output JSON schemas using keys mathematically mapped to the **exact language spoken by the user on the initial prompt.**
 

@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { NmpServer } from "./index.js";
+import { LiopServer } from "./index.js";
 
-describe("NmpServer", () => {
+describe("LiopServer", () => {
 	it("should initialize correctly with server info", () => {
-		const server = new NmpServer({ name: "test-server", version: "1.0.0" });
+		const server = new LiopServer({ name: "test-server", version: "1.0.0" });
 		expect(server.getServerInfo()).toEqual({
 			name: "test-server",
 			version: "1.0.0",
@@ -12,7 +12,7 @@ describe("NmpServer", () => {
 	});
 
 	it("should allow tool registration", () => {
-		const server = new NmpServer({ name: "test-server", version: "1.0.0" });
+		const server = new LiopServer({ name: "test-server", version: "1.0.0" });
 		server.tool(
 			"echo",
 			"Echoes input",
@@ -29,7 +29,7 @@ describe("NmpServer", () => {
 	});
 
 	it("should throw when registering a duplicate tool", () => {
-		const server = new NmpServer({ name: "test-server", version: "1.0.0" });
+		const server = new LiopServer({ name: "test-server", version: "1.0.0" });
 		server.tool("echo", "Echoes input", { message: z.string() }, async () => ({
 			content: [],
 		}));
@@ -42,7 +42,7 @@ describe("NmpServer", () => {
 	});
 
 	it("should successfully call a registered tool", async () => {
-		const server = new NmpServer({ name: "test-server", version: "1.0.0" });
+		const server = new LiopServer({ name: "test-server", version: "1.0.0" });
 		server.tool(
 			"math",
 			"Adds two numbers",
@@ -61,7 +61,7 @@ describe("NmpServer", () => {
 	});
 
 	it("should return a validation error internally if Zod parsing fails on tool call", async () => {
-		const server = new NmpServer({ name: "test-server", version: "1.0.0" });
+		const server = new LiopServer({ name: "test-server", version: "1.0.0" });
 		server.tool(
 			"math",
 			"Adds numbers",
@@ -80,14 +80,14 @@ describe("NmpServer", () => {
 	});
 
 	it("should throw if calling an unregistered tool", async () => {
-		const server = new NmpServer({ name: "test-server", version: "1.0.0" });
+		const server = new LiopServer({ name: "test-server", version: "1.0.0" });
 		await expect(server.callTool({ name: "ghost" })).rejects.toThrow(
 			"Tool not found: ghost",
 		);
 	});
 
 	it("should allow resource registration", () => {
-		const server = new NmpServer({ name: "test-server", version: "1.0.0" });
+		const server = new LiopServer({ name: "test-server", version: "1.0.0" });
 		server.resource(
 			"Documentation",
 			"file:///docs",
@@ -100,33 +100,33 @@ describe("NmpServer", () => {
 	});
 
 	it("should provide a data dictionary resource", () => {
-		const server = new NmpServer({ name: "test", version: "1" });
+		const server = new LiopServer({ name: "test", version: "1" });
 		server.dataDictionary(
 			{
 				type: "object",
 				properties: { test: { type: "string" } },
 			},
 			"App Schema",
-			"nmp://schema/app",
+			"liop://schema/app",
 		);
 
 		const resources = server.listResources();
 		expect(resources.length).toBe(1);
-		expect(resources[0].uri).toBe("nmp://schema/app");
+		expect(resources[0].uri).toBe("liop://schema/app");
 
-		const content = server.readResource("nmp://schema/app");
+		const content = server.readResource("liop://schema/app");
 		expect(JSON.stringify(content)).toContain("test");
 	});
 
 	it("should throw if reading an unregistered resource", () => {
-		const server = new NmpServer({ name: "test", version: "1" });
-		expect(() => server.readResource("nmp://not-found")).toThrowError(
-			"Resource not found: nmp://not-found",
+		const server = new LiopServer({ name: "test", version: "1" });
+		expect(() => server.readResource("liop://not-found")).toThrowError(
+			"Resource not found: liop://not-found",
 		);
 	});
 
 	it("should allow prompt registration and listing", async () => {
-		const server = new NmpServer({ name: "test", version: "1" });
+		const server = new LiopServer({ name: "test", version: "1" });
 		server.prompt(
 			"test-prompt",
 			"A test prompt",
@@ -155,7 +155,7 @@ describe("NmpServer", () => {
 	});
 
 	it("should throw if registering a duplicate prompt", () => {
-		const server = new NmpServer({ name: "test", version: "1" });
+		const server = new LiopServer({ name: "test", version: "1" });
 		server.prompt("test", "A test", [], async () => ({ messages: [] }));
 		expect(() =>
 			server.prompt("test", "Duplicate", [], async () => ({ messages: [] })),
@@ -163,14 +163,14 @@ describe("NmpServer", () => {
 	});
 
 	it("should throw if getting an unregistered prompt", async () => {
-		const server = new NmpServer({ name: "test", version: "1" });
+		const server = new LiopServer({ name: "test", version: "1" });
 		await expect(server.getPrompt({ name: "ghost" })).rejects.toThrowError(
 			"Prompt not found: ghost",
 		);
 	});
 
 	it("should detect malformed Logic-on-Origin payloads", async () => {
-		const server = new NmpServer({ name: "test", version: "1" });
+		const server = new LiopServer({ name: "test", version: "1" });
 		server.tool("exec", "Exec", { payload: z.string() }, async () => ({
 			content: [],
 		}));
@@ -182,7 +182,7 @@ describe("NmpServer", () => {
 		});
 		expect(res1.isError).toBe(true);
 		expect(res1.content[0].text).toContain(
-			"Malformed payload. Missing NMP_MAGIC, MANIFEST",
+			"Malformed payload. Missing LIOP_MAGIC, MANIFEST",
 		);
 
 		// Second call - should fail again with same payload (stat counter incremental)
@@ -192,18 +192,18 @@ describe("NmpServer", () => {
 		});
 		expect(res2.isError).toBe(true);
 		expect(res2.content[0].text).toContain(
-			"Malformed payload. Missing NMP_MAGIC, MANIFEST",
+			"Malformed payload. Missing LIOP_MAGIC, MANIFEST",
 		);
 
 		// After repeated attempts, should start accumulating connection failure logs (THROTTLE internally tested elsewhere)
 	});
 
-	it("should bypass AST Cache when __nmp_bypass_ast_cache is true", async () => {
-		const server = new NmpServer({ name: "test", version: "1" });
+	it("should bypass AST Cache when __liop_bypass_ast_cache is true", async () => {
+		const server = new LiopServer({ name: "test", version: "1" });
 		server.tool(
 			"exec",
 			"Exec",
-			{ payload: z.string(), __nmp_bypass_ast_cache: z.boolean().optional() },
+			{ payload: z.string(), __liop_bypass_ast_cache: z.boolean().optional() },
 			async () => ({ content: [] }),
 		);
 
@@ -216,14 +216,14 @@ describe("NmpServer", () => {
 		// 2. The second call would normally hit cache, but we bypass
 		const res2 = await server.callTool({
 			name: "exec",
-			arguments: { payload: "malicious", __nmp_bypass_ast_cache: true },
+			arguments: { payload: "malicious", __liop_bypass_ast_cache: true },
 		});
 		expect(res2.isError).toBe(true);
 		expect(res2.content[0].text).not.toContain("(Cached rejection)");
 	});
 
-	it("should trigger DoS protection NMP_THROTTLED after max limit", async () => {
-		const server = new NmpServer({ name: "test", version: "1" });
+	it("should trigger DoS protection LIOP_THROTTLED after max limit", async () => {
+		const server = new LiopServer({ name: "test", version: "1" });
 		server.tool("exec", "Exec", { payload: z.string() }, async () => ({
 			content: [],
 		}));
@@ -243,6 +243,6 @@ describe("NmpServer", () => {
 		});
 
 		expect(throttledRes.isError).toBe(true);
-		expect(throttledRes.content[0].text).toContain("NMP_THROTTLED");
+		expect(throttledRes.content[0].text).toContain("LIOP_THROTTLED");
 	});
 });

@@ -4,13 +4,13 @@ import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/
 import type { JSONRPCMessage } from "@modelcontextprotocol/sdk/types.js";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import type { NmpServer } from "../server/index.js";
-import { NmpMcpBridge } from "./index.js";
+import type { LiopServer } from "../server/index.js";
+import { LiopMcpBridge } from "./index.js";
 
 /**
- * Configuration options for NmpStreamBridge.
+ * Configuration options for LiopStreamBridge.
  */
-export interface NmpStreamBridgeOptions {
+export interface LiopStreamBridgeOptions {
 	/** Port to listen on (default: 3000) */
 	port?: number;
 	/** Max concurrent sessions per IP (default: 5) */
@@ -31,9 +31,9 @@ const DEFAULT_SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 const EVICTION_INTERVAL_MS = 60 * 1000; // Check every minute
 
 /**
- * NmpStreamBridge
+ * LiopStreamBridge
  *
- * Exposes The Vault (NmpServer) over a remote HTTP network using the industry-standard
+ * Exposes The Vault (LiopServer) over a remote HTTP network using the industry-standard
  * MCP Streamable HTTP Transport + Hono JS.
  *
  * Supports concurrent multi-client connections via per-session transport instances (Map pattern).
@@ -44,21 +44,21 @@ const EVICTION_INTERVAL_MS = 60 * 1000; // Check every minute
  * - Per-IP rate limiting on session creation
  * - Automatic eviction of idle sessions (TTL)
  */
-export class NmpStreamBridge {
+export class LiopStreamBridge {
 	private app: Hono;
 	private httpServer: ReturnType<typeof serve> | null = null;
-	private bridgeLogic: NmpMcpBridge;
+	private bridgeLogic: LiopMcpBridge;
 	private activeSessions: Map<string, SessionEntry>;
 	private evictionTimer: ReturnType<typeof setInterval> | null = null;
 	private maxSessionsPerIp: number;
 	private sessionTimeoutMs: number;
 
 	constructor(
-		internalServer: NmpServer,
-		private options: NmpStreamBridgeOptions = {},
+		internalServer: LiopServer,
+		private options: LiopStreamBridgeOptions = {},
 	) {
 		this.app = new Hono();
-		this.bridgeLogic = new NmpMcpBridge(internalServer);
+		this.bridgeLogic = new LiopMcpBridge(internalServer);
 		this.activeSessions = new Map();
 		this.maxSessionsPerIp =
 			options.maxSessionsPerIp ?? DEFAULT_MAX_SESSIONS_PER_IP;
@@ -83,12 +83,12 @@ export class NmpStreamBridge {
 					clientIp,
 				});
 				console.error(
-					`🔗 [NMP StreamBridge] Session opened: ${sessionId} (IP: ${clientIp})`,
+					`🔗 [LIOP StreamBridge] Session opened: ${sessionId} (IP: ${clientIp})`,
 				);
 			},
 		});
 
-		// Wire the transport's incoming messages to the NmpMcpBridge JSON-RPC router
+		// Wire the transport's incoming messages to the LiopMcpBridge JSON-RPC router
 		transport.onmessage = async (message: JSONRPCMessage) => {
 			// Touch activity timestamp on every message
 			if (transport.sessionId) {
@@ -106,7 +106,7 @@ export class NmpStreamBridge {
 				}
 			} catch (err: unknown) {
 				console.error(
-					"🔥 [NMP StreamBridge] JSON-RPC error:",
+					"🔥 [LIOP StreamBridge] JSON-RPC error:",
 					(err as Error).message,
 				);
 			}
@@ -116,7 +116,7 @@ export class NmpStreamBridge {
 			if (transport.sessionId) {
 				this.activeSessions.delete(transport.sessionId);
 				console.error(
-					`🔌 [NMP StreamBridge] Session closed: ${transport.sessionId}`,
+					`🔌 [LIOP StreamBridge] Session closed: ${transport.sessionId}`,
 				);
 			}
 		};
@@ -156,7 +156,7 @@ export class NmpStreamBridge {
 		for (const [sessionId, entry] of this.activeSessions) {
 			if (now - entry.lastActivity > this.sessionTimeoutMs) {
 				console.error(
-					`♻️ [NMP StreamBridge] Evicting idle session: ${sessionId}`,
+					`♻️ [LIOP StreamBridge] Evicting idle session: ${sessionId}`,
 				);
 				entry.transport.close().catch(() => {
 					/* Swallow close errors */
@@ -181,10 +181,10 @@ export class NmpStreamBridge {
 					auth.split(" ")[1] !== expectedToken
 				) {
 					console.error(
-						"🚨 [NMP StreamBridge] Access denied: Invalid Zero-Trust token.",
+						"🚨 [LIOP StreamBridge] Access denied: Invalid Zero-Trust token.",
 					);
 					return c.json(
-						{ error: "Unauthorized: NMP Zero-Trust Policy Enforced" },
+						{ error: "Unauthorized: LIOP Zero-Trust Policy Enforced" },
 						401,
 					);
 				}
@@ -212,7 +212,7 @@ export class NmpStreamBridge {
 				if (c.req.method === "DELETE") {
 					this.activeSessions.delete(sessionId);
 					console.error(
-						`🔌 [NMP StreamBridge] Session closed (DELETE): ${sessionId}`,
+						`🔌 [LIOP StreamBridge] Session closed (DELETE): ${sessionId}`,
 					);
 				}
 
@@ -225,7 +225,7 @@ export class NmpStreamBridge {
 			const currentSessions = this.countSessionsByIp(clientIp);
 			if (currentSessions >= this.maxSessionsPerIp) {
 				console.error(
-					`🛡️ [NMP StreamBridge] Rate limit hit for IP: ${clientIp} (${currentSessions} sessions)`,
+					`🛡️ [LIOP StreamBridge] Rate limit hit for IP: ${clientIp} (${currentSessions} sessions)`,
 				);
 				return c.json({ error: "Too Many Sessions: Rate limit exceeded" }, 429);
 			}
@@ -236,7 +236,7 @@ export class NmpStreamBridge {
 	}
 
 	/**
-	 * Starts the NMP StreamBridge HTTP server and session eviction timer.
+	 * Starts the LiopStreamBridge HTTP server and session eviction timer.
 	 */
 	public async start(port?: number): Promise<void> {
 		const listenPort = port ?? this.options.port ?? 3000;
@@ -255,7 +255,7 @@ export class NmpStreamBridge {
 				},
 				(info) => {
 					console.error(
-						`🌊 [NMP StreamBridge] Streamable HTTP Gateway on http://localhost:${info.port}/mcp`,
+						`🌊 [LIOP StreamBridge] Streamable HTTP Gateway on http://localhost:${info.port}/mcp`,
 					);
 					resolve();
 				},
@@ -279,7 +279,7 @@ export class NmpStreamBridge {
 
 		if (this.httpServer) {
 			this.httpServer.close();
-			console.error("🛑 [NMP StreamBridge] HTTP ports released.");
+			console.error("🛑 [LIOP StreamBridge] HTTP ports released.");
 		}
 	}
 }

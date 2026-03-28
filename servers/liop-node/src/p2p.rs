@@ -7,26 +7,26 @@ use std::time::Duration;
 use tracing::info;
 
 #[derive(NetworkBehaviour)]
-pub struct NmpMeshBehaviour {
+pub struct LiopMeshBehaviour {
     // Kademlia Distributed Hash Table for Peer Discovery without central DNS
     pub kademlia: libp2p::kad::Behaviour<libp2p::kad::store::MemoryStore>,
 }
 
-pub fn build_mesh_swarm() -> Result<Swarm<NmpMeshBehaviour>, Box<dyn Error>> {
+pub fn build_mesh_swarm() -> Result<Swarm<LiopMeshBehaviour>, Box<dyn Error>> {
     info!("Initializing Zero-Trust Mesh Crypto");
 
     // 1. Generate local cryptographic identity (Ed25519)
-    // In NMP, this replaces the need for Central mTLS authorities. The PeerId IS the SPIFFE identity loosely.
+    // In LIOP, this replaces the need for Central mTLS authorities. The PeerId IS the SPIFFE identity loosely.
     let local_key = identity::Keypair::generate_ed25519();
     let local_peer_id = PeerId::from(local_key.public());
     info!(peer_id = %local_peer_id, "Local Agent Identity established");
 
     // 2. Setup Kademlia DHT
     let store = libp2p::kad::store::MemoryStore::new(local_peer_id);
-    let mut kad_config = libp2p::kad::Config::new(StreamProtocol::new("/nmp/kad/1.0.0"));
+    let mut kad_config = libp2p::kad::Config::new(StreamProtocol::new("/liop/kad/1.0.0"));
     kad_config.set_query_timeout(Duration::from_secs(5 * 60));
 
-    let behaviour = NmpMeshBehaviour {
+    let behaviour = LiopMeshBehaviour {
         kademlia: libp2p::kad::Behaviour::with_config(local_peer_id, store, kad_config),
     };
 

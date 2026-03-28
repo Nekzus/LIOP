@@ -1,10 +1,10 @@
-# NMP Educational Sandbox Demo
+# LIOP Educational Sandbox Demo
 
 ## Objective
-This demo is designed for **educational and technical auditing purposes**. It provides a deep dive into the internal components of the Neural Mesh Protocol (NMP) that typically operate transparently within the SDK.
+This demo is designed for **educational and technical auditing purposes**. It provides a deep dive into the internal components of the Logic-Injection-on-Origin Protocol (LIOP) that typically operate transparently within the SDK.
 
 ## Key Components
-- **NmpCompiler**: Simulation of logic packaging into an NMP binary.
+- **LiopCompiler**: Simulation of logic packaging into an LIOP binary.
 - **GuardianAST**: Security module that performs deep code inspection before instantiation.
 - **WasiSandbox**: Isolated execution environment with resource monitoring (Fuel) and virtual filesystem.
 - **ZK-Verifier**: Mathematical verification of computational integrity using ZK-Receipts (RISC Zero style).

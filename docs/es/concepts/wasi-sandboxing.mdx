@@ -1,42 +1,42 @@
 ---
 title: "Sandboxing con WASI"
-description: "Cómo NMP aísla la ejecución a través de la Interfaz de Sistema de WebAssembly (WASI)"
+description: "Cómo LIOP aísla la ejecución a través de la Interfaz de Sistema de WebAssembly (WASI)"
 ---
 
-El mayor cambio de paradigma de MCP a NMP es el concepto de **Logic-on-Origin** (Lógica en el Origen). Sin embargo, ejecutar lógica binaria arbitraria de agentes remotos en tu infraestructura introduce inmensas consecuencias de seguridad.
+El mayor cambio de paradigma de MCP a LIOP es el concepto de **Logic-Injection-on-Origin** (Lógica Inyectada en el Origen). Sin embargo, inyectar lógica de agentes remotos en tu infraestructura introduce desafíos de seguridad críticos.
 
-Para solucionar esto, NMP confía plenamente en el aislamiento matemático a nivel de CPU proporcionado por **WASI (WebAssembly System Interface)**, utilizando el motor `Wasmtime` de Bytecode Alliance.
+Para solucionar esto, LIOP confía plenamente en el aislamiento matemático a nivel de CPU proporcionado por **WASI (WebAssembly System Interface)**, utilizando motores de ejecución de alto rendimiento como `wasmtime`.
 
 ## ¿Qué es WASI?
 
-Cuando una herramienta Node.js o Python se ejecuta en MCP, depende del sandboxing general del sistema operativo (usualmente contenedores como Docker). Si una dependencia de Python se compromete, teóricamente podría intentar una escalada de red o escapar del contenedor.
+Cuando una herramienta convencional se ejecuta en un entorno de agentes, suele depender del sandboxing del sistema operativo (como contenedores Docker). Si una dependencia se compromete, podría intentar una escalada de privilegios o escapar del contenedor.
 
-**WASI invierte el modelo de seguridad.** WebAssembly es un formato de computación seguro en memoria y puramente matemático. Por defecto, un módulo `.wasm` carece literalmente de instrucciones de CPU para hablar con el sistema operativo, disco, reloj o red. WASI es el puente estrictamente controlado que reintroduce estas funciones exacta y únicamente cuando se conceden de forma explícita.
+**WASI invierte el modelo de seguridad.** WebAssembly es un formato de computación seguro en memoria y puramente matemático. Por defecto, un módulo `.wasm` carece literalmente de instrucciones de CPU para hablar con el sistema operativo, disco, red o periféricos. WASI es el puente estrictamente controlado que reintroduce estas funciones exacta y únicamente cuando se conceden de forma explícita mediante capacidades.
 
-## El Ciclo de Vida del Sandbox NMP
+## El Ciclo de Vida del Sandbox LIOP
 
 Cuando un Nodo Agente inyecta un módulo WebAssembly en un Nodo de Datos, se activan las siguientes barreras de seguridad:
 
 <Frame>
-  <img className="block dark:hidden w-full" src="/images/wasi-bounds-light.svg" alt="Límites de Ejecución WASM" />
-  <img className="hidden dark:block w-full" src="/images/wasi-bounds-dark.svg" alt="Límites de Ejecución WASM" />
+  <img className="block dark:hidden w-full" src="/images/wasi-bounds-light.svg" alt="Límites de Ejecución WASM en LIOP" />
+  <img className="hidden dark:block w-full" src="/images/wasi-bounds-dark.svg" alt="Límites de Ejecución WASM en LIOP" />
 </Frame>
 
 ### 1. Verificación de Capacidades
-El Agente declara las capacidades que requiere por adelantado (ej., `requires_capability: ["logs_read", "sql_readonly"]`). El Nodo de Datos verifica su manifiesto local para ver si permite a este Agente específico acceder a esas capacidades.
+El Agente declara las capacidades que requiere por adelantado (ej., `requires_capability: ["logs_read", "db_query"]`). El Nodo de Datos verifica su manifiesto local para ver si permite a este Agente específico acceder a esos recursos.
 
 ### 2. Pre-aperturas (Preopens) Microscópicas
-Si se aprueba, el Nodo de Datos **no** concede al módulo WASM acceso al sistema de archivos. En su lugar, "pre-abre" descriptores de archivos muy específicos y los mapea en el espacio virtualizado del módulo WASM.
+Si se aprueba, el Nodo de Datos **no** concede al módulo acceso libre al sistema de archivos. En su lugar, "pre-abre" recursos muy específicos y los mapea en el espacio virtualizado del módulo WASM.
 Si el agente pide leer `/var/log/nginx/` y el servidor lo permite como `/logs`, el Agente *solo* ve `/logs` como la raíz absoluta de su universo. Intentar subir directorios con `../` se detiene en seco en el límite del Sandbox.
 
-### 3. Límites de Ejecución y Memoria
-`Wasmtime` arranca el motor con limitadores estrictos:
-- **Tiempo Máximo de Ejecución:** Si el módulo entra en un bucle infinito, el tiempo de ejecución lo mata por agotamiento de combustible (Out-Of-Fuel).
-- **Límite de Memoria Máximo:** Si el módulo intenta un desbordamiento de búfer o alojar memoria más allá de su límite (ej., 50MB), lanza un Trap de OOM (Out Of Memory) inalcanzable.
-- **Cero Sockets:** La lógica corre completamente offline dentro del Servidor. No puede abrir puertos ni conectarse a internet. Su única salida es lo que `retorna` al orquestador.
-- **Paridad Node.js (Aislamiento V8):** En desarrollo local o Demos del SDK (donde WebAssembly nativo no es un requisito), NMP implementa límites de contención absolutos e idénticos empleando el módulo `node:vm` (`vm.createContext(Object.create(null))`). Esto asegura un aislamiento rígido, despojando al entorno de ejecución de acceso a globales de Node (`process`, `require`, `fs`) y extinguiendo la posibilidad de manipulación del Sistema Anfitrión.
-- **Pool No Bloqueante:** Para evitar que los servidores Node.js se congelen, el `@nekzus/neural-mesh` aísla este ciclo dentro de `worker_threads` nativos (vía `piscina`), logrando un rendimiento paralelo idéntico al del Mesh-Node nativo.
+### 3. Límites de Ejecución y Memoria (Fuel & Caps)
+El motor arranca con limitadores estrictos:
+- **Tiempo de Ejecución (Combustible):** Si el módulo entra en un bucle infinito, el motor lo detiene por agotamiento de combustible (`Out-Of-Fuel`).
+- **Límite de Memoria Máximo:** Si el módulo intenta un desbordamiento o alojar memoria excesiva, se dispara un `OOM Trap` inmediato.
+- **Cero Sockets Prohibidos:** La lógica corre offline dentro del Servidor. No puede abrir puertos ni conectarse a internet sin autorización. Su única salida es lo que `retorna` al orquestador.
+- **Aislamiento en Node.js (V8 Isolation):** En el SDK de TypeScript (`@nekzus/liop`), implementamos límites idénticos empleando contextos aislados (`node:vm`). Esto asegura un aislamiento rígido, despojando al entorno de ejecución de acceso a globales del sistema.
+- **Pool de Workers (Piscina):** Para evitar bloqueos, el SDK aísla este ciclo dentro de hilos paralelos (vía `piscina`), logrando un rendimiento industrial consistente.
 
 ## Hacia el Modelo de Componentes (Preview 2)
 
-NMP está adoptando **WASI Preview 2 (The Component Model)**. Esto permitirá que los módulos compartan estructuras complejas y fuertemente tipadas de JSON y Protobuf a través de la frontera (Lenguaje del Agente -> Motor Rust), eliminando por completo la sobrecarga de parsing manual de strings entre el Sandbox y el Host.
+LIOP está adoptando **WASI Preview 2 (The Component Model)**. Esto permitirá que los módulos compartan estructuras complejas y fuertemente tipadas de forma eficiente a través de la frontera entre el lenguaje del Agente y el motor de ejecución, eliminando la sobrecarga de parsing manual entre el Sandbox y el Nodo de Datos.

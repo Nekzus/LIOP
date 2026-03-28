@@ -35,7 +35,7 @@ pub async fn start_health_server(addr: SocketAddr) {
             let (status, body) = if request_line.starts_with("GET /health") {
                 (
                     "200 OK",
-                    r#"{"status":"healthy","service":"nmp-server","version":"1.0.0-alpha"}"#,
+                    r#"{"status":"healthy","service":"liop-node","version":"1.0.0-alpha"}"#,
                 )
             } else {
                 ("404 Not Found", r#"{"error":"not found"}"#)

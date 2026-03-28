@@ -29,9 +29,9 @@ pub fn analyze_ast(wasm_bytes: &[u8]) -> Result<(), Box<dyn Error>> {
             ImportSection(s) => {
                 for import in s {
                     let import = import?;
-                    // Strict Sandbox Validation: Only allow WASI preview 1 and native NMP functions.
+                    // Strict Sandbox Validation: Only allow WASI preview 1 and native LIOP functions.
                     // Reject any custom or unexpected host imports.
-                    if import.module != "wasi_snapshot_preview1" && import.module != "nmp" {
+                    if import.module != "wasi_snapshot_preview1" && import.module != "liop" {
                         return Err(Box::new(GuardianError(format!(
                             "Banned Host Import Detected: {}/{}",
                             import.module, import.name
@@ -138,8 +138,8 @@ mod tests {
         module.finish()
     }
 
-    /// Helper: builds a WASM module that imports from the "nmp" namespace (allowed).
-    fn make_nmp_import_module() -> Vec<u8> {
+    /// Helper: builds a WASM module that imports from the "liop" namespace (allowed).
+    fn make_liop_import_module() -> Vec<u8> {
         let mut module = Module::new();
 
         let mut types = TypeSection::new();
@@ -149,7 +149,7 @@ mod tests {
         module.section(&types);
 
         let mut imports = ImportSection::new();
-        imports.import("nmp", "push_event", EntityType::Function(0));
+        imports.import("liop", "push_event", EntityType::Function(0));
         module.section(&imports);
 
         module.finish()
@@ -167,12 +167,12 @@ mod tests {
     }
 
     #[test]
-    fn accepts_nmp_namespace_imports() {
-        let wasm = make_nmp_import_module();
+    fn accepts_liop_namespace_imports() {
+        let wasm = make_liop_import_module();
         let result = analyze_ast(&wasm);
         assert!(
             result.is_ok(),
-            "NMP namespace imports should be approved by Guardian: {:?}",
+            "LIOP namespace imports should be approved by Guardian: {:?}",
             result.err()
         );
     }

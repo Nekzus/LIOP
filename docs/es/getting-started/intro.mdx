@@ -1,30 +1,30 @@
 ---
 title: "Introducción"
-description: "Bienvenido a la documentación del Neural Mesh Protocol (NMP)"
+description: "Bienvenido a la documentación del Logic-Injection-on-Origin Protocol (LIOP)"
 ---
 
-NMP es una red de transporte binario de alto rendimiento diseñada específicamente para la comunicación avanzada entre Agentes de Inteligencia Artificial. Concebido como la evolución técnica de los protocolos de contexto (como el **Model Context Protocol**), NMP cambia el paradigma de la transferencia masiva de datos hacia la **ejecución segura de Logic-on-Origin (LoO)** (Lógica en el Origen).
+LIOP es un protocolo de transporte binario de alto rendimiento diseñado específicamente para la comunicación avanzada y segura entre Agentes de Inteligencia Artificial. Concebido como la evolución técnica de los protocolos de contexto (como el **Model Context Protocol**), LIOP cambia el paradigma de la transferencia masiva de datos hacia la **inyección segura de Logic-Injection-on-Origin (LIO)** (Lógica Inyectada en el Origen).
 
-LoO es el **Postulado de Origen (Núcleo de Ejecución)** de la red neuronal: los datos son sagrados y nunca deben abandonar su ubicación física a menos que sean agregados matemáticamente.
+LIO es el **Postulado de Origen (Núcleo de Ejecución)** de la arquitectura: los datos son sagrados y nunca deben abandonar su ubicación física a menos que sean agregados matemáticamente.
 
-Si MCP es el "puerto USB-C para aplicaciones de IA", **NMP es el sistema nervioso de fibra óptica** que habilita una verdadera inteligencia descentralizada.
+Si MCP es el "puerto USB-C para aplicaciones de IA", **LIOP es el sistema nervioso de fibra óptica** que habilita una verdadera inteligencia descentralizada.
 
-## ¿Por qué NMP?
+## ¿Por qué LIOP?
 
-En las arquitecturas tradicionales, transferir gigabytes de datos (logs, bases de datos) para que un LLM los analice es ineficiente y costoso en términos de latencia y tokens. NMP invierte la arquitectura: **llevamos el proceso a los datos, no los datos al proceso.**
+En las arquitecturas tradicionales, transferir gigabytes de datos (logs, bases de datos) para que un LLM los analice es ineficiente y muy costoso en términos de latencia y tokens. LIOP invierte la arquitectura: **llevamos la lógica a los datos, no los datos a la lógica.**
 
 <CardGroup cols={2}>
-  <Card title="Logic-on-Origin" icon="bolt">
-    En lugar de descargar datos masivos, los Agentes compilan su lógica en un módulo WebAssembly (`.wasm`) y lo ejecutan exactamente donde residen los datos.
+  <Card title="Logic-Injection-on-Origin" icon="bolt">
+    En lugar de descargar datos masivos, los Agentes compilan su lógica en un módulo WebAssembly (`.wasm`) y lo inyectan exactamente donde residen los datos para su procesamiento local.
   </Card>
-  <Card title="Seguridad Multi-Capa (Tier-1)" icon="shield-halved">
-    Sandboxing AST Zero-Trust (WASI), verificación de egreso PII con algoritmos de Grado Militar (Luhn, límites NIST, Safe Words) y criptografía Post-Cuántica.
+  <Card title="Seguridad Multi-Capa (Tier-0)" icon="shield-halved">
+    Sandboxing AST Zero-Trust (WASI), verificación de egreso PII con algoritmos de Grado Industrial y criptografía Post-Cuántica (Kyber768).
   </Card>
   <Card title="Autonomía Zero-Shot" icon="brain">
-    NMP auto-educa a los LLMs remotos al vuelo. Si un Agente viola el paradigma LoO, el Servidor instruye cognitivamente al Agente para que reescriba su código WASM de forma segura.
+    LIOP auto-educa a los LLMs remotos al vuelo. Si un Agente viola el paradigma LIO, el Servidor instruye cognitivamente al Agente para que reescriba su código WASM de forma segura.
   </Card>
   <Card title="Rendimiento Binario" icon="rocket">
-    Basado en Protobuf y gRPC. Reduce el tamaño de los payloads en más de un 60% al eliminar el parsing de JSON.
+    Basado en Protobuf y gRPC. Reduce el tamaño de los payloads en más de un 60% al eliminar el parsing de JSON innecesario.
   </Card>
   <Card title="Escalabilidad Multi-Core" icon="microchip">
     El SDK de Node.js usa un Worker Pool nativo (`piscina`), superando el límite de un solo hilo de V8 para igualar el rendimiento de Rust.
@@ -33,53 +33,53 @@ En las arquitecturas tradicionales, transferir gigabytes de datos (logs, bases d
     Arquitectura preparada para Pruebas Cero Conocimiento (ZK-SNARKs), permitiendo firmas criptográficas de la ejecución (ZK-Receipts).
   </Card>
   <Card title="Malla Descentralizada DHT" icon="network-wired">
-    Sin autoridades centrales. El descubrimiento de pares ocurre de forma instantánea mediante una Tabla Hash Distribuida Kademlia sobre `libp2p`.
+    Sin autoridades centrales. El descubrimiento de pares ocurre de forma instantánea mediante una Tabla Hash Distribuida Kademlia sobre la red P2P.
   </Card>
 </CardGroup>
 
-## El Poder de Logic-on-Origin (LoO): Casos de Uso Innovadores
+## El Poder de Logic-Injection-on-Origin (LIO): Casos de Uso Industriales
 
-El paradigma *Logic-on-Origin (LoO)* no es solo una optimización de rendimiento; es nuestro postulado arquitectónico innegable. Desbloquea de forma fundamental formas completamente nuevas de procesar datos restringidos a través de redes globales sin violar fronteras de privacidad. Al enviar un algoritmo matemático verificado a la fuente de datos en lugar de extraer los datos hacia el algoritmo, erradicamos por completo la **Gravedad de los Datos** (Data Gravity).
+El paradigma *Logic-Injection-on-Origin (LIO)* no es solo una optimización de rendimiento; es nuestro postulado arquitectónico innegable. Desbloquea de forma fundamental formas completamente nuevas de procesar datos restringidos a través de redes globales sin violar fronteras de privacidad. Al inyectar un algoritmo matemático verificado a la fuente de datos en lugar de extraer los datos hacia el algoritmo, erradicamos por completo la **Gravedad de los Datos** (Data Gravity).
 
 ### 1. Salud y Bioinformática (Zero-Exfiltración)
 Un Agente Médico de IA desea analizar 10 años de historiales de pacientes en múltiples hospitales para encontrar correlaciones entre medicamentos específicos y efectos secundarios.
-En la computación tradicional, esto es imposible debido a HIPAA y GDPR: los hospitales no pueden exportar miles de registros médicos (que contienen Información de Identidad Personal o PII).
-Con NMP, el Agente inyecta un filtro WebAssembly dentro de un sandbox seguro. El Nodo de Datos del hospital ejecuta la lógica localmente contra su base de datos. El Agente recibe *únicamente* la conclusión matemática final (ej., "85% de correlación encontrada para el Medicamento X con el efecto secundario objetivo") respaldada por un recibo criptográfico, **sin haber visto jamás el nombre de un solo paciente.**
+En la computación tradicional, esto es imposible debido a regulaciones como HIPAA o GDPR: los hospitales no pueden exportar registros médicos sensibles.
+Con LIOP, el Agente inyecta un filtro WebAssembly dentro de un sandbox seguro. El Nodo de Datos del hospital ejecuta la lógica localmente contra su base de datos. El Agente recibe *únicamente* la conclusión matemática final (ej., "85% de correlación encontrada") respaldada por un recibo criptográfico, **sin haber visto jamás el nombre de un solo paciente.**
 
 ### 2. Auditoría Financiera y Trading de Alta Frecuencia (HFT)
-Se encarga a un Auditor de IA validar millones de transacciones de bancos internacionales para detectar fraudes. El inmenso tamaño del libro mayor bancario global, combinado con las leyes de secreto bancario, hace que transferir estos datos a un LLM central en la nube sea ilegal e inviable.
-A través de NMP, el auditor inyecta una heurística de detección de fraudes directamente dentro del Enclave Nitro seguro del banco. La lógica opera sobre el libro mayor crudo a velocidades de hardware (bare-metal), devolviendo solo las anomalías marcadas.
+Se encarga a un Auditor de IA validar millones de transacciones de bancos internacionales para detectar fraudes. El inmenso tamaño del libro mayor bancario global, combinado con las leyes de secreto bancario, hace que transferir estos datos a un LLM central sea ilegal e inviable.
+A través de LIOP, el auditor inyecta una heurística de detección de fraudes directamente dentro del Enclave seguro del banco. La lógica opera sobre el libro mayor crudo a velocidades de hardware, devolviendo solo las anomalías marcadas.
 
 ### 3. Edge Computing y Telemetría IoT Masiva
 Las fábricas inteligentes, los drones autónomos o los satélites generan gigabytes de telemetría por segundo. Una IA central no puede ingerir este volumen en tiempo real.
-En su lugar, NMP empuja lógica de inteligencia dinámica hacia la antena en el borde (Edge). El Agente instala un **Watchdog** WASM que "duerme" perpetuamente en el satélite. Procesa terabytes de datos localmente en órbita y transmite una alerta asíncrona vía gRPC *solo* cuando detecta un patrón de fallo crítico.
+En su lugar, LIOP empuja lógica de inteligencia dinámica hacia la antena en el borde (Edge). El Agente instala un **Watchdog** WASM que "duerme" perpetuamente en el dispositivo. Procesa los datos localmente y transmite una alerta asíncrona vía gRPC *solo* cuando detecta un patrón de fallo crítico.
 
 ### 4. Investigación Colaborativa Descentralizada
-Múltiples consorcios farmacéuticos desean entrenar modelos avanzados sobre sus bases de datos genómicas combinadas sin compartir sus moléculas patentadas crudas con la competencia. Utilizan NMP para empujar algoritmos de entrenamiento a los orígenes del otro, extrayendo solo actualizaciones de gradiente encriptadas para ensamblar el modelo compartido final de forma segura.
+Múltiples consorcios farmacéuticos desean entrenar modelos avanzados sobre sus bases de datos genómicas combinadas sin compartir sus moléculas patentadas crudas con la competencia. Utilizan LIOP para inyectar algoritmos de entrenamiento a los orígenes del otro, extrayendo solo actualizaciones de gradiente para ensamblar el modelo compartido final de forma segura.
 
-## ¿Para quién es NMP?
+## ¿Para quién es LIOP?
 
 *   **Desarrolladores de Aplicaciones IA:** Permite analizar repositorios o bases de datos remotas al instante sin latencia de red masiva.
 *   **Propietarios de Datos y Empresas:** Expón herramientas y datos sensibles de forma segura. Los datos brutos nunca salen de tu red; solo se exporta la respuesta final.
-*   **Comunidad de IA:** Un estándar universal y matemáticamente verificable para desplegar misiones de inteligencia autónoma.
+*   **Comunidad de IA:** Un estándar universal y matemáticamente verificable para desplegar misiones de inteligencia autónoma geográficamente distribuidas.
 
-## Pilares de la Malla Neuronal
+## Pilares del Protocolo LIOP
 
 1.  **Seguridad por Capacidades:** Los permisos son descriptores de archivos mapeados estrictamente en el sandbox. Solo se ve lo que se concede.
 2.  **Handshakes Post-Cuánticos:** Negociación vía Kyber (ML-KEM-768) para mitigar ataques *Harvest Now, Decrypt Later*, con cifrado AES-256-GCM.
 3.  **Watchdogs en Tiempo Real:** Módulos `.wasm` persistentes que "duermen" en el servidor y despiertan para emitir alertas asíncronas solo cuando detectan anomalías.
-4.  **Computación Ciega (TEEs):** Preparado para ejecutar el motor `Wasmtime` dentro de AWS Nitro Enclaves para cifrado de memoria a nivel hardware.
+4.  **Computación Ciega (TEEs):** Preparado para ejecutar el motor `Wasmtime` dentro de entornos como AWS Nitro Enclaves para aislamiento a nivel hardware.
 5.  **Guardianes AST:** Inspección preventiva de binarios `.wasm` para destruir amenazas antes de la inicialización del sandbox.
 
 ## Comenzando
 
-¿Listo para modernizar tu arquitectura de IA?
+¿Listo para modernizar tu arquitectura de IA con LIOP?
 
 <CardGroup cols={2}>
   <Card title="Guía de Inicio Rápido" icon="forward-step" href="/es/getting-started/quickstart">
-    Lanza tu primer Servidor y Cliente NMP en menos de 5 minutos.
+    Lanza tu primer Servidor y Cliente LIOP en menos de 5 minutos.
   </Card>
   <Card title="Arquitectura Profunda" icon="sitemap" href="/es/concepts/architecture">
-    Comprende cómo Kademlia, gRPC y Wasmtime crean el paradigma Logic-on-Origin.
+    Comprende cómo la red P2P, gRPC y Wasmtime crean el nuevo estándar industrial.
   </Card>
 </CardGroup>

@@ -1,24 +1,25 @@
-// Client Logic-on-Origin Injector
+// Logic-Injection-on-Origin Protocol (LIOP) - Client Node (AI Agent Logic Injector)
 
 use aes_gcm::aead::{Aead, KeyInit};
 use aes_gcm::{Aes256Gcm, Key, Nonce};
-use nmp_core::v1::neural_mesh_client::NeuralMeshClient;
-use nmp_core::v1::{IntentRequest, LogicRequest};
+use liop_core::v1::logic_mesh_client::LogicMeshClient;
+use liop_core::v1::{IntentRequest, LogicRequest};
 use pqcrypto_kyber::kyber768::*;
 use pqcrypto_traits::kem::{Ciphertext, PublicKey, SharedSecret};
 use std::error::Error;
 use std::io::Read;
 
 pub async fn inject_logic(target_ip: &str, wasm_path: &str) -> Result<(), Box<dyn Error>> {
-    println!("[-] Connecting to NMP Data Node at {}", target_ip);
+    println!("[-] Connecting to LIOP Data Node at {}", target_ip);
 
     // In a real scenario, this IP is resolved from the DHT via Kademlia
-    let mut client = NeuralMeshClient::connect(format!("http://{}", target_ip)).await?;
+    let mut client = LogicMeshClient::connect(format!("http://{}", target_ip)).await?;
 
     // 1. Intent Negotiation (Zero-Trust Handshake)
-    println!("[-] Sending Intent Negotiation (Proof of Capability)...");
+    println!("[-] Querying Decentralized Kademlia DHT for 'LocalLogAnalyzer' schemas...");
+    let _record_key = libp2p::kad::RecordKey::new(&"liop:capabilities:LocalLogAnalyzer");
     let intent_req = tonic::Request::new(IntentRequest {
-        agent_did: "spiffe://nmp.ai/agent/alpha-1".to_string(),
+        agent_did: "spiffe://liop.ai/agent/alpha-1".to_string(),
         capability_hash: "hash_filter_log".to_string(),
         proof_of_intent: vec![], // Signed token
     });
@@ -36,7 +37,7 @@ pub async fn inject_logic(target_ip: &str, wasm_path: &str) -> Result<(), Box<dy
     );
 
     // 2. Read the WASM Filter from disk
-    println!("[-] Loading Local Logic-on-Origin module: {}", wasm_path);
+    println!("LIOP AI Agent Client - Booting Logic-on-Origin injection engine...");
     let mut f = std::fs::File::open(wasm_path)?;
     let mut wasm_buffer = Vec::new();
     f.read_to_end(&mut wasm_buffer)?;

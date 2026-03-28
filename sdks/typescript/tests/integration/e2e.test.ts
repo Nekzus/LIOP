@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { z } from "zod";
-import { NmpServer } from "../../src/server/index.js";
+import { LiopServer } from "../../src/server/index.js";
 
 /**
  * End-to-End Integration Tests (Local, No Network)
@@ -9,10 +9,10 @@ import { NmpServer } from "../../src/server/index.js";
  * without requiring a real gRPC connection or P2P mesh.
  */
 describe("E2E Logic-on-Origin Pipeline", () => {
-	let server: NmpServer;
+	let server: LiopServer;
 
 	beforeAll(async () => {
-		server = new NmpServer(
+		server = new LiopServer(
 			{ name: "E2E-TestNode", version: "1.0.0" },
 			{
 				security: {
@@ -47,7 +47,7 @@ describe("E2E Logic-on-Origin Pipeline", () => {
 		const result = await server.callTool({
 			name: "compute_on_origin",
 			arguments: {
-				payload: `NMP_MAGIC:0x00FF\nMANIFEST:{"target":"wasi_v1","name":"DynamicAudit","integrity_checks":true}\n---BEGIN_LOGIC---
+				payload: `LIOP_MAGIC:0x00FF\nMANIFEST:{"target":"wasi_v1","name":"DynamicAudit","integrity_checks":true}\n---BEGIN_LOGIC---
 const records = env.records;
 const count = records.length;
 const avgAge = records.reduce((sum, r) => sum + r.age, 0) / count;
@@ -73,14 +73,14 @@ return JSON.stringify({ count, average_age: avgAge });
 		});
 
 		expect(result.isError).toBe(true);
-		expect(result.content[0].text).toContain("Missing NMP_MAGIC, MANIFEST");
+		expect(result.content[0].text).toContain("Missing LIOP_MAGIC, MANIFEST");
 	});
 
 	it("should block PII exfiltration via forbidden keys", async () => {
 		const result = await server.callTool({
 			name: "compute_on_origin",
 			arguments: {
-				payload: `NMP_MAGIC:0x00FF\nMANIFEST:{"target":"wasi_v1","name":"DynamicAudit","integrity_checks":true}\n---BEGIN_LOGIC---
+				payload: `LIOP_MAGIC:0x00FF\nMANIFEST:{"target":"wasi_v1","name":"DynamicAudit","integrity_checks":true}\n---BEGIN_LOGIC---
 const records = env.records;
 return JSON.stringify(records.map(r => ({ id: r.id, name: r.name, age: r.age })));
 ---END_LOGIC---`,
@@ -95,7 +95,7 @@ return JSON.stringify(records.map(r => ({ id: r.id, name: r.name, age: r.age }))
 		const result = await server.callTool({
 			name: "compute_on_origin",
 			arguments: {
-				payload: `NMP_MAGIC:0x00FF\nMANIFEST:{"target":"wasi_v1","name":"DynamicAudit","integrity_checks":true}\n---BEGIN_LOGIC---
+				payload: `LIOP_MAGIC:0x00FF\nMANIFEST:{"target":"wasi_v1","name":"DynamicAudit","integrity_checks":true}\n---BEGIN_LOGIC---
 const records = env.records;
 const diabetesCount = records.filter(r => r.condition === "Diabetes Type 2").length;
 return JSON.stringify({ diabetes_count: diabetesCount, total: records.length });
@@ -127,12 +127,12 @@ return JSON.stringify({ diabetes_count: diabetesCount, total: records.length });
 		});
 
 		expect(result.isError).toBe(true);
-		expect(result.content[0].text).toContain("NMP_THROTTLED");
+		expect(result.content[0].text).toContain("LIOP_THROTTLED");
 	});
 
 	it("should cache validated logic payloads by SHA-256 hash", async () => {
 		// Create a fresh server to avoid throttle state from previous test
-		const freshServer = new NmpServer({
+		const freshServer = new LiopServer({
 			name: "CacheTestNode",
 			version: "1.0.0",
 		});
@@ -147,7 +147,7 @@ return JSON.stringify({ diabetes_count: diabetesCount, total: records.length });
 			}),
 		);
 
-		const payload = `NMP_MAGIC:0x00FF\nMANIFEST:{"target":"wasi_v1","name":"DynamicAudit","integrity_checks":true}\n---BEGIN_LOGIC---
+		const payload = `LIOP_MAGIC:0x00FF\nMANIFEST:{"target":"wasi_v1","name":"DynamicAudit","integrity_checks":true}\n---BEGIN_LOGIC---
 const records = env.records;
 return JSON.stringify({ sum: records.reduce((a, r) => a + r.value, 0) });
 ---END_LOGIC---`;

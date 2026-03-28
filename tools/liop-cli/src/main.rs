@@ -1,13 +1,13 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-use nmp_core::v1::neural_mesh_client::NeuralMeshClient;
-use nmp_core::v1::IntentRequest;
+use liop_core::v1::logic_mesh_client::LogicMeshClient;
+use liop_core::v1::IntentRequest;
 use reqwest::Client;
 use tracing::{error, info};
 
 #[derive(Parser)]
-#[command(name = "nmp-cli")]
-#[command(about = "NMP Developer CLI for zero-trust interactions", long_about = None)]
+#[command(name = "liop")]
+#[command(about = "LIOP Developer CLI for zero-trust interactions", long_about = None)]
 #[command(version = "0.1.0")]
 struct Cli {
     #[command(subcommand)]
@@ -16,7 +16,7 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Checks the health of an NMP node via HTTP
+    /// Checks the health of an LIOP node via HTTP
     Health {
         #[arg(short, long, default_value = "http://[::1]:50052")]
         target: String,
@@ -32,7 +32,7 @@ enum Commands {
         #[arg(short, long)]
         capability: Option<String>,
     },
-    /// Shows information about the CLI and the Neural Mesh Protocol
+    /// Shows information about the CLI and the Logic-Injection-on-Origin Protocol
     Info,
 }
 
@@ -72,7 +72,7 @@ async fn main() -> Result<()> {
             capability,
         } => {
             info!("Negotiating zero-trust intent with {}", target);
-            let mut client = match NeuralMeshClient::connect(target.clone()).await {
+            let mut client = match LogicMeshClient::connect(target.clone()).await {
                 Ok(c) => c,
                 Err(e) => {
                     error!("Failed to connect via gRPC: {}", e);
@@ -81,7 +81,7 @@ async fn main() -> Result<()> {
             };
 
             let req = IntentRequest {
-                agent_did: agent_did.clone().unwrap_or_else(|| "did:nmp:cli-agent".to_string()),
+                agent_did: agent_did.clone().unwrap_or_else(|| "did:liop:cli-agent".to_string()),
                 capability_hash: capability
                     .clone()
                     .unwrap_or_else(|| "debug-capability-hash".to_string()),
@@ -108,7 +108,7 @@ async fn main() -> Result<()> {
             }
         }
         Commands::Info => {
-            println!("NMP CLI - Neural Mesh Protocol Developer Tool");
+            println!("LIOP CLI - Logic-Injection-on-Origin Protocol Developer Tool");
             println!("Version: 0.1.0");
             println!("Features: zero-trust, post-quantum cryptography, multiplexing");
             println!("Status: Alpha (Experimental)");

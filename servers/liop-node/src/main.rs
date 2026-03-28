@@ -1,4 +1,4 @@
-// Neural Mesh Protocol - Server Node (Data Host)
+// Logic-Injection-on-Origin Protocol (LIOP) - Server Node (Data Host)
 // This node holds the data and provides a Zero-Trust Wasmtime sandbox for execution.
 
 use futures::StreamExt;
@@ -17,8 +17,8 @@ pub mod zk;
 
 use tee::{AwsNitroEnclaveStub, EnclaveProvider};
 
-use grpc::NmpService;
-use nmp_core::v1::neural_mesh_server::NeuralMeshServer;
+use grpc::LiopService;
+use liop_core::v1::logic_mesh_server::LogicMeshServer;
 use tonic::transport::Server;
 
 #[tokio::main]
@@ -33,10 +33,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .with_thread_ids(true)
         .init();
 
-    info!("NMP Server Node - Initiating Genesis Boot Sequence");
+    info!("LIOP Server Node - Initiating Genesis Boot Sequence");
 
     // Load configuration from file or defaults
-    let config = config::NmpConfig::load()?;
+    let config = config::LiopConfig::load()?;
     info!(
         grpc_addr = %config.server.grpc_addr,
         p2p_listen = %config.server.p2p_listen,
@@ -50,7 +50,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Phase 4: Hardware Enclave (TEE) Bootstrapping Stub
     let enclave = AwsNitroEnclaveStub;
     enclave.attest_and_boot()?;
-    let _report = enclave.generate_attestation_report(b"nmp-nonce-1234")?;
+    let _report = enclave.generate_attestation_report(b"liop-nonce-1234")?;
 
     // Boot up the Zero-Trust WASM Engine
     info!("Loading Sandbox capabilities (Wasmtime+WASI)");
@@ -58,16 +58,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // Setup gRPC Server routing
     let addr = config.server.grpc_addr.parse().unwrap();
-    let nmp_service = NmpService::new(
+    let liop_service = LiopService::new(
         sandbox_engine,
         config.session.ttl_duration(),
         config.sandbox.fuel_limit,
         config.sandbox.allowed_dir.clone(),
     );
 
-    info!(addr = %addr, "Starting NMP gRPC Service");
+    info!(addr = %addr, "Starting LIOP gRPC Service");
     let grpc_future = Server::builder()
-        .add_service(NeuralMeshServer::new(nmp_service))
+        .add_service(LogicMeshServer::new(liop_service))
         .serve(addr);
 
     // Initialize Libp2p generic mesh presence (Kademlia/Noise)
@@ -92,7 +92,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }]
     }"#;
 
-    let record_key = libp2p::kad::RecordKey::new(&"nmp:capabilities:LocalLogAnalyzer");
+    let record_key = libp2p::kad::RecordKey::new(&"liop:capabilities:LocalLogAnalyzer");
     let record = libp2p::kad::Record {
         key: record_key,
         value: capabilities_json.as_bytes().to_vec(),
@@ -110,7 +110,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             tokio::select! {
                  event = swarm.select_next_some() => {
                      if let libp2p::swarm::SwarmEvent::NewListenAddr { address, .. } = event {
-                         info!(address = %address, "NMP Node P2P Mesh ready");
+                         info!(address = %address, "LIOP Node P2P Mesh ready");
                      }
                  }
             }

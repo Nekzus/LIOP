@@ -7,7 +7,7 @@ use wasmtime::{Config, Engine, Linker, Module, Store};
 use wasmtime_wasi::preview1::WasiP1Ctx;
 use wasmtime_wasi::{DirPerms, FilePerms, WasiCtxBuilder};
 
-use nmp_core::v1::LogicResponse;
+use liop_core::v1::LogicResponse;
 use tokio::sync::mpsc::Sender;
 
 /// Holds the execution state per Agent request.
@@ -64,7 +64,7 @@ pub fn execute_sandboxed_logic(
 
     // PUSH EVENT HOST FUNCTION
     linker.func_wrap(
-        "nmp",
+        "liop",
         "push_event",
         |mut caller: wasmtime::Caller<'_, AgentExecutionState>,
          ptr: u32,
@@ -92,7 +92,7 @@ pub fn execute_sandboxed_logic(
         },
     )?;
 
-    info!("Compiling incoming NMP Logic Module");
+    info!("Compiling incoming LIOP Logic Module");
     let module = Module::new(engine, wasm_bytes)?;
 
     info!("Linking Capabilities");

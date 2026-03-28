@@ -1,22 +1,22 @@
 <div align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://res.cloudinary.com/dsvsl0b0b/image/upload/v1772730727/Neural-Mesh-Protocol/bxasdalv9vwyt7m45vnb.svg">
-    <img alt="Neural Mesh Protocol Logo" src="https://res.cloudinary.com/dsvsl0b0b/image/upload/v1772730741/Neural-Mesh-Protocol/koych4jotjoldgo4ydpk.svg" width="700">
+    <source media="(prefers-color-scheme: dark)" srcset="https://res.cloudinary.com/dsvsl0b0b/image/upload/v1774702621/Neural-Mesh-Protocol/qaqsa28yrtpnxnbclv3p.svg?v=20260328">
+    <img alt="Logic-Injection-on-Origin Protocol Logo" src="https://res.cloudinary.com/dsvsl0b0b/image/upload/v1774702621/Neural-Mesh-Protocol/hoanw0m6tybpz5fbl12n.svg?v=20260328" width="700">
   </picture>
 
-  <h1>Neural Mesh Protocol (NMP) — TypeScript SDK</h1>
+  <h1>Logic-Injection-on-Origin Protocol (LIOP) — TypeScript SDK</h1>
 <p align="center">
-  <a href="https://github.com/Nekzus/Neural-Mesh-Protocol/actions/workflows/ci.yml"><img src="https://github.com/Nekzus/Neural-Mesh-Protocol/actions/workflows/ci.yml/badge.svg?event=push" alt="Github Workflow"></a>
-  <a href="https://www.npmjs.com/package/@nekzus/neural-mesh"><img src="https://img.shields.io/npm/v/@nekzus/neural-mesh.svg" alt="npm version"></a>
-  <a href="https://www.npmjs.com/package/@nekzus/neural-mesh"><img src="https://img.shields.io/npm/dm/@nekzus/neural-mesh.svg" alt="npm-month"></a>
-  <a href="https://www.npmjs.com/package/@nekzus/neural-mesh"><img src="https://img.shields.io/npm/dt/@nekzus/neural-mesh.svg?style=flat" alt="npm-total"></a>
-  <a href="https://github.com/Nekzus/Neural-Mesh-Protocol/blob/main/LICENSE"><img src="https://img.shields.io/github/license/Nekzus/Neural-Mesh-Protocol.svg" alt="License"></a>
-  <a href="https://nekzus-32.mintlify.app/"><img src="https://img.shields.io/badge/docs-mintlify-0D9373?style=flat" alt="Docs"></a>
-  <a href="https://deepwiki.com/Nekzus/Neural-Mesh-Protocol"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
+  <a href="https://github.com/Nekzus/LIOP/actions/workflows/ci.yml"><img src="https://github.com/Nekzus/LIOP/actions/workflows/ci.yml/badge.svg?event=push" alt="Github Workflow"></a>
+  <a href="https://www.npmjs.com/package/@nekzus/liop"><img src="https://img.shields.io/npm/v/@nekzus/liop.svg" alt="npm version"></a>
+  <a href="https://www.npmjs.com/package/@nekzus/liop"><img src="https://img.shields.io/npm/dm/@nekzus/liop.svg" alt="npm-month"></a>
+  <a href="https://www.npmjs.com/package/@nekzus/liop"><img src="https://img.shields.io/npm/dt/@nekzus/liop.svg?style=flat" alt="npm-total"></a>
+  <a href="https://github.com/Nekzus/LIOP/blob/main/LICENSE"><img src="https://img.shields.io/github/license/Nekzus/LIOP.svg" alt="License"></a>
+  <a href="https://liop.mintlify.app/"><img src="https://img.shields.io/badge/docs-mintlify-0D9373?style=flat" alt="Docs"></a>
+  <a href="https://deepwiki.com/Nekzus/LIOP"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
   <a href="https://paypal.me/maseortega"><img src="https://img.shields.io/badge/donate-paypal-blue.svg?style=flat-square" alt="Donate"></a>
 </p>
 
-  <p><strong>The official TypeScript SDK for the Neural Mesh Protocol.</strong></p>
+  <p><strong>The official TypeScript SDK for the Logic-Injection-on-Origin Protocol.</strong></p>
   <p>Deploy Logic-on-Origin with WebAssembly sandboxing, gRPC-speed execution, and full MCP backward compatibility.</p>
 </div>
 
@@ -24,7 +24,7 @@
 
 ## Overview
 
-`@nekzus/neural-mesh` is an SDK that implements the **Logic-on-Origin** paradigm: instead of extracting raw data from a server and sending it to an LLM, the LLM injects a micro-module of logic to be executed *at the data source*, inside a secure sandbox. The result — never the raw data — is returned.
+`@nekzus/liop` is an SDK that implements the **Logic-Injection-on-Origin (LIO)** paradigm: instead of extracting raw data from a server and sending it to an LLM, the LLM injects a micro-module of logic to be executed *at the data source*, inside a secure sandbox. The result — never the raw data — is returned.
 
 This fundamentally solves the data privacy, bandwidth, and latency challenges of AI-powered data analysis at scale.
 
@@ -32,14 +32,14 @@ This fundamentally solves the data privacy, bandwidth, and latency challenges of
 
 | Feature | Description |
 |:--|:--|
-| **Logic-on-Origin** | LLMs send code, not queries. Data never leaves the origin server. |
-| **MCP Drop-in Replacement** | `NmpServer` mirrors the Anthropic MCP `Server` API — tools, resources, and prompts with `Zod` schemas. |
+| **Logic-Injection-on-Origin** | LLMs send code, not queries. Data never leaves the origin server. |
+| **MCP Drop-in Replacement** | `LiopServer` mirrors the Anthropic MCP `Server` API — tools, resources, and prompts with `Zod` schemas. |
 | **Guardian AST** | Zero-time heuristic inspection blocks sandbox escapes (`require`, `fs`, `eval`, `fetch`, prototype pollution). |
 | **WASI Sandbox** | JavaScript payloads execute inside V8 isolates with CPU fuel limits and no access to Node.js globals. |
 | **PII Shield** | Multi-layer egress filter with NIST/OWASP patterns (Email, Credit Card with Luhn, IP, Phone) and configurable forbidden keys. |
 | **ZK-Receipts** | Cryptographic proof (SHA-256 + SHA-512 seal) that the returned result was computed honestly from the injected logic. |
 | **Worker Pool** | Heavy computation (crypto, sandboxing) dispatched to OS threads via `piscina`, unblocking the V8 event loop. |
-| **MCP Bridge** | `NmpMcpBridge` adapts any `NmpServer` to the JSON-RPC 2.0 / stdio protocol used by Claude Desktop, Cursor, etc. |
+| **MCP Bridge** | `LiopMcpBridge` adapts any `LiopServer` to the JSON-RPC 2.0 / stdio protocol used by Claude Desktop, Cursor, etc. |
 | **Post-Quantum Ready** | ML-KEM-768 (Kyber) handshake + AES-256-GCM symmetric encryption for transport-layer security. |
 | **P2P Mesh** | Kademlia DHT discovery via `libp2p` with TCP + WebSocket + Yamux multiplexing and Noise encryption. |
 
@@ -48,16 +48,16 @@ This fundamentally solves the data privacy, bandwidth, and latency challenges of
 ## Installation
 
 ```bash
-npm install @nekzus/neural-mesh
+npm install @nekzus/liop
 ```
 
 > **Requirements:** Node.js ≥ 20.0. The SDK uses `node:crypto`, `node:vm`, and `piscina` (worker threads) internally.
 
 ---
 
-## NMP Agent (CLI)
+## LIOP Agent (CLI)
 
-The SDK includes a zero-config agent (`nmp-agent`) designed to bridge the Neural Mesh Protocol with local AI clients like **Claude Desktop**.
+The SDK includes a zero-config agent (`liop-agent`) designed to bridge the Logic-Injection-on-Origin Protocol with local AI clients like **Claude Desktop**.
 
 ### Installation & Run
 
@@ -65,11 +65,11 @@ You can run the agent directly using `npx` (recommended) or install it globally:
 
 ```bash
 # Run instantly
-npx @nekzus/neural-mesh
+npx @nekzus/liop
 
 # Or install globally
-npm install -g @nekzus/neural-mesh
-nmp-agent
+npm install -g @nekzus/liop
+liop-agent
 ```
 
 ### 🤖 Claude Desktop Configuration
@@ -79,9 +79,9 @@ To use the Neural Mesh inside Claude Desktop, update your `claude_desktop_config
 ```json
 {
   "mcpServers": {
-    "neural-mesh": {
+    "liop-agent": {
       "command": "npx",
-      "args": ["-y", "@nekzus/neural-mesh"]
+      "args": ["-y", "@nekzus/liop"]
     }
   }
 }
@@ -90,10 +90,10 @@ To use the Neural Mesh inside Claude Desktop, update your `claude_desktop_config
 ### Persistence & Identity
 
 The agent automatically manages your P2P identity:
-- **Identity Path**: `~/.nmp/identity.json`. This file contains your unique PeerID. Keep it safe if you want to maintain a consistent identity in the mesh.
-- **Bootstrap Nodes**: By default, the agent connects to the **NMP Alpha Nexus**. You can provide custom bootstrap addresses as CLI arguments:
+- **Identity Path**: `~/.liop/identity.json`. This file contains your unique PeerID. Keep it safe if you want to maintain a consistent identity in the mesh.
+- **Bootstrap Nodes**: By default, the agent connects to the **LIOP Alpha Nexus**. You can provide custom bootstrap addresses as CLI arguments:
   ```bash
-  npx @nekzus/neural-mesh /ip4/1.2.3.4/tcp/4001/p2p/PEER_ID
+  npx @nekzus/liop /ip4/1.2.3.4/tcp/4001/p2p/PEER_ID
   ```
 
 ---
@@ -103,10 +103,10 @@ The agent automatically manages your P2P identity:
 ### 1. Create a Server
 
 ```typescript
-import { NmpServer, PII_PATTERNS } from "@nekzus/neural-mesh/server";
+import { LiopServer, PII_PATTERNS } from "@nekzus/liop/server";
 import { z } from "zod";
 
-const server = new NmpServer(
+const server = new LiopServer(
   { name: "MyDataNode", version: "1.0.0" },
   {
     capabilities: { tools: { listChanged: true } },
@@ -139,9 +139,9 @@ server.tool(
 ### 3. Connect to Claude Desktop / Cursor (MCP Bridge)
 
 ```typescript
-import { NmpMcpBridge } from "@nekzus/neural-mesh/bridge";
+import { LiopMcpBridge } from "@nekzus/liop/bridge";
 
-const bridge = new NmpMcpBridge(server);
+const bridge = new LiopMcpBridge(server);
 await bridge.connect(); // Listens on stdio (JSON-RPC 2.0)
 ```
 
@@ -165,24 +165,24 @@ await bridge.connect(); // Listens on stdio (JSON-RPC 2.0)
 The package exposes targeted entry points to minimize bundle size:
 
 ```typescript
-import { NmpServer, PII_PATTERNS } from "@nekzus/neural-mesh/server";
-import { NmpMcpBridge }             from "@nekzus/neural-mesh/bridge";
-import { NmpClient }                from "@nekzus/neural-mesh/client";
-import type { Tool, Resource, Prompt, CallToolRequest, CallToolResult } from "@nekzus/neural-mesh/types";
+import { LiopServer, PII_PATTERNS } from "@nekzus/liop/server";
+import { LiopMcpBridge }             from "@nekzus/liop/bridge";
+import { LiopClient }                from "@nekzus/liop/client";
+import type { Tool, Resource, Prompt, CallToolRequest, CallToolResult } from "@nekzus/liop/types";
 ```
 
 ---
 
 ## API Reference
 
-### `NmpServer`
+### `LiopServer`
 
 The core class for declaring data nodes. API-compatible with Anthropic's MCP `Server`.
 
 #### Constructor
 
 ```typescript
-new NmpServer(
+new LiopServer(
   serverInfo: { name: string; version: string },
   config?: {
     capabilities?: Record<string, unknown>;
@@ -201,7 +201,7 @@ new NmpServer(
 | `tool()` | `(name, description, zodSchema, handler)` | Registers a callable tool with Zod input validation. |
 | `prompt()` | `(name, description, args, handler)` | Registers a dynamic prompt template. |
 | `resource()` | `(name, uri, description?, mimeType?, content?)` | Registers a readable resource. |
-| `dataDictionary()` | `(schema, name?, uri?, description?)` | Broadcasts a data schema so LLMs can write accurate Logic-on-Origin code. |
+| `dataDictionary()` | `(schema, name?, uri?, description?)` | Broadcasts a data schema so LLMs can write accurate Logic-Injection-on-Origin code. |
 | `setSandboxData()` | `(records: Record[])` | Injects data into the sandbox as `env.records` for Logic-on-Origin tools. |
 | `enableZeroShotAutonomy()` | `()` | Registers the "Blind Analyst" prompt for autonomous code generation. |
 | `callTool()` | `(request: CallToolRequest)` | Invokes a registered tool (used locally or via MCP Bridge). |
@@ -215,12 +215,12 @@ new NmpServer(
 | `clearAstCache()` | `()` | Invalidates the Guardian AST logic cache. |
 | `close()` | `()` | Destroys the worker pool and releases threads. |
 
-### `NmpMcpBridge`
+### `LiopMcpBridge`
 
-Adapter that connects any `NmpServer` to MCP-compatible clients via JSON-RPC 2.0 over stdio.
+Adapter that connects any `LiopServer` to MCP-compatible clients via JSON-RPC 2.0 over stdio.
 
 ```typescript
-const bridge = new NmpMcpBridge(server);
+const bridge = new LiopMcpBridge(server);
 await bridge.connect();
 ```
 
@@ -254,7 +254,7 @@ await bridge.connect();
 ├─────────────────────────────────────────────────────┤
 │  Layer 4: ZK-Receipt (Integrity Verification)       │
 │  SHA-256 ImageID + SHA-512 RISC0-style Seal         │
-│  NmpMcpBridge verifies before forwarding to LLM     │
+│  LiopMcpBridge verifies before forwarding to LLM     │
 └─────────────────────────────────────────────────────┘
 ```
 
@@ -263,7 +263,7 @@ await bridge.connect();
 Built-in patterns with multi-layer verification:
 
 ```typescript
-import { PII_PATTERNS } from "@nekzus/neural-mesh/server";
+import { PII_PATTERNS } from "@nekzus/liop/server";
 
 // Available patterns:
 PII_PATTERNS.EMAIL         // RFC 5322 compliant, excludes @example.com/@test.com
@@ -277,7 +277,7 @@ PII_PATTERNS.PHONE         // International phone formats with digit-length vali
 The PII Shield automatically strips any key from outgoing responses that matches your configured list:
 
 ```typescript
-const server = new NmpServer(info, {
+const server = new LiopServer(info, {
   security: {
     forbiddenKeys: ["id", "ssn", "password", "token", "secret", "email", "name"],
   },
@@ -287,13 +287,13 @@ const server = new NmpServer(info, {
 
 ---
 
-## Logic-on-Origin Flow
+## Logic-Injection-on-Origin Flow
 
-The following shows a complete Logic-on-Origin execution cycle (handled internally by the SDK):
+The following shows a complete Logic-Injection-on-Origin execution cycle (handled internally by the SDK):
 
 ```
 1. LLM generates JavaScript analysis code wrapped in ---BEGIN_LOGIC--- / ---END_LOGIC--- boundaries
-2. NmpServer receives the payload via tools/call (JSON-RPC or direct)
+2. LiopServer receives the payload via tools/call (JSON-RPC or direct)
 3. Guardian AST inspects for sandbox escapes (zero-time heuristic analysis)
 4. Code executes inside a V8 isolate with CPU fuel limits (no Node.js globals)
 5. PII Shield scans output for forbidden data and keys
@@ -327,7 +327,7 @@ This SDK dispatches all heavy computation to OS-level threads via [`piscina`](ht
 
 ```typescript
 // Automatic — no configuration needed
-// When a Logic-on-Origin payload is received:
+// When a Logic-Injection-on-Origin payload is received:
 // 1. Main thread receives JSON-RPC request
 // 2. Worker thread: AST inspection + PQC decryption + Sandbox execution
 // 3. Main thread: Returns result (non-blocking)
@@ -343,9 +343,9 @@ await server.close();
 Transport-layer security using ML-KEM-768 (Kyber) for key encapsulation and AES-256-GCM for symmetric encryption:
 
 ```typescript
-import { NmpClient } from "@nekzus/neural-mesh/client";
+import { LiopClient } from "@nekzus/liop/client";
 
-const client = new NmpClient();
+const client = new LiopClient();
 await client.connect();
 
 // Discover remote tools via Kademlia DHT
@@ -390,15 +390,15 @@ This package is continuously tested across multiple platforms and Node.js versio
 
 ## Related
 
-- [NMP Documentation](https://nekzus-32.mintlify.app/) — Full conceptual and API documentation
-- [NMP Specification](https://github.com/Nekzus/Neural-Mesh-Protocol/blob/main/protocol/SPECIFICATION.md) — Technical specification
-- [NMP Manifesto](https://github.com/Nekzus/Neural-Mesh-Protocol/blob/main/MANIFESTO.md) — Project philosophy
-- [Contributing Guide](https://github.com/Nekzus/Neural-Mesh-Protocol/blob/main/CONTRIBUTING.md) — How to contribute
-- [Rust Mesh Node](https://github.com/Nekzus/Neural-Mesh-Protocol/tree/main/servers/mesh-node) — Native high-performance backend
-- [NMP CLI](https://github.com/Nekzus/Neural-Mesh-Protocol/tree/main/tools/nmp-cli) — Developer diagnostics
+- [LIOP Documentation](https://liop.mintlify.app/) — Full conceptual and API documentation
+- [LIOP Specification](https://github.com/Nekzus/LIOP/blob/main/protocol/SPECIFICATION.md) — Technical specification
+- [LIOP Manifesto](https://github.com/Nekzus/LIOP/blob/main/MANIFESTO.md) — Project philosophy
+- [Contributing Guide](https://github.com/Nekzus/LIOP/blob/main/CONTRIBUTING.md) — How to contribute
+- [Rust Mesh Node](https://github.com/Nekzus/LIOP/tree/main/servers/liop-node) — Native high-performance backend
+- [LIOP CLI](https://github.com/Nekzus/LIOP/tree/main/tools/liop-cli) — Developer diagnostics
 
 ---
 
 ## License
 
-[MIT](https://github.com/Nekzus/Neural-Mesh-Protocol/blob/main/LICENSE) © [Nekzus](https://github.com/Nekzus)
+[MIT](https://github.com/Nekzus/LIOP/blob/main/LICENSE) © [Nekzus](https://github.com/Nekzus)

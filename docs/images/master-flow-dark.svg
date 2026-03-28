@@ -261,7 +261,7 @@
     <!-- ZONES -->
     <!-- 1. Client -->
     <rect x="30" y="30" width="270" height="420" class="mfd-zone" />
-    <text x="165" y="65" text-anchor="middle" class="mfd-text mfd-title">NMP Agent Node</text>
+    <text x="165" y="65" text-anchor="middle" class="mfd-text mfd-title">LIOP Agent Node</text>
     <text x="165" y="80" text-anchor="middle" class="mfd-text-sm">Client / Logic Origin</text>
 
     <!-- 2. Network -->
@@ -271,7 +271,7 @@
 
     <!-- 3. Server -->
     <rect x="700" y="30" width="270" height="420" class="mfd-zone" />
-    <text x="835" y="65" text-anchor="middle" class="mfd-text mfd-title">NMP Data Node</text>
+    <text x="835" y="65" text-anchor="middle" class="mfd-text mfd-title">LIOP Data Node</text>
     <text x="835" y="80" text-anchor="middle" class="mfd-text-sm">Host Server / Execution</text>
 
     <!-- ==================== -->

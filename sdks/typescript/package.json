@@ -1,11 +1,11 @@
 {
-	"name": "@nekzus/neural-mesh",
-	"version": "1.2.0-alpha.8",
-	"description": "Official SDK for Neural Mesh Protocol (NMP). Deploy Logic-on-Origin with WebAssembly at gRPC speed and bidirectional MCP compatibility.",
+	"name": "@nekzus/liop",
+	"version": "1.0.0-alpha.1",
+	"description": "Official SDK for Logic-Injection-on-Origin Protocol (LIOP). Deploy Logic-on-Origin with WebAssembly at gRPC speed and bidirectional MCP compatibility.",
 	"main": "dist/index.js",
 	"types": "dist/index.d.ts",
 	"bin": {
-		"nmp-agent": "./dist/bin/agent.js"
+		"liop-agent": "./dist/bin/agent.js"
 	},
 	"files": [
 		"dist",
@@ -53,14 +53,14 @@
 		"lint": "biome lint .",
 		"format": "biome format --write .",
 		"check": "biome check .",
-		"demo:client-quickstart": "pnpm --filter @neural-mesh/example-client-quickstart start",
-		"demo:server-quickstart": "pnpm --filter @neural-mesh/example-server-quickstart start",
-		"demo:server": "pnpm --filter @neural-mesh/example-server start",
-		"demo:client": "pnpm --filter @neural-mesh/example-client start"
+		"demo:client-quickstart": "pnpm --filter @liop/example-client-quickstart start",
+		"demo:server-quickstart": "pnpm --filter @liop/example-server-quickstart start",
+		"demo:server": "pnpm --filter @liop/example-server start",
+		"demo:client": "pnpm --filter @liop/example-client start"
 	},
 	"keywords": [
-		"neural-mesh-protocol",
-		"nmp",
+		"liop",
+		"logic-injection-on-origin",
 		"model-context-protocol",
 		"mcp",
 		"logic-on-origin",
@@ -79,10 +79,10 @@
 	"type": "module",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/Nekzus/Neural-Mesh-Protocol.git"
+		"url": "git+https://github.com/Nekzus/LIOP.git"
 	},
 	"bugs": {
-		"url": "https://github.com/Nekzus/Neural-Mesh-Protocol/issues"
+		"url": "https://github.com/Nekzus/LIOP/issues"
 	},
 	"homepage": "https://nekzus-32.mintlify.app/",
 	"publishConfig": {

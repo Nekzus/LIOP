@@ -2,11 +2,11 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use tracing::info;
 
-/// NMP Zk Receipt
-/// This struct travels through the NMP gRPC Payload so that the Client
+/// LIOP Zk Receipt
+/// This struct travels through the LIOP gRPC Payload so that the Client
 /// (TS SDK or AI Agent) verifies the execution.
 #[derive(Serialize, Deserialize, Debug)]
-pub struct NmpZkReceipt {
+pub struct LiopZkReceipt {
     pub journal: Vec<u8>,
     pub seal: Vec<u8>, // The ZK-SNARK mathematical proof
 }
@@ -67,12 +67,12 @@ impl ZkExecutionEngine {
         seal_hasher.update(b"ZK_SNARK_STUB_SEAL");
         let seal_hash = seal_hasher.finalize().to_vec();
 
-        let nmp_receipt = NmpZkReceipt {
+        let liop_receipt = LiopZkReceipt {
             journal: journal_hash,
             seal: seal_hash,
         };
 
-        let receipt_bytes = bincode::serialize(&nmp_receipt)?;
+        let receipt_bytes = bincode::serialize(&liop_receipt)?;
 
         Ok((stub_result, receipt_bytes))
     }
@@ -127,7 +127,7 @@ mod tests {
         let wasm = b"deserialize_test";
         let (_, bytes) = ZkExecutionEngine::prove_wasm_execution(wasm, b"").unwrap();
 
-        let receipt: NmpZkReceipt =
+        let receipt: LiopZkReceipt =
             bincode::deserialize(&bytes).expect("Receipt should deserialize from bincode");
 
         assert_eq!(

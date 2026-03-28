@@ -1,8 +1,8 @@
 syntax = "proto3";
-package nmp.v1;
+package liop.v1;
 
-// NeuralMesh is the next-generation binary transport protocol for Logic-on-Origin AI
-service NeuralMesh {
+// LogicMesh (formerly NeuralMesh) is the next-generation binary transport protocol for Logic-on-Origin AI
+service LogicMesh {
   // Intent negotiation before transferring data or execution logic
   // Validates Identity, Capability Hashes and Cryptographic signatures
   rpc NegotiateIntent (IntentRequest) returns (IntentResponse);

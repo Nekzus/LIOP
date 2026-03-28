@@ -2,8 +2,8 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { z } from "zod";
-import { NmpHybridGateway } from "../gateway/hybrid.js";
-import { NmpServer } from "../server/index.js";
+import { LiopHybridGateway } from "../gateway/hybrid.js";
+import { LiopServer } from "../server/index.js";
 
 /**
  * NmpStreamBridge Integration Test Suite.
@@ -35,13 +35,13 @@ async function createRemoteClient(name: string): Promise<Client> {
 	return client;
 }
 
-describe("NmpStreamBridge (Integration)", () => {
-	let gateway: NmpHybridGateway;
-	let server: NmpServer;
+describe("LiopStreamBridge (Integration)", () => {
+	let gateway: LiopHybridGateway;
+	let server: LiopServer;
 
 	beforeAll(async () => {
 		// Initialize the Mock "The Vault" Server
-		server = new NmpServer(
+		server = new LiopServer(
 			{ name: "The Vault - Integration Test", version: "1.1.2" },
 			{
 				security: {
@@ -62,7 +62,7 @@ describe("NmpStreamBridge (Integration)", () => {
 
 		// Register the critical Audit Sandbox tool required by tests
 		server.tool(
-			"nmp_audit_sandbox",
+			"liop_audit_sandbox",
 			"Executes Logic-on-Origin",
 			{ payload: z.string() },
 			// This handler is only reached if boundaries are missing
@@ -75,7 +75,7 @@ describe("NmpStreamBridge (Integration)", () => {
 		);
 
 		// Initialize and Start the Hybrid Gateway (Port 3000)
-		gateway = new NmpHybridGateway(server);
+		gateway = new LiopHybridGateway(server);
 		await gateway.listen(3000, "127.0.0.1");
 	});
 
@@ -111,7 +111,7 @@ describe("NmpStreamBridge (Integration)", () => {
 		const { tools } = await client.listTools();
 
 		expect(tools.length).toBeGreaterThan(0);
-		const auditTool = tools.find((t) => t.name === "nmp_audit_sandbox");
+		const auditTool = tools.find((t) => t.name === "liop_audit_sandbox");
 		expect(auditTool).toBeDefined();
 		expect(auditTool?.inputSchema?.properties?.payload).toBeDefined();
 
@@ -121,7 +121,7 @@ describe("NmpStreamBridge (Integration)", () => {
 	it("should execute Logic-on-Origin Blind Computation with ZK-Receipt", async () => {
 		const client = await createRemoteClient("ComputeAgent");
 
-		const payload = `NMP_MAGIC:0x00FF
+		const payload = `LIOP_MAGIC:0x00FF
 MANIFEST:{"target":"wasi_v1","name":"AuditModule","integrity_checks":true}
 ---BEGIN_LOGIC---
 const totalPatients = env.records.length;
@@ -134,7 +134,7 @@ return { total_patients: totalPatients, average_age: Math.round(avgAge * 10) / 1
 ---END_LOGIC---`;
 
 		const result = (await client.callTool({
-			name: "nmp_audit_sandbox",
+			name: "liop_audit_sandbox",
 			arguments: { payload },
 		})) as ToolResult;
 
@@ -152,14 +152,14 @@ return { total_patients: totalPatients, average_age: Math.round(avgAge * 10) / 1
 	it("should BLOCK PII exfiltration attempts (Egress Security)", async () => {
 		const client = await createRemoteClient("MaliciousAgent");
 
-		const maliciousPayload = `NMP_MAGIC:0x00FF
+		const maliciousPayload = `LIOP_MAGIC:0x00FF
 MANIFEST:{"target":"wasi_v1","name":"ExfiltrationModule","integrity_checks":true}
 ---BEGIN_LOGIC---
 return env.records.map(r => ({ id: r.id, name: r.name, age: r.age }));
 ---END_LOGIC---`;
 
 		const result = (await client.callTool({
-			name: "nmp_audit_sandbox",
+			name: "liop_audit_sandbox",
 			arguments: { payload: maliciousPayload },
 		})) as ToolResult;
 
@@ -179,7 +179,7 @@ return env.records.map(r => ({ id: r.id, name: r.name, age: r.age }));
 	it("should BLOCK sandbox escape attempts via Guardian AST", async () => {
 		const client = await createRemoteClient("EvilAgent");
 
-		const dangerousPayload = `NMP_MAGIC:0x00FF
+		const dangerousPayload = `LIOP_MAGIC:0x00FF
 MANIFEST:{"target":"wasi_v1","name":"EscapeModule","integrity_checks":true}
 ---BEGIN_LOGIC---
 const fs = require('fs');
@@ -188,7 +188,7 @@ return { stolen: data };
 ---END_LOGIC---`;
 
 		const result = (await client.callTool({
-			name: "nmp_audit_sandbox",
+			name: "liop_audit_sandbox",
 			arguments: { payload: dangerousPayload },
 		})) as ToolResult;
 

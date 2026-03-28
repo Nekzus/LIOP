@@ -1,87 +1,87 @@
 ---
 title: "Arquitectura"
-description: "Comprendiendo los componentes, capas y el enrutamiento P2P del Neural Mesh Protocol"
+description: "Comprendiendo los componentes, capas y el enrutamiento P2P del Logic-Injection-on-Origin Protocol"
 ---
 
-NMP opera bajo un paradigma fundamentalmente distinto a las APIs REST tradicionales o al Model Context Protocol (MCP). Abandona el modelo cliente-servidor JSON-RPC en favor de un **modelo descentralizado de empuje binario (push model)**.
+LIOP opera bajo un paradigma fundamentalmente distinto a las APIs REST tradicionales o al Model Context Protocol (MCP). Abandona el modelo cliente-servidor JSON-RPC en favor de un **modelo descentralizado de inyección binaria (push model)** sobre una red P2P.
 
-Al orquestar **Lógica en el Origen (Logic-on-Origin)**, NMP elimina las restricciones de gravedad de datos, permitiendo que la lógica del Agente viaje hacia el conjunto de datos en lugar de forzar a que el conjunto de datos viaje hacia el Agente.
+Al orquestar **Lógica Inyectada en el Origen (Logic-Injection-on-Origin)**, LIOP elimina las restricciones de gravedad de datos, permitiendo que la lógica del Agente viaje hacia el conjunto de datos en lugar de forzar a que el conjunto de datos viaje hacia el Agente.
 
 <Frame>
-  <img className="block dark:hidden" src="/images/architecture-light.svg" alt="Diagrama de Arquitectura NMP" />
-  <img className="hidden dark:block" src="/images/architecture-dark.svg" alt="Diagrama de Arquitectura NMP" />
+  <img className="block dark:hidden" src="/images/architecture-light.svg" alt="Diagrama de Arquitectura LIOP" />
+  <img className="hidden dark:block" src="/images/architecture-dark.svg" alt="Diagrama de Arquitectura LIOP" />
 </Frame>
 
 ## Alcance del Protocolo
 
-NMP comprende varios pilares fundamentales:
-- **Especificación NMP**: Implementación estandarizada de mensajes Protobuf, enrutamiento libp2p y restricciones WASI.
-- **SDKs de NMP**: Bibliotecas oficiales en TypeScript y Rust para integración fluida.
-- **Motores de Ejecución NMP (Runtimes)**: El motor central (usualmente `wasmtime`) que realiza el sandboxing matemático.
+LIOP comprende varios pilares fundamentales:
+- **Especificación LIOP**: Implementación estandarizada de mensajes Protobuf, enrutamiento P2P y restricciones WASI.
+- **SDKs de LIOP**: Bibliotecas oficiales en TypeScript y Rust para integración fluida en nodos industriales.
+- **Motores de Ejecución LIOP (Runtimes)**: El motor central (basado en `wasmtime`) que realiza el sandboxing matemático en el origen.
 
 <Note>
-  Al igual que MCP, NMP es agnóstico al modelo LLM utilizado. Estandariza estrictamente *cómo* se intercambian el contexto y la ejecución lógica de forma segura.
+  Al igual que MCP, LIOP es agnóstico al modelo LLM utilizado. Estandariza estrictamente *cómo* se intercambian el contexto y la ejecución lógica de forma segura y privada.
 </Note>
 
-## Participantes de la Malla
+## Participantes de la Red
 
-En el Neural Mesh, cada nodo es un Par (Peer), asumiendo roles según su propósito:
+En la red LIOP, cada nodo es un Par (Peer), asumiendo roles según su propósito:
 
-*   **Sistema Host**: El SO, base de datos o dispositivo que contiene los datos crudos.
-*   **Data Node (Servidor)**: Un par especializado que se ejecuta junto al Host. Inicializa el sandbox `WASI` y protege al Host de ejecuciones maliciosas.
-*   **Agent Node (Cliente)**: Típicamente una IA Autónoma. Genera bytes WebAssembly (`.wasm`) y los empuja a la malla para encontrar Nodos de Datos.
+*   **Sistema Host**: El SO, base de datos o dispositivo que contiene los datos crudos y protegidos.
+*   **Data Node (Servidor)**: Un par especializado que se ejecuta junto al Host. Inicializa el sandbox `WASI` y protege al Host de ejecuciones no autorizadas.
+*   **Agent Node (Cliente)**: Típicamente una IA Autónoma. Genera bytes WebAssembly (`.wasm`) y los empuja a la red para encontrar Nodos de Datos.
 
 ## Capas del Sistema
 
-Para asegurar latencia ultra-baja y máxima seguridad, NMP se divide en tres capas técnicas:
+Para asegurar latencia ultra-baja y máxima seguridad, LIOP se divide en tres capas técnicas:
 
 <Frame>
-  <img className="block dark:hidden w-full" src="/images/topology-light.svg" alt="Arquitectura de Topología NMP" />
-  <img className="hidden dark:block w-full" src="/images/topology-dark.svg" alt="Arquitectura de Topología NMP" />
+  <img className="block dark:hidden w-full" src="/images/topology-light.svg" alt="Arquitectura de Topología LIOP" />
+  <img className="hidden dark:block w-full" src="/images/topology-dark.svg" alt="Arquitectura de Topología LIOP" />
 </Frame>
 
-### 1. Capa de Transporte (libp2p & QUIC)
-Maneja el descubrimiento de pares y conexiones seguras.
-- **Protocolo**: Usa **QUIC** (multiplexación nativa sin bloqueos UDP) y **TCP/WebSockets** para compatibilidad con navegadores.
-- **Criptografía**: Handshakes vía **Noise Protocol** (Ed25519) con **Sobres Autenticados (AES-256-GCM)** y **Criptografía Post-Cuántica (ML-KEM-768 / Kyber)**.
-- **Enrutamiento**: Tabla Hash Distribuida **Kademlia (DHT)**. Los agentes no necesitan IPs fijas; preguntan a la malla y el payload se enruta autónomamente.
+### 1. Capa de Transporte (P2P & QUIC)
+Maneja el descubrimiento de pares y las conexiones seguras y cifradas.
+- **Protocolo**: Usa **QUIC** (multiplexación nativa sin bloqueos) y **TCP** para compatibilidad universal.
+- **Criptografía**: Handshakes via **Noise Protocol** (Ed25519) con **Sobres Autenticados (AES-256-GCM)** y **Criptografía Post-Cuántica (Kyber768)**.
+- **Enrutamiento**: Tabla Hash Distribuida **Kademlia (DHT)**. Los agentes no necesitan IPs fijas; el payload se enruta de forma autónoma por la malla.
 
-### 2. Capa de Datos (Protobuf & Tonic)
-Dicta la estructura de la solicitud de ejecución.
+### 2. Capa de Datos (Protobuf & gRPC)
+Dicta la estructura de la solicitud de ejecución y el intercambio de capacidades.
 - **Codificación**: Mensajes binarios compactos usando **Protocol Buffers (`.proto`)**.
-- **Framework RPC**: **Tonic (gRPC)** para streaming bidireccional de alta velocidad.
+- **Framework RPC**: **gRPC** para streaming bidireccional y multiplexado de alta velocidad.
 - **Payload**: Define `LogicRequest` y `LogicResponse`, transmitiendo el WASM AST, capacidades y pruebas criptográficas (`ZK-Receipts`).
 
 ### 3. Capa de Verificación y Aislamiento (Ejecución)
-La frontera final antes de tocar el hardware.
-- **Guardian AST Validation**: Escanea el binario buscando vulnerabilidades de escape del host antes de la ejecución.
-- **Enclaves Hardware (TEEs)**: Ejecución opcional dentro de AWS Nitro o Intel SGX para blindar la RAM.
-- **Zero-Knowledge Evidence**: Uso de zkVMs (como `RISC Zero`) para devolver resultados sellados matemáticamente que garantizan la integridad del cómputo.
+La frontera final antes de tocar el hardware y los datos locales.
+- **Guardian AST Validation**: Escanea el binario inyectado buscando vulnerabilidades de escape del host antes de permitir la ejecución.
+- **Enclaves Hardware (TEEs)**: Ejecución opcional dentro de entornos como AWS Nitro o Intel SGX para blindar la memoria RAM.
+- **Zero-Knowledge Evidence**: Uso de zkVMs para devolver resultados sellados matemáticamente que garantizan la integridad absoluta del cómputo.
 
-## La Odisea: Lógica en el Origen (Logic-on-Origin)
+## La Odisea: Lógica Inyectada en el Origen (LIO)
 
 <Frame>
-  <img className="block dark:hidden w-full" src="/images/master-flow-light.svg" alt="Flujo de Logic-on-Origin Animado" />
-  <img className="hidden dark:block w-full" src="/images/master-flow-dark.svg" alt="Flujo de Logic-on-Origin Animado" />
+  <img className="block dark:hidden w-full" src="/images/master-flow-light.svg" alt="Flujo de Logic-Injection-on-Origin Animado" />
+  <img className="hidden dark:block w-full" src="/images/master-flow-dark.svg" alt="Flujo de Logic-Injection-on-Origin Animado" />
 </Frame>
 
-Ciclo de vida exacto de una ejecución NMP:
+Ciclo de vida exacto de una ejecución LIOP:
 
 ### 1. El Cliente Emisor (`TypeScript Client`)
-- **Compilación WASM:** La lógica de la IA se transforma en un stream binario `.wasm`.
-- **GuardianTS:** Inspección heurística previa para bloquear contenido malicioso antes de enviarlo.
-- **Intercambio Cuántico:** Generación de un secreto `Kyber768` para derrotar ataques *Harvest Now, Decrypt Later*.
-- **Cifrado:** El payload es sellado con `AES-256-GCM`.
+- **Compilación WASM:** La lógica de la IA se transforma en un stream binario `.wasm` dinámico.
+- **GuardianTS:** Inspección heurística previa para bloquear contenido malicioso antes de enviarlo a la red.
+- **Intercambio Cuántico:** Generación de un secreto `Kyber768` para derrotar ataques de descifrado futuro.
+- **Cifrado:** El payload es sellado herméticamente con `AES-256-GCM`.
 
-### 2. Tránsito por Kademlia (`Zero-Trust Mesh`)
-- **Transporte libp2p:** Los paquetes viajan por la malla descentralizada vía `TCP/QUIC`.
-- **Streams Multiplexados:** `Yamux` gestiona miles de solicitudes paralelas bajo handshakes de `Noise`.
+### 2. Tránsito por la red P2P (`Zero-Trust Mesh`)
+- **Transporte libp2p:** Los paquetes viajan por la red descentralizada vía `TCP/QUIC`.
+- **Streams Multiplexados:** Gestión de miles de solicitudes paralelas bajo handshakes de `Noise`.
 
 ### 3. Ingesta en el Origen (`Rust Server`)
-- **Descifrado:** El Data Node procesa el secreto Kyber y descifra el payload.
+- **Descifrado:** El Data Node procesa el secreto Kyber y descifra el payload inyectado.
 - **AST Guardian:** Análisis en tiempo cero del binario. Cualquier importación ilegal de funciones del host detiene la lógica al instante.
-- **Sandboxing WASI:** El motor `Wasmtime` inicia un sandbox ultra-restringido. La lógica procesa gigabytes de datos locales con latencia de red cero.
+- **Sandboxing WASI:** El motor inicia un sandbox ultra-restringido. La lógica procesa los datos locales con latencia de red cero.
 
 ### 4. Retorno Matemático (`ZK-Receipt`)
-- **Prueba ZK:** Opcionalmente, `RISC Zero` genera un recibo criptográfico de la ejecución.
+- **Prueba ZK:** Generación opcional de un recibo criptográfico de la ejecución mediante zkVM.
 - **Streaming de Resultados:** Los hallazgos regresan por el multiplex gRPC, proporcionando certeza matemática final al Agente.

@@ -1,11 +1,11 @@
 ---
 title: "TypeScript SDK Overview"
-description: "Bringing the power of the Neural Mesh to the Node.js ecosystem"
+description: "Bringing the power of the Logic-Injection-on-Origin Protocol to the Node.js ecosystem"
 ---
 
-The official `@nekzus/neural-mesh` provides a complete, strongly-typed toolkit for building NMP Clients (Agent Nodes) and NMP Servers (Data Nodes) in TypeScript and JavaScript.
+The official `@nekzus/liop` provides a complete, strongly-typed toolkit for building LIOP Clients (Agent Nodes) and LIOP Servers (Data Nodes) in TypeScript and JavaScript.
 
-If you are migrating from the Model Context Protocol (MCP), you will find the API surface remarkably familiar. NMP was designed to provide a **Drop-in Replacement** Developer Experience (DX), abstracting away the immense complexity of Protobuf, WebAssembly, and Kademlia DHT under simple TypeScript classes.
+If you are migrating from the Model Context Protocol (MCP), you will find the API surface remarkably familiar. LIOP was designed to provide a **Drop-in Replacement** Developer Experience (DX), abstracting away the immense complexity of Protobuf, WebAssembly, and Kademlia DHT under simple TypeScript classes.
 
 ## Package Architecture
 
@@ -13,25 +13,25 @@ The SDK is published to npm as a single unified package containing both Client a
 
 <CodeGroup>
 ```bash npm
-npm install @nekzus/neural-mesh zod
+npm install @nekzus/liop zod
 ```
 ```bash pnpm
-pnpm add @nekzus/neural-mesh zod
+pnpm add @nekzus/liop zod
 ```
 ```bash yarn
-yarn add @nekzus/neural-mesh zod
+yarn add @nekzus/liop zod
 ```
 </CodeGroup>
 
 <Note>
-  We strongly recommend installing `zod` alongside the SDK. Just like the official MCP specification, NMP relies on Zod parsing to guarantee that Execution Arguments passed by the AI Agent perfectly match the Server's capability manifest.
+  We strongly recommend installing `zod` alongside the SDK. Just like the official MCP specification, LIOP relies on Zod parsing to guarantee that Execution Arguments passed by the AI Agent perfectly match the Server's capability manifest.
 </Note>
 
 ## Under the Hood: The Javy Compiler
 
-You might be wondering: *If NMP relies on injecting compiled WebAssembly (`.wasm`) logic, how can I build Agents purely in TypeScript?*
+You might be wondering: *If LIOP relies on injecting compiled WebAssembly (`.wasm`) logic, how can I build Agents purely in TypeScript?*
 
-The `@nekzus/neural-mesh` includes a native compilation bridge (the **Component Builder**). When your TypeScript Agent invokes `.execute()`, the SDK transparently serializes the JavaScript payload, bundles it utilizing a Javy-like engine into a highly restrictive `.wasm` payload, strings it through the Protobuf `LogicRequest`, and injects it into the Mesh. 
+The `@nekzus/liop` includes a native compilation bridge (the **Component Builder**). When your TypeScript Agent invokes `.execute()`, the SDK transparently serializes the JavaScript payload, bundles it utilizing a Javy-like engine into a highly restrictive `.wasm` payload, strings it through the Protobuf `LogicRequest`, and injects it into the Mesh. 
 
 The developer never has to manually write or compile Rust/Wasm.
 
@@ -50,14 +50,14 @@ The TypeScript SDK operates at strict architectural parity with the high-perform
 The SDK exports three primary classes for orchestrating Mesh applications:
 
 <CardGroup cols={3}>
-  <Card title="NmpServer" icon="server" href="/typescript-sdk/server">
-    The Data Node receiver. Exposes local secure capabilities, files, and handles incoming Logic-on-Origin intent safely.
+  <Card title="LiopServer" icon="server" href="/typescript-sdk/server">
+    The Data Node receiver. Exposes local secure capabilities, files, and handles incoming Logic-Injection-on-Origin intent safely.
   </Card>
-  <Card title="NmpClient" icon="robot" href="/typescript-sdk/client">
+  <Card title="LiopClient" icon="robot" href="/typescript-sdk/client">
     The Intelligence Node. Searches the DHT Mesh for available capabilities and injects the dynamic WebAssembly payload to process data.
   </Card>
-  <Card title="NmpMcpBridge" icon="bridge-water" href="/typescript-sdk/server#nmpmcpbridge">
-    The Legacy Translator. Instantly bridges `tools` and `resources` between legacy JSON-RPC MCP clients and your high-performance NMP network. 
+  <Card title="LiopMcpBridge" icon="bridge-water" href="/typescript-sdk/server#liopmcpbridge">
+    The Legacy Translator. Instantly bridges `tools` and `resources` between legacy JSON-RPC MCP clients and your high-performance LIOP network. 
   </Card>
 </CardGroup>
 
@@ -66,13 +66,13 @@ The SDK exports three primary classes for orchestrating Mesh applications:
 A severe limitation historically cited regarding Node.js was its single-threaded Event Loop bottleneck under grueling CPU workloads. The SDK shatters this limit by routing cryptographic ingestion to isolated OS Threads via `piscina`.
 
 <Frame>
-  <img className="block dark:hidden w-full" src="/images/animated-sdk-flow-light.svg" alt="NMP SDK Architecture Flow" />
-  <img className="hidden dark:block w-full" src="/images/animated-sdk-flow-dark.svg" alt="NMP SDK Architecture Flow" />
+  <img className="block dark:hidden w-full" src="/images/animated-sdk-flow-light.svg" alt="LIOP SDK Architecture Flow" />
+  <img className="hidden dark:block w-full" src="/images/animated-sdk-flow-dark.svg" alt="LIOP SDK Architecture Flow" />
 </Frame>
 
 ## Getting Started
 
-Ready to write your first line of NMP code? Jump straight into building either side of the Mesh constraint:
+Ready to write your first line of LIOP code? Jump straight into building either side of the Mesh constraint:
 
-- Construct a [Neural Server](/typescript-sdk/server) to protect your data.
-- Design a [Neural Client](/typescript-sdk/client) to search out intelligence.
+- Construct a [Logic Server](/typescript-sdk/server) to protect your data.
+- Design a [Logic Client](/typescript-sdk/client) to search out intelligence.

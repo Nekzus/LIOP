@@ -103,10 +103,10 @@ export default async function processLogicExecution(
 		decryptedPayload = decryptedPayload.toString("utf-8");
 	}
 
-	// Sanitization: Remove NMP Metadata, Manifests and Logic Block markers
+	// Sanitization: Remove LIOP Metadata, Manifests and Logic Block markers
 	if (typeof decryptedPayload === "string") {
 		decryptedPayload = decryptedPayload
-			.replace(/^\s*NMP_MAGIC:.*?\n/g, "")
+			.replace(/^\s*LIOP_MAGIC:.*?\n/g, "")
 			.replace(/^\s*MANIFEST:.*?\n/g, "")
 			.replace(/\s*---BEGIN_LOGIC---\n?/g, "")
 			.replace(/\n?---END_LOGIC---\s*$/g, "")

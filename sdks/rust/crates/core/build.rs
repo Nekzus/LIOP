@@ -1,5 +1,5 @@
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("cargo:rerun-if-changed=../../../../protocol/proto/nmp_core.proto");
+    println!("cargo:rerun-if-changed=../../../../protocol/proto/liop_core.proto");
 
     // Inject the vendored protoc compiler path to environment
     // to bypass the need of external 'protoc' installed on the OS.
@@ -9,7 +9,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .build_server(true)
         .build_client(true)
         .compile_protos(
-            &["../../../../protocol/proto/nmp_core.proto"],
+            &["../../../../protocol/proto/liop_core.proto"],
             &["../../../../protocol/proto"],
         )?;
     Ok(())

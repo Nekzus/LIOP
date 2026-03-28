@@ -1,56 +1,56 @@
 ---
 title: "Seguridad Zero-Trust"
-description: "Arquitectura de defensa multicapa que protege el Neural Mesh"
+description: "Arquitectura de defensa multicapa que protege la red LIOP"
 ---
 
-En un ecosistema donde agentes de IA ejecutan lógica en servidores remotos de forma autónoma, la seguridad perimetral tradicional (VPNs, firewalls, contraseñas) es insuficiente. 
+En un ecosistema donde agentes de IA inyectan y ejecutan lógica en nodos de datos de forma autónoma, la seguridad perimetral tradicional (VPNs, firewalls, contraseñas) es insuficiente. 
 
-El Neural Mesh Protocol (NMP) asume que la red es hostil por defecto, adoptando una **Arquitectura Extreme Zero-Trust**. Cada capa integra protecciones militares teóricas y criptográficas.
+El Logic-Injection-on-Origin Protocol (LIOP) asume que la red es hostil por defecto, adoptando una **Arquitectura Industrial Zero-Trust**. Cada capa integra protecciones criptográficas y de aislamiento avanzadas.
 
-## 1. Cifrado de Transporte (Noise & PQC)
+## 1. Cifrado de Transporte (P2P & PQC)
 
-NMP utiliza el **Noise Protocol Framework** (usado por Signal) en lugar de depender de Autoridades de Certificación (CAs) centralizadas.
+LIOP utiliza el **Noise Protocol Framework** (usado por aplicaciones de mensajería segura) para el establecimiento de conexiones P2P, eliminando la dependencia de Autoridades de Certificación (CAs) centralizadas.
 
-- **Identidades Ed25519**: Cada Agente y Servidor genera un par de claves. Tu Clave Pública *es* tu identidad (Peer ID) en la red.
-- **Autenticación Mutua**: Las conexiones se autentican instantáneamente de forma bilateral. Ambos extremos saben exactamente con quién están transaccionando.
-- **Criptografía Post-Cuántica (PQC)**: Usa **Kyber (ML-KEM-768)** para el intercambio de claves y **AES-256-GCM** para el cifrado del payload. Esto protege la transmisión contra ataques futuros de computación cuántica (*Harvest Now, Decrypt Later*).
+- **Identidades Ed25519**: Cada Agente y Nodo de Datos genera un par de claves. Tu Clave Pública *es* tu identidad (Peer ID) en la red.
+- **Autenticación Mutua**: Las conexiones se autentican de forma bilateral instantánea. Ambos extremos saben exactamente con quién están transaccionando mediante pruebas de posesión de clave.
+- **Criptografía Post-Cuántica (PQC)**: LIOP emplea **Kyber (ML-KEM-768)** para el intercambio de claves y **AES-256-GCM** para el cifrado del payload. Esto protege la transmisión contra ataques futuros de computación cuántica ("Harvest Now, Decrypt Later").
 
-## 2. Inspección de Carga (Zero-Time Guardian)
+## 2. Inspección de Carga (Guardian AST Sentinel)
 
-Antes de que el servidor ejecute el archivo `.wasm`, este se somete a un análisis estático matemático.
+Antes de que el servidor ejecute el archivo `.wasm` inyectado, este se somete a un análisis estático profundo.
 
 <Frame>
-  <img className="block dark:hidden w-full" src="/images/zero-trust-ast-light.svg" alt="Inspección Guardian AST" />
-  <img className="hidden dark:block w-full" src="/images/zero-trust-ast-dark.svg" alt="Inspección Guardian AST" />
+  <img className="block dark:hidden w-full" src="/images/zero-trust-ast-light.svg" alt="Inspección Guardian AST en LIOP" />
+  <img className="hidden dark:block w-full" src="/images/zero-trust-ast-dark.svg" alt="Inspección Guardian AST en LIOP" />
 </Frame>
 
-El **Módulo Guardián** inspecciona el Árbol de Sintaxis Abstracta (AST) del WebAssembly. Como WebAssembly es fuertemente tipado y verificable sin ejecución, el servidor valida que el binario no contenga instrucciones malformadas, recursividad infinita o intentos de importar funciones del sistema no autorizadas. 
+El **Módulo Guardián** inspecciona el Árbol de Sintaxis Abstracta (AST) del WebAssembly. Como WebAssembly es verificable sin ejecución, el servidor valida que el binario no contenga instrucciones malformadas, recursividad infinita no autorizada o intentos de importar funciones del sistema prohibidas. 
 
-Esto neutraliza malware y ataques de escape en *tiempo cero*, antes de que comience la ejecución.
+Esto neutraliza código malicioso y ataques de escape en tiempo cero, antes de que comience la ejecución.
 
 ## 3. Filtro Anti-Exfiltración (Egress Filter)
 
-Incluso si un payload malicioso lograse milagrosamente acceder a datos no autorizados dentro del Sandbox, el Servidor NMP impone una última **Capa 3 de Defensa (Egress Filter)** antes de enviar la respuesta a través del túnel QUIC.
+Incluso si un payload intentase acceder a datos no autorizados dentro del Sandbox, el Servidor LIOP impone una última **Defensa de Egreso (Egress Filter)** antes de enviar la respuesta a través del túnel seguro.
 
-Este filtro inspecciona dinámicamente el buffer de salida (buscando PII, claves API o esquemas restringidos como `patientId`). Si se detectan métricas de contrabando o violación de privacidad, la respuesta se bloquea instantáneamente, impidiendo la fuga de datos.
+Este filtro inspecciona dinámicamente el buffer de salida buscando información sensible (PII, claves, o campos restringidos). Si se detectan métricas de fuga de privacidad, la respuesta se bloquea instantáneamente, impidiendo la salida de los datos.
 
-**Defensa contra Double JSON Encoding (Deep-Parsing Recursion)**:
-Los Agentes de IA podrían intentar evadir los escáneres estáticos de Regex doble-serializando las cadenas (`"\"id\":\"...\""`). Para neutralizar esto, el `PiiScanner` implementa *parsing profundo recursivo*. Si un string devuelto se asemeja a un objeto, el Escudo lo de-serializa dinámicamente para exponer su estructura ofuscada antes de aplicar las restricciones, volviendo inútil cualquier intento de contrabando de variables.
+**Defensa contra Ofuscación JSON**:
+Los agentes podrían intentar evadir escáneres estáticos mediante doble serialización. Para neutralizar esto, el `PiiScanner` implementa *parsing profundo recursivo*. Si un string devuelto contiene estructuras JSON internas, el Escudo las de-serializa para exponer y filtrar su contenido, volviendo inútil cualquier intento de contrabando de datos.
 
 ## 4. Sandboxing (WASI)
 
-Como se detalla en [Sandboxing con WASI](/es/concepts/wasi-sandboxing), la ejecución está aislada por las restricciones de CPU del runtime, garantizando que no haya acceso no autorizado a I/O o red.
+Como se detalla en [Sandboxing con WASI](/es/concepts/wasi-sandboxing), la ejecución está aislada por las restricciones de CPU y memoria del runtime, garantizando que no haya acceso no autorizado a recursos del host.
 
 ## 5. Aislamiento por Hardware (TEEs)
 
-El aislamiento de software no es perfecto contra amenazas persistentes avanzadas (APT) que explotan vulnerabilidades del kernel o del hipervisor. Por ello, NMP soporta nativamente **Enclaves de Ejecución Confiable (TEEs)** como AWS Nitro o Intel SGX.
+El aislamiento de software no es perfecto contra amenazas avanzadas que explotan vulnerabilidades del kernel. Por ello, LIOP soporta nativamente **Enclaves de Ejecución Confiable (TEEs)** como AWS Nitro.
 
-Al ejecutar `Wasmtime` dentro de un Enclave, garantizamos que ni el proveedor de la nube ni un administrador con acceso root puedan volcar la memoria RAM para robar los datos que el Agente está analizando. Esta "Computación Ciega" es un requisito esencial para sectores financieros y de salud.
+Al ejecutar la lógica dentro de un Enclave, garantizamos que ni el proveedor de la nube ni un administrador con privilegios root puedan volcar la memoria RAM para robar los datos que el Agente está analizando localmente. Esta "Computación Ciega" es esencial para el cumplimiento en sectores regulados.
 
-## 6. Integridad Computacional (ZK-SNARKs)
+## 6. Integridad Computacional (ZK-Receipts)
 
-¿Cómo sabe un Agente que el servidor ejecutó realmente su lógica y no falsificó la respuesta? NMP implementa abstracciones para **Máquinas Virtuales de Cero Conocimiento (zkVMs)**.
+¿Cómo sabe un Agente que el servidor ejecutó realmente su lógica y no manipuló el resultado? LIOP implementa soporte para **Máquinas Virtuales de Cero Conocimiento (zkVMs)**.
 
-Junto a la respuesta, el servidor emite un **Recibo ZK** (vía motores de prueba e `image_id` encriptados sobre SHA-256). El Agente verifica este recibo criptográfico en milisegundos, asegurando que el resultado proviene de la ejecución exacta de su binario WASM/JS sobre datos reales, sin que el servidor de origen tenga que revelar datos privados a la internet para auditarse. 
+Junto a la respuesta, el servidor puede emitir un **Recibo ZK**. El Agente verifica este recibo criptográfico en milisegundos, asegurando matemáticamente que el resultado proviene de la ejecución exacta de su binario sobre los datos protegidos, sin que el servidor tenga que revelar los datos al exterior para ser auditado. 
 
-**El Escudo Híbrido ZK**: Esta validación matemática (`verifyZkReceipt`) es ejecutada nativamente de forma estructural tanto por el `NmpClient` puro como por el envoltorio `NmpMcpBridge`. Estos adaptadores actúan como Proxies Zero-Trust infalibles, comprobando localmente las firmas e impidiendo terminantemente que datos adulterados u orígenes *hackeados* le sean entregados en bandeja de plata a IAs externas (como Claude o Cursor).
+**Validación Estructural ZK**: Esta validación (`verifyZkReceipt`) es ejecutada de forma nativa tanto por el `LiopClient` como por el adaptador `LiopMcpBridge`. Estos componentes actúan como guardianes Zero-Trust infalibles, comprobando las firmas e impidiendo que datos adulterados u orígenes comprometidos sean entregados a la IA.

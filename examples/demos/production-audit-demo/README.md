@@ -1,16 +1,16 @@
-# NMP Production Audit Demo
+# LIOP Production Audit Demo
 
 ## Objective
-A **Production-Grade Demo** showcasing the clean and direct usage of the Neural Mesh Protocol SDK. This version focuses on real-world "Logic-on-Origin" implementation without external simulations.
+A **Production-Grade Demo** showcasing the clean and direct usage of the Logic-Injection-on-Origin Protocol (LIOP) SDK. This version focuses on real-world "Logic-Injection-on-Origin" implementation without external simulations.
 
 ## Features
-- **Native SDK**: Built exclusively using `@nekzus/neural-mesh`.
+- **Native SDK**: Built exclusively using `@nekzus/liop`.
 - **Zero Simulation**: All cryptography (PQC, AES) and transport (P2P Mesh) are managed internally by the core protocol.
 - **Minimalist Architecture**: Designed to demonstrate developer-friendly implementation patterns.
 
 ## Requirements
 - Node.js LTS
-- Built NMP SDK (`pnpm run build` in `sdks/typescript` root).
+- Built LIOP SDK (`pnpm run build` in `sdks/typescript` root).
 
 ## How to Run
 

@@ -1,6 +1,6 @@
 import type * as grpc from "@grpc/grpc-js";
-import { nmpV1 } from "./proto.js";
-import { createChannelCredentials, type NmpTlsOptions } from "./tls.js";
+import { liopV1 } from "./proto.js";
+import { createChannelCredentials, type LiopTlsOptions } from "./tls.js";
 import type {
 	IntentRequest,
 	IntentResponse,
@@ -9,16 +9,16 @@ import type {
 } from "./types.js";
 
 /**
- * NMP gRPC Client Implementation
+ * LIOP gRPC Client Implementation
  * Provides a high-level interface for secure intent negotiation and logic execution.
  */
-export class NmpRpcClient {
+export class LiopRpcClient {
 	// biome-ignore lint/suspicious/noExplicitAny: internal gRPC client type
 	private client: any;
 
-	constructor(address: string, tls?: NmpTlsOptions) {
+	constructor(address: string, tls?: LiopTlsOptions) {
 		const credentials = createChannelCredentials(tls);
-		this.client = new nmpV1.NeuralMesh(address, credentials);
+		this.client = new liopV1.LogicMesh(address, credentials);
 	}
 
 	/**

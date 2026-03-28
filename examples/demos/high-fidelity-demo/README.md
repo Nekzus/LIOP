@@ -1,9 +1,9 @@
-# Neural Mesh Protocol: The Blind Analyst (Hi-Fi Demo)
+# Logic-Injection-on-Origin Protocol: The Blind Analyst (Hi-Fi Demo)
 
-An industrial-grade, dynamic, high-fidelity demonstration simulating a complete Neural Mesh Protocol (NMP) Logic-on-Origin injection attack, defense, and execution cycle.
+An industrial-grade, dynamic, high-fidelity demonstration simulating a complete Logic-Injection-on-Origin Protocol (LIOP) Logic-Injection-on-Origin injection attack, defense, and execution cycle.
 
 ## Overview
-Unlike legacy systems (like MCP) that pull data toward large language models, NMP pushes computational **WebAssembly (or JIT-compiled JS)** logic directly to the source of the data ("The Vault"). 
+Unlike legacy systems (like MCP) that pull data toward large language models, LIOP pushes computational **WebAssembly (or JIT-compiled JS)** logic directly to the source of the data ("The Vault"). 
 
 This demo runs a simulated P2P connection between `agent.ts` and `server-node.ts` to showcase:
 1. **The Power:** Running varied logic payloads (Hypertension analysis, Age computation) over sensitive mock data without extracting it.

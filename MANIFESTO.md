@@ -1,4 +1,4 @@
-# Neural Mesh Protocol: The Origin Manifesto
+# Logic-Injection-on-Origin Protocol: The Origin Manifesto
 
 *(English version below / Versión en español a continuación)*
 
@@ -20,27 +20,25 @@ This paradigm is mathematically and legally unsustainable.
 2. **The Bandwidth Collapse:** Telemetry, IoT logs, and High-Frequency Trading (HFT) ledgers generate gigabytes of data per second. Streaming this over HTTP to an LLM context window is not just slow—it's computationally absurd.
 3. **The Zero-Trust Illusion:** When you pull data, you lose control of it. You must blindly trust the remote AI provider's data retention policies, creating impossible hurdles for Enterprise, Military, and Healthcare adoption compliance.
 
-### The Paradigm Shift: Logic-on-Origin (LoO)
+### The Paradigm Shift: Logic-Injection-on-Origin (LIO)
 
-The **Neural Mesh Protocol (NMP)** is born from a simple realization:
+The **Logic-Injection-on-Origin Protocol (LIOP)** is born from a simple realization:
 *We must stop moving the data to the math. We must move the math to the data.*
 
-**Logic-on-Origin (LoO)** is our **Postulate of Origin (Execution Core)**. It states that data is sacred and must never leave its physical location unless it is mathematically aggregated or cryptographically verified.
+**Logic-Injection-on-Origin (LIO)** is our **Postulate of Origin (Execution Core)**. It states that data is sacred and must never leave its physical location unless it is mathematically aggregated or cryptographically verified.
 
-An NMP Agent interacting with an explicit NMP Server pushes executable logic (in the form of microscopic `.wasm` modules or dynamically transpiled algorithms). The server securely executes this logic within a strict sandbox and returns only the aggregated mathematical results or filtered lists, mathematically negating the possibility of unintentional PII (Personally Identifiable Information) exfiltration due to large-context extraction.
+An LIOP Agent interacting with an explicit LIOP Server pushes executable logic (in the form of microscopic `.wasm` modules or dynamically transpiled algorithms). The server securely executes this logic within a strict sandbox and returns only the aggregated mathematical results or filtered lists, mathematically negating the possibility of unintentional PII (Personally Identifiable Information) exfiltration due to large-context extraction.
 
 Instead of an Agent asking a server: *"Give me all your database records so I can filter them,"* 
-an NMP Agent tells the server: *"Here is my WebAssembly logic. Run it locally. Give me only the final mathematical percentage."*
+an LIOP Agent tells the server: *"Here is my WebAssembly logic. Run it locally. Give me only the final mathematical percentage."*
 
-### The Next Evolution
+Welcome to the Logic-Injection-on-Origin Mesh. This is not just a protocol for Chatbots; this is a high-performance, binary transport mesh designed for true Artificial Intelligence Machine-to-Machine (M2M) communication.
 
-Welcome to the Neural Mesh. This is not just a protocol for Chatbots; this is a high-performance, binary transport mesh designed for true Artificial Intelligence Machine-to-Machine (M2M) communication.
-
-By leveraging **Zero-Trust WASI Sandboxes**, **Post-Quantum Cryptography**, and **Military-Grade Egress Shields**, NMP guarantees that Agents can inject cognitive intelligence into remote nodes without the nodes ever sacrificing their privacy, security, or data sovereignty.
+By leveraging **Zero-Trust WASI Sandboxes**, **Post-Quantum Cryptography**, and **Military-Grade Egress Shields**, LIOP guarantees that Agents can inject cognitive intelligence into remote nodes without the nodes ever sacrificing their privacy, security, or data sovereignty.
 
 - **Stop Pulling.** 
 - **Start Pushing.** 
-- **Logic-on-Origin is the future of Autonomous AI.**
+- **Logic-Injection-on-Origin (LIO) is the future of Autonomous AI.**
 
 ---
 
@@ -60,22 +58,22 @@ Este paradigma es matemática y legalmente insostenible.
 2. **El Colapso del Ancho de Banda:** La telemetría, los registros IoT y los libros mayores de Trading de Alta Frecuencia (HFT) generan gigabytes de datos por segundo. Transmitir esto sobre HTTP hacia la ventana de contexto de un LLM no solo es lento, es un absurdo computacional.
 3. **La Ilusión Zero-Trust:** Cuando extraes datos (pull), pierdes el control sobre ellos. Te ves obligado a confiar ciegamente en las políticas de retención de datos del proveedor de IA remoto, creando obstáculos imposibles para el cumplimiento corporativo, militar y sanitario.
 
-### El Cambio de Paradigma: Logic-on-Origin (LoO)
+### El Cambio de Paradigma: Logic-Injection-on-Origin (LIO)
 
-El **Neural Mesh Protocol (NMP)** nace de un principio simple:
+El **Logic-Injection-on-Origin Protocol (LIOP)** nace de un principio simple:
 *Debemos dejar de mover los datos hacia la matemática. Debemos mover la matemática hacia los datos.*
 
-**Logic-on-Origin (LoO)** es nuestro **Postulado de Origen (Núcleo de Ejecución)**. Establece que los datos son sagrados y nunca deben abandonar su ubicación física a menos que sean agregados matemáticamente o verificados criptográficamente.
+**Logic-Injection-on-Origin (LIO)** es nuestro **Postulado de Origen (Núcleo de Ejecución)**. Establece que los datos son sagrados y nunca deben abandonar su ubicación física a menos que sean agregados matemáticamente o verificados criptográficamente.
 
 En lugar de que un Agente le pida a un servidor: *"Dame todos los registros de tu base de datos para filtrarlos"*,
-un Agente NMP le dice al servidor: *"Aquí está mi lógica en WebAssembly. Ejecútala localmente. Dame únicamente el porcentaje matemático final"*.
+un Agente LIOP le dice al servidor: *"Aquí está mi lógica en WebAssembly. Ejecútala localmente. Dame únicamente el porcentaje matemático final"*.
 
 ### La Siguiente Evolución
 
-Bienvenido a la Malla Neuronal. Este no es solo un protocolo para Chatbots; es una malla de transporte binario de alto rendimiento diseñada para verdadera comunicación entre máquinas de Inteligencia Artificial (M2M).
+Bienvenido a la Malla de Inyección de Lógica (Logic-Injection-on-Origin Mesh). Este no es solo un protocolo para Chatbots; es una malla de transporte binario de alto rendimiento diseñada para verdadera comunicación entre máquinas de Inteligencia Artificial (M2M).
 
-Al utilizar **Sandboxes WASI Zero-Trust**, **Criptografía Post-Cuántica**, y **Escudos de Egreso de Grado Militar**, NMP garantiza que los Agentes puedan inyectar inteligencia cognitiva dentro de nodos remotos sin que esos nodos sacrifiquen jamás su privacidad, su seguridad o la soberanía de sus datos.
+Al utilizar **Sandboxes WASI Zero-Trust**, **Criptografía Post-Cuántica**, y **Escudos de Egreso de Grado Militar**, LIOP garantiza que los Agentes puedan inyectar inteligencia cognitiva dentro de nodos remotos sin que esos nodos sacrifiquen jamás su privacidad, su seguridad o la soberanía de sus datos.
 
 - **Deja de Extraer (Stop Pulling).**
 - **Comienza a Inyectar (Start Pushing).**
-- **Logic-on-Origin es el futuro de la IA Autónoma.**
+- **Logic-Injection-on-Origin (LIO) es el futuro de la IA Autónoma.**

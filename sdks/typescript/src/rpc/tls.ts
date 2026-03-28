@@ -1,5 +1,5 @@
 /**
- * NMP TLS Configuration
+ * LIOP TLS Configuration
  *
  * Provides conditional TLS credential factories for gRPC connections.
  * When TLS options are provided, connections are secured with mutual TLS.
@@ -9,7 +9,7 @@
 import * as fs from "node:fs";
 import * as grpc from "@grpc/grpc-js";
 
-export interface NmpTlsOptions {
+export interface LiopTlsOptions {
 	/** Path to the root CA certificate (PEM format) */
 	rootCert?: string;
 	/** Path to the server/client certificate (PEM format) */
@@ -23,7 +23,7 @@ export interface NmpTlsOptions {
  * Falls back to insecure if no options are provided.
  */
 export function createServerCredentials(
-	tls?: NmpTlsOptions,
+	tls?: LiopTlsOptions,
 ): grpc.ServerCredentials {
 	if (!tls?.certChain || !tls?.privateKey) {
 		return grpc.ServerCredentials.createInsecure();
@@ -39,7 +39,7 @@ export function createServerCredentials(
 		]);
 	} catch (error) {
 		console.error(
-			`[NMP-TLS] Failed to load certificates, falling back to insecure: ${error}`,
+			`[LIOP-TLS] Failed to load certificates, falling back to insecure: ${error}`,
 		);
 		return grpc.ServerCredentials.createInsecure();
 	}
@@ -50,7 +50,7 @@ export function createServerCredentials(
  * Falls back to insecure if no options are provided.
  */
 export function createChannelCredentials(
-	tls?: NmpTlsOptions,
+	tls?: LiopTlsOptions,
 ): grpc.ChannelCredentials {
 	if (!tls?.rootCert) {
 		return grpc.credentials.createInsecure();
@@ -68,7 +68,7 @@ export function createChannelCredentials(
 		return grpc.credentials.createSsl(rootCert, privateKey, certChain);
 	} catch (error) {
 		console.error(
-			`[NMP-TLS] Failed to load certificates, falling back to insecure: ${error}`,
+			`[LIOP-TLS] Failed to load certificates, falling back to insecure: ${error}`,
 		);
 		return grpc.credentials.createInsecure();
 	}

@@ -1,6 +1,6 @@
 import * as grpc from "@grpc/grpc-js";
-import { nmpV1 } from "./proto.js";
-import { createServerCredentials, type NmpTlsOptions } from "./tls.js";
+import { liopV1 } from "./proto.js";
+import { createServerCredentials, type LiopTlsOptions } from "./tls.js";
 import type {
 	IntentRequest,
 	IntentResponse,
@@ -9,10 +9,10 @@ import type {
 } from "./types.js";
 
 /**
- * NMP gRPC Service Implementation
+ * LIOP gRPC Service Implementation
  * Handles intent negotiation and secure logic execution.
  */
-export class NmpRpcServer {
+export class LiopRpcServer {
 	private server: grpc.Server;
 
 	constructor() {
@@ -28,7 +28,7 @@ export class NmpRpcServer {
 			call: grpc.ServerWritableStream<LogicRequest, LogicResponse>,
 		) => void;
 	}): void {
-		this.server.addService(nmpV1.NeuralMesh.service, {
+		this.server.addService(liopV1.LogicMesh.service, {
 			NegotiateIntent: handlers.negotiateIntent,
 			ExecuteLogic: handlers.executeLogic,
 		});
@@ -36,7 +36,7 @@ export class NmpRpcServer {
 
 	public async listen(
 		port: number = 50051,
-		tls?: NmpTlsOptions,
+		tls?: LiopTlsOptions,
 	): Promise<void> {
 		const credentials = createServerCredentials(tls);
 		return new Promise((resolve, reject) => {
@@ -49,7 +49,7 @@ export class NmpRpcServer {
 						return;
 					}
 					this.server.start();
-					console.error(`[NMP-RPC] Server listening on port ${assignedPort}`);
+					console.error(`[LIOP-RPC] Server listening on port ${assignedPort}`);
 					resolve();
 				},
 			);
@@ -59,7 +59,7 @@ export class NmpRpcServer {
 	public async stop(): Promise<void> {
 		return new Promise((resolve) => {
 			this.server.tryShutdown(() => {
-				console.error("[NMP-RPC] Server shut down");
+				console.error("[LIOP-RPC] Server shut down");
 				resolve();
 			});
 		});

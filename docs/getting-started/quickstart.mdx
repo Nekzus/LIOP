@@ -1,14 +1,14 @@
 ---
 title: "Quickstart"
-description: "Start building with NMP in under 5 minutes using the official TypeScript SDK"
+description: "Start building with LIOP in under 5 minutes using the official TypeScript SDK"
 ---
 
-The Neural Mesh Protocol (NMP) provides the `@nekzus/neural-mesh`, designed as a powerful yet highly familiar SDK. If you have previously built servers for MCP, transitioning to NMP architecture is almost effortless.
+The Logic-Injection-on-Origin Protocol (LIOP) provides the `@nekzus/liop`, designed as a powerful yet highly familiar SDK. If you have previously built servers for MCP, transitioning to LIOP architecture is almost effortless.
 
-In this guide, we'll build a basic NMP Server that exposes a tool, and a Client that invokes it.
+In this guide, we'll build a basic LIOP Server that exposes a tool, and a Client that invokes it.
 
 <Note>
-  Under the hood, NMP is compiling your logic to WebAssembly and injecting it via P2P. However, the SDK abstracts this entirely, letting you focus on writing pure business logic.
+  Under the hood, LIOP is compiling your logic to WebAssembly and injecting it via P2P. However, the SDK abstracts this entirely, letting you focus on writing pure business logic.
 </Note>
 
 ## 1. Installation
@@ -17,41 +17,41 @@ Install the official SDK in your Node.js or TypeScript project.
 
 <CodeGroup>
 ```bash npm
-npm install @nekzus/neural-mesh zod
+npm install @nekzus/liop zod
 ```
 ```bash pnpm
-pnpm add @nekzus/neural-mesh zod
+pnpm add @nekzus/liop zod
 ```
 ```bash yarn
-yarn add @nekzus/neural-mesh zod
+yarn add @nekzus/liop zod
 ```
 </CodeGroup>
 
-## 2. Create an NMP Server (Data Node)
+## 2. Create a LIOP Server (Data Node)
 
-An NMP Server acts as a Data Node. It connects to the mesh and listens for incoming injected logic from remote agents. It exposes secure tools and resources.
+A LIOP Server acts as a Data Node. It connects to the mesh and listens for incoming injected logic from remote agents. It exposes secure tools and resources.
 
 Create a file named `server.ts`:
 
 ```typescript server.ts
-import { NmpServer } from '@nekzus/neural-mesh';
+import { LiopServer } from '@nekzus/liop';
 import { z } from 'zod';
 
 // Initialize the Server with identity and capabilities
-const server = new NmpServer({
+const server = new LiopServer({
   name: "MyLocalDataNode",
   version: "1.0.0"
 });
 
 // Expose a tool. 
-// Note: In NMP, the async logic provided here is dynamically converted 
+// Note: In LIOP, the async logic provided here is dynamically converted 
 // into an isolated Capability for incoming WASM Agents.
 server.tool(
   "query_database",
   "Analyzes giant tables exactly at the origin. Pass a SQL-like string.",
   { query: z.string() },
   async ({ query }) => {
-    console.log(`[Server] Executing Logic-on-Origin for query: ${query}`);
+    console.log(`[Server] Executing Logic-Injection-on-Origin for query: ${query}`);
     
     // Imagine processing 5GB of local data here.
     // Only the final result leaves the server.
@@ -64,30 +64,30 @@ server.tool(
 // Start the server and announce it to the Kademlia DHT Mesh
 async function main() {
   await server.connect();
-  console.log("NMP Server is listening on the Mesh...");
+  console.log("LIOP Server is listening on the Mesh...");
 }
 
 main().catch(console.error);
 ```
 
-## 3. Create an NMP Client (Agent Node)
+## 3. Create a LIOP Client (Agent Node)
 
-An NMP Client acts as the Intelligence. It discovers servers on the mesh and pushes compiled requests (intent) to them.
+A LIOP Client acts as the Intelligence. It discovers servers on the mesh and pushes compiled requests (intent) to them.
 
 Create a file named `client.ts`:
 
 ```typescript client.ts
-import { NmpClient } from '@nekzus/neural-mesh';
+import { LiopClient } from '@nekzus/liop';
 
 async function main() {
   // Initialize the Client
-  const client = new NmpClient({
+  const client = new LiopClient({
     name: "AI_Research_Agent",
     version: "2.5.1"
   });
 
   await client.connect();
-  console.log("Joined Neural Mesh Protocol...");
+  console.log("Joined LIOP Protocol...");
 
   // Discover the server and inject logic
   try {
@@ -110,13 +110,13 @@ main().catch(console.error);
 First, start your isolated Server:
 ```bash
 npx tsx server.ts
-# Output: NMP Server is listening on the Mesh...
+# Output: LIOP Server is listening on the Mesh...
 ```
 
 In a separate terminal, unleash your Agent:
 ```bash
 npx tsx client.ts
-# Output: Joined Neural Mesh Protocol...
+# Output: Joined LIOP Protocol...
 # Output: Received mathematically-verified result:
 # Output: Processed query results for: SELECT * FROM massive_table WHERE anomaly = true
 ```
@@ -134,5 +134,5 @@ Unlike legacy REST APIs or MCP strings parsing:
 Now that you've run your first Mesh execution, dive deeper into the core architecture to understand how to leverage advanced capabilities like Continuous Watchdogs and Zero-Knowledge Proofs.
 
 <Card title="Core Architecture" icon="sitemap" href="/concepts/architecture">
-  Learn how the Data Layer and Transport Layer synergize in NMP.
+  Learn how the Data Layer and Transport Layer synergize in LIOP.
 </Card>

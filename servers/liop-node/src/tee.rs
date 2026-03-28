@@ -1,7 +1,7 @@
 // TEE (Trusted Execution Environment) Stubs
 //
-// In a full production deployment, NMP nodes running sensitive
-// logic-on-origin filters can be enclosed within Hardware Enclaves
+// In a full production deployment, LIOP nodes running sensitive
+// logic-injection-on-origin filters can be enclosed within Hardware Enclaves
 // such as AWS Nitro Enclaves, Intel SGX, or AMD SEV.
 //
 // This module provides the architectural trait bounds to attest

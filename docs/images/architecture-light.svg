@@ -46,10 +46,10 @@
     <text x="145" y="296" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="400"
         fill="#52525b" text-anchor="middle">AutoGPT, LangChain, CrewAI</text>
 
-    <!-- Center Box (NMP) -->
+    <!-- Center Box (LIOP) -->
     <rect x="350" y="115" width="300" height="126" rx="6" fill="#eff6ff" stroke="#3b82f6" stroke-width="1.5" />
     <text x="500" y="166" font-family="system-ui, -apple-system, sans-serif" font-size="20" font-weight="700"
-        fill="#09090b" text-anchor="middle">Neural Mesh Protocol</text>
+        fill="#09090b" text-anchor="middle">LIOP Protocol</text>
     <text x="500" y="192" font-family="system-ui, -apple-system, sans-serif" font-size="15" font-weight="400"
         fill="#3f3f46" text-anchor="middle">Decentralized P2P Zero-Trust</text>
 

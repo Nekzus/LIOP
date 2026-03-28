@@ -1,41 +1,28 @@
 import * as http from "node:http";
 import * as http2 from "node:http2";
 import * as net from "node:net";
-import { MeshNode, type MeshNodeConfig } from "../mesh/index.js";
-import type { NmpTlsOptions } from "../rpc/tls.js";
-import type { NmpServer } from "../server/index.js";
-import { NmpMcpRouter } from "./router.js";
+import type { MeshNode, MeshNodeConfig } from "../mesh/index.js";
+import type { LiopTlsOptions } from "../rpc/tls.js";
+import type { LiopServer } from "../server/index.js";
+import { LiopMcpRouter } from "./router.js";
 
 /**
- * NMP Hybrid Gateway (Protocol Transformer Edition)
- *
- * A high-performance L4/L7 multiplexer and transcoder.
- * It transmutes JSON-RPC (MCP) into secure PQC gRPC streams (NMP).
+ * LIOP Hybrid Gateway
+ * High-level orchestration for connecting MCP (JSON-RPC) clients to the LIOP Mesh.
  */
-export class NmpHybridGateway {
+export class LiopHybridGateway {
 	private netServer: net.Server;
 	private h2Server: http2.Http2Server;
 	private h1Server: http.Server;
-	private meshNode: MeshNode | null = null;
-	private router: NmpMcpRouter;
+	private router: LiopMcpRouter;
 
 	constructor(
-		private nmpServer: NmpServer,
-		config: {
-			meshConfig?: MeshNodeConfig;
-			rpcPort?: number;
-			tls?: NmpTlsOptions;
-		} = {},
+		private liopServer: LiopServer,
+		private meshNode: MeshNode | null = null,
+		rpcPort: number = 50051,
 	) {
-		const rpcPort = config.rpcPort || 50051;
-
-		// Initialize P2P Mesh Node if configured
-		if (config.meshConfig) {
-			this.meshNode = new MeshNode(config.meshConfig);
-		}
-
 		// Initialize the Universal Router
-		this.router = new NmpMcpRouter(this.nmpServer, this.meshNode, rpcPort);
+		this.router = new LiopMcpRouter(this.liopServer, this.meshNode, rpcPort);
 
 		// Internal HTTP/2 Server (for Native gRPC Proxying)
 		this.h2Server = http2.createServer();
@@ -57,9 +44,10 @@ export class NmpHybridGateway {
 				socket.unshift(buffer);
 			});
 			socket.on("error", (err) =>
-				console.error(`[NMP-Hybrid] Socket Error: ${err.message}`),
+				console.error(`[LIOP-Gateway] Socket Error: ${err.message}`),
 			);
 		});
+		console.error("[LIOP-Gateway] Hybrid adapter initialized.");
 	}
 
 	private setupH2Routes() {
@@ -85,7 +73,7 @@ export class NmpHybridGateway {
 				res.end(`
                     <body style="background:#0f172a;color:#f8fafc;font-family:sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;margin:0">
                         <div style="background:#1e293b;padding:40px;border-radius:16px;border:1px solid #38bdf8;text-align:center;box-shadow:0 20px 25px -5px rgba(0,0,0,0.1)">
-                            <h1 style="color:#38bdf8;margin-top:0">NMP Protocol Transformer</h1>
+                            <h1 style="color:#38bdf8;margin-top:0">LIOP Protocol Transformer</h1>
                             <p style="opacity:0.8;font-weight:600">L4/L7 Transcoding: JSON-RPC &harr; gRPC</p>
                             <p style="opacity:0.6;font-size:14px">Active Protections: Kyber768 + AES-256-GCM + ZK-Proof Ready</p>
                             <div style="background:#0f172a;padding:15px;border-radius:8px;margin-top:20px;border:1px dashed #334155">
@@ -106,7 +94,10 @@ export class NmpHybridGateway {
 						const response = await this.router.dispatch(jsonRequest);
 						res.writeHead(200, { "Content-Type": "application/json" });
 						res.end(JSON.stringify(response));
-					} catch (_e) {
+					} catch (e: unknown) {
+						console.error(
+							`[LIOP-Gateway] Error processing JSON-RPC payload: ${(e as Error).message}`,
+						);
 						res.writeHead(400);
 						res.end(
 							JSON.stringify({
@@ -129,7 +120,7 @@ export class NmpHybridGateway {
 			const data = chunk as any;
 			if (data)
 				console.error(
-					`[NMP-Hybrid] Native gRPC Proxy passing ${data.length} bytes`,
+					`[LIOP-Gateway] Native gRPC Proxy passing ${data.length} bytes`,
 				);
 		});
 		stream.respond({ ":status": 200, "content-type": "application/grpc" });
@@ -164,18 +155,26 @@ export class NmpHybridGateway {
 			await this.meshNode.start();
 
 			// Announce all local tools to the DHT
-			const tools = this.nmpServer.listTools();
+			const tools = this.liopServer.listTools();
 			for (const tool of tools) {
 				await this.meshNode.announceCapability(tool.name);
 				console.error(
-					`[NMP-Hybrid] 📡 Announced local tool to Mesh: ${tool.name}`,
+					`[LIOP-Gateway] 📡 Announced local tool to Mesh: ${tool.name}`,
 				);
 			}
 		}
 		return new Promise((resolve, reject) => {
+			const shutdown = async () => {
+				console.error(
+					"[LIOP-Gateway] Disconnecting MCP session and releasing ports...",
+				);
+				process.exit(0);
+			};
 			this.netServer.on("error", (err) => reject(err));
 			this.netServer.listen(port, host, () => {
-				console.error(`[NMP-Hybrid] Transformer listening on ${host}:${port}`);
+				console.error(
+					`[LIOP-Gateway] Transformer listening on ${host}:${port}`,
+				);
 				resolve();
 			});
 		});

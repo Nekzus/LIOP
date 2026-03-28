@@ -1,9 +1,9 @@
 ---
-title: "NmpServer"
+title: "LiopServer"
 description: "Building autonomous Data Nodes and migrating legacy MCP tools"
 ---
 
-The `NmpServer` class is the heart of the Data Node. It represents the host infrastructure that securely orchestrates incoming Logic-on-Origin intent from remote Agents.
+The `LiopServer` class is the heart of the Data Node. It represents the host infrastructure that securely orchestrates incoming Logic-Injection-on-Origin intent from remote Agents.
 
 Instead of writing custom execution environments to manage WebAssembly, isolation, and networking, you define straightforward JavaScript/TypeScript functions. The SDK abstracts the complex sandboxing automatically.
 
@@ -12,9 +12,9 @@ Instead of writing custom execution environments to manage WebAssembly, isolatio
 You create a Data Node by telling the Mesh who you are and providing configuration properties, such as data security controls.
 
 ```typescript
-import { NmpServer, PII_PATTERNS } from "@nekzus/neural-mesh";
+import { LiopServer, PII_PATTERNS } from "@nekzus/liop";
 
-const server = new NmpServer(
+const server = new LiopServer(
   {
     name: "EnterpriseDatabaseNode",
     version: "3.2.0",
@@ -33,17 +33,17 @@ const server = new NmpServer(
 
 ### Configuration Options
 
-When instantiating an `NmpServer`, the second parameter allows you to define advanced characteristics of the node:
+When instantiating a `LiopServer`, the second parameter allows you to define advanced characteristics of the node:
 
 *   **`security.forbiddenKeys` (Egress Filter):** An array of strings. If the model attempts to return a JSON containing any of these keys (e.g., `"password"`), the Egress Filter will destroy the response before it leaves the server.
 *   **`security.piiPatterns` (Sanitization):** Predefined (`PII_PATTERNS`) or custom Regular Expressions that scrutinize text substrings. If an agent attempts to exfiltrate an email in a free text block, the engine intercepts it.
-*   **Dynamic Return Structure (Auto-i18n):** No manual configuration required. The `NmpServer` automatically injects *Dynamic Return Structure* directives into payloads. This forces the AI to respect and return JSON keys exactly in the same native language the client used when making the request, eliminating the need for internationalization (i18n) libraries on your frontend.
+*   **Dynamic Return Structure (Auto-i18n):** No manual configuration required. The `LiopServer` automatically injects *Dynamic Return Structure* directives into payloads. This forces the AI to respect and return JSON keys exactly in the same native language the client used when making the request, eliminating the need for internationalization (i18n) libraries on your frontend.
 
 ## Creating Capabilities (Tools)
 
-In MCP, these are called Tools. In NMP, we refer to them as **Capabilities**. 
+In MCP, these are called Tools. In LIOP, we refer to them as **Capabilities**. 
 
-To the developer, defining a Capability in NMP looks virtually identical to defining an MCP Tool. You provide a name, a description, a Zod schema for type-safety, and an execution handler.
+To the developer, defining a Capability in LIOP looks virtually identical to defining an MCP Tool. You provide a name, a description, a Zod schema for type-safety, and an execution handler.
 
 ```typescript
 import { z } from "zod";
@@ -66,18 +66,18 @@ server.tool(
 
 ### How this differs from MCP
 
-If the code looks exactly the same, what makes it Neural Mesh?
+If the code looks exactly the same, what makes it LIOP?
 
 1. **No Polling:** The Data Node announces the `analyze_employee_data` schema cryptographically over the Kademlia DHT. The Agent instantly knows the schema exists without wasting a network request asking for `listTools()`.
 2. **Binary Transport:** When the Agent invokes this Tool, the parameters (e.g., `department: "HR"`) are compressed into pure Protobuf bytes, skipping JSON entirely.
 
 ## Exposing Data Schemas (Resources)
 
-NMP Servers can also expose **Resources** (static data, schemas, or descriptions) that Agents can discover to understand the shape of the data they will analyze *before* they inject their logic. This enables true Zero-Shot autonomy.
+LIOP Servers can also expose **Resources** (static data, schemas, or descriptions) that Agents can discover to understand the shape of the data they will analyze *before* they inject their logic. This enables true Zero-Shot autonomy.
 
 ```typescript
 server.resource(
-  "nmp://schema/employee_records",
+  "liop://schema/employee_records",
   "The exact JSON schema representing the employee databases.",
   "application/json",
   JSON.stringify(EmployeeSchema)
@@ -88,7 +88,7 @@ These resources are flawlessly bridged to LLMs via standard MCP `resources/list`
 
 ## Advanced AI Planning (Prompts & Autonomy)
 
-Just like MCP, Neural Mesh Protocol natively supports **Prompts**—templated conversational instructions that help Agents structure their tasks before executing Logic-on-Origin.
+Just like MCP, LIOP natively supports **Prompts**—templated conversational instructions that help Agents structure their tasks before executing Logic-Injection-on-Origin.
 
 ```typescript
 server.prompt(
@@ -107,13 +107,13 @@ server.prompt(
 ```
 
 ### Zero-Shot Autonomy (The Blind Analyst)
-NMP ships with an industrial Master System Prompt designed to instruct standard LLMs (like Claude or GPT-4) on how to generate `.wasm` or JavaScript logic dynamically without hallucinating or breaking the Data Node Sandbox. 
+LIOP ships with an industrial Master System Prompt designed to instruct standard LLMs (like Claude or GPT-4) on how to generate `.wasm` or JavaScript logic dynamically without hallucinating or breaking the Data Node Sandbox. 
 
 You can activate this structural instruction explicitly:
 ```typescript
 server.enableZeroShotAutonomy();
 ```
-This automatically registers the `nmp_blind_analyst` intelligent prompt into the Mesh, dynamically injecting your Data Dictionary into it as well.
+This automatically registers the `liop_blind_analyst` intelligent prompt into the Mesh, dynamically injecting your Data Dictionary into it as well.
 
 ## Security & Memory Management
 
@@ -127,21 +127,21 @@ server.clearAstCache();
 
 ## Bridging Legacy MCP Servers
 
-NMP's primary goal is rapid industry adoption. If you have spent months building a standard Model Context Protocol (MCP) server, you do not need to rewrite it to join the Neural Mesh.
+LIOP's primary goal is rapid industry adoption. If you have spent months building a standard Model Context Protocol (MCP) server, you do not need to rewrite it to join the Mesh.
 
-The `@nekzus/neural-mesh` ships with the `NmpMcpBridge`.
+The `@nekzus/liop` ships with the `LiopMcpBridge`.
 
-This powerful adapter intercepts incoming NMP binary mesh requests, translates them into standard JSON-RPC 2.0 locally, forwards them to your unmodified MCP Server via stdio or SSE, and repackages the standard MCP response back into the ultra-fast P2P network.
+This powerful adapter intercepts incoming LIOP binary mesh requests, translates them into standard JSON-RPC 2.0 locally, forwards them to your unmodified MCP Server via stdio or SSE, and repackages the standard MCP response back into the ultra-fast P2P network.
 
 ```typescript
-import { NmpMcpBridge } from "@nekzus/neural-mesh/bridge";
+import { LiopMcpBridge } from "@nekzus/liop/bridge";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 
 // Your standard legacy MCP implementation
 const mcpServer = new Server({ name: "LegacyWeatherApp", version: "1.0" });
 
-// Wrap it in the NMP Bridge
-const bridge = new NmpMcpBridge(mcpServer, {
+// Wrap it in the LIOP Bridge
+const bridge = new LiopMcpBridge(mcpServer, {
   publishToMesh: true,
   meshIdentity: "WeatherNode_01"
 });
@@ -158,5 +158,5 @@ Once your tools, watchdogs, and bridges are configured, you launch the Data Node
 
 ```typescript
 await server.connect();
-console.log(`Neural Node online. Listening for incoming Wasms...`);
+console.log(`Logic Node online. Listening for incoming Wasms...`);
 ```

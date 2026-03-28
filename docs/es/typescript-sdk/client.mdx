@@ -1,20 +1,20 @@
 ---
-title: "NmpClient"
-description: "Enrutando intenciones e inyectando lógica autónoma vía la Neural Mesh"
+title: "LiopClient"
+description: "Enrutando intenciones e inyectando lógica autónoma vía el Logic-Injection-on-Origin Protocol"
 ---
 
-La clase `NmpClient` es el orquestador para los Nodos Agentes. Conecta tu aplicación de Node.js o edge a la Malla (Mesh) DHT de Kademlia, valida identidades criptográficas y despacha cargas de lógica WebAssembly directamente a los Nodos de Datos (Servidores) remotos.
+La clase `LiopClient` es el orquestador para los Nodos Agentes. Conecta tu aplicación de Node.js o edge a la red P2P descentralizada, valida identidades criptográficas y despacha cargas de lógica WebAssembly directamente a los Nodos de Datos (Servidores) remotos.
 
-A diferencia de los clientes REST tradicionales que solo hacen un `<fetch>` a endpoints JSON estáticos, un `NmpClient` literalmente empuja sus funciones de lógica a través de internet para ser ejecutadas de manera nativa en el servidor.
+A diferencia de los clientes REST tradicionales que solo hacen un `<fetch>` a endpoints JSON estáticos, un `LiopClient` literalmente empuja sus funciones de lógica a través de internet para ser ejecutadas de manera nativa en el servidor.
 
 ## Inicialización y Configuración
 
-Conectarse a la Malla requiere instanciar el cliente con metadatos de identificación y propiedades de seguridad.
+Conectarse a la malla requiere instanciar el cliente con metadatos de identificación y propiedades de seguridad.
 
 ```typescript
-import { NmpClient } from "@nekzus/neural-mesh";
+import { LiopClient } from "@nekzus/liop";
 
-const client = new NmpClient(
+const client = new LiopClient(
   {
     name: "ForensicLogAgent",
     version: "1.0.0",
@@ -31,18 +31,18 @@ const client = new NmpClient(
 
 ### Opciones de Configuración
 
-Al crear un `NmpClient`, el segundo argumento configura su presencia en la red:
+Al crear un `LiopClient`, el segundo argumento configura su presencia en la red:
 
 *   **`capabilities.roots`**: Declara si este agente soporta estándares del protocolo (como notificaciones de cambios en la jerarquía).
 *   **`capabilities.quantumResistant`**: Obliga al cliente a forzar Handshakes Post-Cuánticos (`Kyber768`) y encriptación simétrica (`AES-256-GCM`) al despachar binarios WASM hacia los Nodos de Datos remotos, garantizando máxima seguridad contra algoritmos de descifrado cuántico.
 
 ## Conexión a la Malla (Mesh)
 
-A diferencia de MCP, que requiere una tubería stdio directa o una URL de SSE preconfigurada, NMP utiliza ruteo peer-to-peer descentralizado. 
-Tú proporcionas un **Peer ID** (la identidad única Ed25519 del Servidor al que quieres llegar) y libp2p se encarga de atravesar NATs automáticamente.
+A diferencia de MCP, que requiere una tubería stdio directa o una URL de SSE preconfigurada, LIOP utiliza ruteo peer-to-peer descentralizado. 
+Tú proporcionas un **Peer ID** (la identidad única Ed25519 del Servidor al que quieres llegar) y el SDK se encarga de atravesar NATs automáticamente.
 
 ```typescript
-// Conectarse al backbone de la red Mesh
+// Conectarse al backbone de la red P2P
 await client.connect();
 
 console.log(`Agent Mesh ID: ${client.peerId}`);
@@ -74,7 +74,7 @@ try {
 
 ## Creando Watchdogs (Suscripciones Push)
 
-El verdadero poder de la Lógica-en-Origen es la habilidad de generar **Watchdogs**. En lugar de consultar manualmente `client.callTool()` cada 5 segundos, cargas un módulo de monitoreo persistente.
+El verdadero poder de la Lógica-Inyectada-en-el-Origen es la habilidad de generar **Watchdogs**. En lugar de consultar manualmente `client.callTool()` cada 5 segundos, cargas un módulo de monitoreo persistente.
 
 ```typescript
 // Desplegar un módulo de monitoreo persistente en un servidor
@@ -91,7 +91,7 @@ await client.deployWatchdog(
 
 ## Validación Criptográfica (El Escudo ZK)
 
-Aunque la capa de red está cifrada usando AES-256-GCM simétrico, el `NmpClient` por diseño duda del origen de la ejecución. 
+Aunque la capa de red está cifrada usando AES-256-GCM simétrico, el `LiopClient` por diseño duda del origen de la ejecución. 
 
 Cuando `callTool` retorna desde el Nodo de Datos remoto, el payload podría contener un hash `image_id` o un recibo `zk_receipt` (si el servidor está corriendo dentro de un TEE). Para probar matemáticamente que el servidor ejecutó exactamente el binario WASM que tú enviaste originalmente (y no uno alterado), debes invocar el verificador criptográfico:
 
@@ -106,19 +106,19 @@ if (!isAuthentic) {
   throw new Error("🚨 FATAL: Inconsistencia Matemática (Hack Detectado)");
 }
 ```
-*Nota: El adaptador `NmpMcpBridge` ejecuta automáticamente esta validación de forma nativa en favor de clientes MCP legacy (como Claude o Cursor), interceptando cualquier JSON alucinado automáticamente.*
+*Nota: El adaptador `LiopMcpBridge` ejecuta automáticamente esta validación de forma nativa en favor de clientes MCP legacy (como Claude o Cursor), interceptando cualquier JSON alucinado automáticamente.*
 
 ## Manejo de Errores y Rechazos Zero-Trust
 
 Debido a que el Servidor impone un sandbox `WASI` estricto y utiliza el *Guardian Cero-Tiempo* para inspeccionar tu carga `.wasm` ANTES de la ejecución, tu cliente debe estar preparado para manejar rechazos del sandbox.
 
 ```typescript
-import { NmpError, ErrorCode } from "@nekzus/neural-mesh";
+import { LiopError, ErrorCode } from "@nekzus/liop";
 
 try {
   await client.callTool("PeerID", "read_file", { path: "/etc/passwd" });
 } catch (error) {
-  if (error instanceof NmpError) {
+  if (error instanceof LiopError) {
     if (error.code === ErrorCode.CapabilityViolation) {
       console.error("🚨 Ejecución en Sandbox Detenida: Intento de acceso no autorizado al sistema de archivos.");
     }

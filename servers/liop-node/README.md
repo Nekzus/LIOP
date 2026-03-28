@@ -1,21 +1,21 @@
 <div align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://res.cloudinary.com/dsvsl0b0b/image/upload/v1772730727/Neural-Mesh-Protocol/bxasdalv9vwyt7m45vnb.svg">
-    <img alt="Neural Mesh Protocol Logo" src="https://res.cloudinary.com/dsvsl0b0b/image/upload/v1772730741/Neural-Mesh-Protocol/koych4jotjoldgo4ydpk.svg" width="700">
+    <source media="(prefers-color-scheme: dark)" srcset="https://res.cloudinary.com/dsvsl0b0b/image/upload/v1774702621/Neural-Mesh-Protocol/qaqsa28yrtpnxnbclv3p.svg?v=20260328">
+    <img alt="Logic-Injection-on-Origin Protocol Logo" src="https://res.cloudinary.com/dsvsl0b0b/image/upload/v1774702621/Neural-Mesh-Protocol/hoanw0m6tybpz5fbl12n.svg?v=20260328" width="700">
   </picture>
 </div>
 
-# Neural Mesh Protocol - Cargo Core (rust-app)
+# Logic-Injection-on-Origin Protocol - Cargo Core (rust-app)
 
-This directory contains the underlying high-performance, system-level components of the NMP mesh network, written cleanly in a Rust 2021 Cargo Workspace.
+This directory contains the underlying high-performance, system-level components of the LIOP mesh network, written cleanly in a Rust 2021 Cargo Workspace.
 
 ## Components Breakdown
 
 The Cargo Workspace is divided into modular crates:
 
-- **`nmp-core`**: The shared library storing standardized Protobuf definitions via `prost` and `tonic`.
-- **`nmp-server`**: The Data Node host. Contains the heavy-duty `wasmtime-wasi` sandbox. It securely receives foreign WebAssembly logic, virtualizes strict capabilities (like read-only filesystem access for specific directories), and executes the payload at near-native speeds.
-- **`nmp-client`**: The Agent Node injector SDK for compiling and pushing Wasm logic (now located in `sdks/rust/crates/client`).
+- **`liop-core`**: The shared library storing standardized Protobuf definitions via `prost` and `tonic`.
+- **`liop-server`**: The Data Node host. Contains the heavy-duty `wasmtime-wasi` sandbox. It securely receives foreign WebAssembly logic, virtualizes strict capabilities (like read-only filesystem access for specific directories), and executes the payload at near-native speeds.
+- **`liop-client`**: The Agent Node injector SDK for compiling and pushing Wasm logic (now located in `sdks/rust/crates/client`).
 - **`config/health`**: Modular infrastructure for TOML-driven external configuration and Hyper-based observability (`/health` probes).
 
 ## Core Capabilities (Hardening)

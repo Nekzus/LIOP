@@ -1,7 +1,7 @@
 {
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
-  "name": "Neural Mesh Protocol",
+  "name": "LIOP Protocol",
   "colors": {
     "primary": "#09090b",
     "light": "#FAFAFA",
@@ -12,7 +12,7 @@
     "links": [
       {
         "label": "GitHub",
-        "href": "https://github.com/Nekzus/Neural-Mesh-Protocol",
+        "href": "https://github.com/Nekzus-Solutions/LIOP-v1.0-alpha",
         "icon": "github"
       }
     ]
@@ -75,11 +75,11 @@
           },
           {
             "tab": "Changelog",
-            "href": "https://github.com/Nekzus/Neural-Mesh-Protocol/blob/main/CHANGELOG.md"
+            "href": "https://github.com/Nekzus-Solutions/LIOP-v1.0-alpha/blob/alpha/CHANGELOG.md"
           },
           {
             "tab": "Contributing",
-            "href": "https://github.com/Nekzus/Neural-Mesh-Protocol/blob/main/CONTRIBUTING.md"
+            "href": "https://github.com/Nekzus-Solutions/LIOP-v1.0-alpha/blob/alpha/CONTRIBUTING.md"
           }
         ]
       },
@@ -139,11 +139,11 @@
           },
           {
             "tab": "Registro de cambios",
-            "href": "https://github.com/Nekzus/Neural-Mesh-Protocol/blob/main/CHANGELOG.md"
+            "href": "https://github.com/Nekzus-Solutions/LIOP-v1.0-alpha/blob/alpha/CHANGELOG.md"
           },
           {
             "tab": "Contribuir",
-            "href": "https://github.com/Nekzus/Neural-Mesh-Protocol/blob/main/CONTRIBUTING.md"
+            "href": "https://github.com/Nekzus-Solutions/LIOP-v1.0-alpha/blob/alpha/CONTRIBUTING.md"
           }
         ]
       }
@@ -155,7 +155,7 @@
   },
   "footer": {
     "socials": {
-      "github": "https://github.com/Nekzus/Neural-Mesh-Protocol"
+      "github": "https://github.com/Nekzus-Solutions/LIOP-v1.0-alpha"
     }
   }
 }

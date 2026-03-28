@@ -1,10 +1,10 @@
 [package]
-name = "nmp-client"
+name = "liop-client"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-nmp-core = { path = "../core" }
+liop-core = { path = "../core" }
 
 # gRPC y Async
 tonic = "0.12"

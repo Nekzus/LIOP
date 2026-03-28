@@ -248,7 +248,7 @@
 
   <!-- ── @nekzus/nmp-agent (STDIO CLI) ── -->
   <rect x="200" y="155" width="280" height="170" rx="12" fill="#0f172a" class="pulseA" />
-  <text x="340" y="186" class="t-title" text-anchor="middle">NMP Agent</text>
+  <text x="340" y="186" class="t-title" text-anchor="middle">LIOP Agent</text>
   <text x="340" y="204" class="t-sub" text-anchor="middle">@nekzus/nmp-agent v1.1.2</text>
   <!-- Inner detail box -->
   <rect x="222" y="218" width="236" height="87" rx="6" fill="#1e293b" />

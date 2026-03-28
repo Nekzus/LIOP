@@ -2,25 +2,25 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { NmpMcpRouter } from "../gateway/router.js";
+import { LiopMcpRouter } from "../gateway/router.js";
 import { MeshNode } from "../mesh/index.js";
-import { NmpServer } from "../server/index.js";
+import { LiopServer } from "../server/index.js";
 
 /**
- * NMP Agent (Zero-Config CLI)
+ * LIOP Agent (Zero-Config CLI)
  *
  * Secure Logic-on-Origin gateway for Claude Desktop.
  * Communicates via STDIO / JSON-RPC.
  *
- * All tool discovery is DYNAMIC via the /nmp/manifest/1.0.0 protocol.
+ * All tool discovery is DYNAMIC via the /liop/manifest/1.0.0 protocol.
  * No hardcoded tools, PeerIDs, or port mappings.
  */
 async function main() {
-	const nmpDir = path.join(os.homedir(), ".nmp");
-	const identityPath = path.join(nmpDir, "identity.json");
+	const liopDir = path.join(os.homedir(), ".liop");
+	const identityPath = path.join(liopDir, "identity.json");
 
-	if (!fs.existsSync(nmpDir)) {
-		fs.mkdirSync(nmpDir, { recursive: true });
+	if (!fs.existsSync(liopDir)) {
+		fs.mkdirSync(liopDir, { recursive: true });
 	}
 
 	// 1. Determine Bootstrap Nodes (Zero-Config Discovery)
@@ -33,15 +33,15 @@ async function main() {
 	}
 
 	// Environment variable
-	if (bootstrapNodes.length === 0 && process.env.NMP_BOOTSTRAP) {
-		bootstrapNodes.push(process.env.NMP_BOOTSTRAP.trim());
+	if (bootstrapNodes.length === 0 && process.env.LIOP_BOOTSTRAP) {
+		bootstrapNodes.push(process.env.LIOP_BOOTSTRAP.trim());
 	}
 
 	// Convenience: Try to read nexus.multiaddr from multiple locations
 	if (bootstrapNodes.length === 0) {
 		const searchPaths = [
 			path.join(process.cwd(), "nexus.multiaddr"),
-			path.join(nmpDir, "nexus.multiaddr"),
+			path.join(liopDir, "nexus.multiaddr"),
 			// Try relative to the agent binary (dist/bin/agent.js -> root/nexus.multiaddr)
 			path.join(
 				path.dirname(new URL(import.meta.url).pathname),
@@ -62,7 +62,7 @@ async function main() {
 					const addr = fs.readFileSync(nexusPath, "utf8").trim();
 					if (addr && !bootstrapNodes.includes(addr)) {
 						bootstrapNodes.push(addr);
-						console.error(`[NMP-Agent] 📍 Found bootstrap at: ${nexusPath}`);
+						console.error(`[LIOP-Agent] 📍 Found bootstrap at: ${nexusPath}`);
 						break;
 					}
 				}
@@ -76,17 +76,17 @@ async function main() {
 	// It will only serve local tools until peers are discovered.
 	if (bootstrapNodes.length === 0) {
 		console.error(
-			"[NMP-Agent] ⚠️ No bootstrap nodes configured. Operating in standalone mode.",
+			"[LIOP-Agent] ⚠️ No bootstrap nodes configured. Operating in standalone mode.",
 		);
 		console.error(
-			"[NMP-Agent] 💡 Pass a multiaddr as argument or create 'nexus.multiaddr' file.",
+			"[LIOP-Agent] 💡 Pass a multiaddr as argument or create 'nexus.multiaddr' file.",
 		);
 	}
 
 	// Initialize local server node (lightweight, no tools registered locally)
-	const nmpServer = new NmpServer({
-		name: "@nekzus/nmp-agent",
-		version: "1.2.0",
+	const liopServer = new LiopServer({
+		name: "@nekzus/liop-agent",
+		version: "1.0.0",
 	});
 
 	// 2. Mesh Node Configuration
@@ -99,8 +99,8 @@ async function main() {
 	await meshNode.start();
 
 	// 3. Initialize the Dynamic Router
-	// No hardcoded tools — all discovery happens via nmp:manifest protocol
-	const router = new NmpMcpRouter(nmpServer, meshNode);
+	// No hardcoded tools — all discovery happens via liop:manifest protocol
+	const router = new LiopMcpRouter(liopServer, meshNode);
 
 	// Proactive Notification to Claude Desktop when tools are discovered dynamically
 	router.onToolsChanged = () => {
@@ -115,7 +115,7 @@ async function main() {
 		// biome-ignore lint/suspicious/noExplicitAny: access internal for telemetry
 		const rtSize = (meshNode as any).getRoutingTableSize?.() || 0;
 		console.error(
-			`[NMP-Agent] 🛰️ Warm-up complete. Routing Table size: ${rtSize}`,
+			`[LIOP-Agent] 🛰️ Warm-up complete. Routing Table size: ${rtSize}`,
 		);
 		router.refreshManifestCache(true).catch(() => {});
 	}, 2000);
@@ -153,12 +153,12 @@ async function main() {
 	});
 
 	// Status directed only to stderr
-	console.error(`[NMP-Agent] 🛡️ Guarding Claude Desktop via STDIO.`);
+	console.error(`[LIOP-Agent] 🛡️ Guarding Claude Desktop via STDIO.`);
 	console.error(
-		`[NMP-Agent] 🌐 P2P Mesh: Joined (${bootstrapNodes.length} bootstraps)`,
+		`[LIOP-Agent] 🌐 P2P Mesh: Joined (${bootstrapNodes.length} bootstraps)`,
 	);
 	console.error(
-		"[NMP-Agent] 📡 Tool discovery: Dynamic via /nmp/manifest/1.0.0",
+		"[LIOP-Agent] 📡 Tool discovery: Dynamic via /liop/manifest/1.0.0",
 	);
 
 	process.on("SIGINT", async () => {
@@ -168,6 +168,6 @@ async function main() {
 }
 
 main().catch((err) => {
-	console.error(`[NMP-Agent] 🚨 Fatal Error: ${err.message}`);
+	console.error(`[LIOP-Agent] 🚨 Fatal Error: ${err.message}`);
 	process.exit(1);
 });

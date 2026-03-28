@@ -1,29 +1,29 @@
 ---
 title: "Conceptos del Servidor"
-description: "Entendiendo cómo un Nodo de Datos NMP protege los recursos y ejecuta lógica"
+description: "Entendiendo cómo un Nodo de Datos LIOP protege los recursos y ejecuta lógica"
 ---
 
-En el Neural Mesh Protocol, un "Servidor" es históricamente denominado un **Nodo de Datos** (Data Node). A diferencia de un servidor web tradicional que responde pasivamente con JSON, un Servidor NMP es un Motor de Ejecución activo. Su deber principal es recibir lógica foránea, aislarla estrictamente y permitirle operar sobre datos locales.
+En el Logic-Injection-on-Origin Protocol, un "Servidor" es técnicamente denominado un **Nodo de Datos** (Data Node). A diferencia de un servidor web tradicional que responde pasivamente con JSON, un Servidor LIOP es un Motor de Ejecución activo. Su deber principal es recibir lógica foránea inyectada, aislarla estrictamente y permitirle operar sobre datos locales.
 
-Para lograr esto de forma segura, los Servidores NMP exponen tres primitivas fundamentales: **Módulos**, **Capacidades** y **Watchdogs**.
+Para lograr esto de forma segura, los Servidores LIOP exponen tres primitivas fundamentales: **Módulos**, **Capacidades** y **Watchdogs**.
 
 ## 1. Módulos WebAssembly (La Lógica)
 
-En protocolos heredados (como MCP), los servidores definen "Herramientas" estáticas (ej., `calculate_sum`, `read_log`), y la IA instruye al servidor para ejecutarlas. 
+En protocolos heredados (como MCP), los servidores definen "Herramientas" estáticas (ej., `calculate_sum`, `read_log`), y la IA instruye al servidor para ejecutarlas con parámetros fijos. 
 
-En NMP, el Servidor no necesita pre-programar infinitas herramientas. En su lugar, expone una **Interfaz de Ejecución**.
+En LIOP, el Servidor no necesita pre-programar infinitas herramientas. En su lugar, expone una **Interfaz de Ejecución**.
 El Agente envía un **Módulo WebAssembly (`.wasm`)** completamente dinámico que contiene su propia lógica innovadora.
 
 <Frame>
-  <img className="block dark:hidden w-full" src="/images/server-flow-light.svg" alt="Flujo de Ejecución del Nodo de Datos" />
-  <img className="hidden dark:block w-full" src="/images/server-flow-dark.svg" alt="Flujo de Ejecución del Nodo de Datos" />
+  <img className="block dark:hidden w-full" src="/images/server-flow-light.svg" alt="Flujo de Ejecución del Nodo de Datos LIOP" />
+  <img className="hidden dark:block w-full" src="/images/server-flow-dark.svg" alt="Flujo de Ejecución del Nodo de Datos LIOP" />
 </Frame>
 
 ### Cómo funciona:
-*   El Agente compila su razonamiento (ej., "Encontrar todos los logs de error con la IP 192.168.1.1 y agruparlos por timestamp") en un diminuto binario WASM multiplataforma.
-*   El Servidor NMP recibe este bloque vía gRPC.
-*   En lugar de ejecutarlo nativamente, el Servidor levanta un **WASI Sandbox** efímero (usando `Wasmtime` de Bytecode Alliance) e inyecta el módulo WASM en él.
-*   **Escalabilidad Extrema:** Tanto el backend en Rust como el SDK en TS aprovechan modelos de hilos avanzados (Native OS Threads y `piscina` en Node.js) para procesar miles de sandboxes concurrentemente sin bloquear el Event Loop principal.
+*   El Agente compila su razonamiento (ej., "Encontrar todos los logs de error con la IP 192.168.1.1 y agruparlos") en un binario WASM multiplataforma.
+*   El Servidor LIOP recibe este bloque inyectado vía gRPC.
+*   En lugar de ejecutarlo nativamente, el Servidor levanta un **WASI Sandbox** efímero e inyecta el módulo WASM en él.
+*   **Escalabilidad Industrial:** Tanto el backend en Rust como el SDK en TS aprovechan modelos de hilos avanzados (Native OS Threads y `piscina` en Node.js) para procesar miles de sandboxes concurrentemente.
 
 Esto permite capacidades infinitas sin requerir que el administrador del servidor escriba constantemente nuevos endpoints de herramientas.
 
@@ -31,82 +31,79 @@ Esto permite capacidades infinitas sin requerir que el administrador del servido
 
 Si el servidor ejecuta código arbitrario vía WASM, ¿cómo es seguro? A través de la **Seguridad Basada en Capacidades**.
 
-Las Capacidades son el equivalente NMP a los "Recursos" de MCP, pero radicalmente más seguras. Por defecto, un módulo WASM en ejecución en NMP tiene **acceso cero absoluto** a todo:
-- Sin lectura/escritura en el sistema de archivos.
+Las Capacidades son el equivalente LIOP a los "Recursos" de MCP, pero radicalmente más seguras. Por defecto, un módulo WASM en ejecución en LIOP tiene **acceso cero absoluto** a todo:
+- Sin lectura/escritura en el sistema de archivos local.
 - Sin acceso a sockets de red.
-- Sin variables de entorno.
-- Sin reloj del sistema.
+- Sin variables de entorno del host.
+- Sin acceso al reloj del sistema.
 
 ### Otorgando Acceso
-Cuando un Agente envía un Módulo, debe especificar las Capacidades que requiere para funcionar. El Servidor verifica estas peticiones contra su manifiesto configurado. Si se aprueban, el Servidor *mapea dinámicamente* descriptores de archivos específicos directamente en el espacio de memoria del Sandbox.
+When un Agente envía un Módulo, debe especificar las Capacidades que requiere para funcionar. El Servidor verifica estas peticiones contra su manifiesto. Si se aprueban, el Servidor *mapea dinámicamente* los recursos específicos directamente en el espacio de memoria del Sandbox.
 
 Por ejemplo, una Capacidad podría ser: `READ_ONLY_ACCESS: /var/logs/nginx/`. 
-El módulo WASM puede ahora leer los logs de nginx a una velocidad asombrosa, pero si la lógica maliciosa intenta leer `/etc/passwd`, el motor de Sandboxing disparará un `WASI Trap` inmediato e inatajable, terminando instantáneamente la lógica del agente.
+El módulo WASM puede ahora leer los logs a una velocidad asombrosa, pero si la lógica maliciosa intenta leer archivos no autorizados, el motor de Sandboxing disparará un `WASI Trap` inmediato, terminando instantáneamente la ejecución.
 
 ## 3. Watchdogs (Eventos Asíncronos Persistentes)
 
-Una de las características más potentes de NMP son los **Watchdogs**, que superan el concepto de prompts simples o polling manual.
+Una de las características más potentes de LIOP son los **Watchdogs**, que superan el concepto de prompts simples o polling manual.
 
-Las aplicaciones de IA a menudo necesitan monitorear un servidor (ej., "Avísame cuando el uso de memoria exceda el 90%"). En HTTP/REST o JSON-RPC, la IA debe enviar peticiones manuales cada 5 segundos, desperdiciando ancho de banda y tokens de LLM.
+Las aplicaciones de IA a menudo necesitan monitorear un servidor (ej., "Avísame cuando el uso de CPU exceda el 90%"). En HTTP/REST, la IA debe enviar peticiones manuales cada 5 segundos, desperdiciando ancho de banda y tokens.
 
-**La arquitectura push de NMP soluciona esto:**
-*   El Agente envía un Módulo WASM Watchdog al Nodo de Datos.
-*   El Servidor lo procesa y lo deja "dormir" perpetuamente en un hilo de fondo pasivo de bajos recursos.
+**La arquitectura push de LIOP soluciona esto:**
+*   El Agente inyecta un Módulo WASM Watchdog en el Nodo de Datos.
+*   El Servidor lo procesa y lo deja "dormir" en un hilo de fondo pasivo de bajos recursos.
 *   El módulo WASM se conecta localmente a los flujos del sistema.
-*   En el momento en que se cumple la condición (Memoria > 90%), el módulo WASM se despierta y empuja un evento asíncrono directamente a través de la **conexión QUIC** multiplexada permanentemente abierta de vuelta al Agente.
+*   En el momento en que se cumple la condición, el módulo WASM se despierta y empuja un evento asíncrono directamente a través de la conexión multiplexada abierta de vuelta al Agente.
 
-Esto crea verdaderos sistemas autónomos en tiempo real sin sobrecarga de polling.
+## 4. Confianza y Evidencia (Industrial TEE Execution Sandbox)
 
-## 4. Confianza y Evidencia (Enterprise TEE Execution Sandbox)
-
-En entornos empresariales de Nivel-0 (Tier-0), el Servidor Neural Mesh evoluciona más allá del sandboxing estándar del SO. El servidor proporciona evidencia matemática y física utilizando un **TEE (Trusted Execution Environment) Sandbox**.
+En entornos de Nivel-0 (Tier-0), el Servidor LIOP evoluciona más allá del sandboxing estándar. El servidor proporciona evidencia matemática y física utilizando un **TEE (Trusted Execution Environment) Sandbox**.
 
 <Frame>
-  <img className="block dark:hidden w-full" src="/images/animated-tee-flow-light.svg" alt="Flujo del TEE Execution Sandbox" />
-  <img className="hidden dark:block w-full" src="/images/animated-tee-flow-dark.svg" alt="Flujo del TEE Execution Sandbox" />
+  <img className="block dark:hidden w-full" src="/images/animated-tee-flow-light.svg" alt="Flujo del TEE Execution Sandbox en LIOP" />
+  <img className="hidden dark:block w-full" src="/images/animated-tee-flow-dark.svg" alt="Flujo del TEE Execution Sandbox en LIOP" />
 </Frame>
 
-El pipeline de ejecución TEE procesa lógica foránea bajo asunciones de cero-confianza a través de los siguientes módulos aislados:
+El pipeline de ejecución TEE procesa lógica foránea bajo asunciones de cero-confianza:
 
 #### 1. Host Bounds & Checks (Guardian AST y Egress Filter)
-Antes de que la lógica toque el motor de ejecución, el interceptor del Host descifra el payload `.wasm` de su encriptación de transporte `Kyber768` / `AES-256-GCM`. Instantáneamente, el **Guardian AST Sentinel** analiza el Árbol de Sintaxis Abstracta del WebAssembly. Si detecta intentos de importación de funciones del Host arbitrarias fuera de los límites autorizados de `wasi_snapshot_preview1`, el payload es purgado.
-Tras una ejecución exitosa de la lógica aislada, un **Filtro Anti-Exfiltración (Egress Filter) de Capa 3** analiza matemáticamente el buffer saliente para prevenir la fuga de PII o esquemas de datos sensibles antes de su transmisión al cliente.
+Antes de que la lógica toque el motor de ejecución, el interceptor del Host descifra el payload. El **Guardian AST Sentinel** analiza el Árbol de Sintaxis Abstracta del WebAssembly. Si detecta intentos de importación ilegal, el payload es purgado.
+Tras la ejecución, un **Filtro Anti-Exfiltración (Egress Filter)** analiza matemáticamente el buffer saliente para prevenir la fuga de PII antes de su transmisión.
 
 #### 2. Hardware Isolated Enclave (TEE)
-La computación central no corre en el SO del Host. Se empuja a un Enclave de Hardware físico (como **AWS Nitro Enclaves** o **Intel SGX**). Esto garantiza la *Computación Ciega*: la RAM del Host está encriptada por hardware, lo que significa que ni siquiera el administrador del servidor o el proveedor de la nube pueden volcar la memoria para robar el razonamiento del Agente.
+La computación central se empuja a un Enclave de Hardware físico (como **AWS Nitro Enclaves**). Esto garantiza la *Computación Ciega*: la RAM del Host está encriptada por hardware, por lo que ni siquiera el administrador del sistema puede volcar la memoria para robar el razonamiento del Agente.
 
-#### 3. Motor Wasmtime y Monitor de Combustible
-Dentro del TEE, el motor `Wasmtime` arranca el contexto WASI. Dado que WebAssembly es Turing Completo, podría ejecutar un bucle infinito. El **Monitor de Combustible** (Fuel Monitor) defiende contra esto forzando `.consume_fuel()`. Cada operación deduce límites de "combustible" (fuel); si se agota, el motor mata la ejecución incondicionalmente.
+#### 3. Motor de Ejecución y Monitor de Combustible
+Dentro del sandbox, el motor arranca el contexto WASI. Dado que WebAssembly es Turing Completo, podría ejecutar un bucle infinito por error o malicia. El **Monitor de Combustible** (Fuel Monitor) defiende contra esto; si el combustible se agota, el motor mata la ejecución.
 
 #### 4. ZK Prover (Certeza Matemática)
-Cuando el `.wasm` termina de generar datos, el resultado pasa al **Zero-Knowledge Prover** (ej., integración con `RISC Zero`). Este módulo genera un *Recibo* (Receipt) matemático (consistente en un Journal y un Seal criptográfico). El paquete devuelto prueba incondicionalmente al Agente que la lógica específica se ejecutó perfectamente y el resultado no fue manipulado por el Nodo de ejecución.
+Cuando el `.wasm` termina, el resultado pasa al **Zero-Knowledge Prover**. Este módulo genera un *Recibo* matemático. El paquete devuelto prueba incondicionalmente al Agente que la lógica específica se ejecutó perfectamente y el resultado es íntegro.
 
 ## 5. Servidor TypeScript y MCP Bridge (El Nodo SDK)
 
-Mientras que el plano de datos en Rust domina el sandboxing pesado y la evidencia matemática, el ecosistema Neural Mesh también proporciona una implementación ligera de servidor en puro TypeScript (`@nekzus/neural-mesh`). 
+Mientras que el plano de datos en Rust domina el sandboxing pesado, el ecosistema LIOP también proporciona una implementación completa de servidor en TypeScript (`@nekzus/liop`). 
 
-Este servidor actúa principalmente como una capa de compatibilidad hacia atrás y endpoint local para la lógica del Agente.
+Este servidor actúa como una capa de adopción rápida para desarrolladores de Node.js.
 
 <Frame>
-  <img className="block dark:hidden w-full" src="/images/bridge-flow-light.svg" alt="Flujo del Servidor TypeScript SDK y Bridge" />
-  <img className="hidden dark:block w-full" src="/images/bridge-flow-dark.svg" alt="Flujo del Servidor TypeScript SDK y Bridge" />
+  <img className="block dark:hidden w-full" src="/images/bridge-flow-light.svg" alt="Flujo del Servidor TypeScript SDK y Bridge en LIOP" />
+  <img className="hidden dark:block w-full" src="/images/bridge-flow-dark.svg" alt="Flujo del Servidor TypeScript SDK y Bridge en LIOP" />
 </Frame>
 
 ### Cómo el Bridge maneja Clientes MCP Heredados:
-1. **Intercepción JSON-RPC**: Las herramientas heredadas envían peticiones JSON-RPC 2.0 estándar sobre puertos tradicionales.
-2. **NmpMcpBridge Adapter**: El SDK intercepta estos payloads y los traduce internamente en un `CallToolRequest`. También expone impecablemente los endpoints `resources/list` y `resources/read`, permitiendo el *Descubrimiento Zero-Shot* de esquemas de datos para LLMs genéricos.
-3. **Validación Zod en NmpServer**: Antes de que la lógica toque el hilo principal de Node.js, el `NmpServer` impone validaciones estrictas de esquema Zod.
-4. **Ejecución Nativa en Node.js**: El manejador de la herramienta se ejecuta localmente usando código estándar de Node.js/TypeScript.
-5. **Respuesta JSON-RPC**: El resultado se devuelve formateado como un bloque `result` estándar de MCP.
+1. **Intercepción JSON-RPC**: Las herramientas heredadas envían peticiones JSON-RPC 2.0 estándar.
+2. **LiopMcpBridge Adapter**: El SDK intercepta estos payloads y los traduce internamente. También expone impecablemente los endpoints de recursos, permitiendo el *Descubrimiento Zero-Shot* de esquemas de datos.
+3. **Validación Zod en LiopServer**: Antes de la ejecución, el `LiopServer` impone validaciones estrictas de esquema Zod en el hilo principal.
+4. **Respuesta Transparente**: El resultado se devuelve formateado como un bloque estándar de MCP.
 
-Esto garantiza que los desarrolladores puedan adoptar inmediatamente el SDK y servir sus herramientas existentes en el ecosistema NMP con **cero modificaciones de código**.
+Esto garantiza que los desarrolladores puedan adoptar inmediatamente el protocolo y servir sus herramientas existentes en la red LIOP con **cero modificaciones de código**.
 
 ## 6. Seguridad Avanzada y Diccionario de Datos
 
-Para asegurar el mayor nivel de Autonomía Zero-Shot (donde la IA diseña sus propios planes), los Servidores NMP deben proporcionar metadatos sobre sus estructuras internas.
+Para asegurar el mayor nivel de Autonomía Zero-Shot, los Servidores LIOP proporcionan metadatos sobre sus estructuras internas.
 
 ### Diccionario de Datos (Anti-Hallucination)
-Cuando un Agente ejecuta lógica foránea, podría "alucinar" campos que no existen (ej., intentar acceder a `gender` en una base de datos que solo tiene `age`). Para prevenir esto, los desarrolladores deben usar el método `dataDictionary`:
+Cuando un Agente ejecuta lógica foránea, podría "alucinar" campos que no existen. Para prevenir esto, los desarrolladores deben usar el método `dataDictionary`:
 
 ```typescript
 server.dataDictionary({
@@ -116,37 +113,35 @@ server.dataDictionary({
 });
 ```
 
-El motor de **Sincronización Reactiva** del SDK inyectará automáticamente este esquema directamente en el **System Prompt** maestro (`nmp_blind_analyst`). Al detallar explícitamente los campos disponibles, NMP fuerza a la IA a adoptar una política de **Adherencia Estricta al Esquema**, reduciendo drásticamente los riesgos de alucinación durante la generación del código.
+El motor del SDK inyectará automáticamente este esquema directamente en el **System Prompt** maestro (`liop_blind_analyst`), forzando a la IA a adoptar una política de **Adherencia Estricta al Esquema**.
 
 ### Inyección de Datos en el Sandbox
-Mientras que `dataDictionary` le enseña al *Agente* cómo se ven los datos, debes inyectar los datos reales dentro del *Sandbox de Ejecución* para que la lógica WASM/JS pueda procesarlos.
+Mientras que el diccionario enseña al *Agente* cómo se ven los datos, debes inyectar los datos reales dentro del sandbox para su procesamiento local.
 
-Utiliza el método `setSandboxData` para cargar tu contexto (ej., desde una base de datos o archivo JSON) en la memoria del servidor:
+Utiliza el método `setSandboxData` para cargar tu contexto en la memoria protegida del servidor:
 
 ```typescript
 const records = await db.fetchPatients();
 server.setSandboxData(records); // Expuesto como 'env' dentro del Sandbox
 ```
 
-Esto garantiza una estricta separación de responsabilidades: El Esquema se envía a la IA, pero los Datos Crudos permanecen atrapados criptográficamente dentro del Nodo de ejecución.
-
 ### Claves Prohibidas (PII Forbidden Keys)
-Es posible restringir dinámicamente campos específicos para que nunca abandonen el servidor, independientemente de la intención de la lógica. Pase el array `forbiddenKeys` durante la instanciación del servidor:
+Es posible restringir campos específicos para que nunca abandonen el servidor. Pase el array `forbiddenKeys` durante la instanciación:
 
 ```typescript
-const server = new NmpServer({
+const server = new LiopServer({
   security: {
     forbiddenKeys: ["id", "ssn", "password", "email"]
   }
 });
 ```
 
-El **Filtro de Egreso O(1)** utilizará un `Set` de memoria de alto rendimiento para escanear cada objeto devuelto y bloquear cualquier clave que coincida con estos términos, incluso si están anidados profundamente en una estructura JSON.
+El **Filtro de Egreso** escaneará cada objeto devuelto y bloqueará cualquier clave que coincida con estos términos prohibidos.
 
 ### Estructura Dinámica de Retorno (Auto-i18n Nativo)
-NMP introduce un patrón arquitectónico donde la fricción por traducción transfronteriza no existe.
+LIOP introduce un patrón arquitectónico donde la fricción por traducción no existe.
 
-Cuando un Nodo de Datos registra sus capacidades, este incrusta intrínsecamente una directiva estructural dentro de la definición del payload (`DYNAMIC RETURN STRUCTURE`). Esto obliga al agente ejecutor a generar en su salida esquemas JSON que utilizan llaves mapeadas matemáticamente al **idioma exacto hablado por el usuario en el prompt inicial.**
+Cuando un Nodo de Datos registra sus capacidades, incrusta una directiva estructural dentro del payload. Esto obliga al agente a generar esquemas JSON que utilizan llaves mapeadas al **idioma exacto hablado por el usuario en el prompt.**
 
-*   Si el usuario consulta *"¿Cuántos pacientes tienen hipertensión?"*, el Nodo recibe naturalmente una respuesta que coincide con una taxonomía nativa en Español (ej., `{"cantidad": 25, "edad_promedio": 45}`).
-*   Esto elimina por completo la necesidad de importar librerías pesadas de internacionalización (i18n) en arquitecturas web o frontend, dejando la responsabilidad de parseo y localización de datos directamente en el Origen de forma segura y libre de alucinaciones.
+*   Si el usuario consulta *"¿Cuántos pacientes tienen hipertensión?"*, el Nodo recibe naturalmente una respuesta con taxonomía en Español (ej., `{"cantidad": 25}`).
+*   Esto elimina la necesidad de librerías de internacionalización, dejando la localización de datos directamente en el Origen de forma segura.

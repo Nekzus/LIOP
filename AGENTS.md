@@ -1,15 +1,15 @@
-# Neural Mesh Protocol (NMP) - AI Agent Context & Rules
+# Logic-Injection-on-Origin Protocol (LIOP) - AI Agent Context & Rules
 
-This document provides essential instructions, technical context, and development standards for AI agents (Antigravity, Claude, Cursor) working on the NMP repository. 
+This document provides essential instructions, technical context, and development standards for AI agents (Antigravity, Claude, Cursor) working on the LIOP repository. 
 
 > [!IMPORTANT]
-> NMP is a "Logic-on-Origin" decentralized mesh protocol. AI agents must prioritize security, zero-trust patterns, and cryptographic integrity in all proposed changes.
+> LIOP is a "Logic-Injection-on-Origin" decentralized mesh protocol. AI agents must prioritize security, zero-trust patterns, and cryptographic integrity in all proposed changes.
 
 ---
 
 ## 🚀 Project Vision & Paradigm
-Neural Mesh Protocol (NMP) is the high-performance successor to the Model Context Protocol (MCP).
-- **Core Paradigm**: *Logic-on-Origin*. Instead of moving data to the logic (Context-Pulling), NMP moves logic (WASM micro-modules) to the data (Logic-Injection).
+Logic-Injection-on-Origin Protocol (LIOP) is the high-performance successor to the Model Context Protocol (MCP).
+- **Core Paradigm**: *Logic-Injection-on-Origin (LIO)*. Instead of moving data to the logic (Context-Pulling), LIOP moves logic (WASM micro-modules) to the data (Logic-Injection).
 - **Security model**: Extreme Zero-Trust using WASI sandboxing, PQC (Post-Quantum Cryptography), and ZK-SNARKs for computational integrity.
 
 ---
@@ -61,11 +61,11 @@ Agents must enforce these three layers of defense:
 ---
 
 ## 🏛️ Repository Structure
-- `/servers/mesh-node`: Main Rust Mesh Node (The Bastion/Vault).
+- `/servers/liop-node`: Main Rust Mesh Node (The Bastion/Vault).
 - `/sdks/typescript`: Official Node.js SDK and MCP Gateway.
 - `/protocol`: gRPC Protobuf definitions.
 - `/docs`: Mintlify Documentation source (MDX).
-- `/tools/nmp-cli`: Rust binary for mesh management.
+- `/tools/liop-cli`: Rust binary for mesh management.
 
 ---
 

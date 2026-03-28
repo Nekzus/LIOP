@@ -1,4 +1,4 @@
-// NMP Server Configuration Module
+// LIOP Server Configuration Module
 // Loads configuration from TOML file or environment variables.
 
 use serde::Deserialize;
@@ -10,7 +10,7 @@ use tracing::{info, warn};
 /// Root configuration structure parsed from `config.toml`.
 #[derive(Deserialize, Debug, Clone)]
 #[derive(Default)]
-pub struct NmpConfig {
+pub struct LiopConfig {
     #[serde(default)]
     pub server: ServerConfig,
     #[serde(default)]
@@ -142,22 +142,22 @@ impl SessionConfig {
     }
 }
 
-impl NmpConfig {
-    /// Loads configuration from the path specified by `NMP_CONFIG` env var,
+impl LiopConfig {
+    /// Loads configuration from the path specified by `LIOP_CONFIG` env var,
     /// or falls back to `config.toml` in the working directory.
     /// If no file exists, returns the built-in defaults.
     pub fn load() -> Result<Self, Box<dyn Error>> {
-        let config_path = std::env::var("NMP_CONFIG").unwrap_or_else(|_| "config.toml".to_string());
+        let config_path = std::env::var("LIOP_CONFIG").unwrap_or_else(|_| "config.toml".to_string());
 
         let path = Path::new(&config_path);
         if path.exists() {
             let content = std::fs::read_to_string(path)?;
-            let config: NmpConfig = toml::from_str(&content)?;
+            let config: LiopConfig = toml::from_str(&content)?;
             info!(path = %config_path, "Configuration loaded from file");
             Ok(config)
         } else {
             warn!(path = %config_path, "Config file not found, using built-in defaults");
-            Ok(NmpConfig::default())
+            Ok(LiopConfig::default())
         }
     }
 }
@@ -168,7 +168,7 @@ mod tests {
 
     #[test]
     fn default_config_is_valid() {
-        let config = NmpConfig::default();
+        let config = LiopConfig::default();
         assert_eq!(config.server.grpc_addr, "[::1]:50051");
         assert_eq!(config.sandbox.fuel_limit, 500_000_000);
         assert_eq!(config.session.ttl_seconds, 300);
@@ -187,7 +187,7 @@ mod tests {
             [session]
             ttl_seconds = 60
         "#;
-        let config: NmpConfig = toml::from_str(toml_str).unwrap();
+        let config: LiopConfig = toml::from_str(toml_str).unwrap();
         assert_eq!(config.server.grpc_addr, "[::1]:9090");
         assert_eq!(config.sandbox.fuel_limit, 1_000_000);
         assert_eq!(config.session.ttl_seconds, 60);
