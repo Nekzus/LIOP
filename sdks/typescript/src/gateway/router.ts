@@ -429,7 +429,7 @@ export class LiopMcpRouter {
 						}
 					}
 
-					// 🛡️ LIOP Logic-on-Origin Detection:
+					// LIOP Logic-on-Origin Detection:
 					// If the tool has a 'payload' property, it requires the Full LIOP Envelope.
 					let envelopeDoc = "";
 					// biome-ignore lint/suspicious/noExplicitAny: internal schema extraction
@@ -485,7 +485,7 @@ export class LiopMcpRouter {
 
 					let blueprint = "";
 					if (manifest.taxonomy) {
-						blueprint = `\n\n[🛡️ LIOP Zero-Trust Blueprint]\nDomain: ${manifest.taxonomy.domain}\nClearance Tier: ${manifest.taxonomy.clearanceTier}`;
+						blueprint = `\n\n[LIOP Zero-Trust Blueprint]\nDomain: ${manifest.taxonomy.domain}\nClearance Tier: ${manifest.taxonomy.clearanceTier}`;
 						if (
 							manifest.taxonomy.executionTypes &&
 							manifest.taxonomy.executionTypes.length > 0
@@ -494,7 +494,7 @@ export class LiopMcpRouter {
 						}
 					}
 
-					const originStamp = `\n\n[🛡️ LIOP Zero-Trust Origin]\nProvider: ${providerName}\nNetwork ID: ${peerId}${blueprint}`;
+					const originStamp = `\n\n[LIOP Zero-Trust Origin]\nProvider: ${providerName}\nNetwork ID: ${peerId}${blueprint}`;
 
 					augmentedResource.description = augmentedResource.description
 						? `${augmentedResource.description}${originStamp}`

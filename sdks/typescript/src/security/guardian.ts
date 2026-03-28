@@ -26,7 +26,7 @@ export const GuardianTS = {
 		wasmBytes: Uint8Array | Buffer,
 	): Promise<WebAssembly.Module> {
 		console.error(
-			"[Guardian-TS] 🛡️ Starting Zero-Time AST heuristic inspection...",
+			"[Guardian-TS] Starting Zero-Time AST heuristic inspection...",
 		);
 
 		// This throws if the WASM is structurally invalid or a decompression bomb
@@ -59,7 +59,7 @@ export const GuardianTS = {
 		}
 
 		console.error(
-			`[Guardian-TS] ✅ AST clean. Validated ${importCount} WASI/LIOP imports.`,
+			`[Guardian-TS] OK: AST clean. Validated ${importCount} WASI/LIOP imports.`,
 		);
 		return module;
 	},

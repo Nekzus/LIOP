@@ -240,7 +240,7 @@ describe("LiopMcpBridge", () => {
 
 		const contentText = response.result.content[0].text;
 		expect(contentText).toContain(
-			"✅ ZK-Receipt & ImageID Mathematically Verified",
+			"VERIFIED: ZK-Receipt & ImageID Mathematically Verified",
 		);
 	});
 
@@ -292,7 +292,7 @@ describe("LiopMcpBridge", () => {
 
 		const contentText = response.result.content[0].text;
 		expect(contentText).toContain(
-			"🚨 [LIOP ZERO-TRUST SHIELD] ZK Verification Failed",
+			"ALERT [LIOP ZERO-TRUST SHIELD] ZK Verification Failed",
 		);
 	});
 });

@@ -8,7 +8,7 @@ import { LiopServer } from "../server/index.js";
 /**
  * LIOPStreamBridge Integration Test Suite.
  *
- * This suite now manages its own "The Vault" server instance automatically.
+ * This suite manages its own LiopServer instance automatically.
  */
 
 // ... (interfaces existing)
@@ -20,7 +20,7 @@ interface ToolResult {
 const TOKEN = process.env.ZERO_TRUST_TOKEN || "test-token";
 const BASE_URL = "http://localhost:3000/mcp";
 
-/** Creates a fresh MCP client connected to The Vault via Streamable HTTP */
+/** Creates a fresh MCP client connected to the LiopServer via Streamable HTTP */
 async function createRemoteClient(name: string): Promise<Client> {
 	const transport = new StreamableHTTPClientTransport(new URL(BASE_URL), {
 		requestInit: {
@@ -40,9 +40,9 @@ describe("LiopStreamBridge (Integration)", () => {
 	let server: LiopServer;
 
 	beforeAll(async () => {
-		// Initialize the Mock "The Vault" Server
+		// Initialize the test LiopServer
 		server = new LiopServer(
-			{ name: "The Vault - Integration Test", version: "1.1.2" },
+			{ name: "liop-stream-test", version: "1.1.2" },
 			{
 				security: {
 					forbiddenKeys: ["id", "name"],

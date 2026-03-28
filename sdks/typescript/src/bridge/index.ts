@@ -55,13 +55,9 @@ export class LiopMcpBridge {
 			return this.handleLiopToMcp(id, method, params);
 		}
 
-		// Mode: WRAP (Redirecting to Legacy MCP Server)
-		if (this.legacyMcpServer) {
-			return this.errorResponse(
-				id,
-				-32601,
-				"Wrap mode not fully operational in this sub-version",
-			);
+		// Mode: WRAP (Redirecting via internal LiopServer after connect())
+		if (this.legacyMcpServer && this.liopServer) {
+			return this.handleLiopToMcp(id, method, params);
 		}
 
 		return this.errorResponse(id, -32601, "Bridge source not configured");
@@ -149,7 +145,7 @@ export class LiopMcpBridge {
 						content: [
 							{
 								type: "text",
-								text: "🚨 [LIOP ZERO-TRUST SHIELD] ZK Verification Failed. The mathematical ImageID does not match the original payload.",
+								text: "ALERT [LIOP ZERO-TRUST SHIELD] ZK Verification Failed. The mathematical ImageID does not match the original payload.",
 							},
 						],
 						isError: true,
@@ -208,13 +204,13 @@ export class LiopMcpBridge {
 					const data = JSON.parse(contentText);
 					if (data.image_id && data.image_id !== localImageId) {
 						console.error(
-							`[LIOP-Bridge] 🚨 Image ID mismatch! Computed [${localImageId}], Received [${data.image_id}]`,
+							`[LIOP-Bridge] ALERT Image ID mismatch! Computed [${localImageId}], Received [${data.image_id}]`,
 						);
 						return false;
 					}
 					if (data.image_id || data.zk_receipt) {
 						data.audit_status =
-							"✅ ZK-Receipt & ImageID Mathematically Verified by LiopMcpBridge";
+							"VERIFIED: ZK-Receipt & ImageID Mathematically Verified by LiopMcpBridge";
 						result.content[0].text = JSON.stringify(data);
 					}
 				} catch {
@@ -237,7 +233,7 @@ export class LiopMcpBridge {
 			const { LiopServer } = await import("../server/index.js");
 			this.liopServer = new LiopServer(
 				this.options.serverInfo || {
-					name: "BridgedLegacyNode",
+					name: "liop-bridge",
 					version: "1.0.0",
 				},
 				{ security: this.options.security },
@@ -318,7 +314,5 @@ export class LiopMcpBridge {
 		});
 	}
 }
-
-export * from "./stream.js";
 
 export * from "./stream.js";

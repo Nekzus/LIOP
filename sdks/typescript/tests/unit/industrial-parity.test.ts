@@ -65,7 +65,7 @@ describe("Industrial Parity v1.2.0 (Tier-0)", () => {
 			await bridge.connect();
 			
 			expect((bridge as any).liopServer).toBeDefined();
-			expect((bridge as any).liopServer.getServerInfo().name).toBe("BridgedLegacyNode");
+			expect((bridge as any).liopServer.getServerInfo().name).toBe("liop-bridge");
 		});
 	});
 });

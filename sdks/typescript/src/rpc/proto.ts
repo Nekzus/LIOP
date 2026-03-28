@@ -22,9 +22,7 @@ const PROTO_PATH = fs.existsSync(PROD_PROTO_PATH)
 	: DEV_PROTO_PATH;
 
 if (!fs.existsSync(PROTO_PATH)) {
-	console.error(
-		`[LIOP-Proto] 🚨 CRITICAL: Proto file not found at ${PROTO_PATH}`,
-	);
+	console.error(`[LIOP-Proto] CRITICAL: Proto file not found at ${PROTO_PATH}`);
 }
 
 /**

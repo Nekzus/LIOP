@@ -385,7 +385,7 @@ export class MeshNode {
 									await pEvent(stream, "drain", { timeout: 5000 });
 								} catch (e) {
 									console.error(
-										`[LIOP-Mesh] ⚠️ Drain timeout or error for ${remotePeer}: ${e instanceof Error ? e.message : String(e)}`,
+										`[LIOP-Mesh] WARN: Drain timeout or error for ${remotePeer}: ${e instanceof Error ? e.message : String(e)}`,
 									);
 								}
 							}
