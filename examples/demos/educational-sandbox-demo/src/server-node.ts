@@ -10,7 +10,7 @@ const server = new LiopServer({
 
 console.log(`
 ------------------------------------------------------------------
-   NMP INDUSTRIAL SERVER - LOGIC-ON-ORIGIN SANDBOX               
+   LIOP INDUSTRIAL SERVER - LOGIC-ON-ORIGIN SANDBOX               
 ------------------------------------------------------------------
 `);
 
@@ -22,7 +22,7 @@ server.tool(
 		auditId: { type: "string" },
 	} as unknown as Record<string, import("zod").ZodTypeAny>, // Bypass strict zod shape for demo
 	async (args: Record<string, unknown>, extra: Record<string, unknown>) => {
-		// In NMP, the wasmPayload comes in the gRPC stream.
+		// In LIOP, the wasmPayload comes in the gRPC stream.
 		// For the demo, we assume it's attached to the execution context.
 		const wasmPayload = extra.wasmPayload as Buffer;
 
@@ -31,13 +31,13 @@ server.tool(
 		}
 
 		console.log(
-			`\n[NMP-HOST] Incoming request: audit_patient_data (${args.auditId})`,
+			`\n[LIOP-HOST] Incoming request: audit_patient_data (${args.auditId})`,
 		);
 
 		// 1. Security Gate: Guardian AST
 		if (!GuardianAST.validate(wasmPayload)) {
 			console.error(
-				`[NMP-HOST] BLOCKING REQUEST: Security violation detected during pre-check.`,
+				`[LIOP-HOST] BLOCKING REQUEST: Security violation detected during pre-check.`,
 			);
 			throw new Error("SECURITY_VIOLATION: Forbidden patterns found in logic.");
 		}
@@ -46,7 +46,7 @@ server.tool(
 		try {
 			const { result, receipt } = await WasiSandbox.execute(wasmPayload, args);
 
-			console.log(`[NMP-HOST] Emitting Proof of Execution (RISC0 Receipt)...`);
+			console.log(`[LIOP-HOST] Emitting Proof of Execution (RISC0 Receipt)...`);
 
 			return {
 				content: [
@@ -69,7 +69,7 @@ server.tool(
 				isError: false,
 			};
 		} catch (err: unknown) {
-			console.error(`[NMP-HOST] EXECUTION_TRAP: ${(err as Error).message}`);
+			console.error(`[LIOP-HOST] EXECUTION_TRAP: ${(err as Error).message}`);
 			return {
 				content: [{ type: "text", text: `Execution Error: ${(err as Error).message}` }],
 				isError: true,
@@ -80,7 +80,7 @@ server.tool(
 
 const startServer = async () => {
 	await server.connectToMesh();
-	console.log(`[NMP-SDK] Strategic-Data-Node-Alpha active in DHT.`);
+	console.log(`[LIOP-SDK] Strategic-Data-Node-Alpha active in DHT.`);
 };
 
 startServer().catch(console.error);

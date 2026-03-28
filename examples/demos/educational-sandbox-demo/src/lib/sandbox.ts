@@ -70,7 +70,7 @@ export const WasiSandbox = {
 			.digest("hex");
 
 		const receipt = {
-			image_id: "7fbc82... (NMP_WASM_V1)",
+			image_id: "7fbc82... (LIOP_WASM_V1)",
 			journal,
 			seal: `0x${seal}`,
 		};

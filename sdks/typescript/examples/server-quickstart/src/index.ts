@@ -1,19 +1,19 @@
-import { NmpServer } from "@nekzus/neural-mesh";
+import { LiopServer } from "@nekzus/liop";
 import { z } from "zod";
 
 /**
- * NMP Server Quickstart
+ * LIOP Server Quickstart
  *
  * Demonstrates how to rapidly bring up a Logic-on-Origin Server exposing
- * simple computation directly into the Neural Mesh Protocol.
+ * simple computation directly into the Logic-Injection-on-Origin Protocol.
  */
 
 async function main() {
-	console.log("=== Neural Mesh Protocol: Server Quickstart ===");
+	console.log("=== Logic-Injection-on-Origin Protocol: Server Quickstart ===");
 
 	// 1. Initialize Server
-	const server = new NmpServer({
-		name: "nmp-quickstart-server",
+	const server = new LiopServer({
+		name: "LIOP-quickstart-server",
 		version: "1.0.0",
 	});
 

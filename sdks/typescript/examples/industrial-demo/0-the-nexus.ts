@@ -1,12 +1,12 @@
 import * as fs from "node:fs/promises";
-import { NmpServer } from "../../src/server/index.js";
+import { LiopServer } from "../../src/server/index.js";
 
 async function main() {
 	console.log("==================================================");
-	console.log("🌌  THE NEXUS: NMP Bootstrap Node");
+	console.log("🌌  THE NEXUS: LIOP Bootstrap Node");
 	console.log("==================================================");
 
-	const server = new NmpServer({
+	const server = new LiopServer({
 		name: "the-nexus",
 		version: "1.0.0",
 		capabilities: {},

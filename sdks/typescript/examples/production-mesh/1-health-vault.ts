@@ -1,4 +1,4 @@
-import { NmpServer, WasiSandbox } from "@nekzus/neural-mesh";
+import { LiopServer, WasiSandbox } from "@nekzus/liop";
 import { z } from "zod";
 
 /**
@@ -11,7 +11,7 @@ import { z } from "zod";
  * 3. ZK-Receipts: Mathematical integrity proofs.
  */
 async function startHealthVault() {
-	const server = new NmpServer({
+	const server = new LiopServer({
 		name: "Health-Vault-System",
 		version: "2.0.0",
 	});

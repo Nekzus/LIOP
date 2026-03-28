@@ -118,7 +118,7 @@ export class MeshNode {
 				} catch (error: unknown) {
 					const e = error as Error & { code?: string };
 					if (e.code !== "ENOENT") {
-						console.error(`[NMP-Mesh] Error loading identity: ${e.message}`);
+						console.error(`[LIOP-Mesh] Error loading identity: ${e.message}`);
 					}
 				}
 			}
@@ -127,7 +127,7 @@ export class MeshNode {
 			return { privateKey, isNew: true };
 		} catch (error) {
 			console.error(
-				`[NMP-Mesh] Critical error in identity management: ${error}`,
+				`[LIOP-Mesh] Critical error in identity management: ${error}`,
 			);
 			return undefined;
 		}
@@ -286,7 +286,7 @@ export class MeshNode {
 
 		await this.node.start();
 
-		// [NMP-ALPHA] Protocols and services setup
+		// [LIOP-ALPHA] Protocols and services setup
 		this.applyHandlers();
 
 		if (isNew && this.config.identityPath) {

@@ -22,7 +22,7 @@ export const GuardianAST = {
 	validate(payload: Buffer): boolean {
 		console.log(`[GuardianAST] Performing Recursive AST Depth Inspection...`);
 
-		// In a real NMP, this would parse the WASM imports section.
+		// In a real LIOP, this would parse the WASM imports section.
 		// Here we simulate it by scanning the string part of the bundle.
 		const content = payload.toString("utf8");
 

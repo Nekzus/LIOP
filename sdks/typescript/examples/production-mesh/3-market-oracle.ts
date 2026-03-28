@@ -1,21 +1,21 @@
-import { NmpServer } from "@nekzus/neural-mesh";
+import { LiopServer } from "@nekzus/liop";
 
 /**
  * THE MARKET ORACLE (Real-time Events Provider)
  *
  * This node provides real-time stock events via Server-Streaming.
- * Demonstrates NMP's capability to maintain persistent and asynchronous
+ * Demonstrates LIOP's capability to maintain persistent and asynchronous
  * connections between nodes.
  */
 async function startOracle() {
-	const server = new NmpServer({
+	const server = new LiopServer({
 		name: "Market-Oracle-V3",
 		version: "3.2.0",
 	});
 
 	server.resource(
 		"Market Prices",
-		"nmp://market/stocks",
+		"LIOP://market/stocks",
 		"Real-time price channel (AAPL, BTC, SOL)",
 		"application/json",
 		JSON.stringify({

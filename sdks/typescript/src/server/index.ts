@@ -334,7 +334,7 @@ export class LiopServer {
 	}
 
 	/**
-	 * Enables NMP Zero-Shot Autonomy by registering the Blind Analyst standard prompt.
+	 * Enables LIOP Zero-Shot Autonomy by registering the Blind Analyst standard prompt.
 	 */
 	public enableZeroShotAutonomy(): void {
 		this.prompt(
@@ -437,7 +437,7 @@ Protocol Adherence is mandatory for successful execution.`,
 	}
 
 	/**
-	 * Emulates calling a tool (used locally or via NmpMcpBridge)
+	 * Emulates calling a tool (used locally or via LIOPMcpBridge)
 	 */
 	public async callTool(request: CallToolRequest): Promise<CallToolResult> {
 		const entry = this.tools.get(request.name);

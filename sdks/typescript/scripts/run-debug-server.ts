@@ -1,9 +1,9 @@
 import { z } from "zod";
-import { NmpServer } from "../src/index.js";
+import { LiopServer } from "../src/index.js";
 
 async function main() {
-	const server = new NmpServer({
-		name: "NmpServer-Debug",
+	const server = new LiopServer({
+		name: "LiopServer-Debug",
 		version: "1.1.0",
 	});
 
@@ -17,7 +17,7 @@ async function main() {
 	);
 
 	await server.connectToMesh({ port: 50051 });
-	console.log("[DEBUG-SERVER] NMP gRPC Server running on port 50051");
+	console.log("[DEBUG-SERVER] LIOP gRPC Server running on port 50051");
 }
 
 main().catch(console.error);

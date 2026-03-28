@@ -10,7 +10,7 @@
 		"esModuleInterop": true,
 		"paths": {
 			"*": ["./*"],
-			"@nekzus/neural-mesh": ["./node_modules/@nekzus/neural-mesh/src/index.ts"]
+			"@nekzus/liop": ["./node_modules/@nekzus/liop/src/index.ts"]
 		}
 	}
 }

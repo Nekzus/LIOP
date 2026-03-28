@@ -3,14 +3,14 @@
 import * as kyber from "crystals-kyber";
 
 /**
- * NMP Post-Quantum Cryptography Wrapper
+ * LIOP Post-Quantum Cryptography Wrapper
  * Implements ML-KEM-768 for Zero-Trust secure key encapsulation
  * directly compatible with `pqcrypto-kyber` on the Mesh-Node Backend.
  */
 
 export const Kyber768Wrapper = {
 	/**
-	 * Extracts and validates the 1184-byte Public Key from the Rust NMP Data Node
+	 * Extracts and validates the 1184-byte Public Key from the Rust LIOP Data Node
 	 * @param buffer Raw buffer sent via gRPC IntentResponse
 	 */
 	importPublicKey(buffer: Uint8Array): Uint8Array {

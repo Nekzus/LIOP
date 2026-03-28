@@ -13,11 +13,11 @@ async function testDiscovery() {
 	console.log("Waiting 3 seconds for DHT warmup...");
 	await new Promise(r => setTimeout(r, 3000));
 	
-	const NMP_MANIFEST_CAPABILITY = "nmp:manifest";
-	const hash = await sha256.digest(new TextEncoder().encode(NMP_MANIFEST_CAPABILITY));
+	const LIOP_MANIFEST_CAPABILITY = "LIOP:manifest";
+	const hash = await sha256.digest(new TextEncoder().encode(LIOP_MANIFEST_CAPABILITY));
 	const cid = CID.create(1, 0x55, hash);
 
-	console.log(`Checking providers for capability ${NMP_MANIFEST_CAPABILITY} (CID: ${cid.toString()})...`);
+	console.log(`Checking providers for capability ${LIOP_MANIFEST_CAPABILITY} (CID: ${cid.toString()})...`);
 	
 	let count = 0;
     // @ts-ignore

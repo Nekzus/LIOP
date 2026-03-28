@@ -2,16 +2,16 @@ import { Buffer } from "node:buffer";
 import { createHash } from "node:crypto";
 
 /**
- * NmpCompiler simulates the Javy-based compilation of JS code into
+ * LIOPCompiler simulates the Javy-based compilation of JS code into
  * a WASM-like binary bundle for the Logic-on-Origin paradigm.
  */
-export const NmpCompiler = {
+export const LIOPCompiler = {
 	/**
-	 * Compiles JS logic into a structured NMP Binary Payload.
+	 * Compiles JS logic into a structured LIOP Binary Payload.
 	 * Format: [MAGIC_BYTES (4)][MANIFEST_SIZE (4)][MANIFEST (JSON)][LOGIC_CODE (UTF8)]
 	 */
 	compile(jsCode: string, capabilities: string[] = []): Buffer {
-		console.log(`[NmpCompiler] Transpiling logic to wasm32-wasi target...`);
+		console.log(`[LIOPCompiler] Transpiling logic to wasm32-wasi target...`);
 
 		const magic = Buffer.from([0x00, 0x61, 0x73, 0x6d]); // \0asm
 		const manifest = JSON.stringify({
@@ -36,7 +36,7 @@ export const NmpCompiler = {
 
 		const hash = createHash("sha256").update(finalPayload).digest("hex");
 		console.log(
-			`[NmpCompiler] Compilation Success. Size: ${finalPayload.length} bytes. Hash: ${hash.slice(0, 16)}...`,
+			`[LIOPCompiler] Compilation Success. Size: ${finalPayload.length} bytes. Hash: ${hash.slice(0, 16)}...`,
 		);
 
 		return finalPayload;

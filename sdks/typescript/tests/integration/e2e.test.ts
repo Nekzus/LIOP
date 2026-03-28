@@ -5,7 +5,7 @@ import { LiopServer } from "../../src/server/index.js";
 /**
  * End-to-End Integration Tests (Local, No Network)
  *
- * Validates the complete Logic-on-Origin pipeline through the NmpServer
+ * Validates the complete Logic-on-Origin pipeline through the LiopServer
  * without requiring a real gRPC connection or P2P mesh.
  */
 describe("E2E Logic-on-Origin Pipeline", () => {

@@ -1,4 +1,4 @@
-import { MeshNode } from "@nekzus/neural-mesh";
+import { MeshNode } from "@nekzus/liop";
 
 /**
  * THE NEXUS (Bootstrap Node)

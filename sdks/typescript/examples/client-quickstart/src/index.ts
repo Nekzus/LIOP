@@ -1,18 +1,18 @@
-import { type CallToolRequest, NmpClient } from "@nekzus/neural-mesh";
+import { type CallToolRequest, LiopClient } from "@nekzus/liop";
 
 /**
- * NMP Client Quickstart
+ * LIOP Client Quickstart
  *
  * Demonstrates how a simple Agent connects to a Mesh/Server and
  * requests to execute logic locally on the origin server.
  */
 
 async function main() {
-	console.log("=== Neural Mesh Protocol: Client Quickstart ===");
+	console.log("=== Logic-Injection-on-Origin Protocol: Client Quickstart ===");
 
 	// 1. Initialize Client Agent
-	const client = new NmpClient({
-		name: "nmp-quickstart-client",
+	const client = new LiopClient({
+		name: "LIOP-quickstart-client",
 		version: "1.0.0",
 	});
 

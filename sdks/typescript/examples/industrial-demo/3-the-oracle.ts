@@ -1,13 +1,13 @@
 import * as fs from "node:fs/promises";
 import { z } from "zod";
-import { NmpServer } from "../../src/server/index.js";
+import { LiopServer } from "../../src/server/index.js";
 
 async function main() {
 	console.log("==================================================");
-	console.log("🔮  THE ORACLE: NMP Real-time Data Provider");
+	console.log("🔮  THE ORACLE: LIOP Real-time Data Provider");
 	console.log("==================================================");
 
-	const server = new NmpServer(
+	const server = new LiopServer(
 		{
 			name: "SIMULATION-the-oracle",
 			version: "1.0.0",
@@ -48,12 +48,12 @@ async function main() {
 			},
 		},
 		"Market Data Schema (SYNTHETIC)",
-		"nmp://schema/market-data-synthetic",
+		"LIOP://schema/market-data-synthetic",
 	);
 
 	server.tool(
 		"Analyze_Synthetic_Market_Data",
-		"DISCLAIMER: This is a SIMULATION using SYNTHETIC data. Securely analyzes real-time market ticks via NMP Logic-on-Origin for protocol demonstration.",
+		"DISCLAIMER: This is a SIMULATION using SYNTHETIC data. Securely analyzes real-time market ticks via LIOP Logic-on-Origin for protocol demonstration.",
 		{ payload: z.string() },
 		async (args) => {
 			console.log(

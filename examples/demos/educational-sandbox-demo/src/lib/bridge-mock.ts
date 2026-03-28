@@ -1,14 +1,14 @@
 import type { Buffer } from "node:buffer";
 
 /**
- * BridgeMock simulates the NMP P2P / gRPC transport layer.
+ * BridgeMock simulates the LIOP P2P / gRPC transport layer.
  * It takes care of routing the Logic-on-Origin capsule to the Data Node.
  */
 export async function server_node_exec(
 	auditId: string,
 	wasmPayload: Buffer,
 ): Promise<unknown> {
-	// In a real NMP, this would go through libp2p gRPC streams.
+	// In a real LIOP, this would go through libp2p gRPC streams.
 	// For the demo, we dynamically import the server logic and call its handler.
 
 	// We simulate the context passed to the server tool
@@ -25,7 +25,7 @@ export async function server_node_exec(
 	const { WasiSandbox } = await import("./sandbox.js");
 
 	console.log(
-		`[NMP-BRIDGE] Routing Encrypted Capsule to Strategic-Data-Node-Alpha...`,
+		`[LIOP-BRIDGE] Routing Encrypted Capsule to Strategic-Data-Node-Alpha...`,
 	);
 
 	// Server Side Simulation

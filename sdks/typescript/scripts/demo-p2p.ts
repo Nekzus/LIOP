@@ -7,7 +7,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const IDENTITY_PATH = path.join(__dirname, "../test-identity.json");
 
 async function runDemo() {
-	console.log("--- NMP P2P MESH DEMO ---");
+	console.log("--- LIOP P2P MESH DEMO ---");
 
 	// Clean up old identity for fresh start
 	try {

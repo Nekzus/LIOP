@@ -1,5 +1,5 @@
 /**
- * NMP gRPC Length-Prefixed Message (LPM) Codec
+ * LIOP gRPC Length-Prefixed Message (LPM) Codec
  *
  * Implements the standard gRPC-over-HTTP2 framing:
  * [1 byte: Compressed Flag] [4 bytes: Message Length] [Data]

@@ -1,9 +1,9 @@
 import { z } from "zod";
-import { NmpHybridGateway } from "../src/gateway/hybrid.js";
-import { NmpServer } from "../src/server/index.js";
+import { LIOPHybridGateway } from "../src/gateway/hybrid.js";
+import { LiopServer } from "../src/server/index.js";
 
 async function main() {
-	const theVaultServer = new NmpServer(
+	const theVaultServer = new LiopServer(
 		{
 			name: "The Vault",
 			version: "1.1.0",
@@ -29,7 +29,7 @@ async function main() {
 
 	// Primary tool for stream.test.ts
 	theVaultServer.tool(
-		"nmp_audit_sandbox",
+		"LIOP_audit_sandbox",
 		"Audits the sandbox environment",
 		{ payload: z.string() },
 		async (_args) => {
@@ -54,12 +54,12 @@ async function main() {
 		},
 	);
 
-	const hybridGateway = new NmpHybridGateway(theVaultServer, {
+	const hybridGateway = new LIOPHybridGateway(theVaultServer, {
 		rpcPort: RPC_PORT,
 	});
 	await hybridGateway.listen(3000, "0.0.0.0");
 	console.log(
-		`[VAULT-SERVER] NMP Unified Mock Server READY (forbiddenKeys: id, name).`,
+		`[VAULT-SERVER] LIOP Unified Mock Server READY (forbiddenKeys: id, name).`,
 	);
 }
 

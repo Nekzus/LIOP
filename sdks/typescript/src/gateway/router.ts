@@ -416,7 +416,7 @@ export class LiopMcpRouter {
 
 					let blueprint = "";
 					if (manifest.taxonomy) {
-						blueprint = `\n\n[NMP-PROTO: TAXONOMY]\nDomain: ${manifest.taxonomy.domain}\nClearance Tier: ${manifest.taxonomy.clearanceTier}`;
+						blueprint = `\n\n[LIOP-PROTO: TAXONOMY]\nDomain: ${manifest.taxonomy.domain}\nClearance Tier: ${manifest.taxonomy.clearanceTier}`;
 						if (
 							manifest.taxonomy.executionTypes &&
 							manifest.taxonomy.executionTypes.length > 0
@@ -481,7 +481,7 @@ export class LiopMcpRouter {
 
 					let blueprint = "";
 					if (manifest.taxonomy) {
-						blueprint = `\n\n[🛡️ NMP Zero-Trust Blueprint]\nDomain: ${manifest.taxonomy.domain}\nClearance Tier: ${manifest.taxonomy.clearanceTier}`;
+						blueprint = `\n\n[🛡️ LIOP Zero-Trust Blueprint]\nDomain: ${manifest.taxonomy.domain}\nClearance Tier: ${manifest.taxonomy.clearanceTier}`;
 						if (
 							manifest.taxonomy.executionTypes &&
 							manifest.taxonomy.executionTypes.length > 0
@@ -490,7 +490,7 @@ export class LiopMcpRouter {
 						}
 					}
 
-					const originStamp = `\n\n[🛡️ NMP Zero-Trust Origin]\nProvider: ${providerName}\nNetwork ID: ${peerId}${blueprint}`;
+					const originStamp = `\n\n[🛡️ LIOP Zero-Trust Origin]\nProvider: ${providerName}\nNetwork ID: ${peerId}${blueprint}`;
 
 					augmentedResource.description = augmentedResource.description
 						? `${augmentedResource.description}${originStamp}`
@@ -834,7 +834,7 @@ export class LiopMcpRouter {
 							id,
 							result: {
 								content: [
-									{ type: "text", text: `NMP gRPC Error: ${e.message}` },
+									{ type: "text", text: `LIOP gRPC Error: ${e.message}` },
 								],
 								isError: true,
 							},

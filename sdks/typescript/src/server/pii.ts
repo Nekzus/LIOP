@@ -1,5 +1,5 @@
 /**
- * NMP Professional PII Engine (The Shield V2 - Tier-1 Military Edition)
+ * LIOP Professional PII Engine (The Shield V2 - Tier-1 Military Edition)
  * Implements high-fidelity detection based on NIST and OWASP standards.
  * Features Multi-Layer Verification (Regex + Algorithmic Validators).
  */

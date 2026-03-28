@@ -43,7 +43,7 @@ async function run() {
     // Wait for identify
     await new Promise(r => setTimeout(r, 2000));
 
-    const hash = await sha256.digest(new TextEncoder().encode("nmp:manifest"));
+    const hash = await sha256.digest(new TextEncoder().encode("LIOP:manifest"));
     const cid = CID.create(1, 0x55, hash);
 
     console.log("Finding providers for:", cid.toString());

@@ -1,14 +1,14 @@
 import * as fs from "node:fs/promises";
 import { z } from "zod";
-import { NmpServer } from "../../src/server/index.js";
+import { LiopServer } from "../../src/server/index.js";
 
 async function main() {
 	console.log("==================================================");
-	console.log("🛡️  THE VAULT: NMP Secure Data Server");
+	console.log("🛡️  THE VAULT: LIOP Secure Data Server");
 	console.log("==================================================");
 
-	// 1. Initialize NMP Server with the Data Capability
-	const server = new NmpServer(
+	// 1. Initialize LIOP Server with the Data Capability
+	const server = new LiopServer(
 		{
 			name: "SIMULATION-the-vault",
 			version: "1.0.0",
@@ -49,7 +49,7 @@ async function main() {
 			},
 		},
 		"Medical Records Schema (SYNTHETIC)",
-		"nmp://schema/medical-records-synthetic",
+		"LIOP://schema/medical-records-synthetic",
 	);
 
 	server.tool(

@@ -6,7 +6,7 @@ import { LiopHybridGateway } from "../gateway/hybrid.js";
 import { LiopServer } from "../server/index.js";
 
 /**
- * NmpStreamBridge Integration Test Suite.
+ * LIOPStreamBridge Integration Test Suite.
  *
  * This suite now manages its own "The Vault" server instance automatically.
  */

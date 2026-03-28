@@ -1,13 +1,13 @@
 import * as fs from "node:fs/promises";
 import { z } from "zod";
-import { NmpServer } from "../../src/server/index.js";
+import { LiopServer } from "../../src/server/index.js";
 
 async function main() {
 	console.log("==================================================");
-	console.log("🏦  THE BANK: NMP Secure Financial Server");
+	console.log("🏦  THE BANK: LIOP Secure Financial Server");
 	console.log("==================================================");
 
-	const server = new NmpServer(
+	const server = new LiopServer(
 		{
 			name: "SIMULATION-the-bank",
 			version: "1.0.0",
@@ -57,12 +57,12 @@ async function main() {
 			},
 		},
 		"Banking Ledger Schema (SYNTHETIC)",
-		"nmp://schema/banking-ledger-synthetic",
+		"LIOP://schema/banking-ledger-synthetic",
 	);
 
 	server.tool(
 		"Analyze_Synthetic_Bank_Transactions",
-		"DISCLAIMER: This is a SIMULATION using SYNTHETIC data. Securely analyzes financial transactions and account balances via NMP Logic-on-Origin for protocol demonstration.",
+		"DISCLAIMER: This is a SIMULATION using SYNTHETIC data. Securely analyzes financial transactions and account balances via LIOP Logic-on-Origin for protocol demonstration.",
 		{ payload: z.string() },
 		async (args) => {
 			console.log(

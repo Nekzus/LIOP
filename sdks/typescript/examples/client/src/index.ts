@@ -1,14 +1,14 @@
-import { type CallToolRequest, NmpClient } from "@nekzus/neural-mesh";
+import { type CallToolRequest, LiopClient } from "@nekzus/liop";
 
 /**
- * NMP Advanced Client Example
+ * LIOP Advanced Client Example
  *
  * Demonstrates an Agent dispatching complex logic payloads, handling
  * Zod validation failures correctly, and discovering capabilities dynamically.
  */
 
 async function main() {
-	console.log("=== Neural Mesh Protocol: Advanced Client ===");
+	console.log("=== Logic-Injection-on-Origin Protocol: Advanced Client ===");
 
 	const args = process.argv.slice(2);
 	const bootstrapIndex = args.indexOf("--bootstrap");
@@ -18,7 +18,7 @@ async function main() {
 		bootstrapNode = args[bootstrapIndex + 1];
 	}
 
-	const client = new NmpClient({ name: "EnterpriseAgent", version: "1.0.0" });
+	const client = new LiopClient({ name: "EnterpriseAgent", version: "1.0.0" });
 
 	// 1. Connect & Discover (Zero Trust Mesh)
 	console.log("\n[Client] Initializing Kademlia DHT Agent...");

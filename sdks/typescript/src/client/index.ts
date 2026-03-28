@@ -185,7 +185,7 @@ export class LiopClient {
 			throw new Error(`Intent denied by host: ${intentResponse.error_message}`);
 		}
 
-		// NMP Robust Field Extraction (Supports both snake_case and camelCase via gRPC-JS)
+		// LIOP Robust Field Extraction (Supports both snake_case and camelCase via gRPC-JS)
 		const publicKey =
 			intentResponse.kyber_public_key || intentResponse.kyberPublicKey;
 		const sessionToken =
@@ -217,7 +217,7 @@ export class LiopClient {
 		const { ciphertext: encryptedWasm, nonce: aesNonce } =
 			AesGcmWrapper.encryptPayload(_safePayload, sharedSecret);
 
-		// Encrypt inputs using the SAME session nonce for the multi-payload request (Standard NMP V1)
+		// Encrypt inputs using the SAME session nonce for the multi-payload request (Standard LIOP V1)
 		const encryptedInputs: Record<string, Uint8Array> = {};
 		for (const [key, value] of Object.entries(request.arguments || {})) {
 			// We manually encrypt with the same nonce/key to match the Proto structure
@@ -364,7 +364,7 @@ export class LiopClient {
 
 	/**
 	 * Reads a specific resource by URI.
-	 * In NMP, resources can be static definitions or dynamic streams.
+	 * In LIOP, resources can be static definitions or dynamic streams.
 	 */
 	public async readResource(uri: string): Promise<{
 		contents: Array<{ uri: string; mimeType?: string; text: string }>;

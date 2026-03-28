@@ -1,11 +1,11 @@
 import { LiopClient } from "@nekzus/liop/client";
-import { NmpCompiler } from "./lib/compiler.js";
+import { LIOPCompiler } from "./lib/compiler.js";
 
 const client = new LiopClient();
 
 console.log(`
 ------------------------------------------------------------------
-   NMP INDUSTRIAL AGENT - STRATEGIC LOGIC INJECTION              
+   LIOP INDUSTRIAL AGENT - STRATEGIC LOGIC INJECTION              
 ------------------------------------------------------------------
 `);
 
@@ -25,7 +25,7 @@ const runAgent = async () => {
   `;
 
 	// Compiling
-	const wasmPayload = NmpCompiler.compile(auditLogic, ["vfs:read"]);
+	const wasmPayload = LIOPCompiler.compile(auditLogic, ["vfs:read"]);
 
 	// Post-Quantum Kyber & AES Sealing Visuals
 	const _serverPublicKey = new Uint8Array(1184).fill(0x01); // Simulated Kyber PK
@@ -34,7 +34,7 @@ const runAgent = async () => {
 	console.log(`[PILAR E] Sealing WASM Payload with AES-256-GCM...`);
 
 	try {
-		// In a real NMP stream, we would use a specialized transport.
+		// In a real LIOP stream, we would use a specialized transport.
 		// For this demo, we use a custom bridge that includes the wasmPayload.
 
 		console.log(`[PILAR C] Pushing Logic-on-Origin to ${peerId}...`);
@@ -70,7 +70,7 @@ const runAgent = async () => {
 			`------------------------------------------------------------------\n`,
 		);
 	} catch (err: unknown) {
-		console.error(`\n[NMP-AGENT] ❌ REQUEST FAILED: ${(err as Error).message}`);
+		console.error(`\n[LIOP-AGENT] ❌ REQUEST FAILED: ${(err as Error).message}`);
 	}
 };
 

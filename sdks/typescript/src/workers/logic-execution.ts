@@ -41,7 +41,7 @@ export default async function processLogicExecution(
 		const aesKey = Buffer.from(sharedSecret);
 
 		// 2. Decrypt Main Payload (WASM/JS Code)
-		// NMP Serialization: Ciphertext = EncryptedData + 16-byte AuthTag
+		// LIOP Serialization: Ciphertext = EncryptedData + 16-byte AuthTag
 		const wasmBuffer = Buffer.from(wasmBinary);
 		const authTag = wasmBuffer.subarray(-16);
 		const encryptedData = wasmBuffer.subarray(0, -16);

@@ -1,4 +1,4 @@
-import { NmpServer } from "@nekzus/neural-mesh";
+import { LiopServer } from "@nekzus/liop";
 import { z } from "zod";
 
 /**
@@ -10,7 +10,7 @@ import { z } from "zod";
  * 2. AES-256-GCM: High-speed symmetric encryption.
  */
 async function startBankVault() {
-	const server = new NmpServer({
+	const server = new LiopServer({
 		name: "Global-Bank-Vault",
 		version: "1.5.0",
 	});

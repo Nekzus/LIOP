@@ -1,8 +1,8 @@
-import { NmpMcpBridge, NmpServer } from "@nekzus/neural-mesh";
+import { LIOPMcpBridge, LiopServer } from "@nekzus/liop";
 import { z } from "zod";
 
 /**
- * NMP Advanced Server Example
+ * LIOP Advanced Server Example
  *
  * Demonstrates an enterprise-ready implementation showcasing:
  * 1. Strict Zod schema validations
@@ -11,9 +11,9 @@ import { z } from "zod";
  */
 
 async function main() {
-	console.log("=== Neural Mesh Protocol: Advanced Server ===");
+	console.log("=== Logic-Injection-on-Origin Protocol: Advanced Server ===");
 
-	const server = new NmpServer({ name: "GlobalDataHub", version: "2.1.0" });
+	const server = new LiopServer({ name: "GlobalDataHub", version: "2.1.0" });
 
 	// --- 1. Complex Tools with Zod Enforcement ---
 	server.tool(
@@ -70,7 +70,7 @@ async function main() {
 	console.log(
 		"\n[Server Info] Wrapping server with Legacy MCP Bridge adapter.",
 	);
-	const bridge = new NmpMcpBridge(server);
+	const bridge = new LIOPMcpBridge(server);
 
 	// Mock an incoming legacy JSON-RPC payload
 	const incomingCallCommand = {

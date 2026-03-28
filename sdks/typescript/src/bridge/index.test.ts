@@ -138,7 +138,7 @@ describe("LiopMcpBridge", () => {
 			params: { name: "fail", arguments: {} },
 		});
 
-		// Based on NmpServer implementation, it catches the error and returns it inside content with isError: true
+		// Based on LiopServer implementation, it catches the error and returns it inside content with isError: true
 		// Let's verify this behavior:
 		expect(res.result.isError).toBe(true);
 		expect(res.result.content[0].text).toContain("Simulated failure");

@@ -1,7 +1,7 @@
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 
 /**
- * NMP Symmetric Payload Encryption Wrapper
+ * LIOP Symmetric Payload Encryption Wrapper
  * Uses AES-256-GCM to secure WASM Code transport over Zero-Trust networks.
  * Fully compatible with the `aes-gcm` Rust crate used by Wasmtime.
  */
@@ -24,7 +24,7 @@ export const AesGcmWrapper = {
 			throw new Error("Symmetric Key must be exactly 32 bytes (256 bits).");
 		}
 
-		// NMP standard demands 96-bit (12 byte) IVs/Nonces for AES-GCM
+		// LIOP standard demands 96-bit (12 byte) IVs/Nonces for AES-GCM
 		const nonce = randomBytes(12);
 
 		const cipher = createCipheriv("aes-256-gcm", sharedSecret, nonce);
@@ -33,7 +33,7 @@ export const AesGcmWrapper = {
 		const encrypted = Buffer.concat([cipher.update(payload), cipher.final()]);
 		const authTag = cipher.getAuthTag(); // 16 bytes for GCM integrity
 
-		// In NMP, the auth tag is strictly appended to the end of the ciphertext bytes
+		// In LIOP, the auth tag is strictly appended to the end of the ciphertext bytes
 		// mirroring the default serialization logic within `aes_gcm::Aes256Gcm` in Rust
 		const finalCiphertext = Buffer.concat([encrypted, authTag]);
 

@@ -1,4 +1,4 @@
-Write-Host "Starting NMP Industrial Demo..." -ForegroundColor Cyan
+Write-Host "Starting LIOP Industrial Demo..." -ForegroundColor Cyan
 
 # Start The Vault in a new window
 Start-Process "cmd.exe" -ArgumentList "/k title THE VAULT && npx tsx 1-the-vault.ts"

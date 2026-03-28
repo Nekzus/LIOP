@@ -1,13 +1,13 @@
-import { NmpHybridGateway } from "../../src/gateway/hybrid.js";
-import { NmpServer } from "../../src/server/index.js";
+import { LIOPHybridGateway } from "../../src/gateway/hybrid.js";
+import { LiopServer } from "../../src/server/index.js";
 
 async function main() {
 	console.log("==================================================");
-	console.log("👁️   THE SENTINEL: NMP Hybrid L4/L7 Gateway");
+	console.log("👁️   THE SENTINEL: LIOP Hybrid L4/L7 Gateway");
 	console.log("==================================================");
 
 	// 1. Initialize an empty Data Server (The Sentinel doesn't hold data)
-	const emptyServer = new NmpServer({
+	const emptyServer = new LiopServer({
 		name: "the-sentinel",
 		version: "1.0.0",
 		capabilities: { tools: {} }, // Intentionally empty local tools
@@ -28,7 +28,7 @@ async function main() {
 	}
 
 	// Create Gateway with P2P Mesh configuration
-	const gateway = new NmpHybridGateway(emptyServer, {
+	const gateway = new LIOPHybridGateway(emptyServer, {
 		meshConfig: {
 			listenAddresses: ["/ip4/0.0.0.0/tcp/4063", "/ip4/0.0.0.0/tcp/4064/ws"],
 			identityPath: "sentinel-identity.json",
@@ -47,7 +47,7 @@ async function main() {
 		`[The Sentinel] 🚀 Transformer gateway running on http://localhost:3000/mcp`,
 	);
 	console.log(
-		`[The Sentinel] Ready to transcode JSON-RPC (MCP) to PQC gRPC (NMP).`,
+		`[The Sentinel] Ready to transcode JSON-RPC (MCP) to PQC gRPC (LIOP).`,
 	);
 
 	process.on("SIGINT", async () => {

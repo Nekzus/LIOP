@@ -1,8 +1,8 @@
-$workingDir = "z:\Nekzus-Solutions\Active-Projects\NMP-v1.0-alpha\sdks\typescript"
+$workingDir = "z:\Nekzus-Solutions\Active-Projects\\NMP-v1.0-alpha\\sdks\typescript"
 $demoDir = "$workingDir\examples\industrial-demo"
 
 Write-Host "==================================================" -ForegroundColor Cyan
-Write-Host "🧹 NMP MESH CLEANUP & RESET TOOL" -ForegroundColor Cyan
+Write-Host "🧹 LIOP MESH CLEANUP & RESET TOOL" -ForegroundColor Cyan
 Write-Host "==================================================" -ForegroundColor Cyan
 
 # 1. Kill all Node processes
@@ -20,10 +20,10 @@ Remove-Item "$workingDir\bank.multiaddr" -ErrorAction SilentlyContinue
 Remove-Item "$workingDir\oracle.multiaddr" -ErrorAction SilentlyContinue
 
 # 3. Clean up P2P Persistent Identities (optional, but good for total reset)
-Remove-Item "$HOME\.nmp\identity.json" -ErrorAction SilentlyContinue
+Remove-Item "$HOME\.LIOP\identity.json" -ErrorAction SilentlyContinue
 
 # 4. Rebuild SDK to be sure
-Write-Host "Rebuilding NMP SDK..." -ForegroundColor Yellow
+Write-Host "Rebuilding LIOP SDK..." -ForegroundColor Yellow
 cd $workingDir
 pnpm run build
 

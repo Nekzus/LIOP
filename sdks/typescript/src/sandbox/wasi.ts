@@ -114,7 +114,7 @@ export class WasiSandbox {
 				throw new Error("Wasmtime: Resource Exhaustion (Fuel limit exceeded)");
 			}
 
-			// Clean output: if it's an object, stringify it (NMP Standard)
+			// Clean output: if it's an object, stringify it (LIOP Standard)
 			const finalOutput =
 				typeof output === "object" ? JSON.stringify(output) : String(output);
 

@@ -1,5 +1,5 @@
 /**
- * Represents a violation of the NMP Zero-Trust Sandbox policy.
+ * Represents a violation of the LIOP Zero-Trust Sandbox policy.
  */
 export class GuardianViolationError extends Error {
 	constructor(message: string) {
@@ -9,14 +9,14 @@ export class GuardianViolationError extends Error {
 }
 
 /**
- * NMP Guardian-TS (TypeScript Validator)
+ * LIOP Guardian-TS (TypeScript Validator)
  * Emulates the zero-time AST inspection done by `wasmparser` in Rust.
  * Scans the WebAssembly module imports before instantiation to prevent
- * sandbox escapes and limits execution strictly to WASI and NMP APIs.
+ * sandbox escapes and limits execution strictly to WASI and LIOP APIs.
  */
 export const GuardianTS = {
 	/**
-	 * Scans raw WASM bytes to ensure 100% compliance with NMP Logic-on-Origin boundaries.
+	 * Scans raw WASM bytes to ensure 100% compliance with LIOP Logic-on-Origin boundaries.
 	 *
 	 * @param wasmBytes The raw compiled `.wasm` buffer to inspect
 	 * @returns A parsed WebAssembly.Module proven safe for sandboxed execution
@@ -48,9 +48,9 @@ export const GuardianTS = {
 		let importCount = 0;
 
 		for (const imp of imports) {
-			// Strict Sandbox Validation: Only allow WASI preview 1 and native NMP functions.
+			// Strict Sandbox Validation: Only allow WASI preview 1 and native LIOP functions.
 			// Reject any custom or unexpected host imports (e.g. `env.shell_exec`, `fs.open`).
-			if (imp.module !== "wasi_snapshot_preview1" && imp.module !== "nmp") {
+			if (imp.module !== "wasi_snapshot_preview1" && imp.module !== "LIOP") {
 				throw new GuardianViolationError(
 					`Banned Host Import Detected: ${imp.module}/${imp.name}`,
 				);
@@ -59,7 +59,7 @@ export const GuardianTS = {
 		}
 
 		console.error(
-			`[Guardian-TS] ✅ AST clean. Validated ${importCount} WASI/NMP imports.`,
+			`[Guardian-TS] ✅ AST clean. Validated ${importCount} WASI/LIOP imports.`,
 		);
 		return module;
 	},

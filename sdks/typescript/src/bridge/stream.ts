@@ -69,7 +69,7 @@ export class LiopStreamBridge {
 	}
 
 	/**
-	 * Creates a new per-session transport instance and wires it to the NmpMcpBridge logic.
+	 * Creates a new per-session transport instance and wires it to the LIOPMcpBridge logic.
 	 */
 	private createSessionTransport(
 		clientIp: string,

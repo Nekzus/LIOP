@@ -23,9 +23,9 @@ export const ASTGuardian = {
 		let _importCount = 0;
 
 		for (const imp of imports) {
-			// Strict Sandbox Validation: Only allow WASI preview 1 and native NMP functions.
+			// Strict Sandbox Validation: Only allow WASI preview 1 and native LIOP functions.
 			// Reject any custom or unexpected host imports.
-			if (imp.module !== "wasi_snapshot_preview1" && imp.module !== "nmp") {
+			if (imp.module !== "wasi_snapshot_preview1" && imp.module !== "LIOP") {
 				throw new GuardianError(
 					`Banned Host Import Detected: ${imp.module}/${imp.name}`,
 				);
