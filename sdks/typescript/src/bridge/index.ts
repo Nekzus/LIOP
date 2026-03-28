@@ -124,7 +124,7 @@ export class LiopMcpBridge {
 				return this.errorResponse(id, -32602, "Missing resource URI");
 			}
 			try {
-				const result = this.liopServer.readResource(params.uri as string);
+				const result = await this.liopServer.readResource(params.uri as string);
 				return this.successResponse(id, result);
 			} catch (err: unknown) {
 				return this.errorResponse(id, -32000, (err as Error).message);
@@ -245,6 +245,41 @@ export class LiopMcpBridge {
 
 			if (this.options.publishToMesh) {
 				await this.liopServer.connect();
+
+				// Automatically Bridge Legacy Capabilities to LIOP Mesh
+				const legacy = this.legacyMcpServer as any;
+				
+				// 1. Sync Tools
+				if (legacy._registeredTools) {
+					for (const [name, tool] of Object.entries(legacy._registeredTools)) {
+						const t = tool as any;
+						this.liopServer.tool(
+							name, 
+							t.description || "", 
+							t.inputSchema || {}, 
+							async (args: any) => {
+								return await t.handler(args);
+							}
+						);
+					}
+				}
+
+				// 2. Sync Resources
+				if (legacy._registeredResources) {
+					for (const [uri, resource] of Object.entries(legacy._registeredResources)) {
+						const r = resource as any;
+						this.liopServer.resource(
+							r.name, 
+							uri, 
+							r.metadata?.description || "", 
+							r.metadata?.mimeType || "application/octet-stream", 
+							async () => {
+								const res = await r.readCallback(new URL(uri));
+								return res.contents[0].text;
+							}
+						);
+					}
+				}
 			}
 			return;
 		}

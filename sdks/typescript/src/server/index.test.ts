@@ -99,7 +99,7 @@ describe("LiopServer", () => {
 		);
 	});
 
-	it("should provide a data dictionary resource", () => {
+	it("should provide a data dictionary resource", async () => {
 		const server = new LiopServer({ name: "test", version: "1" });
 		server.dataDictionary(
 			{
@@ -114,13 +114,13 @@ describe("LiopServer", () => {
 		expect(resources.length).toBe(1);
 		expect(resources[0].uri).toBe("liop://schema/app");
 
-		const content = server.readResource("liop://schema/app");
+		const content = await server.readResource("liop://schema/app");
 		expect(JSON.stringify(content)).toContain("test");
 	});
 
-	it("should throw if reading an unregistered resource", () => {
+	it("should throw if reading an unregistered resource", async () => {
 		const server = new LiopServer({ name: "test", version: "1" });
-		expect(() => server.readResource("liop://not-found")).toThrowError(
+		await expect(server.readResource("liop://not-found")).rejects.toThrowError(
 			"Resource not found: liop://not-found",
 		);
 	});

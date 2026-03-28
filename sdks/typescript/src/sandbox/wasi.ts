@@ -6,6 +6,22 @@ import vm from "node:vm";
 import { WASI } from "node:wasi";
 import { ASTGuardian } from "./guardian.js";
 
+// Silence Node.js ExperimentalWarning for WASI (Industrial console parity)
+const originalEmit = process.emit;
+// @ts-ignore
+process.emit = function (name, data, ...args) {
+	if (
+		name === "warning" &&
+		typeof data === "object" &&
+		(data as any).name === "ExperimentalWarning" &&
+		((data as any).message.includes("WASI") ||
+			(data as any).message.includes("importing WASI"))
+	) {
+		return false;
+	}
+	return originalEmit.call(process, name, data, ...args);
+};
+
 export interface SandboxConfig {
 	allowEnv?: boolean;
 	allowedDirectories?: Record<string, string>; // guestPath -> hostPath
@@ -24,6 +40,8 @@ export class WasiSandbox {
 	private sandboxId: string;
 	private workingDir: string;
 	private config: SandboxConfig;
+	private stdoutHandle: any | null = null;
+	private stderrHandle: any | null = null;
 
 	constructor(config: SandboxConfig = {}) {
 		this.sandboxId = crypto.randomUUID();
@@ -45,6 +63,15 @@ export class WasiSandbox {
 			await fs.mkdir(this.workingDir, { recursive: true });
 
 			// Initialize WASI with explicit limits
+			this.stdoutHandle = await fs.open(
+				path.join(this.workingDir, "stdout.log"),
+				"w+",
+			);
+			this.stderrHandle = await fs.open(
+				path.join(this.workingDir, "stderr.log"),
+				"w+",
+			);
+
 			this.wasi = new WASI({
 				version: "preview1",
 				args: ["liop_runtime"],
@@ -59,6 +86,8 @@ export class WasiSandbox {
 					"/sandbox": this.workingDir,
 					...this.config.allowedDirectories,
 				},
+				stdout: this.stdoutHandle.fd,
+				stderr: this.stderrHandle.fd,
 			});
 		} catch (error) {
 			throw new Error(
@@ -93,9 +122,15 @@ export class WasiSandbox {
 				// Standard entry point
 				this.wasi.start(instance);
 
+				// Capture output from the sandbox
+				const stdoutPath = path.join(this.workingDir, "stdout.log");
+				const stderrPath = path.join(this.workingDir, "stderr.log");
+				const stdout = await fs.readFile(stdoutPath, "utf-8");
+				const stderr = await fs.readFile(stderrPath, "utf-8");
+
 				const duration = performance.now() - startTime;
 				return {
-					output: "WASM_EXECUTION_SUCCESS",
+					output: stdout || (stderr ? `Error: ${stderr}` : "WASM_EXECUTION_SUCCESS"),
 					fuelConsumed: Math.floor(duration * 1000),
 				};
 			} catch (error: unknown) {
@@ -175,6 +210,8 @@ export class WasiSandbox {
 	 */
 	public async teardown(): Promise<void> {
 		try {
+			if (this.stdoutHandle) await this.stdoutHandle.close();
+			if (this.stderrHandle) await this.stderrHandle.close();
 			await fs.rm(this.workingDir, { recursive: true, force: true });
 		} catch (_e) {
 			// Silent fail on teardown to prevent process crashes

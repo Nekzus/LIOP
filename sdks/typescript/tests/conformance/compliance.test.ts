@@ -131,15 +131,15 @@ describe("MCP Protocol Conformance", () => {
 			).toThrow("Resource URI already registered: liop://test/dataset");
 		});
 
-		it("should read resource content by URI", () => {
-			const result = server.readResource("liop://test/dataset");
+		it("should read resource content by URI", async () => {
+			const result = await server.readResource("liop://test/dataset");
 			expect(result.contents).toBeInstanceOf(Array);
 			expect(result.contents[0].uri).toBe("liop://test/dataset");
 			expect(result.contents[0].text).toBe('{"records": []}');
 		});
 
-		it("should throw for unknown URI", () => {
-			expect(() => server.readResource("liop://unknown")).toThrow(
+		it("should throw for unknown URI", async () => {
+			await expect(server.readResource("liop://unknown")).rejects.toThrow(
 				"Resource not found",
 			);
 		});

@@ -64,8 +64,10 @@ export class LiopServer {
 		// biome-ignore lint/suspicious/noExplicitAny: Types erased at runtime, Map holds heterogeneous generics
 		{ tool: Tool; handler: ToolHandler<any>; schema: z.ZodObject<any> }
 	> = new Map();
-	private resources: Map<string, Resource & { contentText?: string }> =
-		new Map();
+	private resources: Map<
+		string,
+		Resource & { content?: string | (() => Promise<string>) }
+	> = new Map();
 	private prompts: Map<
 		string,
 		{
@@ -413,12 +415,12 @@ Protocol Adherence is mandatory for successful execution.`,
 		uri: string,
 		description?: string,
 		mimeType?: string,
-		contentText?: string,
+		content?: string | (() => Promise<string>),
 	): void {
 		if (this.resources.has(uri)) {
 			throw new Error(`Resource URI already registered: ${uri}`);
 		}
-		this.resources.set(uri, { name, uri, description, mimeType, contentText });
+		this.resources.set(uri, { name, uri, description, mimeType, content });
 	}
 
 	/**
@@ -551,25 +553,29 @@ Protocol Adherence is mandatory for successful execution.`,
 	/**
 	 * Reads a specific resource by URI
 	 */
-	public readResource(uri: string): {
+	public async readResource(uri: string): Promise<{
 		contents: Array<{ uri: string; mimeType?: string; text: string }>;
-	} {
+	}> {
 		const resource = this.resources.get(uri);
 		if (!resource) {
 			throw new Error(`Resource not found: ${uri}`);
 		}
 
-		// In a real scenario, this would read from disk or a database
-		// For our Logic-on-Origin demo, we'll return its description/content
+		let text = "No description provided";
+		if (typeof resource.content === "function") {
+			text = await resource.content();
+		} else if (typeof resource.content === "string") {
+			text = resource.content;
+		} else if (resource.description) {
+			text = resource.description;
+		}
+
 		return {
 			contents: [
 				{
 					uri: resource.uri,
 					mimeType: resource.mimeType || "text/plain",
-					text:
-						resource.contentText ||
-						resource.description ||
-						"No description provided",
+					text,
 				},
 			],
 		};
@@ -625,7 +631,7 @@ Protocol Adherence is mandatory for successful execution.`,
 				uri: r.uri,
 				description: r.description,
 				mimeType: r.mimeType,
-				text: r.contentText,
+				text: typeof r.content === "string" ? r.content : r.description,
 			}));
 
 			return {

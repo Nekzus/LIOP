@@ -41,14 +41,13 @@ export class LiopRpcServer {
 		const credentials = createServerCredentials(tls);
 		return new Promise((resolve, reject) => {
 			this.server.bindAsync(
-				`127.0.0.1:${port}`,
+				`0.0.0.0:${port}`,
 				credentials,
 				(error, assignedPort) => {
 					if (error) {
 						reject(error);
 						return;
 					}
-					this.server.start();
 					console.error(`[LIOP-RPC] Server listening on port ${assignedPort}`);
 					resolve();
 				},
