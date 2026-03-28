@@ -38,7 +38,7 @@ importers:
 
   examples/demos:
     dependencies:
-      '@nekzus/neural-mesh':
+      '@nekzus/liop':
         specifier: workspace:*
         version: link:../../sdks/typescript
       tsx:
@@ -57,7 +57,7 @@ importers:
 
   examples/demos/high-fidelity-demo:
     dependencies:
-      '@nekzus/neural-mesh':
+      '@nekzus/liop':
         specifier: workspace:*
         version: link:../../../sdks/typescript
     devDependencies:
@@ -67,7 +67,7 @@ importers:
 
   examples/demos/sentinel-mesh:
     dependencies:
-      '@nekzus/neural-mesh':
+      '@nekzus/liop':
         specifier: workspace:*
         version: link:../../../sdks/typescript
       chalk:
@@ -204,7 +204,7 @@ importers:
 
   sdks/typescript/examples/client-quickstart:
     dependencies:
-      '@nekzus/neural-mesh':
+      '@nekzus/liop':
         specifier: workspace:*
         version: link:../..
     devDependencies:
@@ -223,7 +223,7 @@ importers:
 
   sdks/typescript/examples/server:
     dependencies:
-      '@nekzus/neural-mesh':
+      '@nekzus/liop':
         specifier: workspace:*
         version: link:../..
     devDependencies:
@@ -245,7 +245,7 @@ importers:
 
   sdks/typescript/examples/server-quickstart:
     dependencies:
-      '@nekzus/neural-mesh':
+      '@nekzus/liop':
         specifier: workspace:*
         version: link:../..
     devDependencies:

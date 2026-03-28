@@ -575,3 +575,9 @@ El proyecto funciona bajo un ecosistema `Cargo Workspace` modular:
   - **Validación del Runtime**: Implementada suite wasi.test.ts verificando aislamiento de VM (process hiding) y límites de fuel.
   - **Éxito del 100%**: Alcanzada la marca de **98/98 tests exitosos** en todo el ecosistema del SDK, garantizando una base de código robusta y probada para entornos de producción comercial.
 
+
+- [ ] **Fase 87: Industrial Parity & SDK Refinement [En Progreso]:**
+  - **Sincronización de API**: Refactorización del constructor de LiopServer para soportar la configuración de workerPool y security tal como se describe en la documentación oficial de Mintlify.
+  - **Alias de Conveniencia**: Implementación del método .connect() como un alias de .connectToMesh().
+  - **Puente Bi-direccional (LiopMcpBridge)**: Evolución del adaptador para soportar el modo 'Wrap Legacy Server'.
+  - **Documentación de Cierre**: Adición de guías de 'Shutdown Seguro' (server.close()) en los manuales MDX.
