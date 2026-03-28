@@ -171,6 +171,10 @@ cargo test
 - [Protocol Specification](./protocol/SPECIFICATION.md)
 - [Project Manifesto](./MANIFESTO.md)
 
+## 🤖 AI Agent Support
+
+This project includes a native [AGENTS.md](./AGENTS.md) file to provide optimized context and rules for AI-assisted development (Google Antigravity, Claude, Cursor). It ensures architectural alignment and security compliance during autonomous tasks.
+
 ## Contributing
 
 We welcome contributions! Please read our [Contributing Guide](./CONTRIBUTING.md) for guidelines on how to get involved. This project adheres to a [Code of Conduct](./CODE_OF_CONDUCT.md).
