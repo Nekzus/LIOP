@@ -57,8 +57,17 @@ async function main() {
 	const hybridGateway = new LiopHybridGateway(theVaultServer, null, RPC_PORT);
 	await hybridGateway.listen(3000, "0.0.0.0");
 	console.log(
-		`[VAULT-SERVER] LIOP Unified Mock Server READY (forbiddenKeys: id, name).`,
+		`\n[VAULT-SERVER] 🚀 LIOP Industrial Mesh Server is ONLINE.`,
+	);
+	console.log(
+		`[VAULT-SERVER] --> gRPC Mesh Node: http://localhost:${RPC_PORT}`,
+	);
+	console.log(
+		`[VAULT-SERVER] --> Hybrid Gateway (MCP): http://localhost:3000/mcp\n`,
 	);
 }
 
-main().catch(console.error);
+main().catch((err) => {
+	console.error(`[VAULT-SERVER] FATAL ERROR during startup: ${err.message}`);
+	process.exit(1);
+});

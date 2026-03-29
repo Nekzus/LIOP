@@ -35,6 +35,9 @@ export class LiopHybridGateway {
 		this.netServer = net.createServer((socket) => {
 			socket.once("data", (buffer) => {
 				const isHttp2 = buffer.toString().startsWith("PRI * HTTP/2.0");
+				console.error(
+					`[LIOP-Gateway] Incoming L4 Connection. Protocol: ${isHttp2 ? "HTTP/2 (gRPC)" : "HTTP/1.1 (MCP)"}`,
+				);
 				if (isHttp2) {
 					this.h2Server.emit("connection", socket);
 				} else {
@@ -43,9 +46,18 @@ export class LiopHybridGateway {
 				socket.unshift(buffer);
 			});
 			socket.on("error", (err) =>
-				console.error(`[LIOP-Gateway] Socket Error: ${err.message}`),
+				console.error(`[LIOP-Gateway] NetServer Socket Error: ${err.message}`),
 			);
 		});
+
+		// Attach error listeners to sub-servers to catch silent failures
+		this.h1Server.on("error", (err) =>
+			console.error(`[LIOP-Gateway] H1 Server Error: ${err.message}`),
+		);
+		this.h2Server.on("error", (err) =>
+			console.error(`[LIOP-Gateway] H2 Server Error: ${err.message}`),
+		);
+
 		console.error("[LIOP-Gateway] Hybrid adapter initialized.");
 	}
 
@@ -67,7 +79,7 @@ export class LiopHybridGateway {
 			const url = req.url || "";
 			const method = req.method;
 
-			if (method === "GET" && (url === "/" || url === "/mcp")) {
+			if (method === "GET" && (url === "/" || url === "/mcp" || url === "/health")) {
 				res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
 				res.end(`
                     <body style="background:#0f172a;color:#f8fafc;font-family:sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;margin:0">
@@ -163,16 +175,23 @@ export class LiopHybridGateway {
 			}
 		}
 		return new Promise((resolve, reject) => {
-			const _shutdown = async () => {
-				console.error(
-					"[LIOP-Gateway] Disconnecting MCP session and releasing ports...",
-				);
-				process.exit(0);
-			};
-			this.netServer.on("error", (err) => reject(err));
+			this.netServer.on("error", (err: Error & { code?: string }) => {
+				if (err.code === "EADDRINUSE") {
+					console.error(
+						`[LIOP-Gateway] FATAL: Port ${port} is already in use by another process.`,
+					);
+				} else {
+					console.error(`[LIOP-Gateway] Binding Error: ${err.message}`);
+				}
+				reject(err);
+			});
+
 			this.netServer.listen(port, host, () => {
+				const addr = this.netServer.address();
+				const actualHost =
+					typeof addr === "string" ? addr : addr?.address || host;
 				console.error(
-					`[LIOP-Gateway] Transformer listening on ${host}:${port}`,
+					`[LIOP-Gateway] ✅ Transformer Mesh Gateway READY and listening on ${actualHost}:${port}`,
 				);
 				resolve();
 			});
