@@ -56,9 +56,7 @@ async function main() {
 
 	const hybridGateway = new LiopHybridGateway(theVaultServer, null, RPC_PORT);
 	await hybridGateway.listen(3000, "0.0.0.0");
-	console.log(
-		`\n[VAULT-SERVER] 🚀 LIOP Industrial Mesh Server is ONLINE.`,
-	);
+	console.log(`\n[VAULT-SERVER] 🚀 LIOP Industrial Mesh Server is ONLINE.`);
 	console.log(
 		`[VAULT-SERVER] --> gRPC Mesh Node: http://localhost:${RPC_PORT}`,
 	);

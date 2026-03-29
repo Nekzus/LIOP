@@ -79,7 +79,10 @@ export class LiopHybridGateway {
 			const url = req.url || "";
 			const method = req.method;
 
-			if (method === "GET" && (url === "/" || url === "/mcp" || url === "/health")) {
+			if (
+				method === "GET" &&
+				(url === "/" || url === "/mcp" || url === "/health")
+			) {
 				res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
 				res.end(`
                     <body style="background:#0f172a;color:#f8fafc;font-family:sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;margin:0">
