@@ -1,6 +1,6 @@
 {
 	"name": "@nekzus/neural-mesh",
-	"version": "1.2.0-alpha.7",
+	"version": "1.2.0-alpha.8",
 	"description": "Official SDK for Neural Mesh Protocol (NMP). Deploy Logic-on-Origin with WebAssembly at gRPC speed and bidirectional MCP compatibility.",
 	"main": "dist/index.js",
 	"types": "dist/index.d.ts",

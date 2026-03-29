@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.2.0-alpha.8](https://github.com/Nekzus/Neural-Mesh-Protocol/compare/v1.2.0-alpha.7...v1.2.0-alpha.8) (2026-03-23)
+
+
+### Features
+
+* implement global remote resource attachment via manifest caching ([9d7c81f](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/9d7c81fdebbd4ad1b3551a0103f47d74039ce3cf))
+* Neural Mesh Protocol - Full Industrial LOO Migration & Safety Alignment 🛡️🤖 ([1100dbe](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/1100dbe8a14341c777a2463ecd6d9b99e49d47c5))
+* NMP Industrial High-Fidelity - Precision Logic Extraction & Spec Compliance ([6fd2152](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/6fd2152e57e17a408f9bfd14e06459a124a9d661)), closes [Hi#Fidelity](https://github.com/Hi/issues/Fidelity)
+
 # [1.2.0-alpha.7](https://github.com/Nekzus/Neural-Mesh-Protocol/compare/v1.2.0-alpha.6...v1.2.0-alpha.7) (2026-03-23)
 
 
