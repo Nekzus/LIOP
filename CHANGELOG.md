@@ -3,6 +3,29 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.2.0-alpha.9](https://github.com/Nekzus/Neural-Mesh-Protocol/compare/v1.2.0-alpha.8...v1.2.0-alpha.9) (2026-03-29)
+
+
+### Bug Fixes
+
+* **ci:** match pnpm version to package.json and update rebranding filters ([2a8016d](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/2a8016db0b4506755fe70367f80a5810d4ef57d6))
+* **demos:** unificar nomenclatura LIOP en demos industriales y educativas ([387ea91](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/387ea911f51d1560091199cec35559c8a66bd86e))
+* **rebrand:** resolve discovery issues and synchronize error messages for LIOP parity ([4d34c8a](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/4d34c8aa0dcc9bf11ff82a76cadbdb3316a4b270))
+* **rebrand:** update tests and SDK components to LIOP brand parity ([a2557f9](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/a2557f962ab03e9b84249da814b610dc60908166))
+* resolve SDK build errors and standardize script types ([e8eb96f](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/e8eb96f09ea30fe1a28c5eccdde18f90f0b6877c))
+
+
+### Features
+
+* **global:** Unificación total de marca LIOP y Paridad de Protocolo v1.0.0-alpha ([00bdc81](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/00bdc813aaa4599afdad60a8af90dca20c4cd593)), closes [Hi#Fidelity](https://github.com/Hi/issues/Fidelity)
+* **sdk:** achieve 100% industrial parity v1.2.0-alpha.x ([f4b59f5](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/f4b59f53fae1d4d9f2729c8506b5ffd690261a3c))
+* **sdk:** achieve Tier-0 industrial standards for LIOP protocol. Integrated cryptographic verification (Kyber768), hardened WASI sandbox, and normalized logging. 100% test success rate (98/98). ([bebe433](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/bebe433931738fd54dbf3cba3fbf68bb9ba20b09))
+* **sdk:** finalize industrial parity v1.2.0-beta ([73ffd2b](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/73ffd2b9a9ac22b9df6ec3ae42443e1d0aec5ce2)), closes [hi#level](https://github.com/hi/issues/level)
+* **sdk:** migrate PQC to FIPS 203 (mlkem), harden gRPC/Piscina, bump libp2p patches ([8c2caa5](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/8c2caa5810b5b55aaf70fc567324021f59f5ba20))
+* **sdk:** modernize to McpServer API, silence console & industrialize Tier-0 stability ([c600c27](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/c600c27ae2ac330fa10dc2571f99d2bb311b3166))
+* **sdk:** stabilize hybrid gateway and enable health check endpoint ([07f6b34](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/07f6b3473526e74c296ed138d5cc4b563084ef2d))
+* **typescript:** finalize Tier-0 industrial parity & worker pool resiliency ([fa97150](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/fa97150af6448772149d6111b0f9708716dad170))
+
 # [1.2.0-alpha.8](https://github.com/Nekzus/Neural-Mesh-Protocol/compare/v1.2.0-alpha.7...v1.2.0-alpha.8) (2026-03-23)
 
 
