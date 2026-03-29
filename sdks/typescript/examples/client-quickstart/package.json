@@ -1,5 +1,5 @@
 {
-	"name": "@neural-mesh/example-client-quickstart",
+	"name": "@liop/example-client-quickstart",
 	"private": true,
 	"version": "1.0.0",
 	"type": "module",
