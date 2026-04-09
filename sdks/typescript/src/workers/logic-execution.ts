@@ -34,6 +34,7 @@ export default async function processLogicExecution(data: WorkerData): Promise<{
 
 	let decryptedPayload: Buffer | string;
 	const decryptedInputs: Record<string, unknown> = {};
+	let sessionSecret = Buffer.alloc(32); // Fallback if plain text (no PQC)
 
 	if (isEncrypted) {
 		// 1. Decapsulate Kyber secret
@@ -42,6 +43,7 @@ export default async function processLogicExecution(data: WorkerData): Promise<{
 		const kem = await createMlKem768();
 		const sharedSecret = kem.decap(ct, sk);
 		const aesKey = Buffer.from(sharedSecret);
+		sessionSecret = aesKey;
 
 		// 2. Decrypt Main Payload (WASM/JS Code)
 		// LIOP Serialization: Ciphertext = EncryptedData + 16-byte AuthTag
@@ -127,10 +129,7 @@ export default async function processLogicExecution(data: WorkerData): Promise<{
 			decryptedInputs,
 		);
 
-		// 5. Generate ZK Receipt Mock / Cryptographic Proof of Execution
-		// Simulate the computational overhead of running the logic inside a zkVM Prover like RISC Zero (~50ms test)
-		await new Promise((resolve) => setTimeout(resolve, 50));
-
+		// 5. Generate Cryptographic Proof of Execution (HMAC-SHA256 Commitment)
 		const logicBuffer =
 			decryptedPayload instanceof Buffer
 				? decryptedPayload
@@ -140,12 +139,31 @@ export default async function processLogicExecution(data: WorkerData): Promise<{
 		hasher.update(logicBuffer);
 		const imageId = hasher.digest("hex");
 
-		// Phase 5: Structured ZK-Receipt (Journal + Seal)
-		// Alpha payload with minimum entropy representing the cryptographic Seal
-		const dummySeal = crypto.randomBytes(64).toString("hex");
-		const zkReceipt = Buffer.from(
-			`JOURNAL:${imageId}|SEAL:${dummySeal}`,
-		).toString("base64");
+		const journal = Buffer.from(
+			JSON.stringify({
+				image_id: imageId,
+				output_hash: crypto
+					.createHash("sha256")
+					.update(result.output)
+					.digest("hex"),
+				fuel: result.fuelConsumed,
+				ts: Date.now(),
+			}),
+		);
+
+		const seal = crypto
+			.createHmac("sha256", sessionSecret)
+			.update(journal)
+			.digest();
+		const journalLen = Buffer.alloc(2);
+		journalLen.writeUInt16BE(journal.length);
+		const receiptBuf = Buffer.concat([
+			Buffer.from([0x01]), // Receipt format v1
+			journalLen,
+			journal,
+			seal, // 32 bytes HMAC
+		]);
+		const zkReceipt = receiptBuf.toString("base64");
 
 		return {
 			image_id: imageId,

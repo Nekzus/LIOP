@@ -332,29 +332,31 @@ export class LiopClient {
 		}
 		console.error(`[LiopClient] Querying Mesh for Resource: ${uri}...`);
 
-		// For now, in Alpha v3, we assume the resource is provided by an active provider.
-		// A more complex implementation would use resolveCapability(uri).
-		// For the industrial demo, we'll simulate a direct read if connected or throw.
-		const rpcClient =
-			this.rpcClients.get("static") || Array.from(this.rpcClients.values())[0];
-		if (!rpcClient) {
-			throw new Error(
-				"Resource reading requires an active RPC connection to a provider.",
-			);
+		// We search for the peer hosting the resource in the P2P Mesh
+		const providers = await this.meshNode.getProviders(uri);
+		if (providers.length === 0) {
+			throw new Error(`No mesh providers found for resource: ${uri}`);
 		}
 
-		// This emulates the resource retrieval.
-		// In a full implementation, this might be a gRPC call.
+		// Query the remote peer's manifest
+		const manifest = await this.meshNode.queryManifest(providers[0]);
+		if (!manifest) {
+			throw new Error("Target peer did not return a valid LIOP Manifest.");
+		}
+
+		// Locate the exact resource metadata
+		const resourceDef = manifest.resources?.find((r) => r.uri === uri);
+		if (!resourceDef) {
+			throw new Error(`Resource ${uri} not listed in remote manifest.`);
+		}
+
+		// Return the declarative metadata (Logic-Injection is required for actual data extraction)
 		return {
 			contents: [
 				{
 					uri,
-					mimeType: "application/json",
-					text: JSON.stringify({
-						status: "Alpha-Resource-Read-Success",
-						uri,
-						timestamp: new Date().toISOString(),
-					}),
+					mimeType: resourceDef.mimeType || "application/json",
+					text: JSON.stringify(resourceDef, null, 2),
 				},
 			],
 		};

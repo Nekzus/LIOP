@@ -20,7 +20,7 @@ async function syncMetadata() {
 	}
 
 	const metadata = JSON.parse(fs.readFileSync(metadataPath, "utf-8"));
-	const { repo, docs, author } = metadata;
+	const { repo, docs } = metadata;
 	const newRepoFull = `${repo.owner}/${repo.name}`;
 	const newRepoUrl = `https://github.com/${newRepoFull}`;
 

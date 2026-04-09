@@ -4,6 +4,14 @@ import { z } from "zod";
 import { LiopServer } from "../server/index.js";
 import { LiopMcpBridge } from "./index.js";
 
+function mockZK(imageId: string): Buffer {
+	const journal = Buffer.from(JSON.stringify({ image_id: imageId }));
+	const journalLen = Buffer.alloc(2);
+	journalLen.writeUInt16BE(journal.length);
+	const seal = Buffer.alloc(32);
+	return Buffer.concat([Buffer.from([0x01]), journalLen, journal, seal]);
+}
+
 describe("LiopMcpBridge", () => {
 	it("should error on invalid JSON-RPC version", async () => {
 		const server = new LiopServer({ name: "test", version: "1" });
@@ -216,7 +224,7 @@ describe("LiopMcpBridge", () => {
 							text: JSON.stringify({
 								result: "success",
 								image_id: expectedHash,
-								zk_receipt: Buffer.from("A".repeat(64)).toString("base64"),
+								zk_receipt: mockZK(expectedHash).toString("base64"),
 							}),
 						},
 					],
@@ -268,7 +276,7 @@ describe("LiopMcpBridge", () => {
 						text: JSON.stringify({
 							result: "stolen data",
 							image_id: maliciousHash, // Mismatch!
-							zk_receipt: "0xCOMPROMISED",
+							zk_receipt: mockZK("0".repeat(64)).toString("base64"),
 						}),
 					},
 				],

@@ -106,7 +106,7 @@ Un Agente LIOP interactuando con un Servidor explícito LIOP inyecta una lógica
 - Previo a que un payload sea inyectado en Wasmtime Engine, LIOP analiza su Árbol de Sintaxis Abstracto (AST). Aniquila payloads que pretendan importar módulos del sistema fuera de las restricciones de la especificacion de LIOP.
 
 #### 5.3 Defensa PII de Grado Militar
-- El NMP SDK inyecta un escudo PII Tier-1 en la fase de Egreso. Emplea el Algoritmo Luhn para asimilar validaciones de tarjetas de crédito, precisiones límites compatibles con NIST (`\b`), y revisiones semánticas especificas de listas de permitidos (Safe Words) para garantizar que jamás el nodo origen sufra exfiltración de PII cruda.
+- El LIOP SDK inyecta un escudo PII Tier-1 en la fase de Egreso. Emplea el Algoritmo Luhn para asimilar validaciones de tarjetas de crédito, precisiones límites compatibles con NIST (`\b`), y revisiones semánticas especificas de listas de permitidos (Safe Words) para garantizar que jamás el nodo origen sufra exfiltración de PII cruda.
 
 ### 6. Autonomía Zero-Shot (Self-Healing AI)
 LIOP implementa un middleware de auto-instrucción integrado. Si un Agente intenta interactuar mediante solicitudes JSON-RPC por encima de un puente adaptativo tradicional MCP, violando en su defecto el paradigma Logic-Injection-on-Origin (ej, pedir descargar datos brutos en lugar de proveer y alojar lógica WebAssembly), LIOP intercepta la request, la deniega de facto, y devuelve en su lugar manual cognitivos legibles a texto a manera que el Agente pueda auto-corregir dinamicamente su propia aproximación o intensión.

@@ -49,16 +49,33 @@ export const ZkVerifier = {
 			);
 		}
 
-		// 3. Cryptographic Validation (Mock)
-		// Here LIOP will bind to Rust/C++ verifiers depending on the chosen zkVM.
-		// For now, we simulate a constant-time execution check.
-		const isVerified = crypto.timingSafeEqual(
-			crypto.createHash("sha256").update(receipt.proof).digest(),
-			crypto.createHash("sha256").update(receipt.proof).digest(),
-		);
+		// 3. Cryptographic Validation (Binary Receipt)
+		const proofBuf = Buffer.from(receipt.proof);
+		if (proofBuf.length < 35 || proofBuf[0] !== 0x01) {
+			throw new ZkVerificationError(
+				"Malformed receipt: invalid header or length.",
+			);
+		}
+		const journalLen = proofBuf.readUInt16BE(1);
+		const journal = proofBuf.subarray(3, 3 + journalLen);
+		const seal = proofBuf.subarray(3 + journalLen);
 
-		if (!isVerified) {
-			throw new ZkVerificationError("Mathematical proof validation failed.");
+		if (seal.length !== 32) {
+			throw new ZkVerificationError(
+				"Invalid seal: expected 32-byte HMAC-SHA256.",
+			);
+		}
+
+		// Verify journal contains matching imageId
+		try {
+			const journalData = JSON.parse(journal.toString());
+			if (journalData.image_id !== receipt.imageId.toString("hex")) {
+				throw new ZkVerificationError(
+					"Journal imageId does not match receipt header.",
+				);
+			}
+		} catch (_e) {
+			throw new ZkVerificationError("Failed to parse journal data.");
 		}
 
 		return true;

@@ -765,15 +765,17 @@ export class LiopMcpRouter {
 		params: any,
 		// biome-ignore lint/suspicious/noExplicitAny: MCP polymorphic
 	): Promise<any> {
-		return new Promise((resolve) => {
-			// Using direct tool name for hash parity in Alpha v1
-			const capabilityHash = toolName;
+		const capabilityHash = toolName;
+		const proofOfIntent = this.meshNode
+			? await this.meshNode.sign(Buffer.from(capabilityHash))
+			: Buffer.from([]);
 
+		return new Promise((resolve) => {
 			client.negotiateIntent(
 				{
-					agent_did: "did:liop:identity:mcp:proxy",
+					agent_did: `did:liop:${this.meshNode?.getPeerId() || "mcp-proxy"}`,
 					capability_hash: capabilityHash,
-					proof_of_intent: Buffer.from([]),
+					proof_of_intent: proofOfIntent,
 				},
 				async (err: Error | null, response: IntentResponse) => {
 					if (err || !response.accepted) {

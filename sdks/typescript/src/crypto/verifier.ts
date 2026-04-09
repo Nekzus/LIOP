@@ -93,9 +93,7 @@ export class LiopVerifier {
 			// 1. Decode CBOR/COSE
 			// 2. Verify Signature against AWS Nitro Root CA
 			// 3. Compare PCRs
-			console.error(
-				"[LiopVerifier] TEE Attestation: AWS Nitro Enclave Signature Verified.",
-			);
+			console.error("[LiopVerifier] TEE Attestation: Not configured (no-op).");
 			return true;
 		} catch (err) {
 			console.error("[LiopVerifier] TEE Verification Failed:", err);

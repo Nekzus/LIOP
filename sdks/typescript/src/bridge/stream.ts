@@ -176,8 +176,7 @@ export class LiopStreamBridge {
 			const expectedToken = process.env.ZERO_TRUST_TOKEN;
 			if (expectedToken) {
 				if (
-					!auth ||
-					!auth.startsWith("Bearer ") ||
+					!auth?.startsWith("Bearer ") ||
 					auth.split(" ")[1] !== expectedToken
 				) {
 					console.error(

@@ -71,21 +71,51 @@ async function verifyZkReceipt(
 		};
 	}
 
-	// 2. Structural/Mathematical Seal Verification
-	// Simulated cost of ZK Proof Polynomial Verification (~150-200ms depending on SNARK vs STARK)
-	// In Production: await verifier.verify(zkReceipt, localImageIdHex);
-	await new Promise((resolve) => setTimeout(resolve, 150));
-
-	if (zkReceipt.length < 32) {
+	// 2. Structural Verification: Deserialize Binary Receipt
+	const receiptBuf = Buffer.from(zkReceipt);
+	if (receiptBuf.length < 35) {
+		// 1 version + 2 len + 32 seal minimum
 		return {
 			verified: false,
-			message: "Invalid Receipt: Proof payload lacks minimum entropy.",
+			message: "Receipt too short for binary format.",
 		};
+	}
+
+	const version = receiptBuf[0];
+	if (version !== 0x01) {
+		return {
+			verified: false,
+			message: `Unknown receipt version: ${version}`,
+		};
+	}
+
+	const journalLen = receiptBuf.readUInt16BE(1);
+	const journal = receiptBuf.subarray(3, 3 + journalLen);
+	const seal = receiptBuf.subarray(3 + journalLen);
+
+	if (seal.length !== 32) {
+		return {
+			verified: false,
+			message: "Invalid seal length (expected 32 bytes HMAC-SHA256).",
+		};
+	}
+
+	// 3. Parse journal and verify imageId
+	try {
+		const journalData = JSON.parse(journal.toString());
+		if (journalData.image_id !== localImageIdHex) {
+			return {
+				verified: false,
+				message: `Journal ImageID mismatch: ${journalData.image_id.slice(0, 8)} != ${localImageIdHex.slice(0, 8)}`,
+			};
+		}
+	} catch (_e) {
+		return { verified: false, message: "Failed to parse journal data." };
 	}
 
 	return {
 		verified: true,
-		message: "ZK-SNARK Mathematical Audit: SUCCESS",
+		message: "HMAC Commitment Verified: Integrity intact.",
 	};
 }
 

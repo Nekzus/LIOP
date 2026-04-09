@@ -6,6 +6,9 @@
 # confidential / AI
 # -----------------
 GEMINI.md
+TASK.md
+WALKTHROUGH.md
+IMPLEMENTATION_PLAN.md
 .gemini
 .env
 .env.*

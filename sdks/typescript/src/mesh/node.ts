@@ -79,6 +79,10 @@ export class MeshNode {
 	/** Flag to ensure the manifest protocol is only registered once. */
 	private manifestProtocolRegistered = false;
 
+	/** Local Ed25519 Private Key for protocol signatures */
+	// biome-ignore lint/suspicious/noExplicitAny: libp2p keys type
+	private localPrivateKey: any | null = null;
+
 	constructor(config: MeshNodeConfig = {}) {
 		this.config = {
 			listenAddresses: config.listenAddresses || [
@@ -218,6 +222,7 @@ export class MeshNode {
 		if (!result) throw new Error("Could not initialize P2P Identity");
 
 		const { privateKey, isNew } = result;
+		this.localPrivateKey = privateKey;
 
 		const discovery =
 			this.config.bootstrapNodes && this.config.bootstrapNodes.length > 0
@@ -611,6 +616,14 @@ export class MeshNode {
 	getPeerId(): string {
 		if (!this.node) throw new Error("Mesh Node is not running");
 		return this.node.peerId.toString();
+	}
+
+	async sign(data: Uint8Array): Promise<Uint8Array> {
+		if (!this.localPrivateKey) {
+			throw new Error("Local identity not loaded or initialized");
+		}
+		// libp2p private key implementations typically return a Promise<Uint8Array> or Uint8Array
+		return Buffer.from(await this.localPrivateKey.sign(data));
 	}
 
 	getMultiaddrs(): string[] {
