@@ -333,7 +333,7 @@ export class LiopClient {
 		console.error(`[LiopClient] Querying Mesh for Resource: ${uri}...`);
 
 		// We search for the peer hosting the resource in the P2P Mesh
-		const providers = await this.meshNode.getProviders(uri);
+		const providers = await this.meshNode.findProviders(uri);
 		if (providers.length === 0) {
 			throw new Error(`No mesh providers found for resource: ${uri}`);
 		}
