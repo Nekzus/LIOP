@@ -23,14 +23,13 @@ async function main() {
 	const meshNode = server.getMeshNode();
 	if (!meshNode) throw new Error("Mesh node failed to initialize");
 
-	const multiaddrs = meshNode.getMultiaddrs();
-	const p2pAddr =
-		multiaddrs.find((a) => a.includes("/ip4/127.0.0.1/tcp/4000/p2p/")) ||
-		multiaddrs[0];
+	// For cross-environment safety (WSL -> Windows Claude Desktop), ALWAYS force 127.0.0.1
+	const peerId = meshNode.getPeerId();
+	const p2pAddr = `/ip4/127.0.0.1/tcp/4001/ws/p2p/${peerId}`;
 	await fs.writeFile("nexus.multiaddr", p2pAddr);
 
 	console.log(`[The Nexus] 🌐 Bootstrap Node Active`);
-	console.log(`[The Nexus] 🆔 PeerID: ${meshNode.getPeerId()}`);
+	console.log(`[The Nexus] 🆔 PeerID: ${peerId}`);
 	console.log(`[The Nexus] ⚡ Address written to nexus.multiaddr: ${p2pAddr}`);
 
 	process.on("SIGINT", async () => {
