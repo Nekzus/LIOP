@@ -19,9 +19,9 @@ import type {
 	ServerInfo,
 	Tool,
 } from "../types.js";
-import { PII_PATTERNS, type PiiRule, PiiScanner } from "./pii.js";
+import { PII_PATTERNS, PII_PRESETS, type PiiRule, PiiScanner } from "./pii.js";
 
-export { PII_PATTERNS, type PiiRule, PiiScanner };
+export { PII_PATTERNS, PII_PRESETS, type PiiRule, PiiScanner };
 
 export type ToolHandler<T extends z.ZodRawShape = z.ZodRawShape> = (
 	args: z.infer<z.ZodObject<T>>,
@@ -103,8 +103,13 @@ export class LiopServer {
 		private config?: LiopServerOptions,
 	) {
 		this.piiScanner = new PiiScanner(
-			this.config?.security?.piiPatterns || [],
-			this.config?.security?.forbiddenKeys || [],
+			this.config?.security?.piiPatterns ?? PII_PRESETS.GLOBAL_STRICT,
+			this.config?.security?.forbiddenKeys ?? [
+				"password",
+				"token",
+				"secret",
+				"privateKey",
+			],
 		);
 
 		// Initialize Zero-Blocking Worker Pool for Heavy Cryptography & Sandboxing

@@ -139,6 +139,37 @@ export const PII_PATTERNS = {
 	} as PiiRuleDefinition,
 };
 
+/**
+ * Regional and Cultural Security Presets for Out-Of-The-Box compliance.
+ * Developers can override, merge, or omit these based on local laws.
+ */
+export const PII_PRESETS = {
+	GLOBAL_STRICT: [
+		PII_PATTERNS.EMAIL,
+		PII_PATTERNS.CREDIT_CARD,
+		PII_PATTERNS.IP_ADDRESS,
+		PII_PATTERNS.PHONE,
+		PII_PATTERNS.PASSPORT_MRZ,
+		PII_PATTERNS.IBAN,
+	],
+	US_COMPLIANT: [
+		PII_PATTERNS.EMAIL,
+		PII_PATTERNS.CREDIT_CARD,
+		PII_PATTERNS.IP_ADDRESS,
+		PII_PATTERNS.PHONE,
+		PII_PATTERNS.SSN,
+		PII_PATTERNS.PASSPORT_MRZ,
+	],
+	EU_GDPR: [
+		PII_PATTERNS.EMAIL,
+		PII_PATTERNS.CREDIT_CARD,
+		PII_PATTERNS.IP_ADDRESS,
+		PII_PATTERNS.PHONE,
+		PII_PATTERNS.IBAN,
+		PII_PATTERNS.PASSPORT_MRZ,
+	],
+};
+
 export class PiiScanner {
 	private patterns: PiiRule[];
 	private forbiddenKeysSet: Set<string>;
