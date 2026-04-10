@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { LiopServerOptions } from "../server/index.js";
 import { LiopServer } from "../server/index.js";
 import type { CallToolRequest, CallToolResult } from "../types.js";
+import { log } from "../utils/logger.js";
 
 export interface LiopBridgeOptions {
 	publishToMesh?: boolean;
@@ -28,10 +29,10 @@ export class LiopMcpBridge {
 		// Determine mode: Exposing LIOP to MCP (Claude) or Wrapping MCP to LIOP (Mesh)
 		if (source instanceof LiopServer) {
 			this.liopServer = source;
-			console.error("[LIOP-Bridge] Mode: EXPOSE (LIOP -> MCP Stdio)");
+			log.info("[LIOP-Bridge] Mode: EXPOSE (LIOP -> MCP Stdio)");
 		} else if (source instanceof McpServer) {
 			this.legacyMcpServer = source;
-			console.error("[LIOP-Bridge] Mode: WRAP (Legacy MCP -> LIOP Mesh)");
+			log.info("[LIOP-Bridge] Mode: WRAP (Legacy MCP -> LIOP Mesh)");
 		}
 	}
 
@@ -217,7 +218,7 @@ export class LiopMcpBridge {
 			}
 			return true;
 		} catch (e) {
-			console.error("[LIOP-Bridge] ZK-Verifier Failure:", e);
+			log.info("[LIOP-Bridge] ZK-Verifier Failure:", e);
 			return false;
 		}
 	}
@@ -293,7 +294,7 @@ export class LiopMcpBridge {
 		});
 
 		const shutdown = async () => {
-			console.error("[LIOP-Bridge] Disconnecting session...");
+			log.info("[LIOP-Bridge] Disconnecting session...");
 			if (this.liopServer) await this.liopServer.close();
 			process.exit(0);
 		};
@@ -311,7 +312,7 @@ export class LiopMcpBridge {
 					process.stdout.write(`${JSON.stringify(response)}\n`);
 				}
 			} catch (e: unknown) {
-				console.error(`[LIOP-Bridge] Error: ${(e as Error).message}`);
+				log.error(`[LIOP-Bridge] Error: ${(e as Error).message}`);
 			}
 		});
 	}

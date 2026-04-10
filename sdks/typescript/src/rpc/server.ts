@@ -1,4 +1,5 @@
 import * as grpc from "@grpc/grpc-js";
+import { log } from "../utils/logger.js";
 import { liopV1 } from "./proto.js";
 import { createServerCredentials, type LiopTlsOptions } from "./tls.js";
 import type {
@@ -59,7 +60,7 @@ export class LiopRpcServer {
 						reject(error);
 						return;
 					}
-					console.error(`[LIOP-RPC] Server listening on port ${assignedPort}`);
+					log.info(`[LIOP-RPC] Server listening on port ${assignedPort}`);
 					resolve();
 				},
 			);
@@ -69,7 +70,7 @@ export class LiopRpcServer {
 	public async stop(): Promise<void> {
 		return new Promise((resolve) => {
 			this.server.tryShutdown(() => {
-				console.error("[LIOP-RPC] Server shut down");
+				log.info("[LIOP-RPC] Server shut down");
 				resolve();
 			});
 		});

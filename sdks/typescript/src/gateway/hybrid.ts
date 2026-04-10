@@ -3,6 +3,7 @@ import * as http2 from "node:http2";
 import * as net from "node:net";
 import type { MeshNode } from "../mesh/index.js";
 import type { LiopServer } from "../server/index.js";
+import { log } from "../utils/logger.js";
 import { LiopMcpRouter } from "./router.js";
 
 /**
@@ -35,7 +36,7 @@ export class LiopHybridGateway {
 		this.netServer = net.createServer((socket) => {
 			socket.once("data", (buffer) => {
 				const isHttp2 = buffer.toString().startsWith("PRI * HTTP/2.0");
-				console.error(
+				log.info(
 					`[LIOP-Gateway] Incoming L4 Connection. Protocol: ${isHttp2 ? "HTTP/2 (gRPC)" : "HTTP/1.1 (MCP)"}`,
 				);
 				if (isHttp2) {
@@ -46,19 +47,19 @@ export class LiopHybridGateway {
 				socket.unshift(buffer);
 			});
 			socket.on("error", (err) =>
-				console.error(`[LIOP-Gateway] NetServer Socket Error: ${err.message}`),
+				log.error(`[LIOP-Gateway] NetServer Socket Error: ${err.message}`),
 			);
 		});
 
 		// Attach error listeners to sub-servers to catch silent failures
 		this.h1Server.on("error", (err) =>
-			console.error(`[LIOP-Gateway] H1 Server Error: ${err.message}`),
+			log.error(`[LIOP-Gateway] H1 Server Error: ${err.message}`),
 		);
 		this.h2Server.on("error", (err) =>
-			console.error(`[LIOP-Gateway] H2 Server Error: ${err.message}`),
+			log.error(`[LIOP-Gateway] H2 Server Error: ${err.message}`),
 		);
 
-		console.error("[LIOP-Gateway] Hybrid adapter initialized.");
+		log.info("[LIOP-Gateway] Hybrid adapter initialized.");
 	}
 
 	private setupH2Routes() {
@@ -109,7 +110,7 @@ export class LiopHybridGateway {
 						res.writeHead(200, { "Content-Type": "application/json" });
 						res.end(JSON.stringify(response));
 					} catch (e: unknown) {
-						console.error(
+						log.info(
 							`[LIOP-Gateway] Error processing JSON-RPC payload: ${(e as Error).message}`,
 						);
 						res.writeHead(400);
@@ -133,7 +134,7 @@ export class LiopHybridGateway {
 			// biome-ignore lint/suspicious/noExplicitAny: Standard gRPC stream data is Buffer
 			const data = chunk as any;
 			if (data)
-				console.error(
+				log.info(
 					`[LIOP-Gateway] Native gRPC Proxy passing ${data.length} bytes`,
 				);
 		});
@@ -164,7 +165,7 @@ export class LiopHybridGateway {
 		});
 	}
 
-	public async listen(port: number, host: string = "::"): Promise<void> {
+	public async listen(port: number, host: string = "::"): Promise<number> {
 		if (this.meshNode) {
 			await this.meshNode.start();
 
@@ -172,7 +173,7 @@ export class LiopHybridGateway {
 			const tools = this.liopServer.listTools();
 			for (const tool of tools) {
 				await this.meshNode.announceCapability(tool.name);
-				console.error(
+				log.info(
 					`[LIOP-Gateway] 📡 Announced local tool to Mesh: ${tool.name}`,
 				);
 			}
@@ -180,11 +181,11 @@ export class LiopHybridGateway {
 		return new Promise((resolve, reject) => {
 			this.netServer.on("error", (err: Error & { code?: string }) => {
 				if (err.code === "EADDRINUSE") {
-					console.error(
+					log.info(
 						`[LIOP-Gateway] FATAL: Port ${port} is already in use by another process.`,
 					);
 				} else {
-					console.error(`[LIOP-Gateway] Binding Error: ${err.message}`);
+					log.error(`[LIOP-Gateway] Binding Error: ${err.message}`);
 				}
 				reject(err);
 			});
@@ -193,10 +194,13 @@ export class LiopHybridGateway {
 				const addr = this.netServer.address();
 				const actualHost =
 					typeof addr === "string" ? addr : addr?.address || host;
-				console.error(
-					`[LIOP-Gateway] ✅ Transformer Mesh Gateway READY and listening on ${actualHost}:${port}`,
+				const assignedPort =
+					typeof addr === "string" ? port : addr?.port || port;
+
+				log.info(
+					`[LIOP-Gateway] ✅ Transformer Mesh Gateway READY and listening on ${actualHost}:${assignedPort}`,
 				);
-				resolve();
+				resolve(assignedPort);
 			});
 		});
 	}

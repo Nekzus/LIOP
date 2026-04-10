@@ -10,6 +10,7 @@ import { Kyber768Wrapper } from "../rpc/crypto/kyber.js";
 import type { LiopTlsOptions } from "../rpc/tls.js";
 import type { LogicRequest, LogicResponse } from "../rpc/types.js";
 import type { CallToolRequest, CallToolResult } from "../types.js";
+import { log } from "../utils/logger.js";
 
 /**
  * LIOP Client
@@ -37,7 +38,7 @@ export class LiopClient {
 	): Promise<void> {
 		this.meshNode = new MeshNode(options?.meshConfig);
 		await this.meshNode.start();
-		console.error(
+		log.info(
 			`[LiopClient] Mesh Node synchronized. PeerID: ${this.meshNode.getPeerId()}`,
 		);
 
@@ -47,7 +48,7 @@ export class LiopClient {
 				new LiopRpcClient(address, this.tlsOptions),
 			);
 			this.serverInfo = { name: `LiopServer (${address})`, version: "1.0.0" };
-			console.error(`[LiopClient] Static gRPC configured for: ${address}`);
+			log.info(`[LiopClient] Static gRPC configured for: ${address}`);
 		} else {
 			this.serverInfo = { name: "LiopServer (Mesh Alpha)", version: "1.0.0" };
 		}
@@ -63,9 +64,7 @@ export class LiopClient {
 				"Client must be connected to Mesh to resolve capabilities.",
 			);
 
-		console.error(
-			`[LiopClient] Querying Mesh DHT for Provider: ${toolName}...`,
-		);
+		log.info(`[LiopClient] Querying Mesh DHT for Provider: ${toolName}...`);
 		const providers = await this.meshNode.findProviders(toolName);
 
 		if (providers.length === 0) {
@@ -75,15 +74,13 @@ export class LiopClient {
 		}
 
 		const providerId = providers[0];
-		console.error(
-			`[LiopClient] Identified Alpha Provider PeerID: ${providerId}`,
-		);
+		log.info(`[LiopClient] Identified Alpha Provider PeerID: ${providerId}`);
 
 		let grpcPort = 50051;
 		const manifest = await this.meshNode.queryManifest(providerId);
 		if (manifest) {
 			grpcPort = manifest.grpcPort;
-			console.error(`[LiopClient] Manifest resolved: gRPC port ${grpcPort}`);
+			log.info(`[LiopClient] Manifest resolved: gRPC port ${grpcPort}`);
 		}
 
 		const addrs = await this.meshNode.resolvePeer(providerId);
@@ -91,7 +88,7 @@ export class LiopClient {
 			const parts = maddr.split("/");
 			if (parts[1] === "ip4") {
 				const grpcHost = `${parts[2]}:${grpcPort}`;
-				console.error(
+				log.info(
 					`[LiopClient] Translated Multiaddr to gRPC Target: ${grpcHost}`,
 				);
 				return grpcHost;
@@ -111,14 +108,14 @@ export class LiopClient {
 			throw new Error("Client must be connected before discovering tools.");
 		}
 
-		console.error(`[LiopClient] Discovery started...`);
+		log.info(`[LiopClient] Discovery started...`);
 		const providerIds = await this.meshNode.discoverManifestProviders();
 		const tools: { name: string; description?: string }[] = [];
 		const seenNames = new Set<string>();
 
 		for (const peerId of providerIds) {
 			try {
-				console.error(`[LiopClient] Querying manifest from: ${peerId}`);
+				log.info(`[LiopClient] Querying manifest from: ${peerId}`);
 				const manifest = await this.meshNode.queryManifest(peerId);
 				if (manifest) {
 					this.manifests.set(peerId, manifest);
@@ -130,14 +127,14 @@ export class LiopClient {
 					}
 				}
 			} catch (err: unknown) {
-				console.error(
+				log.info(
 					`[LiopClient] Error querying manifest from ${peerId}:`,
 					err instanceof Error ? err.message : String(err),
 				);
 			}
 		}
 
-		console.error(
+		log.info(
 			`[LiopClient] Discovery finished. Found ${tools.length} unique tools.`,
 		);
 		return tools;
@@ -155,7 +152,7 @@ export class LiopClient {
 		}
 
 		const toolName = request.name;
-		console.error(`[LiopClient] Resolving Tool: ${toolName}`);
+		log.info(`[LiopClient] Resolving Tool: ${toolName}`);
 
 		// [ALPHA-FIX] Bypass DHT discovery if we are already statically connected to a provider (Enterprise/Test mode)
 		let rpcClient = this.rpcClients.get("static");
@@ -164,12 +161,12 @@ export class LiopClient {
 			const dynamicAddress = await this.resolveCapability(toolName);
 			rpcClient = this.getOrCreateRpcClient(toolName, dynamicAddress);
 		} else {
-			console.error(
+			log.info(
 				`[LiopClient] Using existing static gRPC connection for ${toolName}.`,
 			);
 		}
 
-		console.error(`[LiopClient] Negotiating intent for ${toolName}...`);
+		log.info(`[LiopClient] Negotiating intent for ${toolName}...`);
 		const agentDid = this.meshNode
 			? `did:liop:${this.meshNode.getPeerId()}`
 			: "did:liop:ephemeral";
@@ -202,7 +199,7 @@ export class LiopClient {
 			intentResponse.session_token || intentResponse.sessionToken;
 
 		if (!publicKey) {
-			console.error(
+			log.info(
 				"[LiopClient] Critical Error: Kyber Public Key not found in IntentResponse.",
 				intentResponse,
 			);
@@ -212,14 +209,14 @@ export class LiopClient {
 		}
 
 		// 2. Post-Quantum Encapsulation (ML-KEM-768)
-		console.error(
+		log.info(
 			`[LiopClient] Encapsulating Post-Quantum Shared Secret for ${request.name}...`,
 		);
 		const { ciphertext: kyberCiphertext, sharedSecret } =
 			await Kyber768Wrapper.encapsulateAsymmetric(publicKey);
 
 		// 3. Symmetric Sealing (AES-256-GCM)
-		console.error(`[LiopClient] Sealing WASM Payload and Inputs...`);
+		log.info(`[LiopClient] Sealing WASM Payload and Inputs...`);
 
 		const _safePayload = _wasmPayload || Buffer.from("");
 
@@ -268,9 +265,7 @@ export class LiopClient {
 				if (resultFulfilled) return;
 				hasReceivedData = true;
 
-				console.error(
-					"[LiopClient] Logic Executed. Verification in progress...",
-				);
+				log.info("[LiopClient] Logic Executed. Verification in progress...");
 
 				try {
 					const isValid = await this.verifier.verifyZkReceipt(
@@ -305,7 +300,7 @@ export class LiopClient {
 
 			stream.on("error", (err) => {
 				if (resultFulfilled) return;
-				console.error("[LiopClient] Stream Error:", err);
+				log.error("[LiopClient] Stream Error:", err);
 				reject(err);
 			});
 
@@ -338,7 +333,7 @@ export class LiopClient {
 		if (!this.meshNode) {
 			throw new Error("Client must be connected before reading resources.");
 		}
-		console.error(`[LiopClient] Querying Mesh for Resource: ${uri}...`);
+		log.info(`[LiopClient] Querying Mesh for Resource: ${uri}...`);
 
 		// We search for the peer hosting the resource in the P2P Mesh
 		const providers = await this.meshNode.findProviders(uri);

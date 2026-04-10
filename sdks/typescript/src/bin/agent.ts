@@ -5,6 +5,7 @@ import * as path from "node:path";
 import { LiopMcpRouter } from "../gateway/router.js";
 import { MeshNode } from "../mesh/index.js";
 import { LiopServer } from "../server/index.js";
+import { log } from "../utils/logger.js";
 
 /**
  * LIOP Agent (Zero-Config CLI)
@@ -62,7 +63,7 @@ async function main() {
 					const addr = fs.readFileSync(nexusPath, "utf8").trim();
 					if (addr && !bootstrapNodes.includes(addr)) {
 						bootstrapNodes.push(addr);
-						console.error(`[LIOP-Agent] Found bootstrap at: ${nexusPath}`);
+						log.info(`[LIOP-Agent] Found bootstrap at: ${nexusPath}`);
 						break;
 					}
 				}
@@ -75,10 +76,10 @@ async function main() {
 	// If no bootstrap nodes found, the agent operates in standalone mode.
 	// It will only serve local tools until peers are discovered.
 	if (bootstrapNodes.length === 0) {
-		console.error(
+		log.info(
 			"[LIOP-Agent] No bootstrap nodes configured. Operating in standalone mode.",
 		);
-		console.error(
+		log.info(
 			"[LIOP-Agent] Pass a multiaddr as argument or create 'nexus.multiaddr' file.",
 		);
 	}
@@ -114,9 +115,7 @@ async function main() {
 	setTimeout(() => {
 		// biome-ignore lint/suspicious/noExplicitAny: access internal for telemetry
 		const rtSize = (meshNode as any).getRoutingTableSize?.() || 0;
-		console.error(
-			`[LIOP-Agent] Warm-up complete. Routing Table size: ${rtSize}`,
-		);
+		log.info(`[LIOP-Agent] Warm-up complete. Routing Table size: ${rtSize}`);
 		router.refreshManifestCache(true).catch(() => {});
 	}, 2000);
 
@@ -153,13 +152,11 @@ async function main() {
 	});
 
 	// Status directed only to stderr
-	console.error(`[LIOP-Agent] Guarding Claude Desktop via STDIO.`);
-	console.error(
+	log.info(`[LIOP-Agent] Guarding Claude Desktop via STDIO.`);
+	log.info(
 		`[LIOP-Agent] P2P Mesh: Joined (${bootstrapNodes.length} bootstraps)`,
 	);
-	console.error(
-		"[LIOP-Agent] Tool discovery: Dynamic via /liop/manifest/1.0.0",
-	);
+	log.info("[LIOP-Agent] Tool discovery: Dynamic via /liop/manifest/1.0.0");
 
 	process.on("SIGINT", async () => {
 		await meshNode.stop();
@@ -168,6 +165,6 @@ async function main() {
 }
 
 main().catch((err) => {
-	console.error(`[LIOP-Agent] Fatal Error: ${err.message}`);
+	log.error(`[LIOP-Agent] Fatal Error: ${err.message}`);
 	process.exit(1);
 });

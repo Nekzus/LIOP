@@ -1,3 +1,4 @@
+import { Buffer } from "node:buffer";
 import crypto from "node:crypto";
 import { createRequire } from "node:module";
 import path from "node:path";
@@ -19,6 +20,7 @@ import type {
 	ServerInfo,
 	Tool,
 } from "../types.js";
+import { log } from "../utils/logger.js";
 import { PII_PATTERNS, PII_PRESETS, type PiiRule, PiiScanner } from "./pii.js";
 
 export { PII_PATTERNS, PII_PRESETS, type PiiRule, PiiScanner };
@@ -331,7 +333,7 @@ export class LiopServer {
 		// [LIOP-ALPHA] Auto-announce capability to the Mesh P2P DHT if node is active
 		if (this.meshNode) {
 			this.meshNode.announceCapability(name).catch((err) => {
-				console.error(
+				log.info(
 					`[LIOP-Mesh] Failed to auto-announce tool ${name}: ${err.message}`,
 				);
 			});
@@ -458,7 +460,7 @@ Protocol Adherence is mandatory for successful execution.`,
 	 */
 	public clearAstCache(): void {
 		this.logicCache.clear();
-		console.error("[LIOP-SDK] AST Security Cache cleared by Admin.");
+		log.info("[LIOP-SDK] AST Security Cache cleared by Admin.");
 	}
 
 	/**
@@ -607,7 +609,10 @@ Protocol Adherence is mandatory for successful execution.`,
 			};
 		} = {},
 	): Promise<void> {
-		const port = options.port || 50051;
+		const envPort = process.env.LIOP_GRPC_PORT
+			? Number.parseInt(process.env.LIOP_GRPC_PORT, 10)
+			: undefined;
+		const port = options.port || envPort || 50051;
 
 		// 1. Initialize Mesh Node (Discovery)
 		this.meshNode = new MeshNode(options.meshConfig);
@@ -642,11 +647,11 @@ Protocol Adherence is mandatory for successful execution.`,
 
 		// 3. Announce local tools to the DHT
 		for (const tool of this.listTools()) {
-			await this.meshNode.announceCapability(tool.name).catch(console.error);
+			await this.meshNode.announceCapability(tool.name).catch(log.info);
 		}
 
 		// 4. Announce manifest availability
-		await this.meshNode.announceManifest().catch(console.error);
+		await this.meshNode.announceManifest().catch(log.info);
 
 		// 5. Initialize gRPC Server (Execution)
 		this.rpcServer = new LiopRpcServer();
@@ -654,7 +659,7 @@ Protocol Adherence is mandatory for successful execution.`,
 		this.rpcServer.addService({
 			negotiateIntent: (call, callback) => {
 				const request = call.request;
-				console.error(
+				log.info(
 					`[LIOP-RPC] Negotiating intent for capability: ${request.capability_hash}`,
 				);
 
@@ -681,7 +686,7 @@ Protocol Adherence is mandatory for successful execution.`,
 				call: grpc.ServerWritableStream<LogicRequest, LogicResponse>,
 			) => {
 				const request = call.request;
-				console.error(
+				log.info(
 					`[LIOP-RPC] Executing Logic-on-Origin for session: ${request.session_token}`,
 				);
 
@@ -714,7 +719,7 @@ Protocol Adherence is mandatory for successful execution.`,
 					try {
 						const decoded = JSON.parse(finalOutput);
 						if (decoded.__liop_proxy_tool) {
-							console.error(
+							log.info(
 								`[LIOP-RPC] Executing Proxied Tool: ${decoded.__liop_proxy_tool}`,
 							);
 							const toolResult = await this.callTool({
@@ -744,7 +749,7 @@ Protocol Adherence is mandatory for successful execution.`,
 						{ type: "text", text: finalOutput },
 					]);
 					if (violation) {
-						console.error(
+						log.info(
 							`[LIOP-RPC] PII Leak blocked in gRPC stream: ${violation}`,
 						);
 						response.semantic_evidence = `[LIOP] Egress Security Violation. Output blocked due to PII leakage (${violation}).`;
@@ -756,7 +761,7 @@ Protocol Adherence is mandatory for successful execution.`,
 					});
 				} catch (error: unknown) {
 					const e = error as Error;
-					console.error(`[LIOP-RPC] Execution Error: ${e.message}`);
+					log.error(`[LIOP-RPC] Execution Error: ${e.message}`);
 
 					// Send error response before closing, avoiding "stream closed without results"
 					const errorResponse: LogicResponse = {
@@ -778,7 +783,7 @@ Protocol Adherence is mandatory for successful execution.`,
 		});
 
 		await this.rpcServer.listen(port);
-		console.error(
+		log.info(
 			`[LIOP-SDK] Node successfully announced to Mesh. PeerID: ${this.meshNode.getPeerId()}`,
 		);
 	}
@@ -821,7 +826,7 @@ Protocol Adherence is mandatory for successful execution.`,
 			// Professional PII Protection Guard
 			const violation = this.piiScanner.scan(content);
 			if (violation) {
-				console.error(
+				log.info(
 					`[LIOP-SDK] PII Leak blocked in local execution: ${violation}`,
 				);
 				return {

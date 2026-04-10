@@ -5,6 +5,7 @@ import type { JSONRPCMessage } from "@modelcontextprotocol/sdk/types.js";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import type { LiopServer } from "../server/index.js";
+import { log } from "../utils/logger.js";
 import { LiopMcpBridge } from "./index.js";
 
 /**
@@ -82,7 +83,7 @@ export class LiopStreamBridge {
 					lastActivity: Date.now(),
 					clientIp,
 				});
-				console.error(
+				log.info(
 					`[LIOP-StreamBridge] Session opened: ${sessionId} (IP: ${clientIp})`,
 				);
 			},
@@ -105,19 +106,14 @@ export class LiopStreamBridge {
 					await transport.send(result as JSONRPCMessage);
 				}
 			} catch (err: unknown) {
-				console.error(
-					"[LIOP-StreamBridge] JSON-RPC error:",
-					(err as Error).message,
-				);
+				log.info("[LIOP-StreamBridge] JSON-RPC error:", (err as Error).message);
 			}
 		};
 
 		transport.onclose = () => {
 			if (transport.sessionId) {
 				this.activeSessions.delete(transport.sessionId);
-				console.error(
-					`[LIOP-StreamBridge] Session closed: ${transport.sessionId}`,
-				);
+				log.info(`[LIOP-StreamBridge] Session closed: ${transport.sessionId}`);
 			}
 		};
 
@@ -155,9 +151,7 @@ export class LiopStreamBridge {
 		const now = Date.now();
 		for (const [sessionId, entry] of this.activeSessions) {
 			if (now - entry.lastActivity > this.sessionTimeoutMs) {
-				console.error(
-					`[LIOP-StreamBridge] Evicting idle session: ${sessionId}`,
-				);
+				log.info(`[LIOP-StreamBridge] Evicting idle session: ${sessionId}`);
 				entry.transport.close().catch(() => {
 					/* Swallow close errors */
 				});
@@ -179,7 +173,7 @@ export class LiopStreamBridge {
 					!auth?.startsWith("Bearer ") ||
 					auth.split(" ")[1] !== expectedToken
 				) {
-					console.error(
+					log.info(
 						"[LIOP-StreamBridge] ALERT: Access denied - Invalid Zero-Trust token.",
 					);
 					return c.json(
@@ -210,9 +204,7 @@ export class LiopStreamBridge {
 				// Explicitly clean up the session from the Map.
 				if (c.req.method === "DELETE") {
 					this.activeSessions.delete(sessionId);
-					console.error(
-						`[LIOP-StreamBridge] Session closed (DELETE): ${sessionId}`,
-					);
+					log.info(`[LIOP-StreamBridge] Session closed (DELETE): ${sessionId}`);
 				}
 
 				return response;
@@ -223,7 +215,7 @@ export class LiopStreamBridge {
 			const clientIp = this.getClientIp(c);
 			const currentSessions = this.countSessionsByIp(clientIp);
 			if (currentSessions >= this.maxSessionsPerIp) {
-				console.error(
+				log.info(
 					`[LIOP-StreamBridge] Rate limit hit for IP: ${clientIp} (${currentSessions} sessions)`,
 				);
 				return c.json({ error: "Too Many Sessions: Rate limit exceeded" }, 429);
@@ -253,7 +245,7 @@ export class LiopStreamBridge {
 					port: listenPort,
 				},
 				(info) => {
-					console.error(
+					log.info(
 						`[LIOP-StreamBridge] Streamable HTTP Gateway on http://localhost:${info.port}/mcp`,
 					);
 					resolve();
@@ -278,7 +270,7 @@ export class LiopStreamBridge {
 
 		if (this.httpServer) {
 			this.httpServer.close();
-			console.error("[LIOP-StreamBridge] HTTP ports released.");
+			log.info("[LIOP-StreamBridge] HTTP ports released.");
 		}
 	}
 }

@@ -1,3 +1,4 @@
+import { log } from "../utils/logger.js";
 /**
  * Represents a violation of the LIOP Zero-Trust Sandbox policy.
  */
@@ -25,9 +26,7 @@ export const GuardianTS = {
 	async analyzeAst(
 		wasmBytes: Uint8Array | Buffer,
 	): Promise<WebAssembly.Module> {
-		console.error(
-			"[Guardian-TS] Starting Zero-Time AST heuristic inspection...",
-		);
+		log.info("[Guardian-TS] Starting Zero-Time AST heuristic inspection...");
 
 		// This throws if the WASM is structurally invalid or a decompression bomb
 		let module: WebAssembly.Module;
@@ -58,7 +57,7 @@ export const GuardianTS = {
 			importCount++;
 		}
 
-		console.error(
+		log.info(
 			`[Guardian-TS] OK: AST clean. Validated ${importCount} WASI/LIOP imports.`,
 		);
 		return module;

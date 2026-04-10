@@ -86,3 +86,21 @@ export interface ServerInfo {
 		logging?: Record<string, unknown>;
 	};
 }
+
+export interface McpRequest {
+	method: string;
+	params?: unknown;
+	id?: string | number | null;
+	jsonrpc?: "2.0";
+}
+
+export interface McpResponse {
+	jsonrpc: "2.0";
+	id?: string | number | null;
+	result?: unknown;
+	error?: {
+		code: number;
+		message: string;
+		data?: unknown;
+	};
+}

@@ -8,6 +8,7 @@
 
 import * as fs from "node:fs";
 import * as grpc from "@grpc/grpc-js";
+import { log } from "../utils/logger.js";
 
 export interface LiopTlsOptions {
 	/** Path to the root CA certificate (PEM format) */
@@ -38,7 +39,7 @@ export function createServerCredentials(
 			{ cert_chain: certChain, private_key: privateKey },
 		]);
 	} catch (error) {
-		console.error(
+		log.info(
 			`[LIOP-TLS] Failed to load certificates, falling back to insecure: ${error}`,
 		);
 		return grpc.ServerCredentials.createInsecure();
@@ -67,7 +68,7 @@ export function createChannelCredentials(
 
 		return grpc.credentials.createSsl(rootCert, privateKey, certChain);
 	} catch (error) {
-		console.error(
+		log.info(
 			`[LIOP-TLS] Failed to load certificates, falling back to insecure: ${error}`,
 		);
 		return grpc.credentials.createInsecure();

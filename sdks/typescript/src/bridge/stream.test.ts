@@ -18,11 +18,11 @@ interface ToolResult {
 }
 
 const TOKEN = process.env.ZERO_TRUST_TOKEN || "test-token";
-const BASE_URL = "http://localhost:3000/mcp";
 
 /** Creates a fresh MCP client connected to the LiopServer via Streamable HTTP */
-async function createRemoteClient(name: string): Promise<Client> {
-	const transport = new StreamableHTTPClientTransport(new URL(BASE_URL), {
+async function createRemoteClient(name: string, port: number): Promise<Client> {
+	const dynamicUrl = `http://127.0.0.1:${port}/mcp`;
+	const transport = new StreamableHTTPClientTransport(new URL(dynamicUrl), {
 		requestInit: {
 			headers: { Authorization: `Bearer ${TOKEN}` },
 		},
@@ -38,6 +38,7 @@ async function createRemoteClient(name: string): Promise<Client> {
 describe("LiopStreamBridge (Integration)", () => {
 	let gateway: LiopHybridGateway;
 	let server: LiopServer;
+	let gatewayPort: number;
 
 	beforeAll(async () => {
 		// Initialize the test LiopServer
@@ -51,8 +52,8 @@ describe("LiopStreamBridge (Integration)", () => {
 			},
 		);
 
-		// Critical: Start gRPC server and Mesh Node (necessary for PQC handshake in the Router)
-		await server.connectToMesh({ port: 50051 });
+		// Critical: Start gRPC server and Mesh Node on dynamic ephemeral port
+		await server.connectToMesh({ port: 0 });
 
 		// Seed with Industrial Records (Matching Demo requirements)
 		server.setSandboxData([
@@ -74,9 +75,12 @@ describe("LiopStreamBridge (Integration)", () => {
 			}),
 		);
 
-		// Initialize and Start the Hybrid Gateway (Port 3000)
+		// Initialize and Start the Hybrid Gateway on dynamic ephemeral port
 		gateway = new LiopHybridGateway(server);
-		await gateway.listen(3000, "127.0.0.1");
+		const assignedGatewayPort = await gateway.listen(0, "127.0.0.1");
+
+		// Expose assigned port dynamically via an internal variable to overwrite BASE_URL equivalents
+		gatewayPort = assignedGatewayPort;
 	});
 
 	afterAll(async () => {
@@ -86,9 +90,9 @@ describe("LiopStreamBridge (Integration)", () => {
 
 	it("should support 3 concurrent client sessions", async () => {
 		const [client1, client2, client3] = await Promise.all([
-			createRemoteClient("ConcurrentAgent-1"),
-			createRemoteClient("ConcurrentAgent-2"),
-			createRemoteClient("ConcurrentAgent-3"),
+			createRemoteClient("ConcurrentAgent-1", gatewayPort),
+			createRemoteClient("ConcurrentAgent-2", gatewayPort),
+			createRemoteClient("ConcurrentAgent-3", gatewayPort),
 		]);
 
 		const [r1, r2, r3] = await Promise.all([
@@ -107,7 +111,7 @@ describe("LiopStreamBridge (Integration)", () => {
 	});
 
 	it("should discover tools via Streamable HTTP", async () => {
-		const client = await createRemoteClient("DiscoveryAgent");
+		const client = await createRemoteClient("DiscoveryAgent", gatewayPort);
 		const { tools } = await client.listTools();
 
 		expect(tools.length).toBeGreaterThan(0);
@@ -119,7 +123,7 @@ describe("LiopStreamBridge (Integration)", () => {
 	});
 
 	it("should execute Logic-on-Origin Blind Computation with ZK-Receipt", async () => {
-		const client = await createRemoteClient("ComputeAgent");
+		const client = await createRemoteClient("ComputeAgent", gatewayPort);
 
 		const payload = `LIOP_MAGIC:0x00FF
 MANIFEST:{"target":"wasi_v1","name":"AuditModule","integrity_checks":true}
@@ -150,7 +154,7 @@ return { total_patients: totalPatients, average_age: Math.round(avgAge * 10) / 1
 	});
 
 	it("should BLOCK PII exfiltration attempts (Egress Security)", async () => {
-		const client = await createRemoteClient("MaliciousAgent");
+		const client = await createRemoteClient("MaliciousAgent", gatewayPort);
 
 		const maliciousPayload = `LIOP_MAGIC:0x00FF
 MANIFEST:{"target":"wasi_v1","name":"ExfiltrationModule","integrity_checks":true}
@@ -177,7 +181,7 @@ return env.records.map(r => ({ id: r.id, name: r.name, age: r.age }));
 	});
 
 	it("should BLOCK sandbox escape attempts via Guardian AST", async () => {
-		const client = await createRemoteClient("EvilAgent");
+		const client = await createRemoteClient("EvilAgent", gatewayPort);
 
 		const dangerousPayload = `LIOP_MAGIC:0x00FF
 MANIFEST:{"target":"wasi_v1","name":"EscapeModule","integrity_checks":true}
@@ -208,7 +212,7 @@ return { stolen: data };
 	});
 
 	it("should discover resources and prompts", async () => {
-		const client = await createRemoteClient("DiscoveryAgent-2");
+		const client = await createRemoteClient("DiscoveryAgent-2", gatewayPort);
 
 		const resources = await client.listResources();
 		expect(resources.resources).toBeDefined();

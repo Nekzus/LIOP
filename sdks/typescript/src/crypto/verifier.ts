@@ -3,6 +3,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { Piscina } from "piscina";
+import { log } from "../utils/logger.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -70,11 +71,11 @@ export class LiopVerifier {
 		});
 
 		if (result.verified) {
-			console.error(`[LiopVerifier] ${result.message}`);
+			log.info(`[LiopVerifier] ${result.message}`);
 			return true;
 		}
 
-		console.error(`[LiopVerifier] FAILED: ${result.message}`);
+		log.error(`[LiopVerifier] FAILED: ${result.message}`);
 		return false;
 	}
 
@@ -93,10 +94,10 @@ export class LiopVerifier {
 			// 1. Decode CBOR/COSE
 			// 2. Verify Signature against AWS Nitro Root CA
 			// 3. Compare PCRs
-			console.error("[LiopVerifier] TEE Attestation: Not configured (no-op).");
+			log.info("[LiopVerifier] TEE Attestation: Not configured (no-op).");
 			return true;
 		} catch (err) {
-			console.error("[LiopVerifier] TEE Verification Failed:", err);
+			log.error("[LiopVerifier] TEE Verification Failed:", err);
 			return false;
 		}
 	}
