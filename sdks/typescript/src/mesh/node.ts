@@ -366,8 +366,8 @@ export class MeshNode {
 				try {
 					const peerId = peerIdFromString(peer.id);
 					const addrs = peer.addresses.map((a: string) => multiaddr(a));
-					// biome-ignore lint/suspicious/noExplicitAny: libp2p version drift workaround
-					await this.node.peerStore.save(peerId as any, { multiaddrs: addrs });
+					// @ts-expect-error: libp2p version drift workaround
+					await this.node.peerStore.save(peerId, { multiaddrs: addrs });
 
 					// Pre-seed DHT routing table
 					// biome-ignore lint/suspicious/noExplicitAny: Internal service access
