@@ -32,6 +32,36 @@ function isLuhnValid(cardNumber: string): boolean {
 	return sum % 10 === 0;
 }
 
+/**
+ * Validates an International Bank Account Number (IBAN) using ISO 7064 Modulo 97.
+ * Uses BigInt algebra to avoid JS floating point truncation with 30-digit numbers.
+ */
+function isIbanValid(iban: string): boolean {
+	const sanitized = iban.replace(/\s+/g, "").toUpperCase();
+
+	if (!/^[A-Z]{2}[0-9]{2}[A-Z0-9]{1,30}$/.test(sanitized)) return false;
+
+	const rearranged = sanitized.substring(4) + sanitized.substring(0, 4);
+
+	let numericString = "";
+	for (let i = 0; i < rearranged.length; i++) {
+		const charCode = rearranged.charCodeAt(i);
+		if (charCode >= 65 && charCode <= 90) {
+			numericString += (charCode - 55).toString();
+		} else if (charCode >= 48 && charCode <= 57) {
+			numericString += rearranged.charAt(i);
+		} else {
+			return false;
+		}
+	}
+
+	try {
+		return BigInt(numericString) % 97n === 1n;
+	} catch (_e) {
+		return false;
+	}
+}
+
 export type PiiRuleDefinition = {
 	name: string;
 	pattern: string | RegExp;
@@ -75,6 +105,37 @@ export const PII_PATTERNS = {
 			if (digits === "1234567890") return false;
 			return true;
 		},
+	} as PiiRuleDefinition,
+	SSN: {
+		name: "SSN",
+		pattern: /\b\d{3}[- ]?\d{2}[- ]?\d{4}\b/g,
+		validator: (match: string) => {
+			const digits = match.replace(/\D/g, "");
+			if (digits.length !== 9) return false;
+
+			const area = parseInt(digits.substring(0, 3), 10);
+			if (area === 0 || area === 666 || area >= 900) return false;
+
+			const group = parseInt(digits.substring(3, 5), 10);
+			if (group === 0) return false;
+
+			const serial = parseInt(digits.substring(5, 9), 10);
+			if (serial === 0) return false;
+
+			if (/^(\d)\1+$/.test(digits) || digits === "123456789") return false;
+
+			return true;
+		},
+	} as PiiRuleDefinition,
+	IBAN: {
+		name: "IBAN",
+		pattern: /\b[A-Z]{2}[0-9]{2}[A-Z0-9]{1,30}\b/gi,
+		validator: isIbanValid,
+	} as PiiRuleDefinition,
+	PASSPORT_MRZ: {
+		name: "PASSPORT_MRZ",
+		// Machina Readable Zone line match for standard international passports
+		pattern: /\bP[A-Z<][A-Z<]{3}[A-Z0-9<]{39}(?:\b|\s|$)/g,
 	} as PiiRuleDefinition,
 };
 

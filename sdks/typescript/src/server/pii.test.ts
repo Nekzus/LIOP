@@ -96,4 +96,49 @@ describe("PiiScanner (The Shield V2 - Military Grade)", () => {
 		const maliciousArray = '[{"id":"P002"}]';
 		expect(strictScanner.scan(maliciousArray)).toBe("Forbidden Key: id");
 	});
+
+	it("should detect and validate IBAN via ISO 7064 Modulo 97-10", () => {
+		const bankingScanner = new PiiScanner([PII_PATTERNS.IBAN]);
+
+		// Valid IBANs
+		expect(bankingScanner.scan("Transfer to DE89370400440532013000")).toBe(
+			PII_PATTERNS.IBAN.name,
+		);
+		expect(bankingScanner.scan("Payment GB82WEST12345698765432")).toBe(
+			PII_PATTERNS.IBAN.name,
+		);
+
+		// Invalid IBAN (Checksum altered)
+		expect(bankingScanner.scan("Fake IBAN DE89370400440532013001")).toBe(null);
+	});
+
+	it("should detect and validate strict Social Security Numbers", () => {
+		const ssnScanner = new PiiScanner([PII_PATTERNS.SSN]);
+
+		// Valid format passing all exclusion rules
+		expect(ssnScanner.scan("My SSN is 456-78-9012")).toBe(
+			PII_PATTERNS.SSN.name,
+		);
+
+		// Invalid area 000
+		expect(ssnScanner.scan("000-45-6789")).toBe(null);
+		// Invalid group 00
+		expect(ssnScanner.scan("123-00-6789")).toBe(null);
+		// Invalid serial 0000
+		expect(ssnScanner.scan("123-45-0000")).toBe(null);
+		// Sequential and repeating fakes
+		expect(ssnScanner.scan("123-45-6789")).toBe(null);
+		expect(ssnScanner.scan("111-11-1111")).toBe(null);
+	});
+
+	it("should detect Passport MRZ patterns", () => {
+		const passportScanner = new PiiScanner([PII_PATTERNS.PASSPORT_MRZ]);
+		expect(
+			passportScanner.scan(
+				"Scan: P<UTOERIKSSON<<ANNA<MARIA<<<<<<<<<<<<<<<<<<<",
+			),
+		).toBe(PII_PATTERNS.PASSPORT_MRZ.name);
+		// Random short garbage
+		expect(passportScanner.scan("P<UTOERI<<")).toBe(null);
+	});
 });
