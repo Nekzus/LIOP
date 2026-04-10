@@ -83,4 +83,17 @@ describe("MeshNode Identity & Discovery", () => {
 
 		await node.stop();
 	}, 30000);
+
+	it("should provide cryptographic signature using local private key", async () => {
+		const node = new MeshNode();
+		await node.start();
+		const data = Buffer.from("test-data-to-sign");
+		const signature = await node.sign(data);
+		
+		expect(signature).toBeDefined();
+		expect(signature).toBeInstanceOf(Buffer);
+		expect(signature.length).toBeGreaterThan(0);
+		
+		await node.stop();
+	}, 30000);
 });
