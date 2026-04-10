@@ -47,7 +47,16 @@ export interface MeshNodeConfig {
 	listenAddresses?: string[];
 	bootstrapNodes?: string[];
 	identityPath?: string;
+	enableWAN?: boolean;
+	dhtStoragePath?: string;
 }
+
+const DEFAULT_BOOTSTRAP_NODES = [
+	"/dnsaddr/bootstrap.libp2p.io/p2p/QmNnooDuVkcruPhcoXdia1vAHm1qrCEYWvmqVkMBjeEbFR",
+	"/dnsaddr/bootstrap.libp2p.io/p2p/QmQCU2EcMqAqQPR2i9bChDtGNJchTbq5TbXJJ16u19uLTa",
+	"/dnsaddr/bootstrap.libp2p.io/p2p/QmbLHAnMoJPWSCR5Zhtx6BHJX9KiKNN6tpvbUcqanj75Nb",
+	"/dnsaddr/bootstrap.libp2p.io/p2p/QmcZf59bWwK5XFi76CZX8cbJ4BhTzzA3gU1ZjWZcYW7dwt",
+];
 
 const LIOP_MANIFEST_PROTOCOL = "/liop/manifest/1.0.0";
 const LIOP_MANIFEST_CAPABILITY = "liop:manifest";
@@ -91,6 +100,8 @@ export class MeshNode {
 			],
 			bootstrapNodes: config.bootstrapNodes || [],
 			identityPath: config.identityPath,
+			enableWAN: config.enableWAN ?? false,
+			dhtStoragePath: config.dhtStoragePath,
 		};
 	}
 
@@ -224,14 +235,23 @@ export class MeshNode {
 		const { privateKey, isNew } = result;
 		this.localPrivateKey = privateKey;
 
+		let bootNodes = this.config.bootstrapNodes || [];
+		if (bootNodes.length === 0 && this.config.enableWAN) {
+			bootNodes = DEFAULT_BOOTSTRAP_NODES;
+		}
+
 		const discovery =
-			this.config.bootstrapNodes && this.config.bootstrapNodes.length > 0
+			bootNodes.length > 0
 				? [
 						bootstrap({
-							list: this.config.bootstrapNodes,
+							list: bootNodes,
 						}),
 					]
 				: undefined;
+
+		const dhtProtocol = this.config.enableWAN
+			? "/ipfs/kad/1.0.0"
+			: "/ipfs/lan/kad/1.0.0";
 
 		this.node = await createLibp2p({
 			privateKey,
@@ -245,7 +265,7 @@ export class MeshNode {
 				identify: identify(),
 				ping: ping(),
 				dht: kadDHT({
-					protocol: "/ipfs/lan/kad/1.0.0", // SHIFT TO LAN PROTOCOL!
+					protocol: dhtProtocol,
 					clientMode: false,
 					// Allow local/private IPs in the DHT routing table for development/testing
 					allowQueryWithZeroPeers: true,
@@ -291,6 +311,9 @@ export class MeshNode {
 
 		await this.node.start();
 
+		// Load persisted DHT routing table to enable rapid cold-start reconnections
+		await this.loadRoutingTable();
+
 		// [LIOP-ALPHA] Protocols and services setup
 		this.applyHandlers();
 
@@ -306,11 +329,11 @@ export class MeshNode {
 		});
 
 		// Force explicit dialing of Bootstrap nodes to guarantee topology
-		if (this.config.bootstrapNodes && this.config.bootstrapNodes.length > 0) {
+		if (bootNodes.length > 0) {
 			console.error(
-				`[LIOP-Mesh] Forcing direct P2P dial to ${this.config.bootstrapNodes.length} bootstrap nodes...`,
+				`[LIOP-Mesh] Forcing direct P2P dial to ${bootNodes.length} bootstrap nodes...`,
 			);
-			for (const addr of this.config.bootstrapNodes) {
+			for (const addr of bootNodes) {
 				try {
 					await this.node.dial(multiaddr(addr));
 					console.error(`[LIOP-Mesh] Successfully dialed ${addr}`);
@@ -323,8 +346,68 @@ export class MeshNode {
 
 	async stop(): Promise<void> {
 		if (this.node) {
+			await this.saveRoutingTable();
 			await this.node.stop();
 			console.error("[LIOP-Mesh] Node stopped");
+		}
+	}
+
+	private async loadRoutingTable() {
+		if (!this.config.dhtStoragePath || !this.node) return;
+		try {
+			const absolutePath = path.resolve(this.config.dhtStoragePath);
+			const data = await fs.readFile(absolutePath, "utf-8");
+			const peers = JSON.parse(data);
+			const { peerIdFromString } = await import("@libp2p/peer-id");
+
+			let loadedCount = 0;
+			for (const peer of peers) {
+				if (!peer.id || !peer.addresses) continue;
+				try {
+					const peerId = peerIdFromString(peer.id);
+					const addrs = peer.addresses.map((a: string) => multiaddr(a));
+					await this.node.peerStore.save(peerId, { multiaddrs: addrs });
+
+					// Pre-seed DHT routing table
+					// biome-ignore lint/suspicious/noExplicitAny: Internal service access
+					const dht = (this.node.services as any).dht;
+					if (dht?.routingTable) {
+						dht.routingTable.add(peerId).catch(() => {});
+					}
+					loadedCount++;
+				} catch (_e) {}
+			}
+			console.error(`[LIOP-Mesh] Loaded ${loadedCount} peers from DHT storage`);
+		} catch (error: unknown) {
+			const e = error as Error & { code?: string };
+			if (e.code !== "ENOENT") {
+				console.error(`[LIOP-Mesh] Failed to load DHT table: ${e.message}`);
+			}
+		}
+	}
+
+	private async saveRoutingTable() {
+		if (!this.config.dhtStoragePath || !this.node) return;
+		try {
+			const absolutePath = path.resolve(this.config.dhtStoragePath);
+			const allPeers = await this.node.peerStore.all();
+			const peersToSave = [];
+			for (const peer of allPeers) {
+				if (peer.addresses.length > 0) {
+					peersToSave.push({
+						id: peer.id.toString(),
+						// biome-ignore lint/suspicious/noExplicitAny: internal libp2p addr
+						addresses: peer.addresses.map((a: any) => a.multiaddr.toString()),
+					});
+				}
+			}
+			await fs.mkdir(path.dirname(absolutePath), { recursive: true });
+			await fs.writeFile(absolutePath, JSON.stringify(peersToSave, null, 2));
+			console.error(
+				`[LIOP-Mesh] Saved ${peersToSave.length} peers to DHT storage`,
+			);
+		} catch (error) {
+			console.error(`[LIOP-Mesh] FAILED to save DHT routing table: ${error}`);
 		}
 	}
 
