@@ -89,11 +89,11 @@ describe("MeshNode Identity & Discovery", () => {
 		await node.start();
 		const data = Buffer.from("test-data-to-sign");
 		const signature = await node.sign(data);
-		
+
 		expect(signature).toBeDefined();
 		expect(signature).toBeInstanceOf(Buffer);
 		expect(signature.length).toBeGreaterThan(0);
-		
+
 		await node.stop();
 	}, 30000);
 });

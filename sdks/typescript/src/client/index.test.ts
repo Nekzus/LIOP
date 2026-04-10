@@ -51,7 +51,7 @@ describe("LiopClient", () => {
 		// Access the private meshNode instance for mocking
 		// biome-ignore lint/suspicious/noExplicitAny: testing internals
 		const meshNode = (client as any).meshNode;
-		
+
 		vi.spyOn(meshNode, "findProviders").mockResolvedValue(["peer-123"]);
 		vi.spyOn(meshNode, "queryManifest").mockResolvedValue({
 			peerId: "peer-123",
@@ -59,8 +59,13 @@ describe("LiopClient", () => {
 			tools: [],
 			serverInfo: { name: "test", version: "1" },
 			resources: [
-				{ uri: "liop://test/resource", name: "test-res", mimeType: "application/json", text: "null" }
-			]
+				{
+					uri: "liop://test/resource",
+					name: "test-res",
+					mimeType: "application/json",
+					text: "null",
+				},
+			],
 		});
 
 		const result = await client.readResource("liop://test/resource");
