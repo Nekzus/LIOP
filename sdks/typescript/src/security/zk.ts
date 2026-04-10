@@ -25,9 +25,8 @@ export class ZkVerificationError extends Error {
  */
 export const ZkVerifier = {
 	/**
-	 * Mocks the validation of a ZK receipt.
-	 * In a production environment, this would call into the native verifier of the zkVM
-	 * (e.g., RISC Zero's `verify_receipt` FFI binding).
+	 * Validates a ZK receipt using structural Binary Receipt verification.
+	 * Parses the HMAC-SHA256 commitment format (v1) and verifies journal integrity.
 	 *
 	 * @param receipt - Complete ZkReceipt to verify
 	 * @param expectedImageId - Hash or ImageID of the WASM file dispatched to the host

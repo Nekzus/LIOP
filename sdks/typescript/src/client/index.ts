@@ -170,10 +170,18 @@ export class LiopClient {
 		}
 
 		console.error(`[LiopClient] Negotiating intent for ${toolName}...`);
+		const agentDid = this.meshNode
+			? `did:liop:${this.meshNode.getPeerId()}`
+			: "did:liop:ephemeral";
+		const intentPayload = Buffer.from(`${toolName}:${Date.now()}`);
+		const proofOfIntent = this.meshNode
+			? await this.meshNode.sign(intentPayload)
+			: intentPayload;
+
 		const intentResponse = (await rpcClient.negotiateIntent({
-			agent_did: "liop-client-alpha",
+			agent_did: agentDid,
 			capability_hash: toolName,
-			proof_of_intent: Buffer.from("alpha-intent-proof"),
+			proof_of_intent: proofOfIntent,
 		})) as unknown as {
 			accepted: boolean;
 			error_message: string;

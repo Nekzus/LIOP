@@ -1,5 +1,5 @@
 # ==========================================
-# Neural Mesh Protocol (NMP) - .gitignore
+# Logic-Injection-on-Origin Protocol (LIOP) - .gitignore
 # ==========================================
 
 # -----------------
@@ -70,13 +70,10 @@ Thumbs.db
 examples/demos/sentinel-mesh/data/*.json
 
 # -----------------
-# NMP Industrial Demo Generatos
+# LIOP Industrial Demo (Auto-generated)
 # -----------------
 *-identity.json
+client-id.json
+source-id.json
 *.multiaddr
 out2.json
-vault.multiaddr
-nexus.multiaddr
-bank.multiaddr
-oracle.multiaddr
-sentinel.multiaddr
