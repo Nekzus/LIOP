@@ -24,22 +24,19 @@ async function main() {
 
 	const liopServer = new LiopServer({
 		name: "LIOP-Nexus",
-		version: "1.0.0",
+		version: "1.0.0"
 	});
 
-	const meshNode = new MeshNode({
-		identityPath: path.join(dataDir, "nexus-identity.json"),
-		listenAddresses: ["/ip4/0.0.0.0/tcp/4001"],
-		bootstrapNodes: [], // Nexus is the seed
+	await liopServer.connectToMesh({
+		port: 50051,
+		meshConfig: {
+			identityPath: path.join(dataDir, "nexus-identity.json"),
+			listenAddresses: ["/ip4/0.0.0.0/tcp/4001"],
+			bootstrapNodes: [], // Nexus is the seed
+		}
 	});
 
-	await meshNode.start();
-	liopServer.setMeshNode(meshNode);
-
-	const gateway = new LiopHybridGateway({
-		liopServer,
-		meshNode,
-	});
+	const gateway = new LiopHybridGateway(liopServer, liopServer.getMeshNode() || undefined);
 
 	const port = await gateway.listen(3000);
 	log.info(`[Nexus] Gateway active on port ${port}`);

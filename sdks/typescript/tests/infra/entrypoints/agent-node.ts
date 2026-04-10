@@ -23,27 +23,21 @@ async function main() {
 
 	const liopServer = new LiopServer({
 		name: "LIOP-Agent-Node",
-		version: "1.0.0",
-		gatewayUrl: "grpc://172.20.0.12:50051"
+		version: "1.0.0"
 	});
 
-	const meshNode = new MeshNode({
+	await liopServer.connectToMesh({ port: 50051, meshConfig: { 
 		identityPath: path.join(dataDir, "agent-identity.json"),
-		listenAddresses: ["/ip4/0.0.0.0/tcp/4001"],
-		bootstrapNodes: ["/ip4/172.20.0.10/tcp/4001"],
-	});
+		listenAddresses: ["/ip4/0.0.0.0/tcp/4001"], 
+		bootstrapNodes: ["/ip4/172.20.0.10/tcp/4001"] 
+	}});
 
-	await meshNode.start();
-	liopServer.setMeshNode(meshNode);
-	await liopServer.connectToMesh({ port: 50051 });
+	const meshNode = liopServer.getMeshNode();
+	if (!meshNode) throw new Error("Failed to initialize MeshNode");
 
 	const router = new LiopMcpRouter(liopServer, meshNode);
 
-	const gateway = new LiopHybridGateway({
-		liopServer,
-		meshNode,
-		router,
-	});
+	const gateway = new LiopHybridGateway(liopServer, meshNode, 50051);
 
 	const port = await gateway.listen(3000);
 	log.info(`[Agent Node] Gateway active on port ${port}`);
@@ -51,7 +45,7 @@ async function main() {
 	// Keep alive and do periodic discovery
 	setInterval(async () => {
 		try {
-			await router.discoverTools();
+			await router.refreshManifestCache(true);
 		} catch (e) {
 			/* ignore errors silently in background */
 		}

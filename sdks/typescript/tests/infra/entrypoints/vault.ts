@@ -25,8 +25,7 @@ async function main() {
 
 	const liopServer = new LiopServer({
 		name: "LIOP-Vault",
-		version: "1.0.0",
-		gatewayUrl: "grpc://172.20.0.11:50051"
+		version: "1.0.0"
 	});
 
 	// Datasets
@@ -36,56 +35,46 @@ async function main() {
 		{ id: "P3", name: "Charlie", ssn: "333-44-5555", condition: "Hypertension", age: 52 },
 	];
 
-	liopServer.registerTool(
+	liopServer.tool(
 		"Analyze_Medical_Records",
 		"Analyze patient data without exfiltrating PII",
 		{ filter_condition: z.string().optional() },
-		['id', 'name', 'ssn'],
 		// biome-ignore lint/suspicious/noExplicitAny: Intentional any for demo
 		async (params: any) => {
 			const filtered = params.filter_condition
 				? patients.filter(p => p.condition === params.filter_condition)
 				: patients;
-			return filtered;
+			return { content: [{ type: "text", text: JSON.stringify(filtered) }] };
 		}
 	);
 
-	liopServer.registerTool(
+	liopServer.tool(
 		"Analyze_Bank_Transactions",
 		"Analyze banking details",
 		{ transaction_type: z.string().optional() },
-		['account_number', 'ssn'],
 		// biome-ignore lint/suspicious/noExplicitAny: Intentional any for demo
 		async (params: any) => {
-			return [{ account_number: "12345", ssn: "123", amount: 1000, type: "deposit" }];
+			return { content: [{ type: "text", text: JSON.stringify([{ account_number: "12345", ssn: "123", amount: 1000, type: "deposit" }]) }] };
 		}
 	);
 
-	liopServer.registerTool(
+	liopServer.tool(
 		"Analyze_Market_Data",
 		"Public market analysis",
 		{ ticker: z.string().optional() },
-		[],
 		// biome-ignore lint/suspicious/noExplicitAny: Intentional any for demo
 		async (params: any) => {
-			return [{ ticker: "NEXUS", price: 150.00 }];
+			return { content: [{ type: "text", text: JSON.stringify([{ ticker: "NEXUS", price: 150.00 }]) }] };
 		}
 	);
 
-	const meshNode = new MeshNode({
+	await liopServer.connectToMesh({ port: 50051, meshConfig: { 
 		identityPath: path.join(dataDir, "vault-identity.json"),
-		listenAddresses: ["/ip4/0.0.0.0/tcp/4001"],
-		bootstrapNodes: ["/ip4/172.20.0.10/tcp/4001"],
-	});
+		listenAddresses: ["/ip4/0.0.0.0/tcp/4001"], 
+		bootstrapNodes: ["/ip4/172.20.0.10/tcp/4001"] 
+	}});
 
-	await meshNode.start();
-	liopServer.setMeshNode(meshNode);
-	await liopServer.connectToMesh({ port: 50051 });
-
-	const gateway = new LiopHybridGateway({
-		liopServer,
-		meshNode,
-	});
+	const gateway = new LiopHybridGateway(liopServer, liopServer.getMeshNode() || undefined);
 
 	const port = await gateway.listen(3000);
 	log.info(`[Vault] Gateway active on port ${port}`);
