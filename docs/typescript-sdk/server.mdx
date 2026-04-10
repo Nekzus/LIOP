@@ -12,7 +12,7 @@ Instead of writing custom execution environments to manage WebAssembly, isolatio
 You create a Data Node by telling the Mesh who you are and providing configuration properties, such as data security controls.
 
 ```typescript
-import { LiopServer, PII_PATTERNS } from "@nekzus/liop";
+import { LiopServer, PII_PRESETS } from "@nekzus/liop";
 
 const server = new LiopServer(
   {
@@ -22,10 +22,14 @@ const server = new LiopServer(
   {
     // Scales decryption & WASI sandboxing across all CPU cores instantly
     workerPool: { enabled: true, maxThreads: 16 },
-    // Strict security configuration and data leak prevention
+    // Strict security configuration and data leak prevention using flexible regional presets
     security: {
-      piiPatterns: [PII_PATTERNS.EMAIL, PII_PATTERNS.IP_ADDRESS],
-      forbiddenKeys: ["password", "ssn", "secret_token"]
+      // You can merge presets with your own custom rules
+      piiPatterns: [
+        ...PII_PRESETS.US_COMPLIANT, 
+        /[A-Z]{3}-\d{5}/ // Custom internal regex tracking number
+      ],
+      forbiddenKeys: ["password", "clinical_record", "secret_token"]
     }
   }
 );
@@ -35,8 +39,8 @@ const server = new LiopServer(
 
 When instantiating a `LiopServer`, the second parameter allows you to define advanced characteristics of the node:
 
-*   **`security.forbiddenKeys` (Egress Filter):** An array of strings. If the model attempts to return a JSON containing any of these keys (e.g., `"password"`), the Egress Filter will destroy the response before it leaves the server.
-*   **`security.piiPatterns` (Sanitization):** Predefined (`PII_PATTERNS`) or custom Regular Expressions that scrutinize text substrings. If an agent attempts to exfiltrate an email in a free text block, the engine intercepts it.
+*   **`security.forbiddenKeys` (Egress Filter):** An array of strings. If the model attempts to return a JSON containing any of these keys (e.g., `"clinical_history"`), the Egress Filter will destroy the response before it leaves the server mapping through objects recursively. Defaults to blocking `"password"`, `"token"`, `"secret"`, and `"privateKey"`.
+*   **`security.piiPatterns` (Sanitization):** Arrays of `PiiRule` objects. You can use our out-of-the-box templates (`PII_PRESETS.GLOBAL_STRICT`, `EU_GDPR`, `US_COMPLIANT`) and merge them with custom raw strings or regexes. The engine will intercept any outgoing text that matches combinations of IBAN logic, credit card numbers, or internal tracking IDs. Defaults to `GLOBAL_STRICT` if omitted.
 *   **Dynamic Return Structure (Auto-i18n):** No manual configuration required. The `LiopServer` automatically injects *Dynamic Return Structure* directives into payloads. This forces the AI to respect and return JSON keys exactly in the same native language the client used when making the request, eliminating the need for internationalization (i18n) libraries on your frontend.
 
 ## Creating Capabilities (Tools)

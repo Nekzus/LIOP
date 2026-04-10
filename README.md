@@ -78,10 +78,11 @@ The developer-facing SDK, published as [`@nekzus/liop`](https://www.npmjs.com/pa
 | `LiopClient` | Discover and invoke remote tools via P2P mesh |
 | `LiopMcpBridge` | JSON-RPC 2.0 adapter for legacy MCP clients (Claude Desktop, Cursor) |
 | Guardian AST | Static analysis of WASM imports to prevent sandbox escapes |
-| PII Shield | Real-time detection and blocking of sensitive data (Email, Credit Card, IP, Phone) |
+| PII Shield | Real-time detection and blocking of sensitive data via Customizable Regional Presets (Email, Credit Card, SSN, IBAN, Passport MRZ, custom regex) |
 | Worker Pool | Multi-threaded execution via Piscina for non-blocking cryptography |
 | PQC (Kyber) | Post-Quantum key encapsulation for transport layer security |
 | Security | TLS/mTLS, Rate-Limiting, and QUIC transport support |
+| Cross-AI Prompts | Zero-Shot Adaptors to train models in Real-Time (Claude XML, OpenAI, Gemini) |
 | ZK Receipts | Zero-Knowledge proof verification for computational integrity |
 
 [Read the TypeScript SDK Documentation](./sdks/typescript/README.md)

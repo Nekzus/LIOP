@@ -36,9 +36,10 @@ This fundamentally solves the data privacy, bandwidth, and latency challenges of
 | **MCP Drop-in Replacement** | `LiopServer` mirrors the Anthropic MCP `Server` API — tools, resources, and prompts with `Zod` schemas. |
 | **Guardian AST** | Zero-time heuristic inspection blocks sandbox escapes (`require`, `fs`, `eval`, `fetch`, prototype pollution). |
 | **WASI Sandbox** | JavaScript payloads execute inside V8 isolates with CPU fuel limits and no access to Node.js globals. |
-| **PII Shield** | Multi-layer egress filter with NIST/OWASP patterns (Email, Credit Card with Luhn, IP, Phone) and configurable forbidden keys. |
+| **PII Shield** | Multi-layer egress filter with Regional Presets (Email, Credit Card with Luhn, IP, Phone, SSN, IBAN Mod-97, Passport MRZ) and custom keys. |
 | **ZK-Receipts** | Cryptographic proof (SHA-256 + SHA-512 seal) that the returned result was computed honestly from the injected logic. |
 | **Worker Pool** | Heavy computation (crypto, sandboxing) dispatched to OS threads via `piscina`, unblocking the V8 event loop. |
+| **Cross-AI Adapters**| Zero-Shot system prompts automatically adapt instructions for Claude (XML-heavy) vs OpenAI/Gemini (JSON-schema). |
 | **MCP Bridge** | `LiopMcpBridge` adapts any `LiopServer` to the JSON-RPC 2.0 / stdio protocol used by Claude Desktop, Cursor, etc. |
 | **Post-Quantum Ready** | ML-KEM-768 (Kyber) handshake + AES-256-GCM symmetric encryption for transport-layer security. |
 | **P2P Mesh** | Kademlia DHT discovery via `libp2p` with TCP + WebSocket + Yamux multiplexing and Noise encryption. |
@@ -263,13 +264,21 @@ await bridge.connect();
 Built-in patterns with multi-layer verification:
 
 ```typescript
-import { PII_PATTERNS } from "@nekzus/liop/server";
+import { PII_PATTERNS, PII_PRESETS } from "@nekzus/liop/server";
 
 // Available patterns:
 PII_PATTERNS.EMAIL         // RFC 5322 compliant, excludes @example.com/@test.com
 PII_PATTERNS.CREDIT_CARD   // Visa/MC/Amex + Luhn algorithm validation
 PII_PATTERNS.IP_ADDRESS    // IPv4 with octet range validation (excludes localhost)
 PII_PATTERNS.PHONE         // International phone formats with digit-length validation
+PII_PATTERNS.SSN           // USA Social Security Number rules (blocks 000 segments)
+PII_PATTERNS.IBAN          // ISO 7064 Modulo 97-10 algorithm precision via BigInt
+PII_PATTERNS.PASSPORT_MRZ  // Strict 44-character TD3 international passport MRZ string
+
+// Pre-built Regional Presets ready to drop-in via LiopServer(options):
+PII_PRESETS.GLOBAL_STRICT
+PII_PRESETS.US_COMPLIANT
+PII_PRESETS.EU_GDPR
 ```
 
 ### Forbidden Keys
