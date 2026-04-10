@@ -1,0 +1,94 @@
+networks:
+  liop-testnet:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24
+          gateway: 172.20.0.1
+
+volumes:
+  nexus-identity:
+  vault-identity:
+  agent-identity:
+
+x-node-base: &node-base
+  build:
+    context: ../../../../
+    dockerfile: sdks/typescript/tests/infra/Dockerfile
+  networks:
+    liop-testnet: {}
+  restart: "no"
+  init: true
+
+services:
+  nexus:
+    <<: *node-base
+    container_name: liop-nexus
+    hostname: nexus
+    command: ["node", "--no-warnings=ExperimentalWarning", "entrypoints/nexus.js"]
+    environment:
+      LIOP_NODE_ROLE: nexus
+      LIOP_LOG_LEVEL: info
+    volumes:
+      - nexus-identity:/app/data
+    networks:
+      liop-testnet:
+        ipv4_address: 172.20.0.10
+    ports:
+      - "4001:4001"    # libp2p TCP → Windows (auto-discovery + mesh join)
+      - "13000:3000"   # HTTP health → Windows (auto-discovery endpoint)
+
+  vault:
+    <<: *node-base
+    container_name: liop-vault
+    hostname: vault
+    command: ["node", "--no-warnings=ExperimentalWarning", "entrypoints/vault.js"]
+    environment:
+      LIOP_NODE_ROLE: vault
+      LIOP_LOG_LEVEL: info
+    volumes:
+      - vault-identity:/app/data
+    networks:
+      liop-testnet:
+        ipv4_address: 172.20.0.11
+    depends_on:
+      nexus:
+        condition: service_healthy
+
+  agent:
+    <<: *node-base
+    container_name: liop-agent-node
+    hostname: agent
+    command: ["node", "--no-warnings=ExperimentalWarning", "entrypoints/agent-node.js"]
+    environment:
+      LIOP_NODE_ROLE: agent
+      LIOP_LOG_LEVEL: info
+    volumes:
+      - agent-identity:/app/data
+    networks:
+      liop-testnet:
+        ipv4_address: 172.20.0.12
+    depends_on:
+      nexus:
+        condition: service_healthy
+
+  test-runner:
+    <<: *node-base
+    container_name: liop-test-runner
+    hostname: runner
+    command: ["npx", "vitest", "run", "--config", "sdks/typescript/tests/infra/vitest.crossnet.config.ts"]
+    environment:
+      NEXUS_URL: http://nexus:3000
+      VAULT_URL: http://vault:3000
+      AGENT_URL: http://agent:3000
+      VAULT_GRPC: vault:50051
+    networks:
+      liop-testnet:
+        ipv4_address: 172.20.0.100
+    depends_on:
+      nexus:
+        condition: service_healthy
+      vault:
+        condition: service_healthy
+      agent:
+        condition: service_healthy

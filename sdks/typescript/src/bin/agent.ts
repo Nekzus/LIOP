@@ -8,6 +8,44 @@ import { LiopServer } from "../server/index.js";
 import { log } from "../utils/logger.js";
 
 /**
+ * Resolves a full libp2p multiaddr (with PeerID) from a LIOP node's
+ * HTTP health endpoint. This enables zero-config bootstrap — users
+ * only need to provide a URL, not a cryptographic PeerID.
+ *
+ * @param url - HTTP URL of a LIOP node's health endpoint (e.g. "http://host:3000")
+ * @returns Full multiaddr string with PeerID, or null if resolution fails
+ */
+async function resolveBootstrapFromUrl(url: string): Promise<string | null> {
+	try {
+		const healthUrl = url.endsWith("/health") ? url : `${url}/health`;
+		const response = await fetch(healthUrl, {
+			headers: { Accept: "application/json" },
+			signal: AbortSignal.timeout(5000),
+		});
+		if (!response.ok) return null;
+
+		const data = await response.json();
+		if (!data.mesh?.multiaddrs?.length || !data.mesh?.peerId) return null;
+
+		// Find TCP multiaddr (prefer non-websocket for stability)
+		const tcpAddr = data.mesh.multiaddrs.find(
+			(a: string) => a.includes("/tcp/") && !a.includes("/ws"),
+		);
+		if (!tcpAddr) return null;
+
+		// Rewrite internal Docker IP to the URL's host for external access
+		const urlHost = new URL(url).hostname;
+		const resolved =
+			tcpAddr.replace(/\/ip4\/[^/]+/, `/ip4/${urlHost}`) +
+			(tcpAddr.includes("/p2p/") ? "" : `/p2p/${data.mesh.peerId}`);
+
+		return resolved;
+	} catch {
+		return null;
+	}
+}
+
+/**
  * LIOP Agent (Zero-Config CLI)
  *
  * Secure Logic-on-Origin gateway for Claude Desktop.
@@ -33,7 +71,21 @@ async function main() {
 		bootstrapNodes = args.filter((a) => a.startsWith("/"));
 	}
 
-	// Environment variable
+	// Auto-Discovery via NEXUS URL (the SDK resolves PeerID automatically)
+	if (bootstrapNodes.length === 0 && process.env.LIOP_NEXUS_URL) {
+		log.info(
+			`[LIOP-Agent] Auto-discovering from: ${process.env.LIOP_NEXUS_URL}`,
+		);
+		const resolved = await resolveBootstrapFromUrl(process.env.LIOP_NEXUS_URL);
+		if (resolved) {
+			bootstrapNodes.push(resolved);
+			log.info(`[LIOP-Agent] ✅ Auto-discovered bootstrap: ${resolved}`);
+		} else {
+			log.info(`[LIOP-Agent] ⚠️ Auto-discovery failed. Falling back...`);
+		}
+	}
+
+	// Environment variable (direct multiaddr)
 	if (bootstrapNodes.length === 0 && process.env.LIOP_BOOTSTRAP) {
 		bootstrapNodes.push(process.env.LIOP_BOOTSTRAP.trim());
 	}

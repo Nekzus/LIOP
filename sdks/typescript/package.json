@@ -56,7 +56,11 @@
     "demo:client-quickstart": "pnpm --filter @liop/example-client-quickstart start",
     "demo:server-quickstart": "pnpm --filter @liop/example-server-quickstart start",
     "demo:server": "pnpm --filter @liop/example-server start",
-    "demo:client": "pnpm --filter @liop/example-client start"
+    "demo:client": "pnpm --filter @liop/example-client start",
+    "test:crossnet": "wsl -- bash tests/infra/run-crossnet.sh",
+    "demo:start": "wsl -- bash tests/infra/start-demo.sh",
+    "demo:stop": "wsl -- bash tests/infra/teardown.sh",
+    "demo:claude": "powershell -ExecutionPolicy Bypass -File tests\\infra\\setup-claude-desktop.ps1"
   },
   "keywords": [
     "liop",

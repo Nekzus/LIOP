@@ -84,6 +84,31 @@ export class LiopHybridGateway {
 				method === "GET" &&
 				(url === "/" || url === "/mcp" || url === "/health")
 			) {
+				if (
+					url === "/health" &&
+					req.headers.accept?.includes("application/json")
+				) {
+					const meshInfo = this.meshNode
+						? {
+								peerId: this.meshNode.getPeerId()?.toString() || "",
+								multiaddrs: this.meshNode
+									.getMultiaddrs()
+									.map((m) => m.toString()),
+							}
+						: null;
+					res.writeHead(200, { "Content-Type": "application/json" });
+					res.end(
+						JSON.stringify({
+							status: "healthy",
+							node: this.liopServer.getServerInfo(),
+							mesh: meshInfo,
+							tools: this.liopServer.listTools().map((t) => t.name),
+							timestamp: new Date().toISOString(),
+						}),
+					);
+					return;
+				}
+
 				res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
 				res.end(`
                     <body style="background:#0f172a;color:#f8fafc;font-family:sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;margin:0">
