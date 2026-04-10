@@ -31,5 +31,5 @@ ENV LIOP_GRPC_PORT=50051
 
 EXPOSE 3000 4001 50051
 
-HEALTHCHECK --interval=5s --timeout=3s --start_period=15s --retries=10 \
+HEALTHCHECK --interval=5s --timeout=3s --start-period=15s --retries=10 \
   CMD curl -sf http://localhost:3000/health || exit 1

@@ -12,10 +12,10 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { z } from "zod";
-import { MeshNode } from "../../src/mesh/index.js";
-import { LiopServer } from "../../src/server/index.js";
-import { LiopHybridGateway } from "../../src/gateway/hybrid.js";
-import { log } from "../../src/utils/logger.js";
+import { MeshNode } from "../../../src/mesh/index.js";
+import { LiopServer } from "../../../src/server/index.js";
+import { LiopHybridGateway } from "../../../src/gateway/hybrid.js";
+import { log } from "../../../src/utils/logger.js";
 
 async function main() {
 	const dataDir = "/app/data";
@@ -41,7 +41,8 @@ async function main() {
 		"Analyze patient data without exfiltrating PII",
 		{ filter_condition: z.string().optional() },
 		['id', 'name', 'ssn'],
-		async (params) => {
+		// biome-ignore lint/suspicious/noExplicitAny: Intentional any for demo
+		async (params: any) => {
 			const filtered = params.filter_condition
 				? patients.filter(p => p.condition === params.filter_condition)
 				: patients;
@@ -54,7 +55,8 @@ async function main() {
 		"Analyze banking details",
 		{ transaction_type: z.string().optional() },
 		['account_number', 'ssn'],
-		async (params) => {
+		// biome-ignore lint/suspicious/noExplicitAny: Intentional any for demo
+		async (params: any) => {
 			return [{ account_number: "12345", ssn: "123", amount: 1000, type: "deposit" }];
 		}
 	);
@@ -64,7 +66,8 @@ async function main() {
 		"Public market analysis",
 		{ ticker: z.string().optional() },
 		[],
-		async (params) => {
+		// biome-ignore lint/suspicious/noExplicitAny: Intentional any for demo
+		async (params: any) => {
 			return [{ ticker: "NEXUS", price: 150.00 }];
 		}
 	);

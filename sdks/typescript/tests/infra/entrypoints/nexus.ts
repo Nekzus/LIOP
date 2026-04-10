@@ -11,10 +11,10 @@
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { MeshNode } from "../../src/mesh/index.js";
-import { LiopServer } from "../../src/server/index.js";
-import { LiopHybridGateway } from "../../src/gateway/hybrid.js";
-import { log } from "../../src/utils/logger.js";
+import { MeshNode } from "../../../src/mesh/index.js";
+import { LiopServer } from "../../../src/server/index.js";
+import { LiopHybridGateway } from "../../../src/gateway/hybrid.js";
+import { log } from "../../../src/utils/logger.js";
 
 async function main() {
 	const dataDir = "/app/data";

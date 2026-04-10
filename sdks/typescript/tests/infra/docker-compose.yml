@@ -25,7 +25,7 @@ services:
     <<: *node-base
     container_name: liop-nexus
     hostname: nexus
-    command: ["node", "--no-warnings=ExperimentalWarning", "entrypoints/nexus.js"]
+    command: ["npx", "tsx", "--no-warnings", "entrypoints/nexus.ts"]
     environment:
       LIOP_NODE_ROLE: nexus
       LIOP_LOG_LEVEL: info
@@ -42,7 +42,7 @@ services:
     <<: *node-base
     container_name: liop-vault
     hostname: vault
-    command: ["node", "--no-warnings=ExperimentalWarning", "entrypoints/vault.js"]
+    command: ["npx", "tsx", "--no-warnings", "entrypoints/vault.ts"]
     environment:
       LIOP_NODE_ROLE: vault
       LIOP_LOG_LEVEL: info
@@ -59,7 +59,7 @@ services:
     <<: *node-base
     container_name: liop-agent-node
     hostname: agent
-    command: ["node", "--no-warnings=ExperimentalWarning", "entrypoints/agent-node.js"]
+    command: ["npx", "tsx", "--no-warnings", "entrypoints/agent-node.ts"]
     environment:
       LIOP_NODE_ROLE: agent
       LIOP_LOG_LEVEL: info
