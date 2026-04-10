@@ -156,7 +156,7 @@ export class LiopMcpRouter {
 						error: { code: -32602, message: "Missing resource uri" },
 					};
 				try {
-					const result = this.liopServer.readResource(params.uri as string);
+					const result = await this.liopServer.readResource(params.uri as string);
 					return { jsonrpc: "2.0", id, result };
 				} catch (err: unknown) {
 					// Fallback: Resolve remotely from manifest cache
