@@ -15,7 +15,11 @@
     "check": "pnpm --filter @nekzus/liop check",
     "semantic-release": "semantic-release --branches main",
     "commit": "cz",
-    "sync-metadata": "pnpm --filter @nekzus/liop exec tsx scripts/sync-metadata.ts"
+    "sync-metadata": "pnpm --filter @nekzus/liop exec tsx scripts/sync-metadata.ts",
+    "test:crossnet": "pnpm --filter @nekzus/liop test:crossnet",
+    "demo:start": "pnpm --filter @nekzus/liop demo:start",
+    "demo:stop": "pnpm --filter @nekzus/liop demo:stop",
+    "demo:claude": "pnpm --filter @nekzus/liop demo:claude"
   },
   "config": {
     "commitizen": {

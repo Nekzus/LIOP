@@ -18,6 +18,6 @@ describe("Cross-Network: Discovery", () => {
 		expect(data).toHaveProperty("result");
 		
 		const tools = data.result.tools.map((t: any) => t.name);
-		expect(tools).toContain("Analyze_Medical_Records");
+		expect(tools).toContain("Analyze_Synthetic_Medical_Records");
 	});
 });

@@ -60,7 +60,7 @@
     "test:crossnet": "wsl -- bash tests/infra/run-crossnet.sh",
     "demo:start": "wsl -- bash tests/infra/start-demo.sh",
     "demo:stop": "wsl -- bash tests/infra/teardown.sh",
-    "demo:claude": "powershell -ExecutionPolicy Bypass -File tests\\infra\\setup-claude-desktop.ps1"
+    "demo:claude": "powershell -NoProfile -ExecutionPolicy Bypass -File tests\\infra\\setup-claude-desktop.ps1"
   },
   "keywords": [
     "liop",

@@ -190,7 +190,7 @@ export class LiopHybridGateway {
 		});
 	}
 
-	public async listen(port: number, host: string = "::"): Promise<number> {
+	public async listen(port: number, host: string = "0.0.0.0"): Promise<number> {
 		if (this.meshNode) {
 			await this.meshNode.start();
 
@@ -237,5 +237,9 @@ export class LiopHybridGateway {
 		this.netServer.close();
 		this.h2Server.close();
 		this.h1Server.close();
+	}
+
+	public getRouter(): LiopMcpRouter {
+		return this.router;
 	}
 }

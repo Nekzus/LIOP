@@ -22,7 +22,7 @@ describe("Cross-Network: Health and Discovery", () => {
 		});
 		const data = await res.json();
 		expect(data.status).toBe("healthy");
-		expect(data.tools).toContain("Analyze_Medical_Records");
+		expect(data.tools).toContain("Analyze_Synthetic_Medical_Records");
 	});
 
 	test("Agent is healthy", async () => {

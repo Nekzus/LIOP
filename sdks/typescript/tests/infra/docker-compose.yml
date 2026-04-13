@@ -9,7 +9,8 @@ networks:
 volumes:
   nexus-identity:
   vault-identity:
-  agent-identity:
+  bank-identity:
+  oracle-identity:
 
 x-node-base: &node-base
   build:
@@ -17,7 +18,7 @@ x-node-base: &node-base
     dockerfile: sdks/typescript/tests/infra/Dockerfile
   networks:
     liop-testnet: {}
-  restart: "no"
+  restart: always
   init: true
 
 services:
@@ -25,70 +26,101 @@ services:
     <<: *node-base
     container_name: liop-nexus
     hostname: nexus
-    command: ["npx", "tsx", "--no-warnings", "entrypoints/nexus.ts"]
+    command: ["tsx", "--no-warnings", "tests/infra/entrypoints/nexus.ts"]
     environment:
       LIOP_NODE_ROLE: nexus
       LIOP_LOG_LEVEL: info
     volumes:
-      - nexus-identity:/app/data
+      - ./nexus-data:/app/data
     networks:
       liop-testnet:
         ipv4_address: 172.20.0.10
     ports:
-      - "4001:4001"    # libp2p TCP → Windows (auto-discovery + mesh join)
-      - "13000:3000"   # HTTP health → Windows (auto-discovery endpoint)
+      - "13001:4000"    # libp2p TCP (P2P Mesh Port)
+      - "13000:3000"    # HTTP health / MCP Bootstrap
 
   vault:
     <<: *node-base
     container_name: liop-vault
     hostname: vault
-    command: ["npx", "tsx", "--no-warnings", "entrypoints/vault.ts"]
+    command: ["tsx", "--no-warnings", "tests/infra/entrypoints/vault.ts"]
     environment:
       LIOP_NODE_ROLE: vault
       LIOP_LOG_LEVEL: info
     volumes:
-      - vault-identity:/app/data
+      - ./nexus-data:/app/data
     networks:
       liop-testnet:
         ipv4_address: 172.20.0.11
+    ports:
+      - "13003:4000"    # libp2p TCP (Vault P2P)
+      - "13011:50051"   # gRPC Vault
+      - "13013:3000"    # Health Vault
     depends_on:
       nexus:
-        condition: service_healthy
+        condition: service_started
 
-  agent:
+  bank:
     <<: *node-base
-    container_name: liop-agent-node
-    hostname: agent
-    command: ["npx", "tsx", "--no-warnings", "entrypoints/agent-node.ts"]
+    container_name: liop-bank
+    hostname: bank
+    command: ["tsx", "--no-warnings", "tests/infra/entrypoints/bank.ts"]
     environment:
-      LIOP_NODE_ROLE: agent
+      LIOP_NODE_ROLE: bank
       LIOP_LOG_LEVEL: info
     volumes:
-      - agent-identity:/app/data
+      - ./nexus-data:/app/data
     networks:
       liop-testnet:
         ipv4_address: 172.20.0.12
+    ports:
+      - "13004:4000"    # libp2p TCP (Bank P2P)
+      - "13021:50051"   # gRPC Bank
+      - "13014:3000"    # Health Bank
     depends_on:
       nexus:
-        condition: service_healthy
+        condition: service_started
+
+  oracle:
+    <<: *node-base
+    container_name: liop-oracle
+    hostname: oracle
+    command: ["tsx", "--no-warnings", "tests/infra/entrypoints/oracle.ts"]
+    environment:
+      LIOP_NODE_ROLE: oracle
+      LIOP_LOG_LEVEL: info
+    volumes:
+      - ./nexus-data:/app/data
+    networks:
+      liop-testnet:
+        ipv4_address: 172.20.0.13
+    ports:
+      - "13005:4000"    # libp2p TCP (Oracle P2P)
+      - "13031:50051"   # gRPC Oracle
+      - "13015:3000"    # Health Oracle
+    depends_on:
+      nexus:
+        condition: service_started
 
   test-runner:
     <<: *node-base
     container_name: liop-test-runner
     hostname: runner
-    command: ["npx", "vitest", "run", "--config", "sdks/typescript/tests/infra/vitest.crossnet.config.ts"]
+    command: ["vitest", "run", "--config", "tests/infra/vitest.crossnet.config.ts"]
     environment:
       NEXUS_URL: http://nexus:3000
       VAULT_URL: http://vault:3000
-      AGENT_URL: http://agent:3000
-      VAULT_GRPC: vault:50051
+      BANK_URL: http://bank:3000
+      ORACLE_URL: http://oracle:3000
     networks:
       liop-testnet:
         ipv4_address: 172.20.0.100
     depends_on:
       nexus:
-        condition: service_healthy
+        condition: service_started
       vault:
-        condition: service_healthy
-      agent:
-        condition: service_healthy
+        condition: service_started
+      bank:
+        condition: service_started
+      oracle:
+        condition: service_started

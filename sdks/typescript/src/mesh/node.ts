@@ -50,6 +50,8 @@ export interface MeshNodeConfig {
 	identityPath?: string;
 	enableWAN?: boolean;
 	dhtStoragePath?: string;
+	/** Optional function to translate multiaddrs (e.g. for Docker NAT traversal) */
+	addressMapper?: (addr: string) => string;
 }
 
 const DEFAULT_BOOTSTRAP_NODES = [
@@ -228,6 +230,7 @@ export class MeshNode {
 	}
 
 	async start(): Promise<void> {
+		if (this.node) return;
 		const result = await this.loadOrCreateIdentity();
 		if (!result) throw new Error("Could not initialize P2P Identity");
 
@@ -327,17 +330,40 @@ export class MeshNode {
 			log.info(`[LIOP-Mesh] Listening on: ${addr.toString()}`);
 		});
 
-		// Force explicit dialing of Bootstrap nodes to guarantee topology
+		// Force explicit dialing of Bootstrap nodes with exponential backoff (Resilience Mode)
 		if (bootNodes.length > 0) {
 			log.info(
 				`[LIOP-Mesh] Forcing direct P2P dial to ${bootNodes.length} bootstrap nodes...`,
 			);
+
+			const maxRetries = 20; // Increased from 5 to 20 for extreme resilience in unstable network environments
 			for (const addr of bootNodes) {
-				try {
-					await this.node.dial(multiaddr(addr));
-					log.info(`[LIOP-Mesh] Successfully dialed ${addr}`);
-				} catch (e) {
-					log.error(`[LIOP-Mesh] Failed to explicitly dial ${addr}`, e);
+				let success = false;
+				let attempt = 1;
+
+				while (attempt <= maxRetries && !success) {
+					try {
+						await this.node.dial(multiaddr(addr));
+						log.info(`[LIOP-Mesh] ✅ Successfully dialed ${addr}`);
+						success = true;
+					} catch (e) {
+						// Faster backoff for the first 5 attempts, then 10s fixed
+						const delay =
+							attempt <= 5
+								? Math.min(1000 * 2 ** (attempt - 1), 10000)
+								: 10000;
+						log.warn(
+							`[LIOP-Mesh] ⚠️ Dial attempt ${attempt}/${maxRetries} to ${addr} failed. Retrying in ${delay / 1000}s...`,
+						);
+						if (attempt < maxRetries) {
+							await new Promise((resolve) => setTimeout(resolve, delay));
+						} else {
+							log.error(
+								`[LIOP-Mesh] ❌ FATAL: Could not connect to bootstrap ${addr} after ${maxRetries} attempts.`,
+							);
+						}
+						attempt++;
+					}
 				}
 			}
 		}
@@ -455,6 +481,9 @@ export class MeshNode {
 					lengthBuf.writeUInt32BE(payload.length, 0);
 					const fullPacket = Buffer.concat([lengthBuf, Buffer.from(payload)]);
 
+					// [LIOP-STABILITY] Small delay to ensure stream buffer is ready
+					await new Promise(r => setTimeout(r, 50));
+
 					log.info(
 						`[LIOP-Mesh] Serving manifest (${fullPacket.length} bytes) to ${remotePeer} [Tools: ${manifest.tools.map((t) => t.name).join(", ")}]`,
 					);
@@ -545,21 +574,58 @@ export class MeshNode {
 				if (activeConn) {
 					targetPeer = activeConn.remotePeer;
 				} else {
-					// Fallback to string parsing if not connected yet
-					const { peerIdFromString } = await import("@libp2p/peer-id");
-					targetPeer = peerIdFromString(peerIdStr);
+					// Fallback: search peerStore to find a valid PeerId object that libp2p understands natively
+					const allPeers = await this.node.peerStore.all();
+					const stored = allPeers.find((p) => p.id.toString() === peerIdStr);
+					if (stored) {
+						targetPeer = stored.id;
+					} else {
+						// Final fallback parsing. 
+						// [LIOP-CAUTION] This is where the toMultihash error usually triggers if libp2p version drift exists.
+						const { peerIdFromString } = await import("@libp2p/peer-id");
+						targetPeer = peerIdFromString(peerIdStr);
+					}
+				}
+
+				// [LIOP-PORT-TRANSLATION] If an address mapper is configured (e.g. in the Host Agent),
+				// ensure the targetPeer's addresses are translated before libp2p attempts to dial.
+				let dialTarget: any = targetPeer;
+				if (this.config.addressMapper && this.node) {
+					const peer = await this.node.peerStore.get(targetPeer);
+					if (peer && peer.addresses.length > 0) {
+						const translated = peer.addresses.map((oa) => {
+							const original = oa.multiaddr.toString();
+							const mapped = this.config.addressMapper!(original);
+							return { isCertified: oa.isCertified, multiaddr: multiaddr(mapped) };
+						});
+						
+						// Strategy: Force direct dial to the first translated TCP address to bypass DHT routing delays
+						const directTCP = translated.find(t => t.multiaddr.toString().includes("/tcp/") && !t.multiaddr.toString().includes("/ws"));
+						if (directTCP) {
+							dialTarget = directTCP.multiaddr;
+							log.info(`[LIOP-Mesh] ⚡ Direct dial to translated addr: ${dialTarget.toString()}`);
+						}
+
+						// Update the peerStore so subsequent dials also use the right path
+						// biome-ignore lint/suspicious/noExplicitAny: access internal peerStore
+						await (this.node as any).peerStore.save(targetPeer, { multiaddrs: translated.map(t => t.multiaddr) });
+					}
 				}
 
 				// Open a protocol stream using high-level dialProtocol for automated it-stream wrapping
 				// biome-ignore lint/suspicious/noExplicitAny: stream type varies by transport
 				let stream: any;
 				try {
-					// biome-ignore lint/suspicious/noExplicitAny: complex libp2p dial types
 					const result: any = await this.node.dialProtocol(
-						// biome-ignore lint/suspicious/noExplicitAny: PeerId type mismatch
-						targetPeer as any,
+						dialTarget as any,
 						LIOP_MANIFEST_PROTOCOL,
-					);
+					).catch((e: unknown) => {
+						// Catch specific TypeError that breaks the loop
+						if (String(e).includes("toMultihash")) {
+							throw new Error("INCOMPATIBLE_PEER_ID_INTERFACE");
+						}
+						throw e;
+					});
 					stream = result.stream || result;
 				} catch (dialErr) {
 					if (attempt === MAX_ATTEMPTS) {
@@ -595,8 +661,8 @@ export class MeshNode {
 				// Read segments until timeout or closure
 				const timeoutPromise = new Promise<never>((_, reject) => {
 					setTimeout(
-						() => reject(new Error("Manifest read timeout (1.5s)")),
-						1500,
+						() => reject(new Error("Manifest read timeout (5.0s)")),
+						5000,
 					);
 				});
 

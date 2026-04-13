@@ -24,60 +24,94 @@ async function main() {
 	}
 
 	const liopServer = new LiopServer({
-		name: "LIOP-Vault",
+		name: "SIMULATION-the-vault",
 		version: "1.0.0"
+	}, {
+		taxonomy: {
+			domain: "🏥 Healthcare (INDUSTRIAL DEMO)",
+			clearanceTier: 5,
+			executionTypes: ["Blind AST Logic", "Zero-Trust Worker Pool"],
+		},
 	});
 
-	// Datasets
+	// Industrial Healthcare Dataset + Elena Rodriguez
 	const patients = [
-		{ id: "P1", name: "Alice", ssn: "111-22-3333", condition: "Hypertension", age: 48 },
-		{ id: "P2", name: "Bob", ssn: "222-33-4444", condition: "Healthy", age: 30 },
-		{ id: "P3", name: "Charlie", ssn: "333-44-5555", condition: "Hypertension", age: 52 },
+		{ id: "PAT-7721", name: "Evelyn Reed", age: 42, bloodType: "O+", diagnosis: "Hypertension", lastVisit: "2026-01-15", medications: ["Lisinopril", "Amlodipine"] },
+		{ id: "PAT-1092", name: "Marcus Thorne", age: 58, bloodType: "A-", diagnosis: "Type 2 Diabetes", lastVisit: "2026-02-20", medications: ["Metformin", "Glipizide"] },
+		{ id: "PAT-4432", name: "Sarah Chen", age: 29, bloodType: "B+", diagnosis: "Acute Bronchitis", lastVisit: "2026-03-05", medications: ["Albuterol", "Amoxicillin"] },
+		{ id: "PAT-8819", name: "Julian Vane", age: 65, bloodType: "AB+", diagnosis: "Osteoarthritis", lastVisit: "2025-12-10", medications: ["Celecoxib", "Glucosamine"] },
+		{ id: "PAT-9901", name: "Elena Rodriguez", age: 35, bloodType: "O-", diagnosis: "Hypertension", lastVisit: "2026-03-25", medications: ["Metoprolol"] }
 	];
 
+	// Expose data dictionary for Zero-Trust LLM guidance
+	liopServer.dataDictionary(
+		{
+			type: "array",
+			items: {
+				type: "object",
+				properties: {
+					id: { type: "string", description: "Patient Unique ID (PAT-XXXX)" },
+					name: { type: "string" },
+					age: { type: "number" },
+					bloodType: { type: "string" },
+					diagnosis: { type: "string" },
+					lastVisit: { type: "string", format: "date" },
+					medications: { type: "array", items: { type: "string" } },
+				},
+			},
+		},
+		"Medical Records Schema (SYNTHETIC)",
+		"LIOP://schema/medical-records-synthetic",
+	);
+
 	liopServer.tool(
-		"Analyze_Medical_Records",
-		"Analyze patient data without exfiltrating PII",
-		{ filter_condition: z.string().optional() },
+		"Analyze_Synthetic_Medical_Records",
+		"Securely analyzes the medical records dataset for protocol demonstration. Performs logic-on-origin to prevent raw data exposure.",
+		{ filter_diagnosis: z.string().optional().describe("Filter patients by diagnosis (e.g. 'Hypertension')") },
 		// biome-ignore lint/suspicious/noExplicitAny: Intentional any for demo
 		async (params: any) => {
-			const filtered = params.filter_condition
-				? patients.filter(p => p.condition === params.filter_condition)
+			const filtered = params.filter_diagnosis
+				? patients.filter(p => p.diagnosis.toLowerCase() === params.filter_diagnosis.toLowerCase())
 				: patients;
+			
+			log.info(`[Vault] Industrial Logic Triggered: ${params.filter_diagnosis || 'Full Scan'}`);
 			return { content: [{ type: "text", text: JSON.stringify(filtered) }] };
-		}
-	);
-
-	liopServer.tool(
-		"Analyze_Bank_Transactions",
-		"Analyze banking details",
-		{ transaction_type: z.string().optional() },
-		// biome-ignore lint/suspicious/noExplicitAny: Intentional any for demo
-		async (params: any) => {
-			return { content: [{ type: "text", text: JSON.stringify([{ account_number: "12345", ssn: "123", amount: 1000, type: "deposit" }]) }] };
-		}
-	);
-
-	liopServer.tool(
-		"Analyze_Market_Data",
-		"Public market analysis",
-		{ ticker: z.string().optional() },
-		// biome-ignore lint/suspicious/noExplicitAny: Intentional any for demo
-		async (params: any) => {
-			return { content: [{ type: "text", text: JSON.stringify([{ ticker: "NEXUS", price: 150.00 }]) }] };
 		}
 	);
 
 	await liopServer.connectToMesh({ port: 50051, meshConfig: { 
 		identityPath: path.join(dataDir, "vault-identity.json"),
-		listenAddresses: ["/ip4/0.0.0.0/tcp/4001"], 
-		bootstrapNodes: ["/ip4/172.20.0.10/tcp/4001"] 
+		listenAddresses: ["/ip4/0.0.0.0/tcp/4000"], 
+		bootstrapNodes: ["/ip4/172.20.0.10/tcp/4000"] 
 	}});
 
 	const gateway = new LiopHybridGateway(liopServer, liopServer.getMeshNode() || undefined);
 
+	// Active Manifesto Announcement (Fase 100 Requirement)
+	const meshNode = liopServer.getMeshNode();
+	if (meshNode) {
+		await meshNode.announceCapability("liop:manifest");
+	}
+
 	const port = await gateway.listen(3000);
-	log.info(`[Vault] Gateway active on port ${port}`);
+	log.info(`[The Vault] Gateway active on port ${port}`);
+
+	// Export Industrial Beacon for Host Discovery (Local Dev Pattern)
+	if (meshNode) {
+		const peerId = meshNode.getPeerId();
+		const p2pAddr = `/ip4/127.0.0.1/tcp/13003/p2p/${peerId}`;
+		fs.writeFileSync(path.join(dataDir, "vault.multiaddr"), p2pAddr);
+		log.info(`[Vault] 🛡️ Industrial Beacon exported: ${p2pAddr}`);
+	}
+
+	const shutdown = async () => {
+		log.info("[Vault] Shutdown signal received. Closing servers...");
+		await gateway.stop();
+		process.exit(0);
+	};
+
+	process.on("SIGTERM", shutdown);
+	process.on("SIGINT", shutdown);
 }
 
 main().catch(console.error);

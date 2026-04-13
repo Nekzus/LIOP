@@ -97,7 +97,7 @@ export class LiopMcpRouter {
 					jsonrpc: "2.0",
 					id,
 					result: {
-						protocolVersion: "2025-03-26",
+						protocolVersion: "2024-11-05",
 						capabilities: {
 							tools: { listChanged: true },
 							resources: { listChanged: true },
@@ -114,6 +114,8 @@ export class LiopMcpRouter {
 			case "tools/list": {
 				const localTools = this.liopServer.listTools();
 				const remoteTools = await this.getRemoteTools();
+
+				log.info(`[LIOP-Router] tools/list: ${localTools.length} local, ${remoteTools.length} remote tools found`);
 
 				// Inject a mandatory static diagnostic tool.
 				// This ensures that the {tools: []} list is never empty on startup.
@@ -227,7 +229,7 @@ export class LiopMcpRouter {
 
 				// Phase 0: Wait for at least one active connection if mesh is empty (Cold Start)
 				if (this.manifestCache.size === 0) {
-					for (let i = 0; i < 10; i++) {
+					for (let i = 0; i < 3; i++) {
 						const connections =
 							// biome-ignore lint/suspicious/noExplicitAny: access internal nodes for connection count
 							(this.meshNode as any).node?.getConnections().length || 0;
@@ -399,18 +401,28 @@ export class LiopMcpRouter {
 			inputSchema?: Record<string, unknown>;
 		}>
 	> {
-		// Wait for initial discovery if cache is empty
+		// [CRITICAL FIX] Do NOT block the tools/list response waiting for DHT discovery.
+		// Claude Desktop has a strict ~30s timeout. Blocking here (18s+ DHT + dial timeouts)
+		// causes the request to be cancelled before we can respond.
+		//
+		// The correct pattern: respond immediately from cache, run discovery in background,
+		// and emit notifications/tools/list_changed when new tools are found.
+		// Claude Desktop will then send a new tools/list — which WILL have the cache populated.
 		if (this.manifestCache.size === 0 && this.meshNode) {
-			await this.refreshManifestCache(true);
+			// Fire-and-forget: do NOT await — let DHT run in background
+			this.refreshManifestCache(true).catch(() => {});
 		}
 
 		// biome-ignore lint/suspicious/noExplicitAny: Tool schema is polymorphic
 		const tools: any[] = [];
-		const seenNames = new Set(this.liopServer.listTools().map((t) => t.name));
+		const seenNames = new Set<string>();
+		const localToolNames = new Set(this.liopServer.listTools().map((t) => t.name));
 
 		for (const [peerId, { manifest }] of this.manifestCache.entries()) {
 			for (const tool of manifest.tools) {
-				if (!seenNames.has(tool.name)) {
+				// 1. Skip if it's a tool WE (the server) are already providing locally
+				// 2. Skip if we've already added it from another remote peer in this discovery cycle
+				if (!localToolNames.has(tool.name) && !seenNames.has(tool.name)) {
 					const augmentedTool = { ...tool };
 					const providerName = manifest.serverInfo?.name || "Unknown Provider";
 
