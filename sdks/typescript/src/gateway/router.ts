@@ -206,7 +206,7 @@ export class LiopMcpRouter {
 				};
 			case "prompts/get": {
 				const typedParams = params as
-					| { name?: string; arguments?: Record<string, unknown> }
+					| { name?: string; arguments?: Record<string, string> }
 					| undefined;
 				if (!typedParams?.name)
 					return {
@@ -216,7 +216,7 @@ export class LiopMcpRouter {
 					};
 				try {
 					const result = await this.liopServer.getPrompt({
-						name: typedParams.name,
+						name: typedParams.name as string,
 						arguments: typedParams.arguments || {},
 					});
 					return { jsonrpc: "2.0", id, result };
@@ -500,7 +500,8 @@ export class LiopMcpRouter {
 				}
 
 				// LIOP Logic-on-Origin Detection:
-				const properties = cleanTool.inputSchema.properties || {};
+				// biome-ignore lint/suspicious/noExplicitAny: polymorphic input schema
+				const properties = (cleanTool.inputSchema.properties || {}) as any;
 				let envelopeDoc = "";
 				if (properties.payload) {
 					envelopeDoc = `\n[REQUIRES: LIOP-PROTO-V1 ENVELOPE]`;

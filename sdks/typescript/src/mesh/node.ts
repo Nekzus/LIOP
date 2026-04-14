@@ -136,10 +136,9 @@ export class MeshNode {
 						return { privateKey, isNew: false };
 					} catch (parseError: unknown) {
 						log.error(
-							`[LIOP-Mesh] Persistent identity at ${absolutePath} is invalid or corrupt. Generating new one. Error: ${
-								parseError instanceof Error
-									? parseError.message
-									: String(parseError)
+							`[LIOP-Mesh] Persistent identity at ${absolutePath} is invalid or corrupt. Generating new one. Error: ${parseError instanceof Error
+								? parseError.message
+								: String(parseError)
 							}`,
 						);
 						// Fall through to generate new key
@@ -270,10 +269,10 @@ export class MeshNode {
 		const discovery =
 			bootNodes.length > 0
 				? [
-						bootstrap({
-							list: bootNodes,
-						}),
-					]
+					bootstrap({
+						list: bootNodes,
+					}),
+				]
 				: undefined;
 
 		const dhtProtocol = this.config.enableWAN
@@ -421,10 +420,10 @@ export class MeshNode {
 					// biome-ignore lint/suspicious/noExplicitAny: Internal service access
 					const dht = (this.node.services as any).dht;
 					if (dht?.routingTable) {
-						dht.routingTable.add(peerId).catch(() => {});
+						dht.routingTable.add(peerId).catch(() => { });
 					}
 					loadedCount++;
-				} catch (_e) {}
+				} catch (_e) { }
 			}
 			log.info(`[LIOP-Mesh] Loaded ${loadedCount} peers from DHT storage`);
 		} catch (error: unknown) {
@@ -492,7 +491,7 @@ export class MeshNode {
 						);
 						try {
 							await (stream.close || stream.abort)?.();
-						} catch (_e) {}
+						} catch (_e) { }
 						return;
 					}
 
@@ -617,11 +616,12 @@ export class MeshNode {
 				const dialTargetFromPeer = targetPeer as DialTarget;
 				let dialTarget: DialTarget = dialTargetFromPeer;
 				if (this.config.addressMapper && this.node) {
+					const mapper = this.config.addressMapper;
 					const peer = await this.node.peerStore.get(targetPeer);
 					if (peer && peer.addresses.length > 0) {
 						const translated = peer.addresses.map((oa) => {
 							const original = oa.multiaddr.toString();
-							const mapped = this.config.addressMapper(original);
+							const mapped = mapper(original);
 							return {
 								isCertified: oa.isCertified,
 								multiaddr: multiaddr(mapped),
@@ -714,11 +714,11 @@ export class MeshNode {
 									chunk instanceof Uint8Array
 										? chunk
 										: // biome-ignore lint/suspicious/noExplicitAny: chunks can be Buffer/Uint8Array hybrids
-											(chunk as any).subarray
+										(chunk as any).subarray
 											? // biome-ignore lint/suspicious/noExplicitAny: chunks can be Buffer/Uint8Array hybrids
-												(chunk as any).subarray()
+											(chunk as any).subarray()
 											: // biome-ignore lint/suspicious/noExplicitAny: chunks can be Buffer/Uint8Array hybrids
-												Buffer.from(chunk as any);
+											Buffer.from(chunk as any);
 
 								if (bytes.length > 0) {
 									log.info(
