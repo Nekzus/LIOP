@@ -66,6 +66,14 @@ async function main() {
 
 	// Dataset available to Logic-on-Origin runtime as env.records.
 	liopServer.setSandboxData(patients as unknown as Record<string, unknown>[]);
+	const medicalAggregatedOutputSchema = z
+		.object({
+			totalPatients: z.number().optional(),
+			hypertensionCount: z.number().optional(),
+			percentage: z.union([z.number(), z.string()]).optional(),
+			averageAge: z.union([z.number(), z.string()]).optional(),
+		})
+		.passthrough();
 
 	liopServer.tool(
 		"Analyze_Synthetic_Medical_Records",
@@ -77,7 +85,11 @@ async function main() {
 			// The SDK payload middleware executes the envelope in sandbox.
 			// Returning a placeholder here keeps type contract explicit.
 			return { content: [{ type: "text", text: JSON.stringify({ status: "delegated_to_liop_runtime" }) }] };
-		}
+		},
+		{
+			enforceAggregationFirst: true,
+			outputSchema: medicalAggregatedOutputSchema,
+		},
 	);
 
 	await liopServer.connectToMesh({ port: 50051, meshConfig: { 

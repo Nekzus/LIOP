@@ -73,6 +73,13 @@ const LIOP_MANIFEST_CAPABILITY = "liop:manifest";
 export class MeshNode {
 	private node: Libp2p | null = null;
 	private config: MeshNodeConfig;
+	private manifestDialFailureState: Map<
+		string,
+		{ failures: number; cooldownUntil: number; lastSkipLogAt: number }
+	> = new Map();
+	private static readonly MANIFEST_DIAL_BASE_COOLDOWN_MS = 10_000;
+	private static readonly MANIFEST_DIAL_MAX_COOLDOWN_MS = 2 * 60_000;
+	private static readonly MANIFEST_DIAL_SKIP_LOG_THROTTLE_MS = 30_000;
 
 	/**
 	 * Buffer of capability hashes that have been announced.
@@ -108,6 +115,42 @@ export class MeshNode {
 		};
 	}
 
+	private shouldSkipManifestDial(peerIdStr: string): boolean {
+		const state = this.manifestDialFailureState.get(peerIdStr);
+		if (!state) return false;
+		const now = Date.now();
+		if (now >= state.cooldownUntil) return false;
+		if (
+			now - state.lastSkipLogAt >
+			MeshNode.MANIFEST_DIAL_SKIP_LOG_THROTTLE_MS
+		) {
+			log.info(
+				`[LIOP-Mesh] Skipping manifest dial for ${peerIdStr} during cooldown (${Math.ceil((state.cooldownUntil - now) / 1000)}s remaining)`,
+			);
+			state.lastSkipLogAt = now;
+		}
+		return true;
+	}
+
+	private recordManifestDialFailure(peerIdStr: string): void {
+		const now = Date.now();
+		const prev = this.manifestDialFailureState.get(peerIdStr);
+		const failures = (prev?.failures || 0) + 1;
+		const backoff = Math.min(
+			MeshNode.MANIFEST_DIAL_BASE_COOLDOWN_MS * 2 ** Math.max(0, failures - 1),
+			MeshNode.MANIFEST_DIAL_MAX_COOLDOWN_MS,
+		);
+		this.manifestDialFailureState.set(peerIdStr, {
+			failures,
+			cooldownUntil: now + backoff,
+			lastSkipLogAt: 0,
+		});
+	}
+
+	private clearManifestDialFailure(peerIdStr: string): void {
+		this.manifestDialFailureState.delete(peerIdStr);
+	}
+
 	/**
 	 * Loads a persistent identity from disk or generates a new Ed25519 keypair.
 	 * Uses privateKeyToProtobuf/privateKeyFromProtobuf (libp2p v3.x official API).
@@ -136,9 +179,10 @@ export class MeshNode {
 						return { privateKey, isNew: false };
 					} catch (parseError: unknown) {
 						log.error(
-							`[LIOP-Mesh] Persistent identity at ${absolutePath} is invalid or corrupt. Generating new one. Error: ${parseError instanceof Error
-								? parseError.message
-								: String(parseError)
+							`[LIOP-Mesh] Persistent identity at ${absolutePath} is invalid or corrupt. Generating new one. Error: ${
+								parseError instanceof Error
+									? parseError.message
+									: String(parseError)
 							}`,
 						);
 						// Fall through to generate new key
@@ -269,10 +313,10 @@ export class MeshNode {
 		const discovery =
 			bootNodes.length > 0
 				? [
-					bootstrap({
-						list: bootNodes,
-					}),
-				]
+						bootstrap({
+							list: bootNodes,
+						}),
+					]
 				: undefined;
 
 		const dhtProtocol = this.config.enableWAN
@@ -420,10 +464,10 @@ export class MeshNode {
 					// biome-ignore lint/suspicious/noExplicitAny: Internal service access
 					const dht = (this.node.services as any).dht;
 					if (dht?.routingTable) {
-						dht.routingTable.add(peerId).catch(() => { });
+						dht.routingTable.add(peerId).catch(() => {});
 					}
 					loadedCount++;
-				} catch (_e) { }
+				} catch (_e) {}
 			}
 			log.info(`[LIOP-Mesh] Loaded ${loadedCount} peers from DHT storage`);
 		} catch (error: unknown) {
@@ -491,7 +535,7 @@ export class MeshNode {
 						);
 						try {
 							await (stream.close || stream.abort)?.();
-						} catch (_e) { }
+						} catch (_e) {}
 						return;
 					}
 
@@ -581,6 +625,9 @@ export class MeshNode {
 				`[LIOP-Mesh] Loopback: Returning local manifest directly for ${peerIdStr}`,
 			);
 			return this.manifestProvider?.() || null;
+		}
+		if (this.shouldSkipManifestDial(peerIdStr)) {
+			return null;
 		}
 
 		const MAX_ATTEMPTS = 3;
@@ -714,11 +761,11 @@ export class MeshNode {
 									chunk instanceof Uint8Array
 										? chunk
 										: // biome-ignore lint/suspicious/noExplicitAny: chunks can be Buffer/Uint8Array hybrids
-										(chunk as any).subarray
+											(chunk as any).subarray
 											? // biome-ignore lint/suspicious/noExplicitAny: chunks can be Buffer/Uint8Array hybrids
-											(chunk as any).subarray()
+												(chunk as any).subarray()
 											: // biome-ignore lint/suspicious/noExplicitAny: chunks can be Buffer/Uint8Array hybrids
-											Buffer.from(chunk as any);
+												Buffer.from(chunk as any);
 
 								if (bytes.length > 0) {
 									log.info(
@@ -749,10 +796,12 @@ export class MeshNode {
 				log.info(
 					`[LIOP-Mesh] Received manifest from ${peerIdStr}: ${manifest.tools.length} tools`,
 				);
+				this.clearManifestDialFailure(peerIdStr);
 
 				return manifest;
 			} catch (err: unknown) {
 				if (attempt === MAX_ATTEMPTS) {
+					this.recordManifestDialFailure(peerIdStr);
 					log.info(
 						`[LIOP-Mesh] Failed to query manifest from ${peerIdStr} after ${MAX_ATTEMPTS} attempts: ${err instanceof Error ? err.message : String(err)}`,
 					);

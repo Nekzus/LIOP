@@ -63,6 +63,14 @@ async function main() {
 		"LIOP://schema/market-data-synthetic",
 	);
 	server.setSandboxData(marketTicks as unknown as Record<string, unknown>[]);
+	const marketAggregatedOutputSchema = z.object({
+		total: z.number().optional(),
+		avgPrice: z.union([z.number(), z.string()]).optional(),
+		positives: z.number().optional(),
+		negatives: z.number().optional(),
+		maxPrice: z.number().optional(),
+		minPrice: z.number().optional(),
+	}).passthrough();
 
 	server.tool(
 		"Analyze_Synthetic_Market_Data",
@@ -78,6 +86,10 @@ async function main() {
 					},
 				],
 			};
+		},
+		{
+			enforceAggregationFirst: true,
+			outputSchema: marketAggregatedOutputSchema,
 		},
 	);
 

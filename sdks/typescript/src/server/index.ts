@@ -51,6 +51,22 @@ export interface LiopServerOptions {
 	};
 }
 
+export interface LogicExecutionPolicy {
+	/**
+	 * Validate the business payload returned by sandbox logic (post-execution).
+	 * This runs before final egress checks and blocks non-conforming outputs.
+	 */
+	outputSchema?: z.ZodType<unknown>;
+	/**
+	 * Enforce aggregation-first heuristics (preflight + post-check).
+	 */
+	enforceAggregationFirst?: boolean;
+	/**
+	 * Optional additional deny patterns checked against extracted logic source.
+	 */
+	preflightDenyPatterns?: RegExp[];
+}
+
 export class LiopServer {
 	private logicCache: Map<string, { hash: string; timestamp: number }> =
 		new Map();
@@ -64,8 +80,14 @@ export class LiopServer {
 
 	private tools: Map<
 		string,
-		// biome-ignore lint/suspicious/noExplicitAny: Types erased at runtime, Map holds heterogeneous generics
-		{ tool: Tool; handler: ToolHandler<any>; schema: z.ZodObject<any> }
+		{
+			tool: Tool;
+			// biome-ignore lint/suspicious/noExplicitAny: Erased at runtime
+			handler: ToolHandler<any>;
+			// biome-ignore lint/suspicious/noExplicitAny: Erased at runtime
+			schema: z.ZodObject<any>;
+			policy?: LogicExecutionPolicy;
+		}
 	> = new Map();
 	private resources: Map<
 		string,
@@ -98,6 +120,77 @@ export class LiopServer {
 	private extractLogic(payload: string): string | null {
 		const match = payload.match(LiopServer.LIOP_LOGIC_REGEX);
 		return match?.groups?.logic ? match.groups.logic.trim() : null;
+	}
+
+	private parseUnknownJson(input: unknown): unknown {
+		if (typeof input !== "string") return input;
+		const trimmed = input.trim();
+		if (
+			(trimmed.startsWith("{") && trimmed.endsWith("}")) ||
+			(trimmed.startsWith("[") && trimmed.endsWith("]"))
+		) {
+			try {
+				return JSON.parse(trimmed);
+			} catch {
+				return input;
+			}
+		}
+		return input;
+	}
+
+	private runPreflightPolicy(
+		_toolName: string,
+		logic: string,
+		policy?: LogicExecutionPolicy,
+	): string | null {
+		if (!policy) return null;
+		const compact = logic.replace(/\s+/g, " ");
+
+		if (policy.enforceAggregationFirst) {
+			const rowExtractionPatterns = [
+				/return\s+env\.records\b/i,
+				/env\.records\s*\.map\s*\(/i,
+				/return\s*\{[\s\S]*\b(accounts|patients|rows|records)\s*:\s*env\.records/i,
+			];
+			if (rowExtractionPatterns.some((p) => p.test(compact))) {
+				return "Preflight policy rejected: potential row-level export pattern detected.";
+			}
+		}
+
+		if (policy.preflightDenyPatterns?.some((p) => p.test(compact))) {
+			return "Preflight policy rejected: custom deny pattern matched.";
+		}
+
+		return null;
+	}
+
+	private validateOutputPolicy(
+		toolName: string,
+		output: unknown,
+		policy?: LogicExecutionPolicy,
+	): string | null {
+		if (!policy) return null;
+		const parsed = this.parseUnknownJson(output);
+
+		if (policy.outputSchema) {
+			const schemaResult = policy.outputSchema.safeParse(parsed);
+			if (!schemaResult.success) {
+				return `[LIOP] Output schema violation for ${toolName}: ${schemaResult.error.issues
+					.map((i) => `${i.path.join(".") || "<root>"} ${i.message}`)
+					.join("; ")}`;
+			}
+		}
+
+		if (
+			policy.enforceAggregationFirst &&
+			this.violatesAggregationFirstPolicy(
+				this.unwrapForAggregationPolicyScan(parsed),
+			)
+		) {
+			return "Aggregation-First Policy (row-level export blocked)";
+		}
+
+		return null;
 	}
 
 	/**
@@ -277,6 +370,7 @@ export class LiopServer {
 		description: string,
 		shape: T,
 		handler: ToolHandler<T>,
+		policy?: LogicExecutionPolicy,
 	): void {
 		if (this.tools.has(name)) {
 			throw new Error(`Tool already registered: ${name}`);
@@ -352,7 +446,18 @@ export class LiopServer {
 						(args as Record<string, unknown>).payload = logic;
 
 						// DELEGATE TO WORKER POOL: Parallel PQC & Sandboxing
-						return await this.executeInWorkerPool(args, logic);
+						const preflightReason = this.runPreflightPolicy(
+							name,
+							logic,
+							policy,
+						);
+						if (preflightReason) {
+							return {
+								content: [{ type: "text", text: preflightReason }],
+								isError: true,
+							};
+						}
+						return await this.executeInWorkerPool(args, logic, name);
 					}
 				}
 
@@ -381,7 +486,18 @@ export class LiopServer {
 					(args as Record<string, unknown>).payload = logic;
 
 					// DELEGATE TO WORKER POOL: Parallel PQC & Sandboxing (Includes PII Shield)
-					const result = await this.executeInWorkerPool(args, logic);
+					const preflightReason = this.runPreflightPolicy(name, logic, policy);
+					if (preflightReason) {
+						stats.failures++;
+						stats.lastAttempt = now;
+						this.connectionStats.set(clientId, stats);
+						return {
+							content: [{ type: "text", text: preflightReason }],
+							isError: true,
+						};
+					}
+
+					const result = await this.executeInWorkerPool(args, logic, name);
 
 					if (!result.isError) {
 						this.connectionStats.set(clientId, {
@@ -424,6 +540,7 @@ export class LiopServer {
 			tool: { name, description: finalDescription, inputSchema },
 			handler: finalHandler,
 			schema,
+			policy,
 		});
 
 		// [LIOP-ALPHA] Auto-announce capability to the Mesh P2P DHT if node is active
@@ -589,8 +706,23 @@ Protocol Adherence is mandatory for successful execution.`,
 					.payload as string;
 				const logic = this.extractLogic(payload);
 				if (logic) {
+					const preflightReason = this.runPreflightPolicy(
+						request.name,
+						logic,
+						entry.policy,
+					);
+					if (preflightReason) {
+						return {
+							content: [{ type: "text", text: preflightReason }],
+							isError: true,
+						};
+					}
 					(parsedArgs as Record<string, unknown>).payload = logic;
-					return await this.executeInWorkerPool(parsedArgs, logic);
+					return await this.executeInWorkerPool(
+						parsedArgs,
+						logic,
+						request.name,
+					);
 				}
 			}
 
@@ -896,6 +1028,7 @@ Protocol Adherence is mandatory for successful execution.`,
 	private async executeInWorkerPool(
 		_args: Record<string, unknown>,
 		rawPayload: string,
+		toolName?: string,
 	): Promise<CallToolResult> {
 		try {
 			// Transparent local execution without dynamic PQC
@@ -924,6 +1057,24 @@ Protocol Adherence is mandatory for successful execution.`,
 					text: textOutput,
 				},
 			];
+
+			const toolPolicy = toolName
+				? this.tools.get(toolName)?.policy
+				: undefined;
+			const policyViolation = this.validateOutputPolicy(
+				toolName || "unknown_tool",
+				workerResponse.output,
+				toolPolicy,
+			);
+			if (policyViolation) {
+				log.info(
+					`[LIOP-SDK] Output policy blocked for ${toolName || "unknown_tool"}: ${policyViolation}`,
+				);
+				return {
+					content: [{ type: "text", text: `[LIOP] ${policyViolation}` }],
+					isError: true,
+				};
+			}
 
 			// Professional PII Protection Guard
 			const violation = this.piiScanner.scan(content);

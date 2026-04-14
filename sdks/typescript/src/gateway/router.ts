@@ -40,6 +40,16 @@ export class LiopMcpRouter {
 	/** Callback when new remote tools are discovered */
 	public onToolsChanged?: () => void;
 
+	/** Circuit-breaker state for peers that repeatedly fail manifest queries. */
+	private manifestFailureState: Map<
+		string,
+		{ failures: number; cooldownUntil: number; lastSkipLogAt: number }
+	> = new Map();
+
+	private static readonly MANIFEST_FAILURE_BASE_COOLDOWN_MS = 15_000;
+	private static readonly MANIFEST_FAILURE_MAX_COOLDOWN_MS = 5 * 60_000;
+	private static readonly MANIFEST_SKIP_LOG_THROTTLE_MS = 30_000;
+
 	constructor(
 		private liopServer: LiopServer,
 		private meshNode: MeshNode | null = null,
@@ -85,6 +95,44 @@ export class LiopMcpRouter {
 				);
 			});
 		}
+	}
+
+	private shouldSkipManifestQuery(peerId: string): boolean {
+		const state = this.manifestFailureState.get(peerId);
+		if (!state) return false;
+		const now = Date.now();
+		if (now >= state.cooldownUntil) return false;
+
+		if (
+			now - state.lastSkipLogAt >
+			LiopMcpRouter.MANIFEST_SKIP_LOG_THROTTLE_MS
+		) {
+			log.info(
+				`[LIOP-Router] Skipping manifest query for ${peerId} during cooldown (${Math.ceil((state.cooldownUntil - now) / 1000)}s remaining)`,
+			);
+			state.lastSkipLogAt = now;
+		}
+		return true;
+	}
+
+	private recordManifestQuerySuccess(peerId: string): void {
+		this.manifestFailureState.delete(peerId);
+	}
+
+	private recordManifestQueryFailure(peerId: string): void {
+		const now = Date.now();
+		const prev = this.manifestFailureState.get(peerId);
+		const failures = (prev?.failures || 0) + 1;
+		const backoff = Math.min(
+			LiopMcpRouter.MANIFEST_FAILURE_BASE_COOLDOWN_MS *
+				2 ** Math.max(0, failures - 1),
+			LiopMcpRouter.MANIFEST_FAILURE_MAX_COOLDOWN_MS,
+		);
+		this.manifestFailureState.set(peerId, {
+			failures,
+			cooldownUntil: now + backoff,
+			lastSkipLogAt: 0,
+		});
 	}
 
 	public async dispatch(request: McpRequest): Promise<McpResponse | null> {
@@ -348,6 +396,7 @@ export class LiopMcpRouter {
 					// Avoid querying ourselves
 					if (this.meshNode && peerId === this.meshNode.getPeerId()) continue;
 					if (!this.meshNode) continue;
+					if (this.shouldSkipManifestQuery(peerId)) continue;
 
 					// Skip if cached and not expired
 					const cached = this.manifestCache.get(peerId);
@@ -370,18 +419,21 @@ export class LiopMcpRouter {
 								manifest,
 								cachedAt: Date.now(),
 							});
+							this.recordManifestQuerySuccess(peerId);
 							cacheUpdated = true;
 							successCount++;
 							log.info(
 								`[LIOP-Router] Manifest received from ${peerId} (${manifest.tools.length} tools)`,
 							);
 						} else {
+							this.recordManifestQueryFailure(peerId);
 							errorCount++;
 							log.info(
 								`[LIOP-Router] Manifest query returned NULL for ${peerId}`,
 							);
 						}
 					} catch (err: unknown) {
+						this.recordManifestQueryFailure(peerId);
 						log.info(
 							`[LIOP-Router] Fatal error querying manifest from ${peerId}:`,
 							err instanceof Error ? err.message : String(err),

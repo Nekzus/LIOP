@@ -94,6 +94,7 @@ async function syncMetadata() {
 	console.log("[Sync] ✅ Metadata synchronization complete!");
 }
 
+// biome-ignore lint/suspicious/noExplicitAny: Script utility for heterogeneous JSON transformation
 function updateJson(filePath: string, transform: (data: any) => any) {
 	if (!fs.existsSync(filePath)) return;
 	const data = JSON.parse(fs.readFileSync(filePath, "utf-8"));

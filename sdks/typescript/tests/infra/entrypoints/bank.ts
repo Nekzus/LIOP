@@ -69,6 +69,12 @@ async function main() {
 		"LIOP://schema/banking-ledger-synthetic",
 	);
 	liopServer.setSandboxData(accounts as unknown as Record<string, unknown>[]);
+	const bankAggregatedOutputSchema = z.object({
+		totalAccounts: z.number(),
+		byType: z.record(z.number()).optional(),
+		totalBalance: z.number().optional(),
+		balanceByCurrency: z.record(z.number()).optional(),
+	});
 
 	liopServer.tool(
 		"Analyze_Synthetic_Bank_Transactions",
@@ -85,7 +91,11 @@ async function main() {
 					},
 				],
 			};
-		}
+		},
+		{
+			enforceAggregationFirst: true,
+			outputSchema: bankAggregatedOutputSchema,
+		},
 	);
 
 	await liopServer.connectToMesh({ port: 50051, meshConfig: { 
