@@ -1,9 +1,9 @@
-import crypto from "node:crypto";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { Piscina } from "piscina";
 import { log } from "../utils/logger.js";
+import { deriveLogicImageDigest } from "./logic-image-id.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -106,21 +106,6 @@ export class LiopVerifier {
 	 * Derives the ImageID of a logic payload following the LIOP v1 Standard.
 	 */
 	public deriveImageId(logicPayload: Buffer): Buffer {
-		// Sanitization logic for JS payloads (Magic headers, etc.)
-		let processed = logicPayload;
-		const isWasm = logicPayload[0] === 0x00 && logicPayload[1] === 0x61; // \0asm
-
-		if (!isWasm) {
-			const text = logicPayload.toString("utf-8");
-			const clean = text
-				.replace(/^LIOP_MAGIC:.*?\n/g, "")
-				.replace(/^MANIFEST:.*?\n/g, "")
-				.replace(/---BEGIN_LOGIC---\n?/g, "")
-				.replace(/\n?---END_LOGIC---/g, "")
-				.trim();
-			processed = Buffer.from(clean);
-		}
-
-		return crypto.createHash("sha256").update(processed).digest();
+		return deriveLogicImageDigest(logicPayload);
 	}
 }

@@ -68,15 +68,23 @@ async function main() {
 		"Banking Ledger Schema (SYNTHETIC)",
 		"LIOP://schema/banking-ledger-synthetic",
 	);
+	liopServer.setSandboxData(accounts as unknown as Record<string, unknown>[]);
 
 	liopServer.tool(
 		"Analyze_Synthetic_Bank_Transactions",
 		"Securely analyzes financial transactions and account balances via LIOP Logic-on-Origin. Use this for balance inquiries and audit logs.",
 		{ payload: z.string().describe("Logic injection payload for financial analysis") },
 		// biome-ignore lint/suspicious/noExplicitAny: Intentional for demo
-		async (params: any) => {
-			log.info(`[The Bank] Industrial Logic: Analyzing transactions`);
-			return { content: [{ type: "text", text: JSON.stringify(accounts) }] };
+		async (_params: any) => {
+			log.info(`[The Bank] Industrial Logic via LIOP envelope`);
+			return {
+				content: [
+					{
+						type: "text",
+						text: JSON.stringify({ status: "delegated_to_liop_runtime" }),
+					},
+				],
+			};
 		}
 	);
 

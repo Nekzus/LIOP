@@ -1,5 +1,5 @@
-import * as crypto from "node:crypto";
 import { parentPort } from "node:worker_threads";
+import { deriveLogicImageDigest } from "../crypto/logic-image-id.js";
 
 // Ensure this worker is used via Piscina pool
 if (!parentPort) {
@@ -20,35 +20,8 @@ export interface ZkVerificationPayload {
 	zkReceipt: Uint8Array;
 }
 
-/**
- * Derives the ImageID of a logic payload following the LIOP v1 Standard.
- */
 function deriveImageId(logicPayload: Uint8Array): Buffer {
-	// Sanitization logic for JS payloads (Magic headers, etc.)
-	let processed = Buffer.from(logicPayload);
-	const isWasm = logicPayload[0] === 0x00 && logicPayload[1] === 0x61; // \0asm
-
-	if (!isWasm) {
-		const text = Buffer.from(logicPayload).toString("utf-8");
-		const regex =
-			/\s*LIOP_MAGIC:0x00FF\s*\n?\s*MANIFEST:(?<manifest>\{[\s\S]*?\})\s*\n?\s*---BEGIN_LOGIC---\n?(?<logic>[\s\S]*?)\n?---END_LOGIC---/m;
-		const match = text.match(regex);
-
-		if (match?.groups?.logic) {
-			processed = Buffer.from(match.groups.logic.trim());
-		} else {
-			// Fallback string manipulation if no explicit full envelope
-			const clean = text
-				.replace(/^LIOP_MAGIC:.*?\n/g, "")
-				.replace(/^MANIFEST:.*?\n/g, "")
-				.replace(/---BEGIN_LOGIC---\n?/g, "")
-				.replace(/\n?---END_LOGIC---/g, "")
-				.trim();
-			processed = Buffer.from(clean);
-		}
-	}
-
-	return crypto.createHash("sha256").update(processed).digest();
+	return deriveLogicImageDigest(logicPayload);
 }
 
 /**

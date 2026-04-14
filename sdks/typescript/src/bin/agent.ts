@@ -2,6 +2,7 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { multiaddr } from "@multiformats/multiaddr";
 import { LiopMcpRouter } from "../gateway/router.js";
 import { MeshNode } from "../mesh/index.js";
 import { LiopServer } from "../server/index.js";
@@ -55,11 +56,16 @@ function normalizeBootstrap(addr: string): string {
 	const trimmed = addr.trim();
 	// Remap Docker bridge IPs and ANY external physical IPs to 127.0.0.1
 	// because Test-NetConnection confirmed 127.0.0.1 is the only reliable path to Docker ports.
-	const dockerIpRegex = /\/ip4\/172\.(1[6-9]|2[0-9]|3[0-1])\.[0-9]{1,3}\.[0-9]{1,3}/;
+	const dockerIpRegex =
+		/\/ip4\/172\.(1[6-9]|2[0-9]|3[0-1])\.[0-9]{1,3}\.[0-9]{1,3}/;
 	const loopbackRegex = /\/ip4\/127\.0\.0\.1/;
 	const physicalIpRegex = /\/ip4\/192\.168\.[0-9]{1,3}\.[0-9]{1,3}/;
 
-	if (dockerIpRegex.test(trimmed) || loopbackRegex.test(trimmed) || physicalIpRegex.test(trimmed)) {
+	if (
+		dockerIpRegex.test(trimmed) ||
+		loopbackRegex.test(trimmed) ||
+		physicalIpRegex.test(trimmed)
+	) {
 		const targetIp = "127.0.0.1";
 		const normalized = trimmed
 			.replace(dockerIpRegex, `/ip4/${targetIp}`)
@@ -67,7 +73,9 @@ function normalizeBootstrap(addr: string): string {
 			.replace(physicalIpRegex, `/ip4/${targetIp}`);
 
 		if (normalized !== trimmed) {
-			log.info(`[LIOP-Agent] 🔄 Local Routing Hack → Forced 127.0.0.1: ${normalized}`);
+			log.info(
+				`[LIOP-Agent] 🔄 Local Routing Hack → Forced 127.0.0.1: ${normalized}`,
+			);
 		}
 		return normalized;
 	}
@@ -85,10 +93,26 @@ function normalizeBootstrap(addr: string): string {
  * Oracle(172.20.0.13) -> 13005
  */
 function industrialAddressMapper(addr: string): string {
-	if (addr.includes("/ip4/172.20.0.10")) return addr.replace(/\/ip4\/172\.20\.0\.10\/tcp\/[0-9]+/, "/ip4/127.0.0.1/tcp/13001");
-	if (addr.includes("/ip4/172.20.0.11")) return addr.replace(/\/ip4\/172\.20\.0\.11\/tcp\/[0-9]+/, "/ip4/127.0.0.1/tcp/13003");
-	if (addr.includes("/ip4/172.20.0.12")) return addr.replace(/\/ip4\/172\.20\.0\.12\/tcp\/[0-9]+/, "/ip4/127.0.0.1/tcp/13004");
-	if (addr.includes("/ip4/172.20.0.13")) return addr.replace(/\/ip4\/172\.20\.0\.13\/tcp\/[0-9]+/, "/ip4/127.0.0.1/tcp/13005");
+	if (addr.includes("/ip4/172.20.0.10"))
+		return addr.replace(
+			/\/ip4\/172\.20\.0\.10\/tcp\/[0-9]+/,
+			"/ip4/127.0.0.1/tcp/13001",
+		);
+	if (addr.includes("/ip4/172.20.0.11"))
+		return addr.replace(
+			/\/ip4\/172\.20\.0\.11\/tcp\/[0-9]+/,
+			"/ip4/127.0.0.1/tcp/13003",
+		);
+	if (addr.includes("/ip4/172.20.0.12"))
+		return addr.replace(
+			/\/ip4\/172\.20\.0\.12\/tcp\/[0-9]+/,
+			"/ip4/127.0.0.1/tcp/13004",
+		);
+	if (addr.includes("/ip4/172.20.0.13"))
+		return addr.replace(
+			/\/ip4\/172\.20\.0\.13\/tcp\/[0-9]+/,
+			"/ip4/127.0.0.1/tcp/13005",
+		);
 	return addr;
 }
 
@@ -185,7 +209,9 @@ async function main() {
 			const normalized = normalizeBootstrap(resolved);
 			if (!bootstrapNodes.includes(normalized)) {
 				bootstrapNodes.push(normalized);
-				log.info(`[LIOP-Agent] ✅ Added bootstrap from URL discovery: ${normalized}`);
+				log.info(
+					`[LIOP-Agent] ✅ Added bootstrap from URL discovery: ${normalized}`,
+				);
 			}
 		}
 	}
@@ -194,6 +220,38 @@ async function main() {
 	if (bootstrapNodes.length === 0 && process.env.LIOP_BOOTSTRAP) {
 		bootstrapNodes.push(process.env.LIOP_BOOTSTRAP.trim());
 	}
+
+	// Industrial defaults for local demo mesh (Windows host-mapped ports).
+	// These identities are persisted by tests/infra volumes, so they remain stable across restarts.
+	const industrialDefaults = [
+		"/ip4/127.0.0.1/tcp/13001/p2p/12D3KooWD8FUFdnLQzzLFNdicsaTknM5cpD7os9sK9NWVSVABJMD", // Nexus
+		"/ip4/127.0.0.1/tcp/13003/p2p/12D3KooWNWGunBEf4711xZ7gubmkVFzm5Z5UJkZsNru9T7fMZ2Uy", // Vault
+		"/ip4/127.0.0.1/tcp/13004/p2p/12D3KooWQ1byTRQrf6Xx6PYjkeQ8hBGADarVf8rk4YRsjUcxKaSE", // Bank
+		"/ip4/127.0.0.1/tcp/13005/p2p/12D3KooWDe8qtDnkFe69AWyUo9a7LhGKNiubzgsQin3gr9gap4vt", // Oracle
+	];
+	for (const addr of industrialDefaults) {
+		if (!bootstrapNodes.includes(addr)) {
+			bootstrapNodes.push(addr);
+		}
+	}
+
+	// Final fallback: local Nexus bootstrap for demo environments.
+	if (bootstrapNodes.length === 0) {
+		bootstrapNodes.push(
+			"/ip4/127.0.0.1/tcp/13001/p2p/12D3KooWD8FUFdnLQzzLFNdicsaTknM5cpD7os9sK9NWVSVABJMD",
+		);
+	}
+
+	// Sanitize/validate all candidate multiaddrs so malformed PeerIDs don't crash startup.
+	bootstrapNodes = bootstrapNodes.filter((addr) => {
+		try {
+			multiaddr(addr);
+			return true;
+		} catch {
+			log.warn(`[LIOP-Agent] Ignoring invalid bootstrap multiaddr: ${addr}`);
+			return false;
+		}
+	});
 
 	// If no bootstrap nodes found, the agent operates in standalone mode.
 	// It will only serve local tools until peers are discovered.
@@ -229,10 +287,13 @@ async function main() {
 	// No hardcoded tools — all discovery happens via liop:manifest protocol
 	const router = new LiopMcpRouter(liopServer, meshNode);
 
-	// Proactive Notification to Claude Desktop when tools are discovered dynamically
+	// Proactive Notification to Claude Desktop when tools/resources are discovered dynamically
 	router.onToolsChanged = () => {
 		process.stdout.write(
 			`{"jsonrpc":"2.0","method":"notifications/tools/list_changed"}\n`,
+		);
+		process.stdout.write(
+			`{"jsonrpc":"2.0","method":"notifications/resources/list_changed"}\n`,
 		);
 	};
 
@@ -247,7 +308,7 @@ async function main() {
 
 	setInterval(() => {
 		router.refreshManifestCache(true).catch(() => {});
-	}, 15000);
+	}, 10000);
 
 	// 4. STDIO Transport implementation
 	process.stdout.on("error", (err: Error & { code?: string }) => {

@@ -1,6 +1,10 @@
 import { Buffer } from "node:buffer";
 import crypto from "node:crypto";
 import { createMlKem768 } from "mlkem";
+import {
+	deriveLogicImageDigest,
+	normalizeLogicSource,
+} from "../crypto/logic-image-id.js";
 import { ASTGuardian } from "../sandbox/guardian.js";
 import { WasiSandbox } from "../sandbox/wasi.js";
 
@@ -108,14 +112,9 @@ export default async function processLogicExecution(data: WorkerData): Promise<{
 		decryptedPayload = decryptedPayload.toString("utf-8");
 	}
 
-	// Sanitization: Remove LIOP Metadata, Manifests and Logic Block markers
+	// Strip only a whole-document LIOP envelope (see logic-image-id.ts).
 	if (typeof decryptedPayload === "string") {
-		decryptedPayload = decryptedPayload
-			.replace(/^\s*LIOP_MAGIC:.*?\n/g, "")
-			.replace(/^\s*MANIFEST:.*?\n/g, "")
-			.replace(/\s*---BEGIN_LOGIC---\n?/g, "")
-			.replace(/\n?---END_LOGIC---\s*$/g, "")
-			.trim();
+		decryptedPayload = normalizeLogicSource(decryptedPayload);
 	}
 
 	// 4. Instantiate and Execute WASI Sandbox (or V8 Fallback)
@@ -130,14 +129,13 @@ export default async function processLogicExecution(data: WorkerData): Promise<{
 		);
 
 		// 5. Generate Cryptographic Proof of Execution (HMAC-SHA256 Commitment)
-		const logicBuffer =
-			decryptedPayload instanceof Buffer
-				? decryptedPayload
-				: Buffer.from(decryptedPayload);
-
-		const hasher = crypto.createHash("sha256");
-		hasher.update(logicBuffer);
-		const imageId = hasher.digest("hex");
+		let logicBytes: Uint8Array;
+		if (typeof decryptedPayload === "string") {
+			logicBytes = Buffer.from(decryptedPayload, "utf-8");
+		} else {
+			logicBytes = new Uint8Array(decryptedPayload);
+		}
+		const imageId = deriveLogicImageDigest(logicBytes).toString("hex");
 
 		const journal = Buffer.from(
 			JSON.stringify({

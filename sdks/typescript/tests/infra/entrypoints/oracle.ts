@@ -4,7 +4,7 @@
  * Simulates a high-frequency financial data oracle.
  * Part of the LIOP Industrial Demo replication.
  *
- * Network: 172.20.0.13 | Ports: gRPC 50053, HTTP 3000
+ * Network: 172.20.0.13 | Ports: gRPC 50051, HTTP 3000
  * Bootstrap: Nexus at 172.20.0.10:4001
  */
 import * as fs from "node:fs";
@@ -62,22 +62,28 @@ async function main() {
 		"Market Data Schema (SYNTHETIC)",
 		"LIOP://schema/market-data-synthetic",
 	);
+	server.setSandboxData(marketTicks as unknown as Record<string, unknown>[]);
 
 	server.tool(
 		"Analyze_Synthetic_Market_Data",
 		"DISCLAIMER: This is a SIMULATION using SYNTHETIC data. Securely analyzes real-time market ticks via LIOP Logic-on-Origin for protocol demonstration.",
 		{ payload: z.string().describe("Logic injection payload for market analysis") },
-		async (args) => {
-			log.info(`[The Oracle] 📈 Logic-Injection Triggered for Market Analysis`);
+		async (_args) => {
+			log.info(`[The Oracle] 📈 Logic-Injection via LIOP envelope`);
 			return {
-				content: [{ type: "text", text: JSON.stringify(marketTicks) }],
+				content: [
+					{
+						type: "text",
+						text: JSON.stringify({ status: "delegated_to_liop_runtime" }),
+					},
+				],
 			};
 		},
 	);
 
 	// Connect to Mesh (Simulating Parity with Industrial Discovery)
 	await server.connectToMesh({
-		port: 50053,
+		port: 50051,
 		meshConfig: {
 			listenAddresses: ["/ip4/0.0.0.0/tcp/4000"], 
 			identityPath: path.join(dataDir, "oracle-identity.json"),
@@ -93,7 +99,7 @@ async function main() {
 		await meshNode.announceCapability("liop:manifest");
 	}
 
-	const gateway = new LiopHybridGateway(server, meshNode, 50053);
+	const gateway = new LiopHybridGateway(server, meshNode, 50051);
 	const port = await gateway.listen(3000);
 	
 	log.info(`[The Oracle] Gateway active on port ${port}`);

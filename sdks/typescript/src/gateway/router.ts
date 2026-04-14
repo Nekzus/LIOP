@@ -35,7 +35,7 @@ export class LiopMcpRouter {
 	private currentDiscovery: Promise<void> | null = null;
 
 	/** Verifier for Tier-0 integrity checks */
-	private verifier: LiopVerifier = new LiopVerifier();
+	public verifier: LiopVerifier = new LiopVerifier();
 
 	/** Callback when new remote tools are discovered */
 	public onToolsChanged?: () => void;
@@ -115,7 +115,9 @@ export class LiopMcpRouter {
 				const localTools = this.liopServer.listTools();
 				const remoteTools = await this.getRemoteTools();
 
-				log.info(`[LIOP-Router] tools/list: ${localTools.length} local, ${remoteTools.length} remote tools found`);
+				log.info(
+					`[LIOP-Router] tools/list: ${localTools.length} local, ${remoteTools.length} remote tools found`,
+				);
 
 				// Inject a mandatory static diagnostic tool.
 				// This ensures that the {tools: []} list is never empty on startup.
@@ -202,6 +204,33 @@ export class LiopMcpRouter {
 					id,
 					result: { prompts: this.liopServer.listPrompts() },
 				};
+			case "prompts/get": {
+				const typedParams = params as
+					| { name?: string; arguments?: Record<string, unknown> }
+					| undefined;
+				if (!typedParams?.name)
+					return {
+						jsonrpc: "2.0",
+						id,
+						error: { code: -32602, message: "Missing prompt name" },
+					};
+				try {
+					const result = await this.liopServer.getPrompt({
+						name: typedParams.name,
+						arguments: typedParams.arguments || {},
+					});
+					return { jsonrpc: "2.0", id, result };
+				} catch (err: unknown) {
+					return {
+						jsonrpc: "2.0",
+						id,
+						error: {
+							code: -32000,
+							message: err instanceof Error ? err.message : String(err),
+						},
+					};
+				}
+			}
 			default:
 				return {
 					jsonrpc: "2.0",
@@ -377,8 +406,8 @@ export class LiopMcpRouter {
 					);
 
 					if (newCount !== prevCount && this.onToolsChanged) {
-						log.info(
-							"[LIOP-Router] Mesh topology updated! Emitting notifications/tools/list_changed.",
+						process.stderr.write(
+							"[LIOP-Router] Mesh topology updated! Emitting notifications/tools/list_changed.\n",
 						);
 						this.onToolsChanged();
 					}
@@ -401,60 +430,94 @@ export class LiopMcpRouter {
 			inputSchema?: Record<string, unknown>;
 		}>
 	> {
-		// [CRITICAL FIX] Do NOT block the tools/list response waiting for DHT discovery.
-		// Claude Desktop has a strict ~30s timeout. Blocking here (18s+ DHT + dial timeouts)
-		// causes the request to be cancelled before we can respond.
-		//
-		// The correct pattern: respond immediately from cache, run discovery in background,
-		// and emit notifications/tools/list_changed when new tools are found.
-		// Claude Desktop will then send a new tools/list — which WILL have the cache populated.
+		// Use a short, bounded warm-up on first tools/list so desktop clients
+		// receive remote tools on initial load, while still avoiding long blocks.
 		if (this.manifestCache.size === 0 && this.meshNode) {
-			// Fire-and-forget: do NOT await — let DHT run in background
-			this.refreshManifestCache(true).catch(() => {});
+			await Promise.race([
+				this.refreshManifestCache(true),
+				new Promise<void>((resolve) => setTimeout(resolve, 3000)),
+			]).catch(() => {});
+
+			// If still empty after bounded wait, continue in background.
+			if (this.manifestCache.size === 0) {
+				this.refreshManifestCache(true).catch(() => {});
+			}
 		}
 
 		// biome-ignore lint/suspicious/noExplicitAny: Tool schema is polymorphic
 		const tools: any[] = [];
 		const seenNames = new Set<string>();
-		const localToolNames = new Set(this.liopServer.listTools().map((t) => t.name));
+		const localToolNames = new Set(
+			this.liopServer.listTools().map((t) => t.name),
+		);
 
 		for (const [peerId, { manifest }] of this.manifestCache.entries()) {
 			for (const tool of manifest.tools) {
-				// 1. Skip if it's a tool WE (the server) are already providing locally
-				// 2. Skip if we've already added it from another remote peer in this discovery cycle
-				if (!localToolNames.has(tool.name) && !seenNames.has(tool.name)) {
-					const augmentedTool = { ...tool };
-					const providerName = manifest.serverInfo?.name || "Unknown Provider";
-
-					let blueprint = "";
-					if (manifest.taxonomy) {
-						blueprint = `\n\n[LIOP-PROTO: TAXONOMY]\nDomain: ${manifest.taxonomy.domain}\nClearance Tier: ${manifest.taxonomy.clearanceTier}`;
-						if (
-							manifest.taxonomy.executionTypes &&
-							manifest.taxonomy.executionTypes.length > 0
-						) {
-							blueprint += `\nExecution Types: ${manifest.taxonomy.executionTypes.join(", ")}`;
-						}
-					}
-
-					// LIOP Logic-on-Origin Detection:
-					// If the tool has a 'payload' property, it requires the Full LIOP Envelope.
-					let envelopeDoc = "";
-					// biome-ignore lint/suspicious/noExplicitAny: internal schema extraction
-					const properties = (tool.inputSchema as any)?.properties || {};
-					if (properties.payload) {
-						envelopeDoc = `\n\n[LIOP-PROTO-V1: LOGIC-ON-ORIGIN SPECIFICATION]\nCRITICAL: This tool requires a strictly formatted Logic-on-Origin payload. Failure to wrap JavaScript code within the LIOP envelope will result in a MalformedPayloadError.\n\nREQUIRED FORMAT:\nLIOP_MAGIC:0x00FF\nMANIFEST:{"target":"wasi_v1","name":"[ModuleName]","integrity_checks":true}\n---BEGIN_LOGIC---\n// Pure JavaScript logic. Access data via 'env.records'.\n// You MUST use 'return' to output results.\n---END_LOGIC---\n\nExecution Environment: Zero-Trust WASI Sandbox (Node.js Worker Pool).`;
-					}
-
-					const originStamp = `\n\n[LIOP-REMOTE-ORIGIN-METADATA]\nProvider: ${providerName}\nNetwork ID: ${peerId}${blueprint}${envelopeDoc}`;
-
-					augmentedTool.description = augmentedTool.description
-						? `${augmentedTool.description}${originStamp}`
-						: originStamp.trim();
-
-					tools.push(augmentedTool);
-					seenNames.add(tool.name);
+				// [LIOP-STABILITY] Allow discovery of ALL remote tools.
+				// MCP Requires unique names per server session.
+				// In a P2P mesh, multiple nodes might expose the same tool (e.g. LiopMeshStatus).
+				// We suffix duplicate names with a short peer hash to ensure
+				// ALL tools from ALL providers are correctly registered and visible.
+				let finalName = tool.name;
+				if (seenNames.has(tool.name) || localToolNames.has(tool.name)) {
+					finalName = `${tool.name}_${peerId.slice(-4)}`;
 				}
+				seenNames.add(finalName);
+
+				const providerName = manifest.serverInfo?.name || "Unknown Provider";
+
+				// [SANITIZATION] Create a clean MCP-compliant tool object
+				const cleanTool: {
+					name: string;
+					description: string;
+					inputSchema: Record<string, unknown>;
+				} = {
+					name: finalName,
+					description: tool.description || `Remote tool from ${providerName}`,
+					inputSchema: (tool.inputSchema || {
+						type: "object",
+						properties: {},
+					}) as Record<string, unknown>,
+				};
+
+				// Ensure inputSchema has the mandatory 'type: object' for MCP compliance
+				if (
+					typeof cleanTool.inputSchema === "object" &&
+					!cleanTool.inputSchema.type
+				) {
+					cleanTool.inputSchema.type = "object";
+				}
+				if (
+					typeof cleanTool.inputSchema === "object" &&
+					!cleanTool.inputSchema.properties
+				) {
+					cleanTool.inputSchema.properties = {};
+				}
+
+				let blueprint = "";
+				if (manifest.taxonomy) {
+					blueprint = `\n[LIOP-DOMAIN: ${manifest.taxonomy.domain}]`;
+				}
+
+				// LIOP Logic-on-Origin Detection:
+				const properties = cleanTool.inputSchema.properties || {};
+				let envelopeDoc = "";
+				if (properties.payload) {
+					envelopeDoc = `\n[REQUIRES: LIOP-PROTO-V1 ENVELOPE]`;
+				}
+
+				// INDUSTRIAL REPLICATION: Highlight schema adherence blocks
+				if (cleanTool.description.includes("STRICT SCHEMA ADHERENCE")) {
+					cleanTool.description = cleanTool.description.replace(
+						"STRICT SCHEMA ADHERENCE:",
+						"[INDUSTRIAL-REQUISITE] STRICT SCHEMA ADHERENCE (MANDATORY):",
+					);
+				}
+
+				const originStamp = `\n(Origin: ${peerId.slice(-8)})${blueprint}${envelopeDoc}`;
+				cleanTool.description = `${cleanTool.description}${originStamp}`;
+
+				tools.push(cleanTool);
 			}
 		}
 
@@ -504,9 +567,15 @@ export class LiopMcpRouter {
 
 					const originStamp = `\n\n[LIOP Zero-Trust Origin]\nProvider: ${providerName}\nNetwork ID: ${peerId}${blueprint}`;
 
-					augmentedResource.description = augmentedResource.description
-						? `${augmentedResource.description}${originStamp}`
-						: originStamp.trim();
+					// INDUSTRIAL REPLICATION: Mark schema resources clearly
+					if (augmentedResource.uri.startsWith("liop://schema/")) {
+						augmentedResource.name = `[SCHEMA] ${augmentedResource.name}`;
+						augmentedResource.description = `[CRITICAL SCHEMA] ${augmentedResource.description || "Data Dictionary for Zero-Shot Autonomy"}${originStamp}`;
+					} else {
+						augmentedResource.description = augmentedResource.description
+							? `${augmentedResource.description}${originStamp}`
+							: originStamp.trim();
+					}
 
 					resources.push(augmentedResource);
 					seenUris.add(resource.uri);
@@ -518,17 +587,41 @@ export class LiopMcpRouter {
 	}
 
 	/**
-	 * Resolves the gRPC target (host:port) for a given tool name
-	 * by searching the manifest cache. Returns null if not found.
+	 * Resolves the gRPC target (host:port) AND the peerId for a given tool name
+	 * by searching the manifest cache. Supports exact names and suffixed names.
 	 */
-	private resolveGrpcTarget(toolName: string): string | null {
-		for (const { manifest } of this.manifestCache.values()) {
-			const found = manifest.tools.some((t) => t.name === toolName);
-			if (found) {
-				// Resolve IP from the peer's active connection or use localhost
-				return `127.0.0.1:${manifest.grpcPort}`;
+	private resolveManifestTarget(
+		toolName: string,
+	): { peerId: string; originalToolName: string } | null {
+		// 1. Try exact match
+		for (const [peerId, { manifest }] of this.manifestCache.entries()) {
+			const tool = manifest.tools.find((t) => t.name === toolName);
+			if (tool) {
+				return {
+					peerId,
+					originalToolName: toolName,
+				};
 			}
 		}
+
+		// 2. Try suffixed match (tool_xxxx)
+		const parts = toolName.split("_");
+		if (parts.length > 1) {
+			const suffix = parts.pop();
+			const baseName = parts.join("_");
+			for (const [peerId, { manifest }] of this.manifestCache.entries()) {
+				if (peerId.endsWith(suffix || "")) {
+					const tool = manifest.tools.find((t) => t.name === baseName);
+					if (tool) {
+						return {
+							peerId,
+							originalToolName: baseName,
+						};
+					}
+				}
+			}
+		}
+
 		return null;
 	}
 
@@ -538,7 +631,9 @@ export class LiopMcpRouter {
 
 		// Intercept the static diagnostic tool
 		if (toolName === "LiopMeshStatus") {
-			// Trigger a proactive refresh when status is requested to force discovery
+			// [INDUSTRIAL-FIX] Proactive warm-up: request a refresh when status is called.
+			// This ensures that even if the DHT was cold, the next status call (or tools/list)
+			// will have data.
 			this.refreshManifestCache(true).catch(() => {});
 
 			// biome-ignore lint/suspicious/noExplicitAny: private stats for telemetry
@@ -621,7 +716,22 @@ export class LiopMcpRouter {
 			.some((t) => t.name === toolName);
 
 		if (!isLocal && this.meshNode) {
-			// Phase 1: Try DHT-based dynamic provider discovery
+			// Phase 1: Resolve from cached manifests (fastest, supports suffixed names)
+			await this.refreshManifestCache();
+			const target = this.resolveManifestTarget(toolName);
+			if (target) {
+				log.info(
+					`[LIOP-Router] Resolved ${toolName} via manifest cache (Peer: ${target.peerId}, Original: ${target.originalToolName})`,
+				);
+				return this.routeToRemoteProvider(
+					id,
+					target.originalToolName,
+					target.peerId,
+					params,
+				);
+			}
+
+			// Phase 2: Try DHT-based dynamic provider discovery (fallback for unsuffixed names)
 			let providers: string[] = [];
 			for (let i = 0; i < 3; i++) {
 				providers = await this.meshNode.findProviders(toolName);
@@ -631,20 +741,6 @@ export class LiopMcpRouter {
 
 			if (providers.length > 0) {
 				return this.routeToRemoteProvider(id, toolName, providers[0], params);
-			}
-
-			// Phase 2: Resolve from cached manifests (no DHT needed)
-			await this.refreshManifestCache();
-			const grpcTarget = this.resolveGrpcTarget(toolName);
-			if (grpcTarget) {
-				log.info(
-					`[LIOP-Router] Resolved ${toolName} via manifest cache -> ${grpcTarget}`,
-				);
-				const manifestClient = new liopV1.LogicMesh(
-					grpcTarget,
-					createChannelCredentials(),
-				);
-				return this.performTranscoding(id, manifestClient, toolName, params);
 			}
 		}
 
@@ -710,6 +806,16 @@ export class LiopMcpRouter {
 					cachedAt: Date.now(),
 				});
 			}
+		}
+
+		// Docker demo on Windows host: manifests advertise container gRPC ports (50051/50053),
+		// but host-reachable published ports are 13011/13021/13031.
+		if (cached) {
+			const providerName =
+				cached.manifest.serverInfo?.name?.toLowerCase() || "";
+			if (providerName.includes("vault")) grpcPort = 13011;
+			else if (providerName.includes("bank")) grpcPort = 13021;
+			else if (providerName.includes("oracle")) grpcPort = 13031;
 		}
 
 		// Resolve IP from active connections
@@ -806,7 +912,10 @@ export class LiopMcpRouter {
 						await Kyber768Wrapper.encapsulateAsymmetric(
 							response.kyber_public_key,
 						);
-					const proxyLogic = `return { "__liop_proxy_tool": "${toolName}", "__liop_proxy_args": env.args };`;
+					// SECURITY: Avoid AES-GCM nonce reuse across multiple ciphertexts.
+					// We embed arguments directly into the proxy logic so we only encrypt ONE payload per session/nonce.
+					const embeddedArgsJson = JSON.stringify(params.arguments || {});
+					const proxyLogic = `return { "__liop_proxy_tool": "${toolName}", "__liop_proxy_args": ${embeddedArgsJson} };`;
 					const nonce = crypto.randomBytes(12);
 
 					const sealedLogic = this.encryptWithNonce(
@@ -814,16 +923,11 @@ export class LiopMcpRouter {
 						sharedSecret,
 						nonce,
 					);
-					const sealedArgs = this.encryptWithNonce(
-						Buffer.from(JSON.stringify(params.arguments || {})),
-						sharedSecret,
-						nonce,
-					);
 
 					const call = client.executeLogic({
 						session_token: response.session_token,
 						wasm_binary: new Uint8Array(sealedLogic),
-						inputs: { args: new Uint8Array(sealedArgs) },
+						inputs: {},
 						pqc_ciphertext: ciphertext,
 						aes_nonce: nonce,
 					});

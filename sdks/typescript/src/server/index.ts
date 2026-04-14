@@ -100,6 +100,86 @@ export class LiopServer {
 		return match?.groups?.logic ? match.groups.logic.trim() : null;
 	}
 
+	/**
+	 * Proxied tools stringify a full MCP CallToolResult (`{ content: [...] }`).
+	 * Aggregation-first heuristics must scan the inner business JSON, not the MCP envelope
+	 * (otherwise `content` looks like a tabular array of objects and everything blocks).
+	 */
+	private unwrapForAggregationPolicyScan(input: unknown): unknown {
+		if (typeof input === "string") {
+			const trimmed = input.trim();
+			if (
+				(trimmed.startsWith("{") && trimmed.endsWith("}")) ||
+				(trimmed.startsWith("[") && trimmed.endsWith("]"))
+			) {
+				try {
+					return this.unwrapForAggregationPolicyScan(JSON.parse(trimmed));
+				} catch {
+					return input;
+				}
+			}
+			return input;
+		}
+
+		if (!input || typeof input !== "object") {
+			return input;
+		}
+
+		const rec = input as Record<string, unknown>;
+		if (!Array.isArray(rec.content) || rec.content.length === 0) {
+			return input;
+		}
+
+		const texts: string[] = [];
+		for (const part of rec.content) {
+			if (part && typeof part === "object" && "text" in part) {
+				const t = (part as { text?: unknown }).text;
+				if (typeof t === "string") {
+					texts.push(t);
+				}
+			}
+		}
+		if (texts.length === 0) {
+			return input;
+		}
+
+		const joined = texts.length === 1 ? texts[0] : texts.join("\n");
+		return this.unwrapForAggregationPolicyScan(joined);
+	}
+
+	private violatesAggregationFirstPolicy(input: unknown): boolean {
+		if (typeof input === "string") {
+			const trimmed = input.trim();
+			if (
+				(trimmed.startsWith("{") && trimmed.endsWith("}")) ||
+				(trimmed.startsWith("[") && trimmed.endsWith("]"))
+			) {
+				try {
+					return this.violatesAggregationFirstPolicy(JSON.parse(trimmed));
+				} catch {
+					return false;
+				}
+			}
+			return false;
+		}
+
+		if (Array.isArray(input)) {
+			if (input.length > 0 && input.every((item) => typeof item === "object")) {
+				// Treat tabular row export as non-aggregated leakage risk.
+				return true;
+			}
+			return input.some((item) => this.violatesAggregationFirstPolicy(item));
+		}
+
+		if (input && typeof input === "object") {
+			return Object.values(input as Record<string, unknown>).some((value) =>
+				this.violatesAggregationFirstPolicy(value),
+			);
+		}
+
+		return false;
+	}
+
 	constructor(
 		private serverInfo: ServerInfo,
 		private config?: LiopServerOptions,
@@ -107,6 +187,22 @@ export class LiopServer {
 		this.piiScanner = new PiiScanner(
 			this.config?.security?.piiPatterns ?? PII_PRESETS.GLOBAL_STRICT,
 			this.config?.security?.forbiddenKeys ?? [
+				"id",
+				"name",
+				"fullName",
+				"firstName",
+				"lastName",
+				"address",
+				"street",
+				"city",
+				"postalCode",
+				"zipCode",
+				"phone",
+				"email",
+				"ssn",
+				"accountHolder",
+				"accountNumber",
+				"account_number",
 				"password",
 				"token",
 				"secret",
@@ -748,11 +844,17 @@ Protocol Adherence is mandatory for successful execution.`,
 					const violation = this.piiScanner.scan([
 						{ type: "text", text: finalOutput },
 					]);
-					if (violation) {
+					const aggregationViolation = this.violatesAggregationFirstPolicy(
+						this.unwrapForAggregationPolicyScan(finalOutput),
+					);
+					if (violation || aggregationViolation) {
+						const reason =
+							violation ||
+							"Aggregation-First Policy (row-level export blocked)";
 						log.info(
-							`[LIOP-RPC] PII Leak blocked in gRPC stream: ${violation}`,
+							`[LIOP-RPC] Secure egress blocked in gRPC stream: ${reason}`,
 						);
-						response.semantic_evidence = `[LIOP] Egress Security Violation. Output blocked due to PII leakage (${violation}).`;
+						response.semantic_evidence = `[LIOP] Egress Security Violation. Output blocked due to policy enforcement (${reason}).`;
 						response.is_error = true;
 					}
 
@@ -825,15 +927,20 @@ Protocol Adherence is mandatory for successful execution.`,
 
 			// Professional PII Protection Guard
 			const violation = this.piiScanner.scan(content);
-			if (violation) {
+			const aggregationViolation = this.violatesAggregationFirstPolicy(
+				workerResponse.output,
+			);
+			if (violation || aggregationViolation) {
+				const reason =
+					violation || "Aggregation-First Policy (row-level export blocked)";
 				log.info(
-					`[LIOP-SDK] PII Leak blocked in local execution: ${violation}`,
+					`[LIOP-SDK] Secure egress blocked in local execution: ${reason}`,
 				);
 				return {
 					content: [
 						{
 							type: "text",
-							text: `[LIOP] Egress Security Violation. Output blocked due to PII leakage (${violation}).`,
+							text: `[LIOP] Egress Security Violation. Output blocked due to policy enforcement (${reason}).`,
 						},
 					],
 					isError: true,

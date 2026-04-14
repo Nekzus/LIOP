@@ -64,18 +64,19 @@ async function main() {
 		"LIOP://schema/medical-records-synthetic",
 	);
 
+	// Dataset available to Logic-on-Origin runtime as env.records.
+	liopServer.setSandboxData(patients as unknown as Record<string, unknown>[]);
+
 	liopServer.tool(
 		"Analyze_Synthetic_Medical_Records",
-		"Securely analyzes the medical records dataset for protocol demonstration. Performs logic-on-origin to prevent raw data exposure.",
-		{ filter_diagnosis: z.string().optional().describe("Filter patients by diagnosis (e.g. 'Hypertension')") },
+		"Securely analyzes the medical records dataset for protocol demonstration. Requires LIOP envelope payload and runs in Logic-on-Origin sandbox.",
+		{ payload: z.string().describe("LIOP v1 envelope payload for sandboxed analysis over env.records") },
 		// biome-ignore lint/suspicious/noExplicitAny: Intentional any for demo
 		async (params: any) => {
-			const filtered = params.filter_diagnosis
-				? patients.filter(p => p.diagnosis.toLowerCase() === params.filter_diagnosis.toLowerCase())
-				: patients;
-			
-			log.info(`[Vault] Industrial Logic Triggered: ${params.filter_diagnosis || 'Full Scan'}`);
-			return { content: [{ type: "text", text: JSON.stringify(filtered) }] };
+			log.info(`[Vault] Industrial Logic Triggered via LIOP envelope`);
+			// The SDK payload middleware executes the envelope in sandbox.
+			// Returning a placeholder here keeps type contract explicit.
+			return { content: [{ type: "text", text: JSON.stringify({ status: "delegated_to_liop_runtime" }) }] };
 		}
 	);
 
