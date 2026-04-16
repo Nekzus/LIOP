@@ -221,21 +221,8 @@ async function main() {
 		bootstrapNodes.push(process.env.LIOP_BOOTSTRAP.trim());
 	}
 
-	// Industrial defaults for local demo mesh (Windows host-mapped ports).
-	// These identities are persisted by tests/infra volumes, so they remain stable across restarts.
-	const industrialDefaults = [
-		"/ip4/127.0.0.1/tcp/13001/p2p/12D3KooWD8FUFdnLQzzLFNdicsaTknM5cpD7os9sK9NWVSVABJMD", // Nexus
-		"/ip4/127.0.0.1/tcp/13003/p2p/12D3KooWNWGunBEf4711xZ7gubmkVFzm5Z5UJkZsNru9T7fMZ2Uy", // Vault
-		"/ip4/127.0.0.1/tcp/13004/p2p/12D3KooWQ1byTRQrf6Xx6PYjkeQ8hBGADarVf8rk4YRsjUcxKaSE", // Bank
-		"/ip4/127.0.0.1/tcp/13005/p2p/12D3KooWDe8qtDnkFe69AWyUo9a7LhGKNiubzgsQin3gr9gap4vt", // Oracle
-	];
-	for (const addr of industrialDefaults) {
-		if (!bootstrapNodes.includes(addr)) {
-			bootstrapNodes.push(addr);
-		}
-	}
-
 	// Final fallback: local Nexus bootstrap for demo environments.
+	// Avoid injecting stale static peer IDs when discovery already found valid peers.
 	if (bootstrapNodes.length === 0) {
 		bootstrapNodes.push(
 			"/ip4/127.0.0.1/tcp/13001/p2p/12D3KooWD8FUFdnLQzzLFNdicsaTknM5cpD7os9sK9NWVSVABJMD",

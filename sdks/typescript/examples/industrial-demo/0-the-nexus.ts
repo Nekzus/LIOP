@@ -23,7 +23,7 @@ async function main() {
 	const meshNode = server.getMeshNode();
 	if (!meshNode) throw new Error("Mesh node failed to initialize");
 
-	// For cross-environment safety (WSL -> Windows Claude Desktop), ALWAYS force 127.0.0.1
+	// For cross-environment safety, ALWAYS force 127.0.0.1
 	const peerId = meshNode.getPeerId();
 	const p2pAddr = `/ip4/127.0.0.1/tcp/4001/ws/p2p/${peerId}`;
 	await fs.writeFile("nexus.multiaddr", p2pAddr);

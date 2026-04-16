@@ -17,9 +17,13 @@
     "commit": "cz",
     "sync-metadata": "pnpm --filter @nekzus/liop exec tsx scripts/sync-metadata.ts",
     "test:crossnet": "pnpm --filter @nekzus/liop test:crossnet",
+    "test:crossnet:burn": "pnpm --filter @nekzus/liop test:crossnet:burn",
+    "demo:build": "pnpm --filter @nekzus/liop demo:build",
     "demo:start": "pnpm --filter @nekzus/liop demo:start",
+    "demo:start:rebuild": "pnpm --filter @nekzus/liop demo:start:rebuild",
     "demo:stop": "pnpm --filter @nekzus/liop demo:stop",
-    "demo:claude": "pnpm --filter @nekzus/liop demo:claude"
+    "demo:claude": "pnpm --filter @nekzus/liop demo:claude",
+    "demo:inspector": "pnpm --filter @nekzus/liop demo:inspector"
   },
   "config": {
     "commitizen": {

@@ -389,6 +389,22 @@ export class LiopMcpRouter {
 					);
 				}
 
+				// Prioritize already-connected peers to avoid blocking on stale providers.
+				// This improves first tools/list latency on Linux/Ubuntu while preserving
+				// full discovery for slower peers in subsequent refresh cycles.
+				const connectedPeers = new Set<string>(
+					// biome-ignore lint/suspicious/noExplicitAny: internal node access for fast peer ordering
+					((this.meshNode as any).node?.getConnections?.() || []).map(
+						(c: { remotePeer: { toString: () => string } }) =>
+							c.remotePeer.toString(),
+					),
+				);
+				providerIds = [...providerIds].sort((a, b) => {
+					const aConnected = connectedPeers.has(a) ? 1 : 0;
+					const bConnected = connectedPeers.has(b) ? 1 : 0;
+					return bConnected - aConnected;
+				});
+
 				let successCount = 0;
 				let errorCount = 0;
 				let cacheUpdated = false;
@@ -861,9 +877,10 @@ export class LiopMcpRouter {
 			}
 		}
 
-		// Docker demo on Windows host: manifests advertise container gRPC ports (50051/50053),
-		// but host-reachable published ports are 13011/13021/13031.
-		if (cached) {
+		// Host-mode convenience (opt-in):
+		// Some Docker Desktop setups publish gRPC ports on the host as 13011/13021/13031.
+		// Inside Docker networks we must keep the manifest-advertised container port.
+		if (cached && process.env.LIOP_USE_PUBLISHED_GRPC_PORTS === "1") {
 			const providerName =
 				cached.manifest.serverInfo?.name?.toLowerCase() || "";
 			if (providerName.includes("vault")) grpcPort = 13011;

@@ -124,3 +124,25 @@ services:
         condition: service_started
       oracle:
         condition: service_started
+
+  # Official MCP Inspector (browser UI + proxy). Optional; does not start by default.
+  # Start: docker compose --profile inspector up -d mcp-inspector
+  # UI: http://127.0.0.1:16274 — in the sidebar use streamable-http → http://nexus:3000/mcp
+  mcp-inspector:
+    image: ghcr.io/modelcontextprotocol/inspector:latest
+    container_name: liop-mcp-inspector
+    profiles:
+      - inspector
+    ports:
+      - "127.0.0.1:16274:6274"
+      - "127.0.0.1:16277:6277"
+    environment:
+      HOST: "0.0.0.0"
+      MCP_AUTO_OPEN_ENABLED: "false"
+      # Browser Origin uses the host-mapped port (16274), not 6274 inside the container.
+      ALLOWED_ORIGINS: "http://localhost:16274,http://127.0.0.1:16274"
+    networks:
+      liop-testnet: {}
+    depends_on:
+      nexus:
+        condition: service_started

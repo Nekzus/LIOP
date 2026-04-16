@@ -57,10 +57,14 @@
     "demo:server-quickstart": "pnpm --filter @liop/example-server-quickstart start",
     "demo:server": "pnpm --filter @liop/example-server start",
     "demo:client": "pnpm --filter @liop/example-client start",
-    "test:crossnet": "wsl -- bash tests/infra/run-crossnet.sh",
-    "demo:start": "wsl -- bash tests/infra/start-demo.sh",
-    "demo:stop": "wsl -- bash tests/infra/teardown.sh",
-    "demo:claude": "powershell -NoProfile -ExecutionPolicy Bypass -File tests\\infra\\setup-claude-desktop.ps1"
+    "test:crossnet": "tsx tests/infra/cli/crossnet.ts",
+    "test:crossnet:burn": "tsx tests/infra/cli/crossnet-burn.ts",
+    "demo:build": "tsx tests/infra/cli/demo-build.ts",
+    "demo:start": "tsx tests/infra/cli/demo-start.ts",
+    "demo:start:rebuild": "tsx tests/infra/cli/demo-start-rebuild.ts",
+    "demo:stop": "tsx tests/infra/cli/demo-stop.ts",
+    "demo:claude": "tsx tests/infra/cli/demo-claude.ts",
+    "demo:inspector": "tsx tests/infra/cli/demo-inspector.ts"
   },
   "keywords": [
     "liop",

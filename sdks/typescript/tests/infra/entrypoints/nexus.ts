@@ -42,7 +42,7 @@ async function main() {
 	const meshNode = liopServer.getMeshNode();
 	if (meshNode) {
 		const peerId = meshNode.getPeerId();
-		// For cross-environment safety (WSL -> Windows Host), ALWAYS advertise the mapped port
+		// For cross-environment safety, ALWAYS advertise the host-mapped port
 		const p2pAddr = `/ip4/127.0.0.1/tcp/13001/p2p/${peerId}`;
 		
 		fs.writeFileSync(path.join(dataDir, "nexus.multiaddr"), p2pAddr);
