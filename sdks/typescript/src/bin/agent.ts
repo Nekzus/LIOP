@@ -6,6 +6,7 @@ import { multiaddr } from "@multiformats/multiaddr";
 import { LiopMcpRouter } from "../gateway/router.js";
 import { MeshNode } from "../mesh/index.js";
 import { LiopServer } from "../server/index.js";
+import type { McpRequest } from "../types.js";
 import { log } from "../utils/logger.js";
 
 /**
@@ -297,32 +298,40 @@ async function main() {
 		router.refreshManifestCache(true).catch(() => {});
 	}, 10000);
 
-	// 4. STDIO Transport implementation
+	// 4. STDIO Transport — Buffered Line Reader
+	// Uses readline to guarantee complete JSON-RPC messages before parsing.
+	// Raw stdin.on("data") can fragment large payloads across multiple chunks.
+	const readline = await import("node:readline");
+	const rl = readline.createInterface({
+		input: process.stdin,
+		terminal: false,
+	});
+
 	process.stdout.on("error", (err: Error & { code?: string }) => {
 		if (err.code === "EPIPE") {
 			process.exit(0); // Graceful exit when Claude Desktop disconnects
 		}
 	});
 
-	process.stdin.on("data", async (data) => {
-		const payload = data.toString().trim();
-		if (!payload) return;
+	rl.on("line", async (line) => {
+		const trimmed = line.trim();
+		if (!trimmed) return;
 
-		const messages = payload.split("\n");
-
-		for (const msg of messages) {
-			try {
-				const request = JSON.parse(msg);
-				if (request.method) {
-					const response = await router.dispatch(request);
-					if (response) {
-						process.stdout.write(`${JSON.stringify(response)}\n`);
-					}
+		try {
+			const request = JSON.parse(trimmed) as McpRequest;
+			if (request.method) {
+				const response = await router.dispatch(request);
+				if (response) {
+					process.stdout.write(`${JSON.stringify(response)}\n`);
 				}
-			} catch (_err) {
-				// Silent catch for binary noise
 			}
+		} catch (_err) {
+			// Silent catch for binary noise or malformed lines
 		}
+	});
+
+	rl.on("close", () => {
+		process.exit(0);
 	});
 
 	// Status directed only to stderr

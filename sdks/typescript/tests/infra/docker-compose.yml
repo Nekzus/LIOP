@@ -30,6 +30,10 @@ services:
     environment:
       LIOP_NODE_ROLE: nexus
       LIOP_LOG_LEVEL: info
+      # Short tool descriptions in MCP tools/list (aligned with examples/industrial-demo UX).
+      LIOP_MCP_COMPACT_TOOL_DESCRIPTIONS: "1"
+      # Host/Inspector: route tools/call to published gRPC ports (13011/13021/13031), not 50051.
+      LIOP_USE_PUBLISHED_GRPC_PORTS: "0"
     volumes:
       - ./nexus-data:/app/data
     networks:
@@ -38,6 +42,12 @@ services:
     ports:
       - "13001:4000"    # libp2p TCP (P2P Mesh Port)
       - "13000:3000"    # HTTP health / MCP Bootstrap
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:3000/health"]
+      interval: 5s
+      timeout: 3s
+      start_period: 10s
+      retries: 5
 
   vault:
     <<: *node-base
@@ -47,6 +57,7 @@ services:
     environment:
       LIOP_NODE_ROLE: vault
       LIOP_LOG_LEVEL: info
+      LIOP_MCP_COMPACT_TOOL_DESCRIPTIONS: "1"
     volumes:
       - ./nexus-data:/app/data
     networks:
@@ -58,7 +69,7 @@ services:
       - "13013:3000"    # Health Vault
     depends_on:
       nexus:
-        condition: service_started
+        condition: service_healthy
 
   bank:
     <<: *node-base
@@ -68,6 +79,7 @@ services:
     environment:
       LIOP_NODE_ROLE: bank
       LIOP_LOG_LEVEL: info
+      LIOP_MCP_COMPACT_TOOL_DESCRIPTIONS: "1"
     volumes:
       - ./nexus-data:/app/data
     networks:
@@ -79,7 +91,7 @@ services:
       - "13014:3000"    # Health Bank
     depends_on:
       nexus:
-        condition: service_started
+        condition: service_healthy
 
   oracle:
     <<: *node-base
@@ -89,6 +101,7 @@ services:
     environment:
       LIOP_NODE_ROLE: oracle
       LIOP_LOG_LEVEL: info
+      LIOP_MCP_COMPACT_TOOL_DESCRIPTIONS: "1"
     volumes:
       - ./nexus-data:/app/data
     networks:
@@ -100,7 +113,7 @@ services:
       - "13015:3000"    # Health Oracle
     depends_on:
       nexus:
-        condition: service_started
+        condition: service_healthy
 
   test-runner:
     <<: *node-base

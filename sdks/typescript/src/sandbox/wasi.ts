@@ -103,7 +103,7 @@ export class WasiSandbox {
 		compiledLogic: Buffer | string,
 		records: Record<string, unknown>[] = [],
 		inputs: Record<string, unknown> = {},
-	): Promise<{ output: string; fuelConsumed: number }> {
+	): Promise<{ output: unknown; fuelConsumed: number }> {
 		const startTime = performance.now();
 
 		if (compiledLogic instanceof Buffer) {
@@ -155,6 +155,9 @@ export class WasiSandbox {
 			}
 
 			// LIOP Execution Wrapper
+			// Supports two code patterns:
+			//   1. Explicit entry point: function liop_main(env) { ... }
+			//   2. Bare return logic:    const x = env.records; return { total: x.length };
 			const scriptCode = `
 				(function() {
 					try {
@@ -164,6 +167,15 @@ export class WasiSandbox {
 						}
 						return "ERR_NO_ENTRY_POINT";
 					} catch(e) {
+						if (e instanceof SyntaxError && /Illegal return statement/i.test(e.message)) {
+							// Bare-return pattern: wrap the logic as a function body
+							try {
+								const __liop_fn = new Function('env', 'records', ${JSON.stringify(String(compiledLogic))});
+								return __liop_fn(env, env.records);
+							} catch(e2) {
+								return "LogicError: " + e2.message;
+							}
+						}
 						return "LogicError: " + e.message;
 					}
 				})();
@@ -195,9 +207,7 @@ export class WasiSandbox {
 					);
 				}
 
-				const finalOutput =
-					typeof output === "object" ? JSON.stringify(output) : String(output);
-				return { output: finalOutput, fuelConsumed: fuelUsed };
+				return { output, fuelConsumed: fuelUsed };
 			} catch (error) {
 				throw new Error(
 					`V8 Isolate Fault: ${error instanceof Error ? error.message : "Execution Timeout"}`,

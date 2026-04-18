@@ -1,7 +1,7 @@
 import { expect } from "vitest";
 
 // In crossnet, the "agent" is the Nexus gateway (MCP HTTP endpoint).
-const agentUrl = process.env.AGENT_URL || "http://172.20.0.10:3000";
+const agentUrl = process.env.AGENT_URL || "http://127.0.0.1:13000";
 const DEFAULT_RETRY_TIMEOUT_MS = 60_000;
 
 type JsonRpcResponse = {

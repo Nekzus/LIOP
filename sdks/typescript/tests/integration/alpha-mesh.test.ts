@@ -26,10 +26,11 @@ describe("LIOP Alpha Mesh Integration", () => {
 			},
 		);
 
-		await server.connectToMesh({ port: 50063 });
+		await server.connectToMesh({ port: 0 });
+		const boundPort = server.getBoundPort();
 
 		client = new LiopClient();
-		await client.connect("localhost:50063");
+		await client.connect(`localhost:${boundPort}`);
 	}, 60000);
 
 	afterAll(async () => {
@@ -41,7 +42,8 @@ describe("LIOP Alpha Mesh Integration", () => {
 		const toolRequest = {
 			name: "calculate_stats",
 			arguments: {
-				payload: `
+				payload: `LIOP_MAGIC:0x00FF
+MANIFEST:{"target":"wasi_v1","name":"StatsModule"}
 ---BEGIN_LOGIC---
 const records = env.records;
 const avgAge = records.reduce((acc, r) => acc + r.age, 0) / records.length;
@@ -49,8 +51,7 @@ return {
     count: records.length,
     average_age: avgAge
 };
----END_LOGIC---
-`,
+---END_LOGIC---`,
 			},
 		};
 
@@ -72,7 +73,7 @@ return {
 
 	it("should reject execution if ZK-Receipt ImageID mismatch detected", async () => {
 		const client = new LiopClient();
-		await client.connect("localhost:50063");
+		await client.connect(`localhost:${server.getBoundPort()}`);
 
 		const toolRequest = {
 			name: "calculate_stats",

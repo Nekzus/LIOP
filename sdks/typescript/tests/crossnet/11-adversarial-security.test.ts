@@ -45,7 +45,7 @@ return { total: records.length, avgPrice: Number(avgPrice.toFixed(2)) };
 		expect(b).not.toBeNull();
 		expect(String(a?.status || "")).toMatch(/success/i);
 		expect(String(b?.status || "")).toMatch(/success/i);
-		expect(a?.computation_result).toBe(b?.computation_result);
+		expect(a?.computation_result).toStrictEqual(b?.computation_result);
 		expect(a?.image_id).toBe(b?.image_id);
 	});
 });

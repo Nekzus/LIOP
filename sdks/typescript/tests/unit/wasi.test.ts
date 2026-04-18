@@ -10,7 +10,7 @@ describe("WasiSandbox (Industrial Tier-0)", () => {
         const logic = "function liop_main(env) { return env.num * 2; }";
         
         const result = await sandbox.execute(logic, [], { num: 21 });
-        expect(result.output).toBe("42");
+        expect(result.output).toBe(42);
     });
 
     it("should restrict access to unauthorized node globals", async () => {

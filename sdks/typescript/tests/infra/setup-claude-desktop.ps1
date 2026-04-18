@@ -20,6 +20,11 @@ $liopConfig = @{
         LIOP_NEXUS_URL = $nexusUrl
         LIOP_BOOTSTRAP_FILE = $nexusBeacon
         LIOP_LOG_LEVEL = "info"
+        LIOP_MCP_COMPACT_TOOL_DESCRIPTIONS = "1"
+        LIOP_INITIAL_DISCOVERY_TIMEOUT_MS = "20000"
+        LIOP_TOOLS_LIST_TAIL_POLL_MS = "8000"
+        LIOP_USE_PUBLISHED_GRPC_PORTS = "1"
+        LIOP_RESPECT_PLAIN_TOOL_PAYLOAD = "1"
     }
 }
 

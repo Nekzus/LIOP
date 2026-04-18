@@ -16,7 +16,14 @@ export function runDockerCompose(args: string[], options: RunOptions = {}): void
     cwd: options.cwd ?? getInfraDir(),
     stdio: "inherit",
     env: process.env,
-    shell: process.platform === "win32",
+    /**
+     * Never use `shell: true` here.
+     *
+     * On Windows it concatenates args without escaping, which breaks `docker compose`
+     * flags that rely on templates (e.g. `--format "table {{.Name}}..."`) and also
+     * triggers Node's DEP0190 warning.
+     */
+    shell: false,
   });
 
   if (res.error) throw res.error;

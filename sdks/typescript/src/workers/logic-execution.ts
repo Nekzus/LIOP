@@ -22,7 +22,7 @@ export interface WorkerData {
 
 export default async function processLogicExecution(data: WorkerData): Promise<{
 	image_id: string;
-	output: string;
+	output: unknown;
 	fuel_consumed: number;
 	zk_receipt?: string;
 }> {
@@ -142,7 +142,11 @@ export default async function processLogicExecution(data: WorkerData): Promise<{
 				image_id: imageId,
 				output_hash: crypto
 					.createHash("sha256")
-					.update(result.output)
+					.update(
+						typeof result.output === "string"
+							? result.output
+							: JSON.stringify(result.output),
+					)
 					.digest("hex"),
 				fuel: result.fuelConsumed,
 				ts: Date.now(),

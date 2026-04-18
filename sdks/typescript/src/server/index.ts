@@ -21,9 +21,19 @@ import type {
 	Tool,
 } from "../types.js";
 import { log } from "../utils/logger.js";
+import { mcpCompactToolDescriptions } from "../utils/mcpCompact.js";
 import { PII_PATTERNS, PII_PRESETS, type PiiRule, PiiScanner } from "./pii.js";
 
 export { PII_PATTERNS, PII_PRESETS, type PiiRule, PiiScanner };
+
+/**
+ * When enabled, `payload` tools that are not LIOP v1 envelopes are passed through to the
+ * registered handler unchanged (no worker extraction). Default off for strict protocol tests.
+ */
+function respectPlainToolPayload(): boolean {
+	const v = process.env.LIOP_RESPECT_PLAIN_TOOL_PAYLOAD?.toLowerCase().trim();
+	return v === "1" || v === "true" || v === "yes";
+}
 
 export type ToolHandler<T extends z.ZodRawShape = z.ZodRawShape> = (
 	args: z.infer<z.ZodObject<T>>,
@@ -109,6 +119,7 @@ export class LiopServer {
 	private workerPool: Piscina;
 	private meshNode: MeshNode | null = null;
 	private rpcServer: LiopRpcServer | null = null;
+	private boundPort: number | null = null;
 	private sessions: Map<
 		string,
 		{ capability_hash: string; kyber_sk: Uint8Array }
@@ -175,9 +186,16 @@ export class LiopServer {
 		if (policy.outputSchema) {
 			const schemaResult = policy.outputSchema.safeParse(parsed);
 			if (!schemaResult.success) {
+				// Include a truncated preview of the rejected value so the LLM can self-correct
+				const preview =
+					typeof parsed === "string"
+						? parsed.slice(0, 200)
+						: JSON.stringify(parsed).slice(0, 200);
 				return `[LIOP] Output schema violation for ${toolName}: ${schemaResult.error.issues
 					.map((i) => `${i.path.join(".") || "<root>"} ${i.message}`)
-					.join("; ")}`;
+					.join(
+						"; ",
+					)}. Rejected value: ${preview}. HINT: Use 'env.records' to access the dataset inside your logic.`;
 			}
 		}
 
@@ -386,17 +404,28 @@ export class LiopServer {
 		if (shape.payload && shape.payload instanceof z.ZodString) {
 			const blockedKeys = this.config?.security?.forbiddenKeys || [];
 
-			finalDescription += `\n\n[LIOP-PROTO-V1: LOGIC-ON-ORIGIN SPECIFICATION]\nCRITICAL: This tool requires a strictly formatted Logic-on-Origin payload. Failure to wrap JavaScript code within the LIOP envelope will result in a MalformedPayloadError.\n\nREQUIRED FORMAT:\nLIOP_MAGIC:0x00FF\nMANIFEST:{"target":"wasi_v1","name":"[ModuleName]","integrity_checks":true}\n---BEGIN_LOGIC---\n// Pure JavaScript logic. Access data via 'env.records'.\n// You MUST use 'return' to output results.\n---END_LOGIC---\n\nExecution Environment: Zero-Trust WASI Sandbox (Node.js Worker Pool).`;
+			if (mcpCompactToolDescriptions()) {
+				finalDescription +=
+					"\n\nPayload: LIOP v1 envelope string (sandboxed WASI execution on the data origin). " +
+					"Access dataset via env.records (Array of objects). " +
+					"Return an aggregated object (e.g. { total: env.records.length }). " +
+					'Use MCP prompts/get "liop_blind_analyst" for the exact envelope format and safety rules.';
+				if (blockedKeys.length > 0) {
+					finalDescription += `\nDo not reference fields: ${blockedKeys.join(", ")}.`;
+				}
+			} else {
+				finalDescription += `\n\n[LIOP-PROTO-V1: LOGIC-ON-ORIGIN SPECIFICATION]\nCRITICAL: This tool requires a strictly formatted Logic-on-Origin payload. Failure to wrap JavaScript code within the LIOP envelope will result in a MalformedPayloadError.\n\nREQUIRED FORMAT:\nLIOP_MAGIC:0x00FF\nMANIFEST:{"target":"wasi_v1","name":"[ModuleName]","integrity_checks":true}\n---BEGIN_LOGIC---\n// Pure JavaScript logic. Access data via 'env.records'.\n// You MUST use 'return' to output results.\n---END_LOGIC---\n\nExecution Environment: Zero-Trust WASI Sandbox (Node.js Worker Pool).`;
 
-			if (blockedKeys.length > 0) {
-				finalDescription += `\n// SECURITY RESTRICTION: Do NOT include any of the following fields: ${blockedKeys.join(", ")}`;
+				if (blockedKeys.length > 0) {
+					finalDescription += `\n// SECURITY RESTRICTION: Do NOT include any of the following fields: ${blockedKeys.join(", ")}`;
+				}
+
+				if (this.activeSchema) {
+					finalDescription += `\n\nSTRICT SCHEMA ADHERENCE:\nThe 'env.records' array contains objects with: ${JSON.stringify(this.activeSchema)}`;
+				}
+
+				finalDescription += `\n\nOptional: You can include an "__liop_bypass_ast_cache" boolean parameter set to true to force AST re-evaluation.`;
 			}
-
-			if (this.activeSchema) {
-				finalDescription += `\n\nSTRICT SCHEMA ADHERENCE:\nThe 'env.records' array contains objects with: ${JSON.stringify(this.activeSchema)}`;
-			}
-
-			finalDescription += `\n\nOptional: You can include an "__liop_bypass_ast_cache" boolean parameter set to true to force AST re-evaluation.`;
 
 			finalHandler = async (
 				args: z.infer<z.ZodObject<T>>,
@@ -462,6 +491,9 @@ export class LiopServer {
 				}
 
 				if (!logic) {
+					if (respectPlainToolPayload()) {
+						return await handler(args as z.infer<z.ZodObject<T>>, _extra);
+					}
 					stats.failures++;
 					stats.lastAttempt = now;
 					this.connectionStats.set(clientId, stats);
@@ -823,6 +855,10 @@ Protocol Adherence is mandatory for successful execution.`,
 		this.sandboxRecords = records;
 	}
 
+	public getBoundPort(): number | null {
+		return this.boundPort;
+	}
+
 	/**
 	 * Connects to the libp2p Kademlia DHT and announces capabilities.
 	 * Boots the gRPC server for secure Logic-on-Origin.
@@ -840,7 +876,7 @@ Protocol Adherence is mandatory for successful execution.`,
 		const envPort = process.env.LIOP_GRPC_PORT
 			? Number.parseInt(process.env.LIOP_GRPC_PORT, 10)
 			: undefined;
-		const port = options.port || envPort || 50051;
+		const port = options.port ?? envPort ?? 50051;
 
 		// 1. Initialize Mesh Node (Discovery)
 		this.meshNode = new MeshNode(options.meshConfig);
@@ -940,11 +976,14 @@ Protocol Adherence is mandatory for successful execution.`,
 						isEncrypted: true,
 					});
 
-					let finalOutput = workerResponse.output;
-
-					// [PROTOCOL TRANSFORMER] Support for Proxied Tool Calls
-					// If the execution resulted in a special proxy command, handle it
+					let finalOutput: string;
 					try {
+						finalOutput =
+							typeof workerResponse.output === "string"
+								? workerResponse.output
+								: JSON.stringify(workerResponse.output);
+
+						// [PROTOCOL TRANSFORMER] Support for Proxied Tool Calls
 						const decoded = JSON.parse(finalOutput);
 						if (decoded.__liop_proxy_tool) {
 							log.info(
@@ -957,7 +996,7 @@ Protocol Adherence is mandatory for successful execution.`,
 							finalOutput = JSON.stringify(toolResult);
 						}
 					} catch {
-						// Not a proxy command, continue with raw output
+						finalOutput = String(workerResponse.output);
 					}
 
 					const response: LogicResponse = {
@@ -1016,7 +1055,7 @@ Protocol Adherence is mandatory for successful execution.`,
 			},
 		});
 
-		await this.rpcServer.listen(port);
+		this.boundPort = await this.rpcServer.listen(port);
 		log.info(
 			`[LIOP-SDK] Node successfully announced to Mesh. PeerID: ${this.meshNode.getPeerId()}`,
 		);

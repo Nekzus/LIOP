@@ -1,7 +1,7 @@
 import { expect, test, describe } from "vitest";
 
 describe("Cross-Network: Discovery", () => {
-	const agentUrl = process.env.AGENT_URL || "http://172.20.0.12:3000";
+	const agentUrl = process.env.AGENT_URL || "http://127.0.0.1:13000";
 
 	test("Agent discovers tools from Vault via DHT", async () => {
 		const res = await fetch(`${agentUrl}/mcp`, {

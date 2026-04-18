@@ -10,7 +10,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { z } from "zod";
-import { MeshNode } from "../../../src/mesh/index.js";
 import { LiopServer } from "../../../src/server/index.js";
 import { LiopHybridGateway } from "../../../src/gateway/hybrid.js";
 import { log } from "../../../src/utils/logger.js";
@@ -69,27 +68,34 @@ async function main() {
 		"LIOP://schema/banking-ledger-synthetic",
 	);
 	liopServer.setSandboxData(accounts as unknown as Record<string, unknown>[]);
-	const bankAggregatedOutputSchema = z.object({
-		totalAccounts: z.number(),
-		byType: z.record(z.number()).optional(),
-		totalBalance: z.number().optional(),
-		balanceByCurrency: z.record(z.number()).optional(),
-	});
+	const bankAggregatedOutputSchema = z
+		.object({
+			totalAccounts: z.number().optional(),
+			total_records: z.number().optional(),
+			byType: z.record(z.union([z.number(), z.string()])).optional(),
+			totalBalance: z.union([z.number(), z.string()]).optional(),
+			balanceByCurrency: z.record(z.union([z.number(), z.string()])).optional(),
+			columns: z.array(z.string()).optional(),
+			accounts: z.array(z.string()).optional(),
+			balances: z.array(z.union([z.number(), z.string()])).optional(),
+			clientPayload: z.string().optional(),
+		})
+		.passthrough();
 
 	liopServer.tool(
 		"Analyze_Synthetic_Bank_Transactions",
-		"Securely analyzes financial transactions and account balances via LIOP Logic-on-Origin. Use this for balance inquiries and audit logs.",
-		{ payload: z.string().describe("Logic injection payload for financial analysis") },
+		"DISCLAIMER: This is a SIMULATION using SYNTHETIC data. Securely analyzes financial transactions and account balances via LIOP Logic-on-Origin for protocol demonstration.",
+		{ payload: z.string() },
 		// biome-ignore lint/suspicious/noExplicitAny: Intentional for demo
-		async (_params: any) => {
-			log.info(`[The Bank] Industrial Logic via LIOP envelope`);
+		async (_params) => {
 			return {
 				content: [
 					{
 						type: "text",
-						text: JSON.stringify({ status: "delegated_to_liop_runtime" }),
+						text: "[LIOP] Security Enforcement: Legacy Plain-Tool execution is BLOCKED. Banking data requires secure Logic-on-Origin processing. Wrap your JS logic in the LIOPv1 Envelope to continue.",
 					},
 				],
+				isError: true,
 			};
 		},
 		{

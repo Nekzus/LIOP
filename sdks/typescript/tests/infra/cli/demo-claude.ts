@@ -97,6 +97,17 @@ function main(): void {
 			LIOP_NEXUS_URL: nexusUrl,
 			LIOP_BOOTSTRAP_FILE: nexusBeacon,
 			LIOP_LOG_LEVEL: "info",
+			// Short MCP tool descriptions (matches docker demo + examples/industrial-demo UX).
+			// Full LIOP envelope spec stays in prompts/get → liop_blind_analyst.
+			LIOP_MCP_COMPACT_TOOL_DESCRIPTIONS: "1",
+			// Cloud MCP: give mesh discovery time before first tools/list completes.
+			LIOP_INITIAL_DISCOVERY_TIMEOUT_MS: "20000",
+			LIOP_TOOLS_LIST_TAIL_POLL_MS: "8000",
+			// Host runs agent against Docker demo: gRPC in manifests is 50051 (container);
+			// published host ports are 13011/13021/13031 (see tests/infra/docker-compose.yml).
+			LIOP_USE_PUBLISHED_GRPC_PORTS: "1",
+			// Tools hosted on the agent (if any) accept plain payloads; mesh providers use Docker env.
+			LIOP_RESPECT_PLAIN_TOOL_PAYLOAD: "1",
 		},
 	};
 

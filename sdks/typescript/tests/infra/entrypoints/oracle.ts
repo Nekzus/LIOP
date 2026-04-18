@@ -63,28 +63,36 @@ async function main() {
 		"LIOP://schema/market-data-synthetic",
 	);
 	server.setSandboxData(marketTicks as unknown as Record<string, unknown>[]);
-	const marketAggregatedOutputSchema = z.object({
-		total: z.number().optional(),
-		avgPrice: z.union([z.number(), z.string()]).optional(),
-		positives: z.number().optional(),
-		negatives: z.number().optional(),
-		maxPrice: z.number().optional(),
-		minPrice: z.number().optional(),
-	}).passthrough();
+	const marketAggregatedOutputSchema = z
+		.object({
+			total: z.number().optional(),
+			total_records: z.number().optional(),
+			avgPrice: z.union([z.number(), z.string()]).optional(),
+			positives: z.number().optional(),
+			negatives: z.number().optional(),
+			maxPrice: z.number().optional(),
+			minPrice: z.number().optional(),
+			columns: z.array(z.string()).optional(),
+			prices: z.array(z.number()).optional(),
+			volumes: z.array(z.union([z.number(), z.string()])).optional(),
+			changes: z.array(z.string()).optional(),
+			clientPayload: z.string().optional(),
+		})
+		.passthrough();
 
 	server.tool(
 		"Analyze_Synthetic_Market_Data",
 		"DISCLAIMER: This is a SIMULATION using SYNTHETIC data. Securely analyzes real-time market ticks via LIOP Logic-on-Origin for protocol demonstration.",
-		{ payload: z.string().describe("Logic injection payload for market analysis") },
-		async (_args) => {
-			log.info(`[The Oracle] 📈 Logic-Injection via LIOP envelope`);
+		{ payload: z.string() },
+		async (_params) => {
 			return {
 				content: [
 					{
 						type: "text",
-						text: JSON.stringify({ status: "delegated_to_liop_runtime" }),
+						text: "[LIOP] Security Enforcement: Legacy Plain-Tool execution is BLOCKED. Market data analysis requires secure Logic-on-Origin (LIOPv1 Envelope).",
 					},
 				],
+				isError: true,
 			};
 		},
 		{

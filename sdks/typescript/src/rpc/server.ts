@@ -49,7 +49,7 @@ export class LiopRpcServer {
 	public async listen(
 		port: number = 50051,
 		tls?: LiopTlsOptions,
-	): Promise<void> {
+	): Promise<number> {
 		const credentials = createServerCredentials(tls);
 		return new Promise((resolve, reject) => {
 			this.server.bindAsync(
@@ -61,7 +61,7 @@ export class LiopRpcServer {
 						return;
 					}
 					log.info(`[LIOP-RPC] Server listening on port ${assignedPort}`);
-					resolve();
+					resolve(assignedPort);
 				},
 			);
 		});

@@ -17,10 +17,11 @@ describe("LIOP Dynamic Discovery Sync", () => {
         
         sourceMesh = new MeshNode({ identityPath: "./source-id.json" });
         await sourceMesh.start();
-        await sourceServer.connectToMesh({ port: 50070 });
+        await sourceServer.connectToMesh({ port: 0 });
+        const sourcePort = sourceServer.getBoundPort()!;
         
         // Register manifest for source
-        new LiopMcpRouter(sourceServer, sourceMesh, 50070);
+        new LiopMcpRouter(sourceServer, sourceMesh, sourcePort);
 
         // Give source node time to announce manifest
         await new Promise(r => setTimeout(r, 2000));
@@ -54,7 +55,10 @@ describe("LIOP Dynamic Discovery Sync", () => {
             jsonrpc: "2.0"
         } as any);
 
-        const tools = response.result.tools.map((t: any) => t.name);
+        expect(response).not.toBeNull();
+        expect(response?.result).toBeDefined();
+
+        const tools = (response?.result as any)?.tools?.map((t: any) => t.name) || [];
         
         // Should contain LiopMeshStatus (static) AND GetStockPrice (discovered)
         expect(tools).toContain("LiopMeshStatus");

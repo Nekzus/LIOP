@@ -112,6 +112,7 @@ export class MeshNode {
 			identityPath: config.identityPath,
 			enableWAN: config.enableWAN ?? false,
 			dhtStoragePath: config.dhtStoragePath,
+			addressMapper: config.addressMapper,
 		};
 	}
 
@@ -398,13 +399,13 @@ export class MeshNode {
 			log.info(`[LIOP-Mesh] Listening on: ${addr.toString()}`);
 		});
 
-		// Force explicit dialing of Bootstrap nodes with exponential backoff (Resilience Mode)
+		// Force explicit dialing of Bootstrap nodes with bounded backoff
 		if (bootNodes.length > 0) {
 			log.info(
 				`[LIOP-Mesh] Forcing direct P2P dial to ${bootNodes.length} bootstrap nodes...`,
 			);
 
-			const maxRetries = 20; // Increased from 5 to 20 for extreme resilience in unstable network environments
+			const maxRetries = 5;
 			for (const addr of bootNodes) {
 				let success = false;
 				let attempt = 1;
@@ -415,9 +416,7 @@ export class MeshNode {
 						log.info(`[LIOP-Mesh] ✅ Successfully dialed ${addr}`);
 						success = true;
 					} catch (_e) {
-						// Faster backoff for the first 5 attempts, then 10s fixed
-						const delay =
-							attempt <= 5 ? Math.min(1000 * 2 ** (attempt - 1), 10000) : 10000;
+						const delay = Math.min(1000 * 2 ** (attempt - 1), 3000);
 						log.warn(
 							`[LIOP-Mesh] ⚠️ Dial attempt ${attempt}/${maxRetries} to ${addr} failed. Retrying in ${delay / 1000}s...`,
 						);
@@ -425,7 +424,7 @@ export class MeshNode {
 							await new Promise((resolve) => setTimeout(resolve, delay));
 						} else {
 							log.error(
-								`[LIOP-Mesh] ❌ FATAL: Could not connect to bootstrap ${addr} after ${maxRetries} attempts.`,
+								`[LIOP-Mesh] ❌ Could not connect to bootstrap ${addr} after ${maxRetries} attempts. Continuing...`,
 							);
 						}
 						attempt++;
@@ -516,14 +515,15 @@ export class MeshNode {
 			log.info(`[LIOP-Mesh] Initial manifest announcement failed: ${err}`);
 		});
 
-		// libp2p v1.x/v3.x handle API uses { stream, connection }
+		// libp2p v3.x: handler receives (stream, connection) as separate args
 		this.node.handle(
 			LIOP_MANIFEST_PROTOCOL,
-			// biome-ignore lint/suspicious/noExplicitAny: libp2p v1.x/v3.x polymorphic handler
-			async (arg: any, connection?: any) => {
-				const stream = arg.stream || arg; // Robust extraction
-				const remotePeer =
-					(arg.connection || connection)?.remotePeer?.toString() || "unknown";
+			// biome-ignore lint/suspicious/noExplicitAny: libp2p v3.x stream/connection types
+			async (streamArg: any, connectionArg?: any) => {
+				// v3.x passes (stream, connection); v1.x passed ({ stream, connection })
+				const stream = streamArg?.stream ?? streamArg;
+				const conn = streamArg?.connection ?? connectionArg;
+				const remotePeer = conn?.remotePeer?.toString() || "unknown";
 
 				log.info(`[LIOP-Mesh] Incoming manifest request from ${remotePeer}.`);
 
@@ -534,7 +534,7 @@ export class MeshNode {
 							`[LIOP-Mesh] Skipping manifest request (no provider or stream)`,
 						);
 						try {
-							await (stream.close || stream.abort)?.();
+							if (typeof stream?.close === "function") await stream.close();
 						} catch (_e) {}
 						return;
 					}
@@ -547,29 +547,25 @@ export class MeshNode {
 					lengthBuf.writeUInt32BE(payload.length, 0);
 					const fullPacket = Buffer.concat([lengthBuf, Buffer.from(payload)]);
 
-					// [LIOP-STABILITY] Small delay to ensure stream buffer is ready
-					await new Promise((r) => setTimeout(r, 50));
-
 					log.info(
 						`[LIOP-Mesh] Serving manifest (${fullPacket.length} bytes) to ${remotePeer} [Tools: ${manifest.tools.map((t) => t.name).join(", ")}]`,
 					);
 
 					try {
-						// Modern libp2p (v1.x/v3.0+) uses stream.send() for writing
+						// libp2p v3.x: stream.send() for writing
 						if (typeof stream.send === "function") {
-							if (!stream.send(fullPacket)) {
-								// Handle backpressure
-								const { pEvent } = await import("p-event");
+							const accepted = stream.send(fullPacket);
+							if (!accepted && typeof stream.onDrain === "function") {
 								try {
-									await pEvent(stream, "drain", { timeout: 5000 });
-								} catch (e) {
+									await stream.onDrain({ signal: AbortSignal.timeout(5000) });
+								} catch (drainErr) {
 									log.info(
-										`[LIOP-Mesh] WARN: Drain timeout or error for ${remotePeer}: ${e instanceof Error ? e.message : String(e)}`,
+										`[LIOP-Mesh] WARN: Drain timeout for ${remotePeer}: ${drainErr instanceof Error ? drainErr.message : String(drainErr)}`,
 									);
 								}
 							}
 						} else {
-							// Legacy fallback for older libp2p or custom wrappers
+							// Fallback for environments where stream.send is not available
 							await pipe([fullPacket], stream);
 						}
 						log.info(`[LIOP-Mesh] Manifest sent successfully to ${remotePeer}`);
@@ -578,10 +574,8 @@ export class MeshNode {
 							`[LIOP-Mesh] Write error serving manifest to ${remotePeer}: ${writeErr instanceof Error ? writeErr.message : String(writeErr)}`,
 						);
 					} finally {
-						// Ensure the stream is closed after serving the manifest
 						try {
 							if (typeof stream.close === "function") await stream.close();
-							else if (typeof stream.abort === "function") await stream.abort();
 						} catch (_e) {
 							// Ignore close errors
 						}
@@ -726,23 +720,21 @@ export class MeshNode {
 					continue;
 				}
 
-				// Strategy: Robust Async Reader
-				let source =
-					stream.source ||
+				// libp2p v3.x: stream IS the AsyncIterable<Uint8Array>
+				// v1.x had stream.source; v3.x has the stream itself as iterable
+				const source: AsyncIterable<Uint8Array> =
+					stream.source ??
 					(typeof stream[Symbol.asyncIterator] === "function" ? stream : null);
 
-				// Final attempt: check if it's already an iterable
-				if (!source && typeof stream[Symbol.asyncIterator] === "function") {
-					source = stream;
-				}
-
 				if (!source) {
-					throw new Error("Target stream has no source (AsyncIterable)");
+					throw new Error("Target stream has no AsyncIterable source");
 				}
 
 				const chunks: Uint8Array[] = [];
+				let totalReceived = 0;
+				let expectedPayloadLength = -1;
 
-				// Read segments until timeout or closure
+				// Read length-prefixed manifest: first 4 bytes = payload length (BE)
 				const timeoutPromise = new Promise<never>((_, reject) => {
 					setTimeout(
 						() => reject(new Error("Manifest read timeout (5.0s)")),
@@ -755,23 +747,39 @@ export class MeshNode {
 						(async () => {
 							for await (const chunk of source) {
 								if (!chunk) continue;
-
-								// Telemetry: inspect chunk structure
-								const bytes =
-									chunk instanceof Uint8Array
-										? chunk
-										: // biome-ignore lint/suspicious/noExplicitAny: chunks can be Buffer/Uint8Array hybrids
-											(chunk as any).subarray
-											? // biome-ignore lint/suspicious/noExplicitAny: chunks can be Buffer/Uint8Array hybrids
-												(chunk as any).subarray()
-											: // biome-ignore lint/suspicious/noExplicitAny: chunks can be Buffer/Uint8Array hybrids
-												Buffer.from(chunk as any);
+								// libp2p streams yield Uint8ArrayList (from uint8arraylist package)
+								// which reports .length correctly but Buffer.from() produces zeros.
+								// .subarray() returns a flat contiguous Uint8Array with actual data.
+								const raw =
+									// biome-ignore lint/suspicious/noExplicitAny: Uint8ArrayList type guard
+									typeof (chunk as any).subarray === "function"
+										? (chunk as { subarray: () => Uint8Array }).subarray()
+										: chunk instanceof Uint8Array
+											? chunk
+											: new Uint8Array(0);
+								const bytes = Buffer.from(
+									raw.buffer,
+									raw.byteOffset,
+									raw.byteLength,
+								);
 
 								if (bytes.length > 0) {
-									log.info(
-										`[LIOP-Mesh] Received chunk (${bytes.length} bytes) from ${peerIdStr}`,
-									);
 									chunks.push(bytes);
+									totalReceived += bytes.length;
+
+									// Extract expected length from the first 4 bytes once available
+									if (expectedPayloadLength < 0 && totalReceived >= 4) {
+										const header = Buffer.concat(chunks);
+										expectedPayloadLength = header.readUInt32BE(0);
+									}
+
+									// Stop reading once we have the full payload (4 prefix + N payload)
+									if (
+										expectedPayloadLength >= 0 &&
+										totalReceived >= 4 + expectedPayloadLength
+									) {
+										break;
+									}
 								}
 							}
 						})(),
@@ -789,8 +797,9 @@ export class MeshNode {
 					throw new Error("Received empty/invalid manifest (too short)");
 				}
 
-				// Skip length prefix (4 bytes)
-				const jsonStr = raw.subarray(4).toString("utf-8");
+				// Use the length prefix to extract exactly the expected JSON
+				const declaredLen = raw.readUInt32BE(0);
+				const jsonStr = raw.subarray(4, 4 + declaredLen).toString("utf-8");
 				const manifest: LiopManifest = JSON.parse(jsonStr);
 
 				log.info(

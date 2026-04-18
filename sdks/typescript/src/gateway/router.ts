@@ -8,6 +8,10 @@ import type { IntentResponse, LogicResponse } from "../rpc/types.js";
 import type { LiopServer } from "../server/index.js";
 import type { McpRequest, McpResponse } from "../types.js";
 import { log } from "../utils/logger.js";
+import {
+	mcpCompactToolDescriptions,
+	stripVerboseLiopToolDescription,
+} from "../utils/mcpCompact.js";
 
 /** Time-to-live for cached manifests (seconds) */
 const MANIFEST_CACHE_TTL_S = 30;
@@ -145,7 +149,7 @@ export class LiopMcpRouter {
 					jsonrpc: "2.0",
 					id,
 					result: {
-						protocolVersion: "2024-11-05",
+						protocolVersion: "2025-03-26",
 						capabilities: {
 							tools: { listChanged: true },
 							resources: { listChanged: true },
@@ -155,6 +159,10 @@ export class LiopMcpRouter {
 					},
 				};
 			case "notifications/initialized":
+				// Cloud MCP clients often fire tools/list immediately; kick discovery early
+				// so manifests populate before (or right after) that call completes.
+				this.kickDiscoveryAfterInitialized().catch(() => {});
+				return null;
 			case "notifications/cancelled":
 				return null; // No-op for MCP spec compliance
 			case "ping":
@@ -162,6 +170,13 @@ export class LiopMcpRouter {
 			case "tools/list": {
 				const localTools = this.liopServer.listTools();
 				const remoteTools = await this.getRemoteTools();
+
+				const listedLocals = mcpCompactToolDescriptions()
+					? localTools.map((t) => ({
+							...t,
+							description: stripVerboseLiopToolDescription(t.description ?? ""),
+						}))
+					: localTools;
 
 				log.info(
 					`[LIOP-Router] tools/list: ${localTools.length} local, ${remoteTools.length} remote tools found`,
@@ -181,7 +196,9 @@ export class LiopMcpRouter {
 				return {
 					jsonrpc: "2.0",
 					id,
-					result: { tools: [diagnosticTool, ...localTools, ...remoteTools] },
+					result: {
+						tools: [diagnosticTool, ...listedLocals, ...remoteTools],
+					},
 				};
 			}
 			case "tools/call":
@@ -286,6 +303,20 @@ export class LiopMcpRouter {
 					error: { code: -32601, message: `Method not found: ${method}` },
 				};
 		}
+	}
+
+	/**
+	 * MCP clients often send notifications/initialized then immediately tools/list.
+	 * Start manifest discovery without blocking the notification handler.
+	 */
+	private kickDiscoveryAfterInitialized(): Promise<void> {
+		return (async () => {
+			await new Promise((r) => setTimeout(r, 250));
+			await Promise.race([
+				this.refreshManifestCache(true),
+				new Promise<void>((r) => setTimeout(r, 15_000)),
+			]).catch(() => {});
+		})();
 	}
 
 	/**
@@ -408,53 +439,63 @@ export class LiopMcpRouter {
 				let successCount = 0;
 				let errorCount = 0;
 				let cacheUpdated = false;
-				for (const peerId of providerIds) {
-					// Avoid querying ourselves
-					if (this.meshNode && peerId === this.meshNode.getPeerId()) continue;
-					if (!this.meshNode) continue;
-					if (this.shouldSkipManifestQuery(peerId)) continue;
 
-					// Skip if cached and not expired
+				// Filter peers eligible for querying
+				const selfId = this.meshNode?.getPeerId();
+				const eligiblePeers = providerIds.filter((peerId) => {
+					if (!this.meshNode) return false;
+					if (peerId === selfId) return false;
+					if (this.shouldSkipManifestQuery(peerId)) return false;
 					const cached = this.manifestCache.get(peerId);
 					if (
 						cached &&
 						Date.now() - cached.cachedAt < MANIFEST_CACHE_TTL_S * 1000
 					) {
 						successCount++;
-						continue;
+						return false;
 					}
+					return true;
+				});
 
-					try {
-						// Add a small delay between queries to avoid muxer saturation
-						await new Promise((r) => setTimeout(r, 100));
-
+				// Parallel manifest queries — eliminates sequential 100ms + retry delays
+				const queryResults = await Promise.allSettled(
+					eligiblePeers.map(async (peerId) => {
+						if (!this.meshNode) return null;
 						log.info(`[LIOP-Router] Querying manifest from: ${peerId}`);
-						const manifest = await this.meshNode.queryManifest(peerId);
-						if (manifest) {
-							this.manifestCache.set(peerId, {
-								manifest,
-								cachedAt: Date.now(),
-							});
-							this.recordManifestQuerySuccess(peerId);
-							cacheUpdated = true;
-							successCount++;
-							log.info(
-								`[LIOP-Router] Manifest received from ${peerId} (${manifest.tools.length} tools)`,
-							);
-						} else {
-							this.recordManifestQueryFailure(peerId);
-							errorCount++;
-							log.info(
-								`[LIOP-Router] Manifest query returned NULL for ${peerId}`,
-							);
-						}
-					} catch (err: unknown) {
-						this.recordManifestQueryFailure(peerId);
+						return {
+							peerId,
+							manifest: await this.meshNode.queryManifest(peerId),
+						};
+					}),
+				);
+
+				for (const result of queryResults) {
+					if (result.status === "fulfilled" && result.value?.manifest) {
+						const { peerId, manifest } = result.value;
+						this.manifestCache.set(peerId, {
+							manifest,
+							cachedAt: Date.now(),
+						});
+						this.recordManifestQuerySuccess(peerId);
+						cacheUpdated = true;
+						successCount++;
 						log.info(
-							`[LIOP-Router] Fatal error querying manifest from ${peerId}:`,
-							err instanceof Error ? err.message : String(err),
+							`[LIOP-Router] Manifest received from ${peerId} (${manifest.tools.length} tools)`,
 						);
+					} else if (result.status === "fulfilled" && result.value) {
+						this.recordManifestQueryFailure(result.value.peerId);
 						errorCount++;
+						log.info(
+							`[LIOP-Router] Manifest query returned NULL for ${result.value.peerId}`,
+						);
+					} else if (result.status === "rejected") {
+						errorCount++;
+						log.info(
+							`[LIOP-Router] Fatal error querying manifest:`,
+							result.reason instanceof Error
+								? result.reason.message
+								: String(result.reason),
+						);
 					}
 				}
 
@@ -498,17 +539,62 @@ export class LiopMcpRouter {
 			inputSchema?: Record<string, unknown>;
 		}>
 	> {
-		// Use a short, bounded warm-up on first tools/list so desktop clients
-		// receive remote tools on initial load, while still avoiding long blocks.
+		// Use a bounded warm-up on first tools/list so desktop clients
+		// (notably Claude Desktop) receive remote tools on initial load.
+		// If the first response is empty, some clients keep showing only
+		// the static diagnostic tool until a manual reconnect.
 		if (this.manifestCache.size === 0 && this.meshNode) {
+			const initialTimeoutMs = Number.parseInt(
+				process.env.LIOP_INITIAL_DISCOVERY_TIMEOUT_MS ?? "12000",
+				10,
+			);
+			const boundedTimeoutMs =
+				Number.isFinite(initialTimeoutMs) && initialTimeoutMs > 0
+					? initialTimeoutMs
+					: 12000;
+
 			await Promise.race([
 				this.refreshManifestCache(true),
-				new Promise<void>((resolve) => setTimeout(resolve, 3000)),
+				new Promise<void>((resolve) => setTimeout(resolve, boundedTimeoutMs)),
 			]).catch(() => {});
 
-			// If still empty after bounded wait, continue in background.
+			// One extra short foreground attempt improves reliability on
+			// slower cold starts (Windows + Docker Desktop + DHT bootstrap).
+			if (this.manifestCache.size === 0) {
+				await Promise.race([
+					this.refreshManifestCache(true),
+					new Promise<void>((resolve) => setTimeout(resolve, 4000)),
+				]).catch(() => {});
+			}
+
+			// If still empty after bounded attempts, continue in background.
 			if (this.manifestCache.size === 0) {
 				this.refreshManifestCache(true).catch(() => {});
+			}
+		}
+
+		// Tail-wait: Poll until we have a satisfactory number of providers.
+		// Activates when a refresh is in-flight and we haven't yet reached
+		// the expected mesh size. This covers the case where parallel manifest
+		// queries are still resolving after the initial warm-up timeout.
+		const EXPECTED_PROVIDERS = Number.parseInt(
+			process.env.LIOP_EXPECTED_PROVIDERS ?? "3",
+			10,
+		);
+		if (
+			this.manifestCache.size < EXPECTED_PROVIDERS &&
+			this.meshNode &&
+			this.currentDiscovery
+		) {
+			const tailMs = Number.parseInt(
+				process.env.LIOP_TOOLS_LIST_TAIL_POLL_MS ?? "6000",
+				10,
+			);
+			const cap = Number.isFinite(tailMs) && tailMs > 0 ? tailMs : 6000;
+			const deadline = Date.now() + cap;
+			while (Date.now() < deadline) {
+				await new Promise((r) => setTimeout(r, 300));
+				if (this.manifestCache.size >= EXPECTED_PROVIDERS) break;
 			}
 		}
 
@@ -535,13 +621,16 @@ export class LiopMcpRouter {
 				const providerName = manifest.serverInfo?.name || "Unknown Provider";
 
 				// [SANITIZATION] Create a clean MCP-compliant tool object
+				const baseDesc = tool.description || `Remote tool from ${providerName}`;
 				const cleanTool: {
 					name: string;
 					description: string;
 					inputSchema: Record<string, unknown>;
 				} = {
 					name: finalName,
-					description: tool.description || `Remote tool from ${providerName}`,
+					description: mcpCompactToolDescriptions()
+						? stripVerboseLiopToolDescription(baseDesc)
+						: baseDesc,
 					inputSchema: (tool.inputSchema || {
 						type: "object",
 						properties: {},
@@ -571,19 +660,24 @@ export class LiopMcpRouter {
 				// biome-ignore lint/suspicious/noExplicitAny: polymorphic input schema
 				const properties = (cleanTool.inputSchema.properties || {}) as any;
 				let envelopeDoc = "";
-				if (properties.payload) {
+				if (!mcpCompactToolDescriptions() && properties.payload) {
 					envelopeDoc = `\n[REQUIRES: LIOP-PROTO-V1 ENVELOPE]`;
 				}
 
 				// INDUSTRIAL REPLICATION: Highlight schema adherence blocks
-				if (cleanTool.description.includes("STRICT SCHEMA ADHERENCE")) {
+				if (
+					!mcpCompactToolDescriptions() &&
+					cleanTool.description.includes("STRICT SCHEMA ADHERENCE")
+				) {
 					cleanTool.description = cleanTool.description.replace(
 						"STRICT SCHEMA ADHERENCE:",
 						"[INDUSTRIAL-REQUISITE] STRICT SCHEMA ADHERENCE (MANDATORY):",
 					);
 				}
 
-				const originStamp = `\n(Origin: ${peerId.slice(-8)})${blueprint}${envelopeDoc}`;
+				const originStamp = mcpCompactToolDescriptions()
+					? `\n(Peer: ${peerId.slice(-8)})${blueprint}`
+					: `\n(Origin: ${peerId.slice(-8)})${blueprint}${envelopeDoc}`;
 				cleanTool.description = `${cleanTool.description}${originStamp}`;
 
 				tools.push(cleanTool);
@@ -860,11 +954,11 @@ export class LiopMcpRouter {
 			};
 
 		// Dynamic gRPC port resolution from manifest cache
-		const cached = this.manifestCache.get(peerId);
+		let manifestEntry = this.manifestCache.get(peerId);
 		let grpcPort = this.defaultRpcPort;
 
-		if (cached) {
-			grpcPort = cached.manifest.grpcPort;
+		if (manifestEntry) {
+			grpcPort = manifestEntry.manifest.grpcPort;
 		} else {
 			// Try to query the manifest directly
 			const manifest = await this.meshNode.queryManifest(peerId);
@@ -874,15 +968,16 @@ export class LiopMcpRouter {
 					manifest,
 					cachedAt: Date.now(),
 				});
+				manifestEntry = this.manifestCache.get(peerId);
 			}
 		}
 
 		// Host-mode convenience (opt-in):
 		// Some Docker Desktop setups publish gRPC ports on the host as 13011/13021/13031.
 		// Inside Docker networks we must keep the manifest-advertised container port.
-		if (cached && process.env.LIOP_USE_PUBLISHED_GRPC_PORTS === "1") {
+		if (manifestEntry && process.env.LIOP_USE_PUBLISHED_GRPC_PORTS === "1") {
 			const providerName =
-				cached.manifest.serverInfo?.name?.toLowerCase() || "";
+				manifestEntry.manifest.serverInfo?.name?.toLowerCase() || "";
 			if (providerName.includes("vault")) grpcPort = 13011;
 			else if (providerName.includes("bank")) grpcPort = 13021;
 			else if (providerName.includes("oracle")) grpcPort = 13031;

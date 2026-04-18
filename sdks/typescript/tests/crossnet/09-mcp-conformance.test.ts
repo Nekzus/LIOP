@@ -13,7 +13,7 @@ describe("09-mcp-conformance: MCP compatibility for production clients", () => {
 			901,
 		);
 		expect(response.error).toBeUndefined();
-		expect(response.result?.protocolVersion).toBe("2024-11-05");
+		expect(response.result?.protocolVersion).toBe("2025-03-26");
 		expect(response.result?.capabilities?.tools?.listChanged).toBe(true);
 		expect(response.result?.capabilities?.resources?.listChanged).toBe(true);
 		expect(response.result?.capabilities?.prompts?.listChanged).toBe(true);

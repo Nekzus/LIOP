@@ -12,7 +12,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { z } from "zod";
-import { MeshNode } from "../../../src/mesh/index.js";
 import { LiopServer } from "../../../src/server/index.js";
 import { LiopHybridGateway } from "../../../src/gateway/hybrid.js";
 import { log } from "../../../src/utils/logger.js";
@@ -72,19 +71,25 @@ async function main() {
 			hypertensionCount: z.number().optional(),
 			percentage: z.union([z.number(), z.string()]).optional(),
 			averageAge: z.union([z.number(), z.string()]).optional(),
+			clientPayload: z.string().optional(),
 		})
 		.passthrough();
 
 	liopServer.tool(
 		"Analyze_Synthetic_Medical_Records",
-		"Securely analyzes the medical records dataset for protocol demonstration. Requires LIOP envelope payload and runs in Logic-on-Origin sandbox.",
-		{ payload: z.string().describe("LIOP v1 envelope payload for sandboxed analysis over env.records") },
+		"DISCLAIMER: This is a SIMULATION using SYNTHETIC data. Performs secure Logic-on-Origin processing on the medical records dataset for protocol demonstration.",
+		{ payload: z.string() },
 		// biome-ignore lint/suspicious/noExplicitAny: Intentional any for demo
-		async (params: any) => {
-			log.info(`[Vault] Industrial Logic Triggered via LIOP envelope`);
-			// The SDK payload middleware executes the envelope in sandbox.
-			// Returning a placeholder here keeps type contract explicit.
-			return { content: [{ type: "text", text: JSON.stringify({ status: "delegated_to_liop_runtime" }) }] };
+		async (_params) => {
+			return {
+				content: [
+					{
+						type: "text",
+						text: "[LIOP] Security Enforcement: Legacy Plain-Tool execution is BLOCKED on this node. You MUST use the LIOPv1 Envelope (LIOP_MAGIC + MANIFEST + BEGIN_LOGIC) to trigger the secure Zero-Trust WASI sandbox for medical record analysis.",
+					},
+				],
+				isError: true,
+			};
 		},
 		{
 			enforceAggregationFirst: true,

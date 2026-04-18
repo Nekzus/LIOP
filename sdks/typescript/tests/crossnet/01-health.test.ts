@@ -2,9 +2,9 @@ import { beforeAll, expect, test, describe } from "vitest";
 import { waitForHealthy } from "./_helpers.js";
 
 describe("Cross-Network: Health and Discovery", () => {
-	const nexusUrl = process.env.NEXUS_URL || "http://172.20.0.10:3000";
-	const vaultUrl = process.env.VAULT_URL || "http://172.20.0.11:3000";
-	const agentUrl = process.env.AGENT_URL || "http://172.20.0.10:3000";
+	const nexusUrl = process.env.NEXUS_URL || "http://127.0.0.1:13000";
+	const vaultUrl = process.env.VAULT_URL || "http://127.0.0.1:13013";
+	const agentUrl = process.env.AGENT_URL || "http://127.0.0.1:13000";
 	let nexusHealth: any;
 	let vaultHealth: any;
 	let agentHealth: any;
