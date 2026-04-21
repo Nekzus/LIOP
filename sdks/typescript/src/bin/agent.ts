@@ -31,15 +31,23 @@ async function resolveBootstrapFromUrl(url: string): Promise<string | null> {
 
 		// Find TCP multiaddr (prefer non-websocket for stability)
 		const tcpAddr = data.mesh.multiaddrs.find(
-			(a: string) => a.includes("/tcp/") && !a.includes("/ws"),
+			(a: string) =>
+				a.includes("/tcp/") &&
+				!a.includes("/ws") &&
+				!a.includes("/ip4/127.0.0.1/"),
 		);
 		if (!tcpAddr) return null;
 
-		// Rewrite internal Docker IP to the URL's host for external access
-		const urlHost = new URL(url).hostname;
-		const resolved =
-			tcpAddr.replace(/\/ip4\/[^/]+/, `/ip4/${urlHost}`) +
-			(tcpAddr.includes("/p2p/") ? "" : `/p2p/${data.mesh.peerId}`);
+		// Rewrite internal Docker IP using industrial mapper if available
+		let resolved = industrialAddressMapper(tcpAddr);
+		if (!resolved || resolved === tcpAddr) {
+			const urlHost = new URL(url).hostname;
+			resolved = tcpAddr.replace(/\/ip4\/[^/]+/, `/ip4/${urlHost}`);
+		}
+
+		if (!resolved) return null;
+
+		resolved += resolved.includes("/p2p/") ? "" : `/p2p/${data.mesh.peerId}`;
 
 		return resolved;
 	} catch {
@@ -93,7 +101,7 @@ function normalizeBootstrap(addr: string): string {
  * Bank  (172.20.0.12) -> 13004
  * Oracle(172.20.0.13) -> 13005
  */
-function industrialAddressMapper(addr: string): string {
+function industrialAddressMapper(addr: string): string | null {
 	if (addr.includes("/ip4/172.20.0.10"))
 		return addr.replace(
 			/\/ip4\/172\.20\.0\.10\/tcp\/[0-9]+/,
@@ -114,6 +122,15 @@ function industrialAddressMapper(addr: string): string {
 			/\/ip4\/172\.20\.0\.13\/tcp\/[0-9]+/,
 			"/ip4/127.0.0.1/tcp/13005",
 		);
+
+	// Drop container-internal loopbacks to prevent the Host Agent from dialing itself or conflicting ports
+	if (
+		addr.includes("/ip4/127.0.0.1/tcp/4000") ||
+		addr.includes("/ip4/127.0.0.1/tcp/3000")
+	) {
+		return null;
+	}
+
 	return addr;
 }
 

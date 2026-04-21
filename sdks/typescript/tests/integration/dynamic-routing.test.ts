@@ -4,6 +4,8 @@ import { LiopServer } from "../../src/server/index.js";
 import { LiopMcpRouter } from "../../src/gateway/router.js";
 import { z } from "zod";
 
+process.env.LIOP_EXPECTED_PROVIDERS = "2";
+
 describe("LIOP Dynamic Routing & Disambiguation", () => {
     let agentNode: MeshNode;
     let providerA: MeshNode;

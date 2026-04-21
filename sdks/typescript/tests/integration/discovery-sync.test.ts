@@ -3,6 +3,8 @@ import { LiopServer } from "../../src/server/index.js";
 import { MeshNode } from "../../src/mesh/index.js";
 import { LiopMcpRouter } from "../../src/gateway/router.js";
 
+process.env.LIOP_EXPECTED_PROVIDERS = "1";
+
 describe("LIOP Dynamic Discovery Sync", () => {
     let sourceServer: LiopServer;
     let sourceMesh: MeshNode;

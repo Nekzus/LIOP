@@ -371,7 +371,9 @@ export class LiopMcpRouter {
 					) {
 						providerIds =
 							(await this.meshNode?.discoverManifestProviders()) || [];
-						if (providerIds.length > 0) break;
+						const selfId = this.meshNode?.getPeerId();
+						const remoteIds = providerIds.filter((id) => id !== selfId);
+						if (remoteIds.length > 0) break;
 						if (attempt < MANIFEST_DISCOVERY_RETRIES - 1) {
 							log.info(
 								`[LIOP-Router] DHT discovery attempt ${attempt + 1}/${MANIFEST_DISCOVERY_RETRIES}...`,
@@ -380,24 +382,22 @@ export class LiopMcpRouter {
 						}
 					}
 
-					// 1.2 Fallback to all active connections
-					if (providerIds.length === 0) {
-						const activePeers =
-							// biome-ignore lint/suspicious/noExplicitAny: access internal nodes
-							(this.meshNode as any).node
-								?.getConnections()
-								.map((c: { remotePeer: { toString: () => string } }) =>
-									c.remotePeer.toString(),
-								) || [];
-						if (activePeers.length > 0) {
-							log.info(
-								`[LIOP-Router] DHT empty. Using ${activePeers.length} active connections as fallback.`,
-							);
-							providerIds = activePeers;
-						}
+					// 1.2 Aggressively merge all active connections to bypass DHT propagation delays
+					const activePeers =
+						// biome-ignore lint/suspicious/noExplicitAny: access internal nodes
+						(this.meshNode as any).node
+							?.getConnections()
+							.map((c: { remotePeer: { toString: () => string } }) =>
+								c.remotePeer.toString(),
+							) || [];
+
+					if (activePeers.length > 0) {
+						providerIds = Array.from(new Set([...providerIds, ...activePeers]));
 					}
 
-					if (providerIds.length > 0) break;
+					const selfIdEnd = this.meshNode?.getPeerId();
+					const remoteIdsEnd = providerIds.filter((id) => id !== selfIdEnd);
+					if (remoteIdsEnd.length > 0) break;
 
 					if (coldAttempt < MAX_COLD_ATTEMPTS - 1) {
 						log.info(
@@ -539,11 +539,15 @@ export class LiopMcpRouter {
 			inputSchema?: Record<string, unknown>;
 		}>
 	> {
-		// Use a bounded warm-up on first tools/list so desktop clients
-		// (notably Claude Desktop) receive remote tools on initial load.
-		// If the first response is empty, some clients keep showing only
-		// the static diagnostic tool until a manual reconnect.
-		if (this.manifestCache.size === 0 && this.meshNode) {
+		const EXPECTED_PROVIDERS = Number.parseInt(
+			process.env.LIOP_EXPECTED_PROVIDERS ?? "4",
+			10,
+		);
+
+		// [Phase 104] Intelligent Mesh Warm-up
+		// Instead of a fragile tail-wait that skips if refreshManifestCache returns early,
+		// we actively loop and retry discovery until the mesh converges or the deadline hits.
+		if (this.manifestCache.size < EXPECTED_PROVIDERS && this.meshNode) {
 			const initialTimeoutMs = Number.parseInt(
 				process.env.LIOP_INITIAL_DISCOVERY_TIMEOUT_MS ?? "12000",
 				10,
@@ -553,48 +557,25 @@ export class LiopMcpRouter {
 					? initialTimeoutMs
 					: 12000;
 
-			await Promise.race([
-				this.refreshManifestCache(true),
-				new Promise<void>((resolve) => setTimeout(resolve, boundedTimeoutMs)),
-			]).catch(() => {});
+			const deadline = Date.now() + boundedTimeoutMs;
 
-			// One extra short foreground attempt improves reliability on
-			// slower cold starts (Windows + Docker Desktop + DHT bootstrap).
-			if (this.manifestCache.size === 0) {
+			while (Date.now() < deadline) {
+				if (this.manifestCache.size >= EXPECTED_PROVIDERS) break;
+
 				await Promise.race([
 					this.refreshManifestCache(true),
-					new Promise<void>((resolve) => setTimeout(resolve, 4000)),
+					new Promise<void>((resolve) => setTimeout(resolve, 3000)),
 				]).catch(() => {});
-			}
 
-			// If still empty after bounded attempts, continue in background.
-			if (this.manifestCache.size === 0) {
-				this.refreshManifestCache(true).catch(() => {});
-			}
-		}
-
-		// Tail-wait: Poll until we have a satisfactory number of providers.
-		// Activates when a refresh is in-flight and we haven't yet reached
-		// the expected mesh size. This covers the case where parallel manifest
-		// queries are still resolving after the initial warm-up timeout.
-		const EXPECTED_PROVIDERS = Number.parseInt(
-			process.env.LIOP_EXPECTED_PROVIDERS ?? "3",
-			10,
-		);
-		if (
-			this.manifestCache.size < EXPECTED_PROVIDERS &&
-			this.meshNode &&
-			this.currentDiscovery
-		) {
-			const tailMs = Number.parseInt(
-				process.env.LIOP_TOOLS_LIST_TAIL_POLL_MS ?? "6000",
-				10,
-			);
-			const cap = Number.isFinite(tailMs) && tailMs > 0 ? tailMs : 6000;
-			const deadline = Date.now() + cap;
-			while (Date.now() < deadline) {
-				await new Promise((r) => setTimeout(r, 300));
 				if (this.manifestCache.size >= EXPECTED_PROVIDERS) break;
+
+				// Short wait before the next iteration to avoid CPU spin if refresh returns instantly
+				await new Promise((r) => setTimeout(r, 500));
+			}
+
+			// If still missing providers, trigger a background refresh
+			if (this.manifestCache.size < EXPECTED_PROVIDERS) {
+				this.refreshManifestCache(true).catch(() => {});
 			}
 		}
 

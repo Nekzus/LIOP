@@ -50,8 +50,8 @@ export interface MeshNodeConfig {
 	identityPath?: string;
 	enableWAN?: boolean;
 	dhtStoragePath?: string;
-	/** Optional function to translate multiaddrs (e.g. for Docker NAT traversal) */
-	addressMapper?: (addr: string) => string;
+	/** Optional function to translate multiaddrs (e.g. for Docker NAT traversal). Return null to drop an address. */
+	addressMapper?: (addr: string) => string | null;
 }
 
 const DEFAULT_BOOTSTRAP_NODES = [
@@ -350,7 +350,32 @@ export class MeshNode {
 
 		// Monitor Connectivity Events
 		this.node.addEventListener("peer:discovery", (evt) => {
-			log.info(`[LIOP-Mesh] Discovered peer: ${evt.detail.id.toString()}`);
+			const peerId = evt.detail.id;
+			log.info(`[LIOP-Mesh] Discovered peer: ${peerId.toString()}`);
+			// [Phase 104] Auto-dial discovered peers to bypass DHT propagation latency
+			if (this.node) {
+				// biome-ignore lint/suspicious/noExplicitAny: target polymorphic type
+				let dialTarget: any = peerId;
+
+				// Apply port translation if necessary (Docker -> Windows Host)
+				if (this.config.addressMapper && evt.detail.multiaddrs.length > 0) {
+					const translated = evt.detail.multiaddrs
+						.map((ma) => {
+							// biome-ignore lint/style/noNonNullAssertion: mapped conditionally
+							const mapped = this.config.addressMapper!(ma.toString());
+							return mapped ? multiaddr(mapped) : null;
+						})
+						.filter((t): t is NonNullable<typeof t> => t !== null);
+
+					const directTCP = translated.find(
+						(ma) =>
+							ma.toString().includes("/tcp/") && !ma.toString().includes("/ws"),
+					);
+					if (directTCP) dialTarget = directTCP;
+				}
+
+				this.node.dial(dialTarget).catch(() => {});
+			}
 		});
 
 		this.node.addEventListener("peer:connect", (evt) => {
@@ -660,14 +685,17 @@ export class MeshNode {
 					const mapper = this.config.addressMapper;
 					const peer = await this.node.peerStore.get(targetPeer);
 					if (peer && peer.addresses.length > 0) {
-						const translated = peer.addresses.map((oa) => {
-							const original = oa.multiaddr.toString();
-							const mapped = mapper(original);
-							return {
-								isCertified: oa.isCertified,
-								multiaddr: multiaddr(mapped),
-							};
-						});
+						const translated = peer.addresses
+							.map((oa) => {
+								const original = oa.multiaddr.toString();
+								const mapped = mapper(original);
+								if (!mapped) return null;
+								return {
+									isCertified: oa.isCertified,
+									multiaddr: multiaddr(mapped),
+								};
+							})
+							.filter((t): t is NonNullable<typeof t> => t !== null);
 
 						// Strategy: Force direct dial to the first translated TCP address to bypass DHT routing delays
 						const directTCP = translated.find(
@@ -735,8 +763,9 @@ export class MeshNode {
 				let expectedPayloadLength = -1;
 
 				// Read length-prefixed manifest: first 4 bytes = payload length (BE)
+				let manifestTimeoutId: NodeJS.Timeout | undefined;
 				const timeoutPromise = new Promise<never>((_, reject) => {
-					setTimeout(
+					manifestTimeoutId = setTimeout(
 						() => reject(new Error("Manifest read timeout (5.0s)")),
 						5000,
 					);
@@ -790,6 +819,8 @@ export class MeshNode {
 					log.info(
 						`[LIOP-Mesh] Partial manifest read from ${peerIdStr}: ${itErr instanceof Error ? itErr.message : String(itErr)}`,
 					);
+				} finally {
+					if (manifestTimeoutId) clearTimeout(manifestTimeoutId);
 				}
 
 				const raw = Buffer.concat(chunks);
@@ -909,16 +940,65 @@ export class MeshNode {
 				`[LIOP-Mesh] Querying DHT for ${hash} (CID: ${cid.toString()})...`,
 			);
 
-			// In libp2p v1.x, contentRouting.findProviders returns AsyncIterable<{ id: PeerId, multiaddrs: Multiaddr[] }>
 			let foundAny = false;
-			for await (const peer of this.node.contentRouting.findProviders(cid)) {
-				foundAny = true;
-				const peerId = peer.id.toString();
-				log.info(`[LIOP-Mesh] Found provider: ${peerId}`);
-				if (!providers.includes(peerId)) {
-					providers.push(peerId);
+
+			// Phase 103: Adaptive Tail-Wait Polling for DHT Discovery
+			const connections = this.node.getConnections?.()?.length || 0;
+			const idleTimeoutMs = connections > 1 ? 1500 : 3000;
+			log.info(
+				`[LIOP-Mesh] Starting DHT search with intelligent idle-timeout of ${idleTimeoutMs}ms (Active connections: ${connections})`,
+			);
+
+			// We manually iterate the AsyncIterable to abort it via Promise.race
+			const iterator = this.node.contentRouting
+				.findProviders(cid)
+				[Symbol.asyncIterator]();
+			let isDone = false;
+
+			while (!isDone) {
+				const nextPromise = iterator.next();
+				const timeoutPromise = new Promise<{ timeout: true }>((resolve) =>
+					setTimeout(() => resolve({ timeout: true }), idleTimeoutMs),
+				);
+
+				try {
+					const result = await Promise.race([nextPromise, timeoutPromise]);
+
+					if (result && typeof result === "object" && "timeout" in result) {
+						log.info(
+							`[LIOP-Mesh] DHT discovery idle-timeout reached. Stopping search early.`,
+						);
+						if (typeof iterator.return === "function") {
+							// Fire-and-forget: Kademlia iterators can block for 30s on return()
+							iterator.return().catch(() => {});
+						}
+						isDone = true;
+						break;
+					}
+
+					// biome-ignore lint/suspicious/noExplicitAny: polymorphic Kademlia peer result
+					const itResult = result as IteratorResult<any>;
+					if (itResult.done) {
+						isDone = true;
+						break;
+					}
+
+					foundAny = true;
+					const peer = itResult.value;
+					const peerId = peer.id.toString();
+					log.info(`[LIOP-Mesh] Found provider: ${peerId}`);
+					if (!providers.includes(peerId)) {
+						providers.push(peerId);
+					}
+				} catch (e: unknown) {
+					log.warn(
+						`[LIOP-Mesh] DHT iteration error: ${e instanceof Error ? e.message : String(e)}`,
+					);
+					isDone = true;
+					break;
 				}
 			}
+
 			if (!foundAny) {
 				const services = this.node.services as {
 					dht?: { routingTable?: { size: number } };

@@ -160,7 +160,6 @@ export class LiopServer {
 		if (policy.enforceAggregationFirst) {
 			const rowExtractionPatterns = [
 				/return\s+env\.records\b/i,
-				/env\.records\s*\.map\s*\(/i,
 				/return\s*\{[\s\S]*\b(accounts|patients|rows|records)\s*:\s*env\.records/i,
 			];
 			if (rowExtractionPatterns.some((p) => p.test(compact))) {
@@ -406,10 +405,10 @@ export class LiopServer {
 
 			if (mcpCompactToolDescriptions()) {
 				finalDescription +=
-					"\n\nPayload: LIOP v1 envelope string (sandboxed WASI execution on the data origin). " +
-					"Access dataset via env.records (Array of objects). " +
-					"Return an aggregated object (e.g. { total: env.records.length }). " +
-					'Use MCP prompts/get "liop_blind_analyst" for the exact envelope format and safety rules.';
+					"\n\nPayload: LIOP v1 envelope string (sandboxed WASI execution on the data origin).\n" +
+					"REQUIRED FORMAT:\n" +
+					'LIOP_MAGIC:0x00FF\nMANIFEST:{"target":"wasi_v1","name":"AnalysisTask","integrity_checks":true}\n---BEGIN_LOGIC---\nreturn { total: env.records.length };\n---END_LOGIC---\n' +
+					"Access dataset via env.records (Array of objects). Return an aggregated object. Do NOT export row-level arrays.";
 				if (blockedKeys.length > 0) {
 					finalDescription += `\nDo not reference fields: ${blockedKeys.join(", ")}.`;
 				}
@@ -419,13 +418,13 @@ export class LiopServer {
 				if (blockedKeys.length > 0) {
 					finalDescription += `\n// SECURITY RESTRICTION: Do NOT include any of the following fields: ${blockedKeys.join(", ")}`;
 				}
-
-				if (this.activeSchema) {
-					finalDescription += `\n\nSTRICT SCHEMA ADHERENCE:\nThe 'env.records' array contains objects with: ${JSON.stringify(this.activeSchema)}`;
-				}
-
-				finalDescription += `\n\nOptional: You can include an "__liop_bypass_ast_cache" boolean parameter set to true to force AST re-evaluation.`;
 			}
+
+			if (this.activeSchema) {
+				finalDescription += `\n\nSTRICT SCHEMA ADHERENCE:\nThe 'env.records' array contains objects with the EXACT following structure. ONLY use these fields. Do NOT guess or use fallbacks (e.g. do not use 'gender' if not listed below):\n${JSON.stringify(this.activeSchema, null, 2)}`;
+			}
+
+			finalDescription += `\n\nOptional: You can include an "__liop_bypass_ast_cache" boolean parameter set to true to force AST re-evaluation.`;
 
 			finalHandler = async (
 				args: z.infer<z.ZodObject<T>>,
