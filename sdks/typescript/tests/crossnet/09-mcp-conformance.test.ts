@@ -6,14 +6,14 @@ describe("09-mcp-conformance: MCP compatibility for production clients", () => {
 		const response = await mcpCall(
 			"initialize",
 			{
-				protocolVersion: "2024-11-05",
+				protocolVersion: "2025-11-25",
 				capabilities: {},
 				clientInfo: { name: "crossnet-auditor", version: "1.0.0" },
 			},
 			901,
 		);
 		expect(response.error).toBeUndefined();
-		expect(response.result?.protocolVersion).toBe("2025-03-26");
+		expect(response.result?.protocolVersion).toBe("2025-11-25");
 		expect(response.result?.capabilities?.tools?.listChanged).toBe(true);
 		expect(response.result?.capabilities?.resources?.listChanged).toBe(true);
 		expect(response.result?.capabilities?.prompts?.listChanged).toBe(true);

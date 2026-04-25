@@ -302,8 +302,9 @@ async function main() {
 		);
 	};
 
-	// Initial warming period (2s) then Periodic Discovery Worker (every 10 seconds)
-	// This silently polls the DHT for new nodes and triggers onToolsChanged if the topology shifts.
+	// Initial warming period (2s) then Adaptive Background Discovery
+	// Polls DHT for new nodes and triggers onToolsChanged when topology shifts.
+	// Uses exponential backoff to reduce polling load on stable meshes.
 	setTimeout(() => {
 		// biome-ignore lint/suspicious/noExplicitAny: access internal for telemetry
 		const rtSize = (meshNode as any).getRoutingTableSize?.() || 0;
@@ -311,9 +312,35 @@ async function main() {
 		router.refreshManifestCache(true).catch(() => {});
 	}, 2000);
 
-	setInterval(() => {
-		router.refreshManifestCache(true).catch(() => {});
-	}, 10000);
+	const POLL_BASE_MS = 10_000;
+	const POLL_MAX_MS = 120_000;
+	let pollIntervalMs = POLL_BASE_MS;
+
+	const scheduleAdaptivePoll = () => {
+		setTimeout(async () => {
+			const prevSize = router.getCacheSize();
+			await router.refreshManifestCache(true).catch(() => {});
+			const newSize = router.getCacheSize();
+
+			if (newSize !== prevSize) {
+				// Topology changed — reset to aggressive polling
+				pollIntervalMs = POLL_BASE_MS;
+				log.info(
+					`[LIOP-Agent] Topology change detected (${prevSize} → ${newSize}). Resetting poll to ${POLL_BASE_MS / 1000}s.`,
+				);
+			} else {
+				// Stable — relax polling interval (factor 1.5)
+				pollIntervalMs = Math.min(
+					Math.round(pollIntervalMs * 1.5),
+					POLL_MAX_MS,
+				);
+			}
+
+			scheduleAdaptivePoll();
+		}, pollIntervalMs);
+	};
+
+	scheduleAdaptivePoll();
 
 	// 4. STDIO Transport — Buffered Line Reader
 	// Uses readline to guarantee complete JSON-RPC messages before parsing.

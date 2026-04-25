@@ -73,7 +73,7 @@ export class LiopMcpBridge {
 
 		if (method === "initialize") {
 			return this.successResponse(id, {
-				protocolVersion: "2025-03-26",
+				protocolVersion: "2025-11-25",
 				capabilities: {
 					prompts: {},
 					resources: {},

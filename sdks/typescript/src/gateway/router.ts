@@ -149,7 +149,7 @@ export class LiopMcpRouter {
 					jsonrpc: "2.0",
 					id,
 					result: {
-						protocolVersion: "2025-03-26",
+						protocolVersion: "2025-11-25",
 						capabilities: {
 							tools: { listChanged: true },
 							resources: { listChanged: true },
@@ -190,7 +190,11 @@ export class LiopMcpRouter {
 					name: "LiopMeshStatus",
 					description:
 						"LiopMeshStatus: Returns the current dynamic diagnostic status of the Zero-Trust Neural Mesh.",
-					inputSchema: { type: "object", properties: {} },
+					inputSchema: {
+						type: "object",
+						properties: {},
+						additionalProperties: false,
+					},
 				};
 
 				return {
@@ -530,6 +534,14 @@ export class LiopMcpRouter {
 	}
 
 	/**
+	 * Returns the current manifest cache size for external telemetry.
+	 * Used by the adaptive polling system to detect topology stabilization.
+	 */
+	public getCacheSize(): number {
+		return this.manifestCache.size;
+	}
+
+	/**
 	 * Returns all remote tools discovered via the manifest protocol.
 	 */
 	private async getRemoteTools(): Promise<
@@ -544,9 +556,10 @@ export class LiopMcpRouter {
 			10,
 		);
 
-		// [Phase 104] Intelligent Mesh Warm-up
-		// Instead of a fragile tail-wait that skips if refreshManifestCache returns early,
-		// we actively loop and retry discovery until the mesh converges or the deadline hits.
+		// [Phase 106] Smart Warm-up with Stabilization Detection
+		// Loops until EXPECTED_PROVIDERS are found, the deadline expires, or
+		// the provider count stabilizes (same count for 3 consecutive checks).
+		// This prevents a ~20s block when a node (e.g. Bank) is absent.
 		if (this.manifestCache.size < EXPECTED_PROVIDERS && this.meshNode) {
 			const initialTimeoutMs = Number.parseInt(
 				process.env.LIOP_INITIAL_DISCOVERY_TIMEOUT_MS ?? "12000",
@@ -558,6 +571,8 @@ export class LiopMcpRouter {
 					: 12000;
 
 			const deadline = Date.now() + boundedTimeoutMs;
+			let stableCount = 0;
+			let lastCacheSize = -1;
 
 			while (Date.now() < deadline) {
 				if (this.manifestCache.size >= EXPECTED_PROVIDERS) break;
@@ -569,12 +584,30 @@ export class LiopMcpRouter {
 
 				if (this.manifestCache.size >= EXPECTED_PROVIDERS) break;
 
-				// Short wait before the next iteration to avoid CPU spin if refresh returns instantly
-				await new Promise((r) => setTimeout(r, 500));
+				// Stabilization detection: exit early when provider count plateaus
+				if (this.manifestCache.size === lastCacheSize) {
+					stableCount++;
+					if (stableCount >= 3 && this.manifestCache.size > 0) {
+						log.info(
+							`[LIOP-Router] Provider count stabilized at ${this.manifestCache.size}/${EXPECTED_PROVIDERS}. Proceeding with available mesh.`,
+						);
+						break;
+					}
+				} else {
+					stableCount = 0;
+					lastCacheSize = this.manifestCache.size;
+				}
+
+				// Wait before the next iteration to avoid CPU spin
+				await new Promise((r) => setTimeout(r, 1000));
 			}
 
-			// If still missing providers, trigger a background refresh
+			// Diagnostic warning for partial mesh availability
 			if (this.manifestCache.size < EXPECTED_PROVIDERS) {
+				log.info(
+					`[LIOP-Router] ⚠️ Mesh partially available: ${this.manifestCache.size}/${EXPECTED_PROVIDERS} providers. Some tools may be unavailable. Check Docker containers.`,
+				);
+				// Trigger one more background refresh to catch late joiners
 				this.refreshManifestCache(true).catch(() => {});
 			}
 		}
