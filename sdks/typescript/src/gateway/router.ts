@@ -13,8 +13,13 @@ import {
 	stripVerboseLiopToolDescription,
 } from "../utils/mcpCompact.js";
 
-/** Time-to-live for cached manifests (seconds) */
-const MANIFEST_CACHE_TTL_S = 30;
+/**
+ * Time-to-live for cached manifests (seconds).
+ * Aligned with libp2p Kademlia DHT TABLE_REFRESH_INTERVAL (5 minutes).
+ * Provider records in the DHT are valid for 48 hours (PROVIDERS_VALIDITY),
+ * so 300s is a conservative, network-friendly value.
+ */
+const MANIFEST_CACHE_TTL_S = 300;
 
 /** Maximum number of DHT query retries for manifest discovery */
 const MANIFEST_DISCOVERY_RETRIES = 5;
@@ -331,6 +336,17 @@ export class LiopMcpRouter {
 	public async refreshManifestCache(silent = false): Promise<void> {
 		if (!this.meshNode) return;
 		if (this.currentDiscovery) return this.currentDiscovery;
+
+		// Fast-path: Skip DHT query entirely when cache is fresh and populated.
+		// Only background polls (silent=true) should bypass this to detect new nodes.
+		// Foreground requests (tools/list, tools/call) can safely reuse valid cache.
+		if (!silent && this.manifestCache.size > 0) {
+			const now = Date.now();
+			const allFresh = Array.from(this.manifestCache.values()).every(
+				({ cachedAt }) => now - cachedAt < MANIFEST_CACHE_TTL_S * 1000,
+			);
+			if (allFresh) return;
+		}
 
 		this.currentDiscovery = (async () => {
 			try {
@@ -893,9 +909,16 @@ export class LiopMcpRouter {
 			.some((t) => t.name === toolName);
 
 		if (!isLocal && this.meshNode) {
-			// Phase 1: Resolve from cached manifests (fastest, supports suffixed names)
-			await this.refreshManifestCache();
-			const target = this.resolveManifestTarget(toolName);
+			// Phase 1: Cache-first — resolve directly from cached manifests (zero-latency)
+			// Per MCP spec, tools don't change between notifications/tools/list_changed.
+			let target = this.resolveManifestTarget(toolName);
+
+			// Phase 2: If not cached, trigger DHT refresh and retry
+			if (!target) {
+				await this.refreshManifestCache();
+				target = this.resolveManifestTarget(toolName);
+			}
+
 			if (target) {
 				log.info(
 					`[LIOP-Router] Resolved ${toolName} via manifest cache (Peer: ${target.peerId}, Original: ${target.originalToolName})`,

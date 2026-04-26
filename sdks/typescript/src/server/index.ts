@@ -204,7 +204,7 @@ export class LiopServer {
 				this.unwrapForAggregationPolicyScan(parsed),
 			)
 		) {
-			return "Aggregation-First Policy (row-level export blocked)";
+			return "Aggregation-First Policy Violation: row-level export blocked. HINT: Use .reduce() to produce a flat {key:value} object. Do NOT use .map() to create arrays of objects.";
 		}
 
 		return null;
@@ -1020,7 +1020,7 @@ Protocol Adherence is mandatory for successful execution.`,
 					if (violation || aggregationViolation) {
 						const reason =
 							violation ||
-							"Aggregation-First Policy (row-level export blocked)";
+							"Aggregation-First Policy Violation: row-level export blocked. HINT: Use .reduce() to produce a flat {key:value} object. Do NOT use .map() to create arrays of objects.";
 						log.info(
 							`[LIOP-RPC] Secure egress blocked in gRPC stream: ${reason}`,
 						);
@@ -1121,7 +1121,8 @@ Protocol Adherence is mandatory for successful execution.`,
 			);
 			if (violation || aggregationViolation) {
 				const reason =
-					violation || "Aggregation-First Policy (row-level export blocked)";
+					violation ||
+					"Aggregation-First Policy Violation: row-level export blocked. HINT: Use .reduce() to produce a flat {key:value} object. Do NOT use .map() to create arrays of objects.";
 				log.info(
 					`[LIOP-SDK] Secure egress blocked in local execution: ${reason}`,
 				);
