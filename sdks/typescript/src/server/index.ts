@@ -21,7 +21,6 @@ import type {
 	Tool,
 } from "../types.js";
 import { log } from "../utils/logger.js";
-import { mcpCompactToolDescriptions } from "../utils/mcpCompact.js";
 import { PII_PATTERNS, PII_PRESETS, type PiiRule, PiiScanner } from "./pii.js";
 
 export { PII_PATTERNS, PII_PRESETS, type PiiRule, PiiScanner };
@@ -128,9 +127,16 @@ export class LiopServer {
 	private static readonly LIOP_LOGIC_REGEX =
 		/\s*LIOP_MAGIC:0x00FF\s*\n?\s*MANIFEST:(?<manifest>\{[\s\S]*?\})\s*\n?\s*---BEGIN_LOGIC---\n?(?<logic>[\s\S]*?)\n?---END_LOGIC---/m;
 
+	// Compact envelope: @LIOP{target,name}\n<code>\n@END
+	private static readonly LIOP_COMPACT_REGEX =
+		/@LIOP\{(?<target>[^,}]+)(?:,(?<name>[^}]*))?\}\n(?<logic>[\s\S]*?)\n@END/m;
+
 	private extractLogic(payload: string): string | null {
 		const match = payload.match(LiopServer.LIOP_LOGIC_REGEX);
-		return match?.groups?.logic ? match.groups.logic.trim() : null;
+		if (match?.groups?.logic) return match.groups.logic.trim();
+		// Compact envelope fallback — same execution, fewer tokens
+		const compact = payload.match(LiopServer.LIOP_COMPACT_REGEX);
+		return compact?.groups?.logic ? compact.groups.logic.trim() : null;
 	}
 
 	private parseUnknownJson(input: unknown): unknown {
@@ -361,6 +367,120 @@ export class LiopServer {
 			taskQueue: new FixedQueue(),
 			execArgv,
 		});
+
+		// [Token Economy] Auto-register LIOP protocol spec as a single Resource.
+		// This centralizes the envelope documentation that was previously
+		// duplicated in every tool description, reducing token overhead.
+		this.resource(
+			"LIOP Envelope Specification",
+			"liop://protocol/envelope-spec",
+			"Complete Logic-on-Origin envelope format, execution rules, and security constraints",
+			"text/plain",
+			() => Promise.resolve(this.buildEnvelopeSpec()),
+		);
+	}
+	/**
+	 * Builds the centralized LIOP envelope specification document.
+	 * Served as a single Resource (liop://protocol/envelope-spec) instead
+	 * of being duplicated across every tool description.
+	 */
+	private buildEnvelopeSpec(): string {
+		const lines = [
+			"LIOP v1 Envelope Specification",
+			"================================",
+			"",
+			"FORMATS (both accepted):",
+			"",
+			"Compact:",
+			"  @LIOP{wasi_v1,TaskName}",
+			"  <JavaScript code>",
+			"  @END",
+			"",
+			"Standard:",
+			"  LIOP_MAGIC:0x00FF",
+			'  MANIFEST:{"target":"wasi_v1","name":"TaskName","integrity_checks":true}',
+			"  ---BEGIN_LOGIC---",
+			"  <JavaScript code>",
+			"  ---END_LOGIC---",
+			"",
+			"RUNTIME ENVIRONMENT:",
+			"- env.records: Array of data objects from the origin",
+			"- Must use 'return' to output results",
+			"- Zero-Trust WASI Sandbox (Node.js Worker Pool)",
+			"- Return aggregated objects, NOT raw row-level arrays",
+			"",
+			"SECURITY CONSTRAINTS:",
+			"- PII Egress Shield blocks raw identifiers in output",
+			"- Aggregation-First policy: prefer counts, averages, summaries",
+			"- AST Guardian: static analysis before execution",
+		];
+
+		if (this.config?.security?.forbiddenKeys?.length) {
+			lines.push(
+				`- Restricted fields: ${this.config.security.forbiddenKeys.join(", ")}`,
+			);
+		}
+
+		lines.push(
+			"",
+			"OPTIONAL PARAMETERS:",
+			"- __liop_bypass_ast_cache: boolean (force AST re-evaluation)",
+		);
+
+		return lines.join("\n");
+	}
+
+	/**
+	 * Extracts a compact, human-readable field summary from a JSON Schema.
+	 *
+	 * Walks the schema structure to find actual data property names and types,
+	 * rather than returning top-level schema metadata keys (type, items, etc.).
+	 *
+	 * Example output for a banking schema:
+	 *   "Array of {id(string), accountHolder(string), balance(number), transactions(array of {date(string), amount(number)})}"
+	 */
+	private extractSchemaFieldSummary(
+		schema: Record<string, unknown>,
+		depth = 0,
+	): string {
+		// Prevent excessive recursion in deeply nested schemas
+		if (depth > 3) return "{...}";
+
+		const schemaType = schema.type as string | undefined;
+		const properties = schema.properties as
+			| Record<string, Record<string, unknown>>
+			| undefined;
+		const items = schema.items as Record<string, unknown> | undefined;
+
+		// Object with properties → list field names with their types
+		if (properties) {
+			const fields = Object.entries(properties).map(([key, prop]) => {
+				const propType = prop.type as string | undefined;
+				if (propType === "array" && prop.items) {
+					const nested = this.extractSchemaFieldSummary(
+						prop.items as Record<string, unknown>,
+						depth + 1,
+					);
+					return `${key}(array of ${nested})`;
+				}
+				if (propType === "object" && prop.properties) {
+					const nested = this.extractSchemaFieldSummary(prop, depth + 1);
+					return `${key}(${nested})`;
+				}
+				return `${key}(${propType || "unknown"})`;
+			});
+			return `{${fields.join(", ")}}`;
+		}
+
+		// Array type → describe the items structure
+		if (schemaType === "array" && items) {
+			const itemsSummary = this.extractSchemaFieldSummary(items, depth + 1);
+			return `Array of ${itemsSummary}`;
+		}
+
+		// Simple type or unknown structure → fallback to key listing
+		if (schemaType) return schemaType;
+		return Object.keys(schema).join(", ");
 	}
 
 	/**
@@ -403,28 +523,23 @@ export class LiopServer {
 		if (shape.payload && shape.payload instanceof z.ZodString) {
 			const blockedKeys = this.config?.security?.forbiddenKeys || [];
 
-			if (mcpCompactToolDescriptions()) {
-				finalDescription +=
-					"\n\nPayload: LIOP v1 envelope string (sandboxed WASI execution on the data origin).\n" +
-					"REQUIRED FORMAT:\n" +
-					'LIOP_MAGIC:0x00FF\nMANIFEST:{"target":"wasi_v1","name":"AnalysisTask","integrity_checks":true}\n---BEGIN_LOGIC---\nreturn { total: env.records.length };\n---END_LOGIC---\n' +
-					"Access dataset via env.records (Array of objects). Return an aggregated object. Do NOT export row-level arrays.";
-				if (blockedKeys.length > 0) {
-					finalDescription += `\nDo not reference fields: ${blockedKeys.join(", ")}.`;
-				}
-			} else {
-				finalDescription += `\n\n[LIOP-PROTO-V1: LOGIC-ON-ORIGIN SPECIFICATION]\nCRITICAL: This tool requires a strictly formatted Logic-on-Origin payload. Failure to wrap JavaScript code within the LIOP envelope will result in a MalformedPayloadError.\n\nREQUIRED FORMAT:\nLIOP_MAGIC:0x00FF\nMANIFEST:{"target":"wasi_v1","name":"[ModuleName]","integrity_checks":true}\n---BEGIN_LOGIC---\n// Pure JavaScript logic. Access data via 'env.records'.\n// You MUST use 'return' to output results.\n---END_LOGIC---\n\nExecution Environment: Zero-Trust WASI Sandbox (Node.js Worker Pool).`;
+			// [Token Economy] Centralized description: reference the protocol spec
+			// Resource instead of duplicating the full envelope format per tool.
+			// Same information, delivered once via liop://protocol/envelope-spec.
+			finalDescription +=
+				"\n\nPayload: LIOP v1 envelope (WASI sandbox)." +
+				" Format: @LIOP{wasi_v1,TaskName}\\n<JS code>\\n@END" +
+				" | Access data: env.records. Return aggregated object." +
+				" | Full spec: resource liop://protocol/envelope-spec";
 
-				if (blockedKeys.length > 0) {
-					finalDescription += `\n// SECURITY RESTRICTION: Do NOT include any of the following fields: ${blockedKeys.join(", ")}`;
-				}
+			if (blockedKeys.length > 0) {
+				finalDescription += `\nRestricted fields: ${blockedKeys.join(", ")}.`;
 			}
 
 			if (this.activeSchema) {
-				finalDescription += `\n\nSTRICT SCHEMA ADHERENCE:\nThe 'env.records' array contains objects with the EXACT following structure. ONLY use these fields. Do NOT guess or use fallbacks (e.g. do not use 'gender' if not listed below):\n${JSON.stringify(this.activeSchema, null, 2)}`;
+				const schemaDigest = this.extractSchemaFieldSummary(this.activeSchema);
+				finalDescription += `\nData structure: ${schemaDigest}. Full schema: resource liop://schema/global`;
 			}
-
-			finalDescription += `\n\nOptional: You can include an "__liop_bypass_ast_cache" boolean parameter set to true to force AST re-evaluation.`;
 
 			finalHandler = async (
 				args: z.infer<z.ZodObject<T>>,
@@ -677,15 +792,17 @@ Protocol Adherence is mandatory for successful execution.`,
 	): void {
 		this.activeSchema = schema;
 
-		// Retroactively update tool descriptions for already registered tools
+		// [Token Economy] Retroactively update tool descriptions with schema field references.
+		// Extracts actual data property names from the JSON Schema structure.
+		const schemaDigest = this.extractSchemaFieldSummary(schema);
 		for (const [toolName, entry] of this.tools.entries()) {
 			if (
 				entry.schema.shape.payload &&
 				entry.schema.shape.payload instanceof z.ZodString &&
 				entry.tool.description &&
-				!entry.tool.description.includes("STRICT SCHEMA ADHERENCE")
+				!entry.tool.description.includes("Data structure:")
 			) {
-				entry.tool.description += `\n\nSTRICT SCHEMA ADHERENCE:\nThe 'env.records' array contains objects with the EXACT following structure. ONLY use these fields. Do NOT guess or use fallbacks (e.g. do not use 'gender' if not listed below):\n${JSON.stringify(schema, null, 2)}`;
+				entry.tool.description += `\nData structure: ${schemaDigest}. Full schema: resource ${uri}`;
 				this.tools.set(toolName, entry);
 			}
 		}

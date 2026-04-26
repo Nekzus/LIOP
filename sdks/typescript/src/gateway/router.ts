@@ -1,5 +1,6 @@
 import * as crypto from "node:crypto";
 import { LiopVerifier } from "../crypto/verifier.js";
+import { TokenTelemetryEngine } from "../economy/telemetry.js";
 import type { LiopManifest, MeshNode } from "../mesh/index.js";
 import { Kyber768Wrapper } from "../rpc/crypto/kyber.js";
 import { liopV1 } from "../rpc/proto.js";
@@ -202,11 +203,23 @@ export class LiopMcpRouter {
 					},
 				};
 
+				const allTools = [diagnosticTool, ...listedLocals, ...remoteTools];
+
+				// [Token Economy] Record telemetry for the tools/list response
+				const telemetry = TokenTelemetryEngine.getInstance();
+				const toolsPayload = JSON.stringify(allTools);
+				telemetry.record({
+					type: "tools_list",
+					method: "tools/list",
+					estimatedInputTokens: telemetry.estimateTokens(toolsPayload),
+					estimatedOutputTokens: 0,
+				});
+
 				return {
 					jsonrpc: "2.0",
 					id,
 					result: {
-						tools: [diagnosticTool, ...listedLocals, ...remoteTools],
+						tools: allTools,
 					},
 				};
 			}
@@ -886,6 +899,8 @@ export class LiopMcpRouter {
 				cachedTools > 0
 					? `\nDiscovered Remote Tools (Zero-Trust Origins):\n${cachedToolList}`
 					: "\nNo remote tools discovered yet.",
+				// [Token Economy] Telemetry block (only appears when operations exist)
+				TokenTelemetryEngine.getInstance().formatStatusBlock(),
 			]
 				.filter((line) => line !== "")
 				.join("\n");
