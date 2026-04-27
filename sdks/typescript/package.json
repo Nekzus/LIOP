@@ -63,6 +63,7 @@
     "demo:start": "tsx tests/infra/cli/demo-start.ts",
     "demo:start:rebuild": "tsx tests/infra/cli/demo-start-rebuild.ts",
     "demo:stop": "tsx tests/infra/cli/demo-stop.ts",
+    "demo:clean": "tsx tests/infra/cli/demo-clean.ts",
     "demo:claude": "tsx tests/infra/cli/demo-claude.ts",
     "demo:inspector": "tsx tests/infra/cli/demo-inspector.ts"
   },

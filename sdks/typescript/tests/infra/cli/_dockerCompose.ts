@@ -31,4 +31,16 @@ export function runDockerCompose(args: string[], options: RunOptions = {}): void
     process.exit(res.status);
   }
 }
+export function runDocker(args: string[], options: RunOptions = {}): void {
+  const res = spawnSync("docker", args, {
+    cwd: options.cwd ?? getInfraDir(),
+    stdio: "inherit",
+    env: process.env,
+    shell: false,
+  });
 
+  if (res.error) throw res.error;
+  if (typeof res.status === "number" && res.status !== 0) {
+    process.exit(res.status);
+  }
+}

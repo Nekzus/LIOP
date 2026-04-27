@@ -2,6 +2,7 @@
 
 # Stage 1: Build & Deploy Isolate
 FROM node:22-slim AS builder
+LABEL org.nekzus.liop.project="neural-mesh-protocol"
 WORKDIR /app
 
 ENV PNPM_HOME=/pnpm
@@ -12,6 +13,11 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 
 # Copy full workspace
 COPY . .
+
+# [Pre-flight] Stub the SDK binary to prevent pnpm install/deploy warnings
+# In a monorepo, pnpm tries to link binaries during install. Since we build
+# inside the container, we stub the file first and let tsc overwrite it later.
+RUN mkdir -p sdks/typescript/dist/bin && touch sdks/typescript/dist/bin/agent.js
 
 # Install all dependencies (we need this to properly resolve monorepo deps)
 RUN --mount=type=cache,target=/pnpm/store,id=liop-pnpm-store \
@@ -28,6 +34,7 @@ RUN --mount=type=cache,target=/pnpm/store,id=liop-pnpm-store \
 
 # Stage 2: Runtime (lean image)
 FROM node:22-slim AS runtime
+LABEL org.nekzus.liop.project="neural-mesh-protocol"
 WORKDIR /app
 
 # iproute2: tc for chaos testing | curl: for healthchecks
