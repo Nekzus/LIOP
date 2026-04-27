@@ -84,15 +84,7 @@ export class LiopMcpRouter {
 				return {
 					peerId: this.meshNode?.getPeerId() || "unknown",
 					grpcPort: this.defaultRpcPort,
-					tools: [
-						{
-							name: "LiopMeshStatus",
-							description:
-								"LiopMeshStatus: Returns the current dynamic diagnostic status of the Zero-Trust Neural Mesh.",
-							inputSchema: { type: "object", properties: {} },
-						},
-						...remoteTools,
-					],
+					tools: [...remoteTools],
 					resources,
 					serverInfo: this.liopServer.getServerInfo(),
 				};
@@ -708,6 +700,9 @@ export class LiopMcpRouter {
 
 		for (const [peerId, { manifest }] of this.manifestCache.entries()) {
 			for (const tool of manifest.tools) {
+				// LiopMeshStatus is a local-only diagnostic — skip remote copies
+				if (tool.name === "LiopMeshStatus") continue;
+
 				// [LIOP-STABILITY] Allow discovery of ALL remote tools.
 				// MCP Requires unique names per server session.
 				// In a P2P mesh, multiple nodes might expose the same tool (e.g. LiopMeshStatus).

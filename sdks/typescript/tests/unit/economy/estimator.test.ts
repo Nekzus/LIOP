@@ -90,4 +90,86 @@ describe("TokenEstimator", () => {
 			expect(estimator.name).toBe("o200k_base");
 		});
 	});
+
+	describe("Advanced Edge Cases", () => {
+		it("should produce different results between heuristic and real estimator", async () => {
+			const heuristic = new HeuristicTokenEstimator();
+			const real = await createTokenEstimator();
+
+			// JSON with repetitive structure — BPE and chars/4 should differ
+			const json = JSON.stringify({
+				records: Array.from({ length: 20 }, (_, i) => ({
+					id: i,
+					name: `Record ${i}`,
+				})),
+			});
+
+			const heuristicCount = heuristic.countTokens(json);
+			const realCount = real.countTokens(json);
+
+			// Both should be positive but not equal
+			expect(heuristicCount).toBeGreaterThan(0);
+			expect(realCount).toBeGreaterThan(0);
+			expect(realCount).not.toBe(heuristicCount);
+		});
+
+		it("should keep cross-estimator results in same order of magnitude for English text", async () => {
+			const heuristic = new HeuristicTokenEstimator();
+			const real = await createTokenEstimator();
+
+			const text =
+				"The quick brown fox jumps over the lazy dog. This is a test sentence for token estimation.";
+
+			const heuristicCount = heuristic.countTokens(text);
+			const realCount = real.countTokens(text);
+
+			// Both should be within 3x of each other for standard English text
+			const ratio = Math.max(heuristicCount, realCount) / Math.min(heuristicCount, realCount);
+			expect(ratio).toBeLessThan(3);
+		});
+
+		it("should count tokens for large payload within 50ms", async () => {
+			const real = await createTokenEstimator();
+			const largePayload = JSON.stringify(
+				Array.from({ length: 500 }, (_, i) => ({
+					id: `REC-${i}`,
+					description: `This is record number ${i} with some descriptive text for testing performance`,
+					value: Math.random() * 1000,
+				})),
+			);
+
+			const start = performance.now();
+			const count = real.countTokens(largePayload);
+			const elapsed = performance.now() - start;
+
+			expect(count).toBeGreaterThan(1000);
+			expect(elapsed).toBeLessThan(50);
+		});
+
+		it("should handle code and SQL content correctly", async () => {
+			const real = await createTokenEstimator();
+
+			const code = `function analyze(records) {
+  const result = records.reduce((acc, r) => {
+    acc.count++;
+    acc.sum += r.value;
+    return acc;
+  }, { count: 0, sum: 0 });
+  return { average: result.sum / result.count };
+}`;
+			const codeTokens = real.countTokens(code);
+			expect(codeTokens).toBeGreaterThan(20);
+
+			const sql = "SELECT COUNT(*), AVG(value) FROM records WHERE category = 'alpha' GROUP BY region";
+			const sqlTokens = real.countTokens(sql);
+			expect(sqlTokens).toBeGreaterThan(5);
+		});
+
+		it("should handle JSON with escape sequences", async () => {
+			const real = await createTokenEstimator();
+			const escaped = '{"path": "C:\\\\Users\\\\test", "quote": "\\"hello\\"", "newline": "line1\\nline2"}';
+			const count = real.countTokens(escaped);
+			expect(count).toBeGreaterThan(0);
+		});
+	});
 });

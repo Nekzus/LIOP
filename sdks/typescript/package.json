@@ -104,6 +104,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.4",
+    "@opentelemetry/sdk-metrics": "^2.7.0",
     "@types/node": "^25.3.1",
     "@vitest/coverage-v8": "^4.0.18",
     "tsx": "^4.21.0",

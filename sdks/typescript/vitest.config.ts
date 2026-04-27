@@ -8,5 +8,18 @@ export default defineConfig({
       "**/tests/crossnet/**", 
       "**/.{idea,git,cache,output,temp}/**"
     ],
+    coverage: {
+      provider: "v8",
+      include: ["src/**/*.ts"],
+      exclude: [
+        "src/bin/**",
+        "src/**/*.test.ts",
+        "src/**/*.d.ts",
+        "src/global.d.ts",
+      ],
+      reporter: ["text", "json-summary"],
+      reportsDirectory: "./coverage",
+    },
   },
 });
+
