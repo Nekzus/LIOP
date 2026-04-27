@@ -208,11 +208,12 @@ export class LiopMcpRouter {
 				// [Token Economy] Record telemetry for the tools/list response
 				const telemetry = TokenTelemetryEngine.getInstance();
 				const toolsPayload = JSON.stringify(allTools);
+				const toolsResponsePayload = JSON.stringify({ tools: allTools });
 				telemetry.record({
 					type: "tools_list",
 					method: "tools/list",
-					estimatedInputTokens: telemetry.estimateTokens(toolsPayload),
-					estimatedOutputTokens: 0,
+					estimatedInputTokens: telemetry.countTokens(toolsPayload),
+					estimatedOutputTokens: telemetry.countTokens(toolsResponsePayload),
 				});
 
 				return {
@@ -228,10 +229,22 @@ export class LiopMcpRouter {
 			case "resources/list": {
 				const localResources = this.liopServer.listResources();
 				const remoteResources = await this.getRemoteResources();
+				const allResources = [...localResources, ...remoteResources];
+
+				// [Token Economy] Record resources/list telemetry
+				const rlTelemetry = TokenTelemetryEngine.getInstance();
+				const rlPayload = JSON.stringify(allResources);
+				rlTelemetry.record({
+					type: "resource_list",
+					method: "resources/list",
+					estimatedInputTokens: 0,
+					estimatedOutputTokens: rlTelemetry.countTokens(rlPayload),
+				});
+
 				return {
 					jsonrpc: "2.0",
 					id,
-					result: { resources: [...localResources, ...remoteResources] },
+					result: { resources: allResources },
 				};
 			}
 			case "resources/read": {
@@ -243,7 +256,21 @@ export class LiopMcpRouter {
 						error: { code: -32602, message: "Missing resource uri" },
 					};
 				try {
+					const rrStartTime = Date.now();
 					const result = await this.liopServer.readResource(typedParams.uri);
+
+					// [Token Economy] Record resources/read telemetry
+					const rrTelemetry = TokenTelemetryEngine.getInstance();
+					const rrOutputPayload = JSON.stringify(result);
+					rrTelemetry.record({
+						type: "resource_read",
+						method: "resources/read",
+						toolName: typedParams.uri,
+						estimatedInputTokens: rrTelemetry.countTokens(typedParams.uri),
+						estimatedOutputTokens: rrTelemetry.countTokens(rrOutputPayload),
+						durationMs: Date.now() - rrStartTime,
+					});
+
 					return { jsonrpc: "2.0", id, result };
 				} catch (err: unknown) {
 					// Fallback: Resolve remotely from manifest cache
@@ -285,12 +312,25 @@ export class LiopMcpRouter {
 					};
 				}
 			}
-			case "prompts/list":
+			case "prompts/list": {
+				const promptsList = this.liopServer.listPrompts();
+
+				// [Token Economy] Record prompts/list telemetry
+				const plTelemetry = TokenTelemetryEngine.getInstance();
+				const plPayload = JSON.stringify(promptsList);
+				plTelemetry.record({
+					type: "prompt_list",
+					method: "prompts/list",
+					estimatedInputTokens: 0,
+					estimatedOutputTokens: plTelemetry.countTokens(plPayload),
+				});
+
 				return {
 					jsonrpc: "2.0",
 					id,
-					result: { prompts: this.liopServer.listPrompts() },
+					result: { prompts: promptsList },
 				};
+			}
 			case "prompts/get": {
 				const typedParams = params as
 					| { name?: string; arguments?: Record<string, string> }
@@ -302,10 +342,28 @@ export class LiopMcpRouter {
 						error: { code: -32602, message: "Missing prompt name" },
 					};
 				try {
+					const pgStartTime = Date.now();
 					const result = await this.liopServer.getPrompt({
 						name: typedParams.name as string,
 						arguments: typedParams.arguments || {},
 					});
+
+					// [Token Economy] Record prompts/get telemetry
+					const pgTelemetry = TokenTelemetryEngine.getInstance();
+					const pgInputPayload = JSON.stringify({
+						name: typedParams.name,
+						arguments: typedParams.arguments,
+					});
+					const pgOutputPayload = JSON.stringify(result);
+					pgTelemetry.record({
+						type: "prompt_get",
+						method: "prompts/get",
+						toolName: typedParams.name,
+						estimatedInputTokens: pgTelemetry.countTokens(pgInputPayload),
+						estimatedOutputTokens: pgTelemetry.countTokens(pgOutputPayload),
+						durationMs: Date.now() - pgStartTime,
+					});
+
 					return { jsonrpc: "2.0", id, result };
 				} catch (err: unknown) {
 					return {
@@ -905,6 +963,16 @@ export class LiopMcpRouter {
 				.filter((line) => line !== "")
 				.join("\n");
 
+			// [Token Economy] Record diagnostic output telemetry
+			const diagTelemetry = TokenTelemetryEngine.getInstance();
+			diagTelemetry.record({
+				type: "diagnostic",
+				method: "tools/call",
+				toolName: "LiopMeshStatus",
+				estimatedInputTokens: 0,
+				estimatedOutputTokens: diagTelemetry.countTokens(statusText),
+			});
+
 			return {
 				jsonrpc: "2.0",
 				id,
@@ -962,10 +1030,25 @@ export class LiopMcpRouter {
 		// If no remote provider found, try local execution
 		if (isLocal) {
 			try {
+				const localStartTime = Date.now();
 				const result = await this.liopServer.callTool({
 					name: toolName,
 					arguments: params.arguments || {},
 				});
+
+				// [Token Economy] Record local tool call telemetry
+				const localTelemetry = TokenTelemetryEngine.getInstance();
+				const localInputPayload = JSON.stringify(params.arguments || {});
+				const localOutputPayload = JSON.stringify(result);
+				localTelemetry.record({
+					type: "tool_call",
+					method: "tools/call",
+					toolName,
+					estimatedInputTokens: localTelemetry.countTokens(localInputPayload),
+					estimatedOutputTokens: localTelemetry.countTokens(localOutputPayload),
+					durationMs: Date.now() - localStartTime,
+				});
+
 				return { jsonrpc: "2.0", id, result };
 			} catch (err: unknown) {
 				return {
@@ -1083,7 +1166,7 @@ export class LiopMcpRouter {
 			targetAddr,
 			createChannelCredentials(),
 		);
-		return this.performTranscoding(id, remoteClient, toolName, params);
+		return this.performTranscoding(id, remoteClient, toolName, params, peerId);
 	}
 
 	private async performTranscoding(
@@ -1094,12 +1177,15 @@ export class LiopMcpRouter {
 		toolName: string,
 		// biome-ignore lint/suspicious/noExplicitAny: MCP polymorphic
 		params: any,
+		peerId?: string,
 		// biome-ignore lint/suspicious/noExplicitAny: MCP polymorphic
 	): Promise<any> {
 		const capabilityHash = toolName;
 		const proofOfIntent = this.meshNode
 			? await this.meshNode.sign(Buffer.from(capabilityHash))
 			: Buffer.from([]);
+
+		const transcodingStartTime = Date.now();
 
 		return new Promise((resolve) => {
 			client.negotiateIntent(
@@ -1182,6 +1268,20 @@ export class LiopMcpRouter {
 							}
 
 							const parsedResult = JSON.parse(resultBody);
+
+							// [Token Economy] Record remote tool call telemetry
+							const remoteTelemetry = TokenTelemetryEngine.getInstance();
+							remoteTelemetry.record({
+								type: "tool_call",
+								method: "tools/call",
+								toolName,
+								peerId,
+								estimatedInputTokens:
+									remoteTelemetry.countTokens(embeddedArgsJson),
+								estimatedOutputTokens: remoteTelemetry.countTokens(resultBody),
+								durationMs: Date.now() - transcodingStartTime,
+							});
+
 							resolve({ jsonrpc: "2.0", id, result: parsedResult });
 						} catch (_e) {
 							resolve({

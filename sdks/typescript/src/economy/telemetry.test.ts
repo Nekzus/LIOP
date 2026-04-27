@@ -59,7 +59,7 @@ describe("TokenTelemetryEngine", () => {
 		const block = engine.formatStatusBlock();
 		expect(block).toContain("Token Economy:");
 		expect(block).toContain("Operations: 1");
-		expect(block).toContain("Est. Input Tokens:");
+		expect(block).toContain("Total:");
 	});
 
 	it("should return empty string for status block with no operations", () => {
