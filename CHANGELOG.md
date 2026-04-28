@@ -3,6 +3,44 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.2.0-alpha.10](https://github.com/Nekzus/Neural-Mesh-Protocol/compare/v1.2.0-alpha.9...v1.2.0-alpha.10) (2026-04-28)
+
+
+### Bug Fixes
+
+* **client:** rename getProviders to findProviders for MeshNode parity ([fa4925e](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/fa4925e387c5dfa89ed1cc251b382d0a44bf4250))
+* **examples:** force 127.0.0.1 for nexus multiaddr to prevent cross-env timeout ([2813ad6](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/2813ad6e603cc2c7fbae320692f42134d1c916e3))
+* **router:** remove redundant remote LiopMeshStatus tools + add 40 hardening tests (191 total PASS) - Phase 108.5: OTel InMemoryMetricExporter verification, token savings O(1) proof, 8-point telemetry integration, coverage config ([3611799](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/3611799632d6bb7b4a640d2241724180da37d2bd))
+* **sdk:** add missing await in router readResource throwing unhandled promise rejection ([518c715](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/518c71581e30ce5b7eaf62cacca911ca38a03bbc))
+* **sdk:** correct imports and entrypoint typings for tests/infra ([86e64fc](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/86e64fc3379a7314a4b8e3f259d91cfe146f2d4b))
+* **sdk:** eradicate last client intent mock, fix .gitignore identity rules, update ZK docstring ([83b62b4](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/83b62b4395e3096a6c42380055d184457749c852))
+* **sdk:** resolve schema violations, parallelize discovery, and stabilize typings ([e317300](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/e31730036ec8d6b496601dc2357e6fb1c0fab229))
+* **sdk:** suppress TS dependency drift error on libp2p PeerId cast ([63c3060](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/63c30607f20d84f1e9040db7b4fb31501681d781))
+* **sdk:** tighten router and mesh typing safeguards ([0519884](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/051988476f643b3c5f812acc4cee737eaed9493f))
+* **sdk:** update entrypoints to match v1.2 LiopServer API and MeshNode lifecycle ([8d9b701](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/8d9b701515f545af6103c5058111050e0e4f776f))
+
+
+### Features
+
+* **economy:** implement Token Economy Engine with real BPE tokenization & OTel gen_ai.* metrics - Phase 108: 8 dispatch points instrumented, o200k_base estimator, 27 new tests (151 total PASS) ([76ac53d](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/76ac53db2efd62d74aacebfe6b69cec31edd98e5))
+* **economy:** Token Economy Engine — centralized protocol spec, compact envelope, telemetry ([459914c](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/459914c9a2df274a3785f2e7f6dd34a2c615a4fc))
+* **mesh:** validate cross-platform discovery and industrial routing (Fase 104-105) ([96faaf7](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/96faaf7bdc0e9ea8156d96a569c2bac9add618f5))
+* **sdk:** align MCP 2025-11-25, smart warm-up stabilization, adaptive DHT polling (Phase 106) ([695fdb7](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/695fdb75cd034d00d1dbe605a9f3c00880294de9))
+* **sdk:** eradicate mocks and harden TypeScript ZK parity [Fase 89.5] ([c3f7ff3](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/c3f7ff39b9857527b12d95e96320ba7d6a243f01))
+* **sdk:** harden dynamic routing and secure egress ([ff9fb43](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/ff9fb4390db38c3b6122bc96b850b86340ff9e79))
+* **sdk:** implement cross-network tests and auto-discovery ([b84da0d](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/b84da0ddc9b1671d440edfa9edf3982d3be6417f))
+* **sdk:** implement flexible PII_PRESETS and enforce GLOBAL_STRICT defaults ([bc2aea3](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/bc2aea3f32500732752f508015212a509b5c3339))
+* **sdk:** implement Phase 91 Mesh Discovery with WAN Kademlia DHT, auto Bootstrap, and routing table persistence ([394753d](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/394753d8ed25126903e188988e4e3c89bb1165c4))
+* **sdk:** implement Phase 92 Cross-AI Adaptors and Phase 93 PII Shield (SSN, IBAN, MRZ) ([fb7d900](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/fb7d900732b1cedeb25c46b66bd84850db05a6cb))
+* **sdk:** industrial neural mesh stabilization and zero-shot autonomy ([dd53633](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/dd53633942aefb48ed398688ad672a11c6fe46b0))
+* **sdk:** phase 94 production hardening (logger, env cfg, mcp types, test isolation) ([f6477a2](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/f6477a2612d9525571270963288736772de1ac01))
+* **sdk:** Phase 96 - Implement Logic Guard Policies & Schema Enforcement ([68207c1](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/68207c1c41c42432599bff4c312d7f24f68882a2))
+
+
+### Performance Improvements
+
+* **sdk:** cache-first tool routing, TTL 300s, early-exit refresh, actionable HINT (Phase 107) ([279dced](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/279dceddd78f869cb113ba845e3ac9aa9e2e7310))
+
 # [1.2.0-alpha.9](https://github.com/Nekzus/Neural-Mesh-Protocol/compare/v1.2.0-alpha.8...v1.2.0-alpha.9) (2026-03-29)
 
 
