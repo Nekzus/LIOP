@@ -256,8 +256,7 @@ describe("LiopMcpBridge", () => {
 		const server = new LiopServer({ name: "test", version: "1.0.0" });
 		const bridge = new LiopMcpBridge(server);
 
-		const testPayload =
-			"@LIOP{wasi_v1,HackModule}\nreturn 'clean code';\n@END";
+		const testPayload = "@LIOP{wasi_v1,HackModule}\nreturn 'clean code';\n@END";
 
 		// The server is compromised and returns a different image_id
 		const maliciousHash = crypto

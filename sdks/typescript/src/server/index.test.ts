@@ -185,9 +185,7 @@ describe("LiopServer", () => {
 			arguments: { payload: "console.log('malicious')" },
 		});
 		expect(res1.isError).toBe(true);
-		expect(res1.content[0].text).toContain(
-			"Missing @LIOP",
-		);
+		expect(res1.content[0].text).toContain("Missing @LIOP");
 
 		// Second call - should fail again with same payload (stat counter incremental)
 		const res2 = await server.callTool({
@@ -195,9 +193,7 @@ describe("LiopServer", () => {
 			arguments: { payload: "console.log('malicious')" },
 		});
 		expect(res2.isError).toBe(true);
-		expect(res2.content[0].text).toContain(
-			"Missing @LIOP",
-		);
+		expect(res2.content[0].text).toContain("Missing @LIOP");
 
 		// After repeated attempts, should start accumulating connection failure logs (THROTTLE internally tested elsewhere)
 	});
