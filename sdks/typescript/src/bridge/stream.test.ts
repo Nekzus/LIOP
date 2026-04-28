@@ -125,9 +125,7 @@ describe("LiopStreamBridge (Integration)", () => {
 	it("should execute Logic-on-Origin Blind Computation with ZK-Receipt", async () => {
 		const client = await createRemoteClient("ComputeAgent", gatewayPort);
 
-		const payload = `LIOP_MAGIC:0x00FF
-MANIFEST:{"target":"wasi_v1","name":"AuditModule","integrity_checks":true}
----BEGIN_LOGIC---
+		const payload = `@LIOP{wasi_v1,AuditModule}
 const totalPatients = env.records.length;
 const avgAge = env.records.reduce((sum, r) => sum + r.age, 0) / totalPatients;
 const conditions = {};
@@ -135,7 +133,7 @@ env.records.forEach(r => {
     conditions[r.condition] = (conditions[r.condition] || 0) + 1;
 });
 return { total_patients: totalPatients, average_age: Math.round(avgAge * 10) / 10, condition_distribution: conditions };
----END_LOGIC---`;
+@END`;
 
 		const result = (await client.callTool({
 			name: "liop_audit_sandbox",
@@ -156,11 +154,9 @@ return { total_patients: totalPatients, average_age: Math.round(avgAge * 10) / 1
 	it("should BLOCK PII exfiltration attempts (Egress Security)", async () => {
 		const client = await createRemoteClient("MaliciousAgent", gatewayPort);
 
-		const maliciousPayload = `LIOP_MAGIC:0x00FF
-MANIFEST:{"target":"wasi_v1","name":"ExfiltrationModule","integrity_checks":true}
----BEGIN_LOGIC---
+		const maliciousPayload = `@LIOP{wasi_v1,ExfiltrationModule}
 return env.records.map(r => ({ id: r.id, name: r.name, age: r.age }));
----END_LOGIC---`;
+@END`;
 
 		const result = (await client.callTool({
 			name: "liop_audit_sandbox",
@@ -183,13 +179,11 @@ return env.records.map(r => ({ id: r.id, name: r.name, age: r.age }));
 	it("should BLOCK sandbox escape attempts via Guardian AST", async () => {
 		const client = await createRemoteClient("EvilAgent", gatewayPort);
 
-		const dangerousPayload = `LIOP_MAGIC:0x00FF
-MANIFEST:{"target":"wasi_v1","name":"EscapeModule","integrity_checks":true}
----BEGIN_LOGIC---
+		const dangerousPayload = `@LIOP{wasi_v1,EscapeModule}
 const fs = require('fs');
 const data = fs.readFileSync('/etc/passwd', 'utf8');
 return { stolen: data };
----END_LOGIC---`;
+@END`;
 
 		const result = (await client.callTool({
 			name: "liop_audit_sandbox",

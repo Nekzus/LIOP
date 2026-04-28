@@ -186,7 +186,7 @@ describe("LiopServer", () => {
 		});
 		expect(res1.isError).toBe(true);
 		expect(res1.content[0].text).toContain(
-			"Malformed payload. Missing LIOP_MAGIC, MANIFEST",
+			"Missing @LIOP",
 		);
 
 		// Second call - should fail again with same payload (stat counter incremental)
@@ -196,7 +196,7 @@ describe("LiopServer", () => {
 		});
 		expect(res2.isError).toBe(true);
 		expect(res2.content[0].text).toContain(
-			"Malformed payload. Missing LIOP_MAGIC, MANIFEST",
+			"Missing @LIOP",
 		);
 
 		// After repeated attempts, should start accumulating connection failure logs (THROTTLE internally tested elsewhere)

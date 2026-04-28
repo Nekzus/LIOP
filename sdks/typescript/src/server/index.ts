@@ -60,6 +60,13 @@ export interface LiopServerOptions {
 	};
 }
 
+export interface AggregationPolicy {
+	/** Maximum number of object-type array elements allowed (default: 10) */
+	maxOutputRows?: number;
+	/** Allow arrays containing only primitive values (default: true) */
+	allowPrimitiveArrays?: boolean;
+}
+
 export interface LogicExecutionPolicy {
 	/**
 	 * Validate the business payload returned by sandbox logic (post-execution).
@@ -69,7 +76,7 @@ export interface LogicExecutionPolicy {
 	/**
 	 * Enforce aggregation-first heuristics (preflight + post-check).
 	 */
-	enforceAggregationFirst?: boolean;
+	enforceAggregationFirst?: boolean | AggregationPolicy;
 	/**
 	 * Optional additional deny patterns checked against extracted logic source.
 	 */
@@ -124,17 +131,11 @@ export class LiopServer {
 		{ capability_hash: string; kyber_sk: Uint8Array }
 	> = new Map();
 
-	private static readonly LIOP_LOGIC_REGEX =
-		/\s*LIOP_MAGIC:0x00FF\s*\n?\s*MANIFEST:(?<manifest>\{[\s\S]*?\})\s*\n?\s*---BEGIN_LOGIC---\n?(?<logic>[\s\S]*?)\n?---END_LOGIC---/m;
-
 	// Compact envelope: @LIOP{target,name}\n<code>\n@END
 	private static readonly LIOP_COMPACT_REGEX =
 		/@LIOP\{(?<target>[^,}]+)(?:,(?<name>[^}]*))?\}\n(?<logic>[\s\S]*?)\n@END/m;
 
 	private extractLogic(payload: string): string | null {
-		const match = payload.match(LiopServer.LIOP_LOGIC_REGEX);
-		if (match?.groups?.logic) return match.groups.logic.trim();
-		// Compact envelope fallback — same execution, fewer tokens
 		const compact = payload.match(LiopServer.LIOP_COMPACT_REGEX);
 		return compact?.groups?.logic ? compact.groups.logic.trim() : null;
 	}
@@ -208,6 +209,7 @@ export class LiopServer {
 			policy.enforceAggregationFirst &&
 			this.violatesAggregationFirstPolicy(
 				this.unwrapForAggregationPolicyScan(parsed),
+				policy.enforceAggregationFirst,
 			)
 		) {
 			return "Aggregation-First Policy Violation: row-level export blocked. HINT: Use .reduce() to produce a flat {key:value} object. Do NOT use .map() to create arrays of objects.";
@@ -263,7 +265,10 @@ export class LiopServer {
 		return this.unwrapForAggregationPolicyScan(joined);
 	}
 
-	private violatesAggregationFirstPolicy(input: unknown): boolean {
+	private violatesAggregationFirstPolicy(
+		input: unknown,
+		policyObj?: boolean | AggregationPolicy,
+	): boolean {
 		if (typeof input === "string") {
 			const trimmed = input.trim();
 			if (
@@ -271,7 +276,10 @@ export class LiopServer {
 				(trimmed.startsWith("[") && trimmed.endsWith("]"))
 			) {
 				try {
-					return this.violatesAggregationFirstPolicy(JSON.parse(trimmed));
+					return this.violatesAggregationFirstPolicy(
+						JSON.parse(trimmed),
+						policyObj,
+					);
 				} catch {
 					return false;
 				}
@@ -280,16 +288,46 @@ export class LiopServer {
 		}
 
 		if (Array.isArray(input)) {
-			if (input.length > 0 && input.every((item) => typeof item === "object")) {
-				// Treat tabular row export as non-aggregated leakage risk.
-				return true;
+			const maxRows =
+				typeof policyObj === "object" &&
+				typeof policyObj.maxOutputRows === "number"
+					? policyObj.maxOutputRows
+					: 10;
+			const allowPrimitives =
+				typeof policyObj === "object" &&
+				typeof policyObj.allowPrimitiveArrays === "boolean"
+					? policyObj.allowPrimitiveArrays
+					: true;
+
+			if (
+				input.length > 0 &&
+				input.every((item) => typeof item === "object" && item !== null)
+			) {
+				// Treat tabular row export as non-aggregated leakage risk if above threshold.
+				if (input.length > maxRows) {
+					return true;
+				}
+				return input.some((item) =>
+					this.violatesAggregationFirstPolicy(item, policyObj),
+				);
 			}
-			return input.some((item) => this.violatesAggregationFirstPolicy(item));
+
+			if (
+				input.length > 0 &&
+				input.every((item) => typeof item !== "object" || item === null)
+			) {
+				if (!allowPrimitives) return true;
+				return false;
+			}
+
+			return input.some((item) =>
+				this.violatesAggregationFirstPolicy(item, policyObj),
+			);
 		}
 
 		if (input && typeof input === "object") {
 			return Object.values(input as Record<string, unknown>).some((value) =>
-				this.violatesAggregationFirstPolicy(value),
+				this.violatesAggregationFirstPolicy(value, policyObj),
 			);
 		}
 
@@ -389,19 +427,12 @@ export class LiopServer {
 			"LIOP v1 Envelope Specification",
 			"================================",
 			"",
-			"FORMATS (both accepted):",
+			"FORMAT:",
 			"",
-			"Compact:",
+			"Compact Envelope:",
 			"  @LIOP{wasi_v1,TaskName}",
 			"  <JavaScript code>",
 			"  @END",
-			"",
-			"Standard:",
-			"  LIOP_MAGIC:0x00FF",
-			'  MANIFEST:{"target":"wasi_v1","name":"TaskName","integrity_checks":true}',
-			"  ---BEGIN_LOGIC---",
-			"  <JavaScript code>",
-			"  ---END_LOGIC---",
 			"",
 			"RUNTIME ENVIRONMENT:",
 			"- env.records: Array of data objects from the origin",
@@ -615,7 +646,7 @@ export class LiopServer {
 						content: [
 							{
 								type: "text",
-								text: 'Error: Malformed payload. Missing LIOP_MAGIC, MANIFEST, or boundaries.\nYou MUST wrap your logic exactly like this:\n\nLIOP_MAGIC:0x00FF\nMANIFEST:{"target":"wasi_v1","name":"DynamicAudit","integrity_checks":true}\n---BEGIN_LOGIC---\n// Your JS code here\n---END_LOGIC---',
+								text: "Error: Malformed payload. Missing @LIOP boundary.\\nYou MUST wrap your logic exactly like this:\\n\\n@LIOP{wasi_v1,DynamicAudit}\\n// Your JS code here\\n@END",
 							},
 						],
 						isError: true,
@@ -741,13 +772,11 @@ Your objective is to perform secure Logic-on-Origin injections. You must process
 INDUSTRIAL CONSTRAINTS & PROTOCOL RULES:
 1. DATA PRIVACY: NEVER attempt to export Personally Identifiable Information (PII). The LIOP Egress Shield will block any response containing raw IDs, names, or addresses.
 2. AGGREGATION FIRST: Always prefer returning counts, averages, or anonymized summaries.
-3. PAYLOAD ENCAPSULATION: Your JavaScript payloads MUST strictly adhere to the LIOPv1 Envelope. DO NOT include markdown backticks or leading text inside the 'payload' argument.
+3. PAYLOAD ENCAPSULATION: Your JavaScript payloads MUST strictly adhere to the Compact Envelope. DO NOT include markdown backticks or leading text inside the 'payload' argument.
    Structure:
-   LIOP_MAGIC:0x00FF
-   MANIFEST:{"target":"wasi_v1","name":"AnalysisTask","integrity_checks":true}
-   ---BEGIN_LOGIC---
+   @LIOP{wasi_v1,AnalysisTask}
    // Your JS Code Here
-   ---END_LOGIC---
+   @END
 4. RUNTIME SCOPE: The execution environment provides a global 'env' object. Use 'env.records' to access the target dataset.
 5. LOCALIZATION: Format all JSON response keys in the language used by the user in their query (e.g., use Spanish keys if the query is in Spanish).
 6. SCHEMA RIGIDITY: Only use fields defined in the 'Data Dictionary'. Usage of non-existent fields will trigger a sandbox runtime exception.${

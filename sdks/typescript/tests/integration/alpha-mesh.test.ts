@@ -42,16 +42,14 @@ describe("LIOP Alpha Mesh Integration", () => {
 		const toolRequest = {
 			name: "calculate_stats",
 			arguments: {
-				payload: `LIOP_MAGIC:0x00FF
-MANIFEST:{"target":"wasi_v1","name":"StatsModule"}
----BEGIN_LOGIC---
+				payload: `@LIOP{wasi_v1,StatsModule}
 const records = env.records;
 const avgAge = records.reduce((acc, r) => acc + r.age, 0) / records.length;
 return {
     count: records.length,
     average_age: avgAge
 };
----END_LOGIC---`,
+@END`,
 			},
 		};
 
@@ -78,7 +76,7 @@ return {
 		const toolRequest = {
 			name: "calculate_stats",
 			arguments: {
-				payload: "---BEGIN_LOGIC--- return 1; ---END_LOGIC---",
+				payload: "@LIOP{wasi_v1,Test}\nreturn 1;\n@END",
 			},
 		};
 
@@ -87,10 +85,10 @@ return {
 		// or modifying the wasmPayload passed to callTool.
 
 		const realPayload = Buffer.from(
-			"---BEGIN_LOGIC--- return 1; ---END_LOGIC---",
+			"@LIOP{wasi_v1,Test}\\nreturn 1;\\n@END",
 		);
 		const _modifiedPayload = Buffer.from(
-			"---BEGIN_LOGIC--- return 2; ---END_LOGIC---",
+			"@LIOP{wasi_v1,Test}\\nreturn 2;\\n@END",
 		);
 
 		// If we call with modifiedPayload but the server hash is based on realPayload

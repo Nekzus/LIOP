@@ -85,7 +85,7 @@ async function main() {
 				content: [
 					{
 						type: "text",
-						text: "[LIOP] Security Enforcement: Legacy Plain-Tool execution is BLOCKED on this node. You MUST use the LIOPv1 Envelope (LIOP_MAGIC + MANIFEST + BEGIN_LOGIC) to trigger the secure Zero-Trust WASI sandbox for medical record analysis.",
+						text: "[LIOP] Security Enforcement: Legacy Plain-Tool execution is BLOCKED on this node. You MUST use the Compact Envelope (@LIOP) to trigger the secure Zero-Trust WASI sandbox for medical record analysis.",
 					},
 				],
 				isError: true,

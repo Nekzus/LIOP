@@ -47,12 +47,12 @@ describe("E2E Logic-on-Origin Pipeline", () => {
 		const result = await server.callTool({
 			name: "compute_on_origin",
 			arguments: {
-				payload: `LIOP_MAGIC:0x00FF\nMANIFEST:{"target":"wasi_v1","name":"DynamicAudit","integrity_checks":true}\n---BEGIN_LOGIC---
+				payload: `@LIOP{wasi_v1,DynamicAudit}
 const records = env.records;
 const count = records.length;
 const avgAge = records.reduce((sum, r) => sum + r.age, 0) / count;
 return JSON.stringify({ count, average_age: avgAge });
----END_LOGIC---`,
+@END`,
 			},
 		});
 
@@ -73,17 +73,17 @@ return JSON.stringify({ count, average_age: avgAge });
 		});
 
 		expect(result.isError).toBe(true);
-		expect(result.content[0].text).toContain("Missing LIOP_MAGIC, MANIFEST");
+		expect(result.content[0].text).toContain("Missing @LIOP");
 	});
 
 	it("should block PII exfiltration via forbidden keys", async () => {
 		const result = await server.callTool({
 			name: "compute_on_origin",
 			arguments: {
-				payload: `LIOP_MAGIC:0x00FF\nMANIFEST:{"target":"wasi_v1","name":"DynamicAudit","integrity_checks":true}\n---BEGIN_LOGIC---
+				payload: `@LIOP{wasi_v1,DynamicAudit}
 const records = env.records;
 return JSON.stringify(records.map(r => ({ id: r.id, name: r.name, age: r.age })));
----END_LOGIC---`,
+@END`,
 			},
 		});
 
@@ -95,11 +95,11 @@ return JSON.stringify(records.map(r => ({ id: r.id, name: r.name, age: r.age }))
 		const result = await server.callTool({
 			name: "compute_on_origin",
 			arguments: {
-				payload: `LIOP_MAGIC:0x00FF\nMANIFEST:{"target":"wasi_v1","name":"DynamicAudit","integrity_checks":true}\n---BEGIN_LOGIC---
+				payload: `@LIOP{wasi_v1,DynamicAudit}
 const records = env.records;
 const diabetesCount = records.filter(r => r.condition === "Diabetes Type 2").length;
 return JSON.stringify({ diabetes_count: diabetesCount, total: records.length });
----END_LOGIC---`,
+@END`,
 			},
 		});
 
@@ -147,10 +147,10 @@ return JSON.stringify({ diabetes_count: diabetesCount, total: records.length });
 			}),
 		);
 
-		const payload = `LIOP_MAGIC:0x00FF\nMANIFEST:{"target":"wasi_v1","name":"DynamicAudit","integrity_checks":true}\n---BEGIN_LOGIC---
+		const payload = `@LIOP{wasi_v1,DynamicAudit}
 const records = env.records;
 return JSON.stringify({ sum: records.reduce((a, r) => a + r.value, 0) });
----END_LOGIC---`;
+@END`;
 
 		// First execution: gets cached after success
 		const result1 = await freshServer.callTool({

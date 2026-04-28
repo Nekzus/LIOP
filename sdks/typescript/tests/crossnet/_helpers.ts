@@ -64,11 +64,9 @@ export async function findToolByBaseName(baseName: string): Promise<string> {
 
 export function liopEnvelope(logic: string, moduleName = "CrossnetLogic"): string {
 	return [
-		"LIOP_MAGIC:0x00FF",
-		`MANIFEST:{"target":"wasi_v1","name":"${moduleName}","integrity_checks":true}`,
-		"---BEGIN_LOGIC---",
+		`@LIOP{wasi_v1,${moduleName}}`,
 		logic.trim(),
-		"---END_LOGIC---",
+		"@END",
 	].join("\n");
 }
 

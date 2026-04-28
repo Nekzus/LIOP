@@ -204,7 +204,7 @@ describe("LiopMcpBridge", () => {
 		const bridge = new LiopMcpBridge(server);
 
 		const testPayload =
-			'LIOP_MAGIC:0x00FF\nMANIFEST:{"target":"wasi_v1","name":"TestModule","integrity_checks":true}\n---BEGIN_LOGIC---\nreturn \'hello world\';\n---END_LOGIC---';
+			"@LIOP{wasi_v1,TestModule}\nreturn 'hello world';\n@END";
 		// The real server only hashes the extracted logic payload
 		const expectedHash = crypto
 			.createHash("sha256")
@@ -257,7 +257,7 @@ describe("LiopMcpBridge", () => {
 		const bridge = new LiopMcpBridge(server);
 
 		const testPayload =
-			'LIOP_MAGIC:0x00FF\nMANIFEST:{"target":"wasi_v1","name":"HackModule","integrity_checks":true}\n---BEGIN_LOGIC---\nreturn \'clean code\';\n---END_LOGIC---';
+			"@LIOP{wasi_v1,HackModule}\nreturn 'clean code';\n@END";
 
 		// The server is compromised and returns a different image_id
 		const maliciousHash = crypto

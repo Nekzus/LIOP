@@ -143,8 +143,22 @@ export class WasiSandbox {
 			// Path B: Hardened V8 Isolate Fallback
 			// Uses node:vm with zero-prototype objects to prevent prototype pollution escapes.
 
-			const sandboxEnv = Object.create(null); // Isolated global object
+			// biome-ignore lint/suspicious/noExplicitAny: Required for Sandbox global poisoning
+			const sandboxEnv: any = Object.create(null); // Isolated global object
 			const env = { records, ...inputs };
+
+			// Explicitly poison Node.js escape vectors in the context
+			sandboxEnv.require = undefined;
+			sandboxEnv.process = undefined;
+			sandboxEnv.global = undefined;
+			sandboxEnv.globalThis = undefined;
+			sandboxEnv.Buffer = undefined;
+			sandboxEnv.setTimeout = undefined;
+			sandboxEnv.setInterval = undefined;
+			sandboxEnv.setImmediate = undefined;
+			sandboxEnv.queueMicrotask = undefined;
+			sandboxEnv.eval = undefined;
+			sandboxEnv.Function = undefined;
 
 			// Inject strictly monitored globals
 			sandboxEnv.records = JSON.parse(JSON.stringify(records)); // Deep copy safety
@@ -154,28 +168,50 @@ export class WasiSandbox {
 				sandboxEnv[key] = JSON.parse(JSON.stringify(value));
 			}
 
+			// Freeze the sandbox context to prevent mutation (SEC-GAP-1)
+			// biome-ignore lint/suspicious/noExplicitAny: Required for recursive deep freeze of unknown data
+			const deepFreeze = (obj: any) => {
+				if (obj && typeof obj === "object" && !Object.isFrozen(obj)) {
+					Object.freeze(obj);
+					for (const key of Object.keys(obj)) {
+						deepFreeze(obj[key]);
+					}
+				}
+				return obj;
+			};
+
+			deepFreeze(sandboxEnv.records);
+			deepFreeze(sandboxEnv.env);
+
+			// Prevent property addition/modification on global scope
+			for (const key of Object.keys(sandboxEnv)) {
+				Object.defineProperty(sandboxEnv, key, {
+					writable: false,
+					configurable: false,
+				});
+			}
+
 			// LIOP Execution Wrapper
-			// Supports two code patterns:
-			//   1. Explicit entry point: function liop_main(env) { ... }
-			//   2. Bare return logic:    const x = env.records; return { total: x.length };
+			// Host-side logic transformation to avoid 'new Function' in sandbox
+			let processedLogic = String(compiledLogic);
+			if (
+				/^\s*return\s/m.test(processedLogic) ||
+				!processedLogic.includes("function liop_main")
+			) {
+				if (!processedLogic.includes("function liop_main")) {
+					processedLogic = `function liop_main(env) {\n${processedLogic}\n}`;
+				}
+			}
+
 			const scriptCode = `
 				(function() {
 					try {
-						${compiledLogic}
+						${processedLogic}
 						if (typeof liop_main === 'function') {
 							return liop_main(env);
 						}
 						return "ERR_NO_ENTRY_POINT";
 					} catch(e) {
-						if (e instanceof SyntaxError && /Illegal return statement/i.test(e.message)) {
-							// Bare-return pattern: wrap the logic as a function body
-							try {
-								const __liop_fn = new Function('env', 'records', ${JSON.stringify(String(compiledLogic))});
-								return __liop_fn(env, env.records);
-							} catch(e2) {
-								return "LogicError: " + e2.message;
-							}
-						}
 						return "LogicError: " + e.message;
 					}
 				})();

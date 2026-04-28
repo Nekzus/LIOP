@@ -11,10 +11,8 @@ export const LiopCompiler = {
 		analysisFunctionStr: string,
 		name: string = "DynamicAudit",
 	): string {
-		const magicHeader = "LIOP_MAGIC:0x00FF\n";
-		const manifest = `MANIFEST:{"target":"wasi_v1","name":"${name}","integrity_checks":true}\n`;
-		const boundaryOpen = "---BEGIN_LOGIC---\n";
-		const boundaryClose = "\n---END_LOGIC---";
+		const header = `@LIOP{wasi_v1,${name}}\n`;
+		const footer = "\n@END";
 
 		// The skeleton injects a standard entry point required by the server (liop_main)
 		const executableBody = `
@@ -30,7 +28,7 @@ function liop_main(env) {
     `.trim();
 
 		return (
-			magicHeader + manifest + boundaryOpen + executableBody + boundaryClose
+			header + executableBody + footer
 		);
 	},
 
@@ -39,15 +37,12 @@ function liop_main(env) {
 	 * Used exclusively to test the resilience of the Guardian AST or Sandbox.
 	 */
 	compileRaw(rawScript: string, name: string = "RawScript"): string {
-		const magicHeader = "LIOP_MAGIC:0x00FF\n";
-		const manifest = `MANIFEST:{"target":"raw","name":"${name}","integrity_checks":false}\n`;
+		const header = `@LIOP{raw,${name}}\n`;
 
 		return (
-			magicHeader +
-			manifest +
-			"---BEGIN_LOGIC---\n" +
+			header +
 			rawScript +
-			"\n---END_LOGIC---"
+			"\n@END"
 		);
 	},
 };

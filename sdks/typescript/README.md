@@ -301,7 +301,7 @@ const server = new LiopServer(info, {
 The following shows a complete Logic-Injection-on-Origin execution cycle (handled internally by the SDK):
 
 ```
-1. LLM generates JavaScript analysis code wrapped in ---BEGIN_LOGIC--- / ---END_LOGIC--- boundaries
+1. LLM generates JavaScript analysis code wrapped in @LIOP / @END boundaries
 2. LiopServer receives the payload via tools/call (JSON-RPC or direct)
 3. Guardian AST inspects for sandbox escapes (zero-time heuristic analysis)
 4. Code executes inside a V8 isolate with CPU fuel limits (no Node.js globals)

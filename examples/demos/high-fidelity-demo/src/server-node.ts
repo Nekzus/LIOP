@@ -87,7 +87,7 @@ theVaultServer.tool(
 	},
 	async ({ payload }) => {
 		// NOTE: In Fase 45, LiopServer's middleware automatically intercepts
-		// any payload containing ---BEGIN_LOGIC--- and executes it in 
+		// any payload containing @LIOP and executes it in 
 		// the Worker Pool using the injected data context (setSandboxData).
 		// This handler only executes if the middleware is bypassed or for non-Logic payloads.
 		return {

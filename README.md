@@ -27,11 +27,9 @@ In the rapid evolution of autonomous agents, transferring gigabytes of raw data 
 LIOP introduces a **decentralized, Zero-Trust architectural model** where AI agents inject ultra-lightweight, sandboxed execution modules (WebAssembly) directly into the data source. The data never leaves its origin.
 
 ```
-LIOP_MAGIC:0x00FF
-MANIFEST:{"target":"wasi_v1","name":"AuditModule","integrity_checks":true}
----BEGIN_LOGIC---
+@LIOP{wasi_v1,AuditModule}
 ...
----END_LOGIC---
+@END
 ```
 
 **Key benefits:**
