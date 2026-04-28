@@ -1,0 +1,55 @@
+---
+title: "Gateway y Stream"
+description: "Exponer y enrutar tráfico LIOP con bridges híbridos y stream"
+---
+
+El SDK incluye componentes de transporte para enrutar tráfico MCP en entornos locales y de malla.
+
+## LiopHybridGateway
+
+`LiopHybridGateway` multiplexa HTTP/1.1 y HTTP/2 (gRPC) sobre un único puerto TCP y delega peticiones MCP a través de `LiopMcpRouter`.
+
+```typescript
+import { LiopHybridGateway, LiopServer } from "@nekzus/liop";
+
+const server = new LiopServer({ name: "gateway-node", version: "1.0.0" });
+const gateway = new LiopHybridGateway(server, null, 50051);
+
+await gateway.listen(3000);
+// ... servir tráfico
+await gateway.stop();
+```
+
+## LiopMcpRouter
+
+`LiopMcpRouter` es el despachador de peticiones usado por el gateway y el agente CLI. Maneja:
+
+- Despacho de métodos MCP (`tools/list`, `tools/call`, `resources/*`, `prompts/*`)
+- Ejecución local de herramientas y resolución de proveedores remotos vía manifests de malla
+- Verificación ZK de respuestas remotas
+- Caché de manifests y descubrimiento adaptativo
+
+## LiopStreamBridge
+
+`LiopStreamBridge` expone un `LiopServer` sobre transporte Streamable HTTP con aislamiento por sesión.
+
+```typescript
+import { LiopServer, LiopStreamBridge } from "@nekzus/liop";
+
+const server = new LiopServer({ name: "stream-node", version: "1.0.0" });
+const stream = new LiopStreamBridge(server, {
+  port: 3000,
+  maxSessionsPerIp: 10,
+  sessionTimeoutMs: 30 * 60 * 1000
+});
+
+await stream.start();
+// ... tráfico MCP streamable en /mcp
+await stream.stop();
+```
+
+## Notas de Seguridad
+
+- `LiopStreamBridge` soporta política Zero-Trust bearer mediante `ZERO_TRUST_TOKEN`.
+- Las sesiones se aíslan y se expulsan por inactividad para reducir superficies de ataque persistentes.
+- Los componentes gateway/router mantienen compatibilidad MCP JSON-RPC sin perder enrutamiento nativo de malla.

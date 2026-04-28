@@ -105,59 +105,21 @@
         }
 
         @keyframes rxPath1-d {
-            0% {
-                transform: translate(680px, 260px);
-                opacity: 0;
-            }
-
-            2% {
-                opacity: 1;
-            }
-
-            14.8% {
-                transform: translate(680px, 300px);
-            }
-
-            85.2% {
-                transform: translate(490px, 300px);
-            }
-
-            98% {
-                opacity: 1;
-            }
-
-            100% {
-                transform: translate(490px, 260px);
-                opacity: 0;
-            }
+            0% { transform: translate(0px, 0px); opacity: 0; }
+            2% { opacity: 1; }
+            14.8% { transform: translate(0px, 40px); }
+            85.2% { transform: translate(-190px, 40px); }
+            98% { opacity: 1; }
+            100% { transform: translate(-190px, 0px); opacity: 0; }
         }
 
         @keyframes rxPath2-d {
-            0% {
-                transform: translate(450px, 260px);
-                opacity: 0;
-            }
-
-            2% {
-                opacity: 1;
-            }
-
-            15.4% {
-                transform: translate(450px, 340px);
-            }
-
-            84.6% {
-                transform: translate(90px, 340px);
-            }
-
-            98% {
-                opacity: 1;
-            }
-
-            100% {
-                transform: translate(90px, 260px);
-                opacity: 0;
-            }
+            0% { transform: translate(0px, 0px); opacity: 0; }
+            2% { opacity: 1; }
+            15.4% { transform: translate(0px, 80px); }
+            84.6% { transform: translate(-360px, 80px); }
+            98% { opacity: 1; }
+            100% { transform: translate(-360px, 0px); opacity: 0; }
         }
 
         .anim-90-1-d {
@@ -211,11 +173,29 @@
             transform-origin: center;
             animation: spinGearD 3s linear infinite;
         }
+
+        @keyframes diagPath-d {
+            0% { transform: translate(90px, 140px); opacity: 0; }
+            5% { opacity: 1; }
+            25% { transform: translate(90px, 90px); }
+            75% { transform: translate(160px, 90px); }
+            95% { opacity: 1; }
+            100% { transform: translate(160px, 140px); opacity: 0; }
+        }
+
+        .anim-diag-d {
+            animation: diagPath-d 3s linear infinite;
+        }
     </style>
 
     <!-- Title -->
     <text x="400" y="40" class="text-title-d" text-anchor="middle" font-size="20" fill="#38bdf8">TypeScript SDK Runtime
         Flow (Node.js Tier-0)</text>
+
+    <!-- Diagnostic Intercept: LiopMeshStatus -->
+    <path d="M 90 140 L 90 90 L 160 90 L 160 140" fill="none" stroke="#eab308" stroke-width="2" stroke-dasharray="4 4" />
+    <text x="125" y="80" class="text-tiny-d" text-anchor="middle" fill="#fde047">LiopMeshStatus (Local)</text>
+    <circle cx="0" cy="0" r="4" fill="#fef08a" class="anim-diag-d" />
 
     <!-- Lines -->
     <line x1="160" y1="200" x2="250" y2="200" class="conn-line-d" />
@@ -289,14 +269,18 @@
     <text x="585" y="290" class="text-sub-d" text-anchor="middle" fill="#c084fc">ZK-Receipt / AES Payload</text>
 
     <!-- Return Particles 1 -->
-    <circle cx="0" cy="0" r="5" fill="#a855f7" class="anim-r1-1-d" />
-    <circle cx="0" cy="0" r="5" fill="#a855f7" class="anim-r1-2-d" />
+    <g transform="translate(680, 260)">
+        <circle cx="0" cy="0" r="5" fill="#a855f7" class="anim-r1-1-d" />
+        <circle cx="0" cy="0" r="5" fill="#a855f7" class="anim-r1-2-d" />
+    </g>
 
     <!-- Return Flow 2: Worker Pool -> Agent App -->
     <path d="M 450 260 L 450 340 L 90 340 L 90 260" fill="none" class="conn-line-rx-d" />
     <text x="270" y="330" class="text-sub-d" text-anchor="middle" fill="#38bdf8">Verified Plaintext Result</text>
 
     <!-- Return Particles 2 -->
-    <circle cx="0" cy="0" r="5" fill="#38bdf8" class="anim-r2-1-d" />
-    <circle cx="0" cy="0" r="5" fill="#38bdf8" class="anim-r2-2-d" />
+    <g transform="translate(450, 260)">
+        <circle cx="0" cy="0" r="5" fill="#38bdf8" class="anim-r2-1-d" />
+        <circle cx="0" cy="0" r="5" fill="#38bdf8" class="anim-r2-2-d" />
+    </g>
 </svg>

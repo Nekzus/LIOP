@@ -1,0 +1,58 @@
+---
+title: "Economía y Telemetría"
+description: "Medir consumo de tokens y exportar métricas de observabilidad"
+---
+
+El SDK incorpora un módulo de economía de tokens para estimar costo y exponer telemetría de operaciones MCP.
+
+## Estimadores
+
+`createTokenEstimator()` inicializa el mejor estimador disponible. Por defecto, carga el esquema de codificación BPE **`o200k_base`**, que es el estándar de la industria para los modelos modernos de OpenAI (GPT-4o, o1, o3-mini) y proporciona una línea base muy precisa para modelos de Anthropic y Google.
+
+`createSyncTokenEstimator()` ofrece un fallback heurístico inmediato (chars/4) cuando la carga asíncrona del tokenizador BPE no es posible.
+
+```typescript
+import {
+  createTokenEstimator,
+  createSyncTokenEstimator,
+  HeuristicTokenEstimator,
+  RealTokenEstimator
+} from "@nekzus/liop";
+
+// Automáticamente utiliza el tokenizador exacto o200k_base BPE
+const asyncEstimator = await createTokenEstimator();
+const syncEstimator = createSyncTokenEstimator();
+
+const estimated = asyncEstimator.countTokens("hola liop");
+```
+
+## TokenTelemetryEngine
+
+`TokenTelemetryEngine` es un colector singleton para métricas por operación:
+
+- Estimación de tokens de entrada/salida
+- Tipo de operación (`tools_list`, `tool_call`, `resource_read`, etc.)
+- Metadata de duración
+- Agregados por sesión
+
+```typescript
+import { TokenTelemetryEngine } from "@nekzus/liop";
+
+const telemetry = TokenTelemetryEngine.getInstance();
+telemetry.record({
+  type: "tool_call",
+  method: "tools/call",
+  estimatedInputTokens: 120,
+  estimatedOutputTokens: 64
+});
+```
+
+## LiopOTelBridge
+
+`LiopOTelBridge` mapea telemetría de tokens hacia semánticas **OpenTelemetry `gen_ai.*`**, permitiendo que backends de observabilidad externos ingieran los datos de costo de LIOP sin fricción.
+
+El puente se acopla automáticamente a tu `MeterProvider` global y emite las siguientes métricas:
+- `gen_ai.client.token.usage` (Histograma)
+- `gen_ai.client.operation.duration` (Histograma)
+
+Usa este módulo cuando necesites visibilidad de costo en producción para cargas MCP locales y enrutadas por malla.

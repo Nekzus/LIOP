@@ -1,0 +1,63 @@
+<svg viewBox="0 0 880 200" width="100%" height="auto" xmlns="http://www.w3.org/2000/svg">
+    <style>
+        .text-title-d { font-family: system-ui, sans-serif; font-weight: 700; font-size: 16px; fill: #e2e8f0; }
+        .text-sub-d { font-family: system-ui, sans-serif; font-weight: 500; font-size: 12px; fill: #94a3b8; }
+        .text-tiny-d { font-family: monospace; font-size: 11px; fill: #fbbf24; }
+        .conn-line-d { stroke: #334155; stroke-width: 2; stroke-dasharray: 6, 6; }
+        
+        @keyframes move90-d {
+            0% { transform: translateX(0px); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateX(90px); opacity: 0; }
+        }
+        .anim-90-1-d { animation: move90-d 1.5s linear infinite; }
+        .anim-90-2-d { animation: move90-d 1.5s linear infinite 0.75s; }
+    </style>
+
+    <text x="440" y="30" class="text-title-d" text-anchor="middle" font-size="20" fill="#38bdf8">Token Economy &amp; OTel Telemetry Flow</text>
+
+    <!-- Lines -->
+    <line x1="160" y1="120" x2="250" y2="120" class="conn-line-d" />
+    <line x1="410" y1="120" x2="500" y2="120" class="conn-line-d" />
+    <line x1="640" y1="120" x2="730" y2="120" class="conn-line-d" />
+
+    <!-- 1. LIOP Operation -->
+    <rect x="20" y="80" width="140" height="80" rx="12" fill="#0f172a" stroke="#0ea5e9" stroke-width="2" />
+    <text x="90" y="115" class="text-title-d" text-anchor="middle">LIOP Operation</text>
+    <text x="90" y="135" class="text-sub-d" text-anchor="middle">tools/call</text>
+
+    <!-- 2. TokenTelemetryEngine -->
+    <rect x="250" y="80" width="160" height="80" rx="8" fill="#1e293b" stroke="#f59e0b" stroke-width="2" />
+    <text x="330" y="115" class="text-title-d" text-anchor="middle" fill="#fbbf24">TelemetryEngine</text>
+    <text x="330" y="135" class="text-tiny-d" text-anchor="middle">o200k_base BPE</text>
+
+    <!-- 3. LiopOTelBridge -->
+    <rect x="500" y="80" width="140" height="80" rx="8" fill="#1e293b" stroke="#a855f7" stroke-width="2" />
+    <text x="570" y="115" class="text-title-d" text-anchor="middle" fill="#c084fc">LiopOTelBridge</text>
+    <text x="570" y="135" class="text-tiny-d" text-anchor="middle" fill="#d946ef">gen_ai.* Semantics</text>
+
+    <!-- 4. OpenTelemetry -->
+    <rect x="730" y="80" width="140" height="80" rx="8" fill="#1e293b" stroke="#10b981" stroke-width="2" />
+    <text x="800" y="115" class="text-title-d" text-anchor="middle" fill="#34d399">OTel Collector</text>
+    <text x="800" y="135" class="text-tiny-d" text-anchor="middle" fill="#6ee7b7">Histograms</text>
+
+    <!-- Particles -->
+    <!-- Gap 1 -->
+    <g transform="translate(160, 120)">
+        <circle cx="0" cy="0" r="4" fill="#38bdf8" class="anim-90-1-d" />
+        <circle cx="0" cy="0" r="4" fill="#38bdf8" class="anim-90-2-d" />
+    </g>
+
+    <!-- Gap 2 -->
+    <g transform="translate(410, 120)">
+        <circle cx="0" cy="0" r="4" fill="#fbbf24" class="anim-90-1-d" />
+        <circle cx="0" cy="0" r="4" fill="#fbbf24" class="anim-90-2-d" />
+    </g>
+
+    <!-- Gap 3 -->
+    <g transform="translate(640, 120)">
+        <circle cx="0" cy="0" r="4" fill="#c084fc" class="anim-90-1-d" />
+        <circle cx="0" cy="0" r="4" fill="#c084fc" class="anim-90-2-d" />
+    </g>
+</svg>

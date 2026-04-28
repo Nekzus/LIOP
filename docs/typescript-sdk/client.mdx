@@ -9,119 +9,125 @@ Unlike traditional REST clients that just `<fetch>` static JSON endpoints, a `Li
 
 ## Initialization and Configuration
 
-Connecting to the Mesh requires instantiating the client with identification metadata and security properties.
+The client accepts optional TLS configuration for secure gRPC communication.
 
 ```typescript
 import { LiopClient } from "@nekzus/liop";
+import type { LiopTlsOptions } from "@nekzus/liop";
 
-const client = new LiopClient(
-  {
-    name: "ForensicLogAgent",
-    version: "1.0.0",
-  },
-  {
-    // Enable Post-Quantum Handshakes and core routing
-    capabilities: {
-      roots: { listChanged: true },
-      quantumResistant: true 
-    },
-  }
-);
+const tlsConfig: LiopTlsOptions = {
+  // Optional: provide custom TLS credentials for gRPC
+};
+
+const client = new LiopClient(tlsConfig);
 ```
 
 ### Configuration Options
 
-When creating a `LiopClient`, the second argument configures its network footprint:
+When creating a `LiopClient`, you may provide:
 
-*   **`capabilities.roots`**: Declares if this agent supports specific protocol standards (like root hierarchy changes notifications).
-*   **`capabilities.quantumResistant`**: Forces the client to enforce Post-Quantum Handshakes (`Kyber768`) and symmetric encryption (`AES-256-GCM`) when dispatching WASM binaries to remote Data Nodes, guaranteeing maximum security against quantum decryption algorithms.
+*   **`tls?` (`LiopTlsOptions`)**: Optional TLS credentials for secure gRPC communication. If omitted, insecure transport is used (suitable for local development).
 
 ## Connecting to the Mesh
 
-Unlike MCP which requires a direct stdio pipe or a hardcoded SSE URL, LIOP uses decentralized peer-to-peer routing. 
-You provide a **Peer ID** (the unique Ed25519 identity of the Server you want to reach), and libp2p handles NAT traversal automatically.
+Unlike MCP which requires a direct stdio pipe or a hardcoded SSE URL, LIOP uses decentralized peer-to-peer routing. libp2p handles NAT traversal automatically.
 
 ```typescript
-// Connect to the Mesh network backbone
+// Connect to the Mesh network backbone with default config
 await client.connect();
 
-console.log(`Agent Mesh ID: ${client.peerId}`);
+// Or connect to a specific bootstrap node
+await client.connect("/ip4/127.0.0.1/tcp/4001/p2p/PEER_ID", {
+  meshConfig: {
+    bootstrapNodes: ["/ip4/1.2.3.4/tcp/4001"],
+    identityPath: "~/.liop/identity.json"
+  }
+});
+
+// Check the mesh node state after connection
+console.log("Mesh connected:", client.getServerInfo());
 ```
 
 ## Calling a Server Capability (Tool)
 
-Once connected, you can invoke capabilities exposed by any Data Node you trust. Under the hood, the SDK will bundle your intent into WASM and inject it over gRPC.
+Use `resolveCapability()` to discover available servers on the DHT, then invoke tools via `callTool()` with a `CallToolRequest` object:
 
 ```typescript
-try {
-  // Querying a 'remote-database' peer for an intensive SQL task
-  // The server executes the logic natively taking 0 network bandwidth
-  const result = await client.callTool(
-    "PeerID_of_Database_Node_123",
-    "execute_complex_sql",
-    { 
-      query: "SELECT * FROM petabytes_table WHERE anomaly_detected = true" 
-    },
-    { requireZkReceipt: true } // Mathematically verify the execution!
-  );
+// Discover tools available on the mesh
+const tools = await client.discoverTools();
+console.log("Available tools:", tools);
 
-  console.log("Mathematical Result returned:");
-  console.log(result.content[0].text);
-} catch (error) {
-  console.error("Capability Injection rejected or failed:", error);
-}
-```
+// Resolve a capability to a specific peer
+const target = await client.resolveCapability("execute_complex_sql");
 
-## Creating Watchdogs (Push Subscriptions)
-
-The true power of Logic-Injection-on-Origin is the ability to spawn **Watchdogs**. Instead of manually polling `client.callTool()` every 5 seconds, you upload a persistent watcher module.
-
-```typescript
-// Deploy a persistent watcher module to a server
-await client.deployWatchdog(
-  "PeerID_Server_999",
-  "cpu_surge_monitor",
-  (event) => {
-    // This callback will only fire when the server pushes an event 
-    // asynchronously over the multiplexed QUIC channel.
-    console.log("🚨 SURGE DETECTED ON REMOTE:", event);
+// Invoke the tool
+const result = await client.callTool({
+  name: "execute_complex_sql",
+  arguments: { 
+    query: "SELECT * FROM petabytes_table WHERE anomaly_detected = true" 
   }
-);
+});
+
+console.log(result.content[0].text);
 ```
+
+<Tip>
+  For fine-grained control over the WASM payload sent to the server, use the second parameter of `callTool()` to pass a raw `Buffer`.
+</Tip>
+
+## Creating Watchdogs (Push Subscriptions) [PLANNED]
+
+> **This feature is on the roadmap but not yet implemented in the current SDK release.**
+
+Watchdogs enable persistent push subscriptions. Instead of manually polling `callTool()`, you will be able to deploy a persistent watcher module that pushes events asynchronously over multiplexed QUIC channels back to the agent. Track progress on the [GitHub repository](https://github.com/Nekzus/Neural-Mesh-Protocol).
 
 ## Cryptographic Validation (The ZK Shield)
 
 While the network layer is encrypted using symmetric AES-256-GCM, the `LiopClient` fundamentally doubts the execution origin. 
 
-When `callTool` returns from the remote Data Node, the payload might contain an `image_id` hash or a `zk_receipt` (if the server is running inside a TEE). To mathematically prove the server executed the exact WASM binary you originally sent (and not a tampered one), you must invoke the cryptographic verifier:
+When `callTool` returns from the remote Data Node, the client performs ZK verification internally through its built-in `LiopVerifier` whenever receipts are present in the execution flow. The exposed `callTool` result remains MCP-compatible (`content`/`isError`). You can also manually verify when you have raw proof artifacts:
 
 ```typescript
-const isAuthentic = await client.verifyZkReceipt(
+// The client automatically verifies ZK receipts during callTool().
+// For manual verification, use the public verifier instance:
+const isValid = await client.verifier.verifyZkReceipt(
   wasmPayload, 
-  remoteResult.image_id, 
-  remoteResult.zk_receipt
+  remoteImageIdHex, 
+  zkReceiptBuffer
 );
 
-if (!isAuthentic) {
-  throw new Error("🚨 FATAL: Mathematical Proof Mismatch (Hack Detected)");
+if (!isValid) {
+  throw new Error("Mathematical Proof Mismatch (Hack Detected)");
 }
 ```
-*Note: The `LiopMcpBridge` automatically runs this capability natively on behalf of legacy MCP clients, intercepting any hallucinated JSONs automatically.*
+
+*Note: The `LiopMcpBridge` automatically runs this validation natively on behalf of legacy MCP clients.*
+
+## Lifecycle Management
+
+Always close the client gracefully to release mesh resources:
+
+```typescript
+try {
+  await client.connect();
+  // ... calls
+} finally {
+  await client.close();
+}
+```
 
 ## Error Handling & Zero-Trust Rejections
 
 Because the Server enforces a strict `WASI` sandbox and uses the *Zero-Time Guardian* to inspect your `.wasm` payload BEFORE execution, your client must be prepared to handle sandbox rejections.
 
 ```typescript
-import { LiopError, ErrorCode } from "@nekzus/liop";
-
 try {
-  await client.callTool("PeerID", "read_file", { path: "/etc/passwd" });
+  await client.callTool({ name: "read_file", arguments: { path: "/etc/passwd" } });
 } catch (error) {
-  if (error instanceof LiopError) {
-    if (error.code === ErrorCode.CapabilityViolation) {
-      console.error("🚨 Sandbox Execution Halted: Unauthorized file system access attempted.");
-    }
+  if (error instanceof Error) {
+    console.error("Sandbox Execution Halted:", error.message);
   }
 }
 ```
+
+`LiopError` and `ErrorCode` are exported by the SDK and can be used by applications that normalize or re-wrap protocol errors. Current runtime paths may still throw native `Error` instances depending on context.

@@ -37,7 +37,7 @@ Create a file named `server.ts`:
 import { LiopServer } from '@nekzus/liop';
 import { z } from 'zod';
 
-// Initialize the Server with identity and capabilities
+// Initialize the Server with identity
 const server = new LiopServer({
   name: "MyLocalDataNode",
   version: "1.0.0"
@@ -72,7 +72,7 @@ main().catch(console.error);
 
 ## 3. Create a LIOP Client (Agent Node)
 
-A LIOP Client acts as the Intelligence. It discovers servers on the mesh and pushes compiled requests (intent) to them.
+A LIOP Client acts as the Intelligence. It discovers servers on the mesh and injects compiled logic into them.
 
 Create a file named `client.ts`:
 
@@ -80,22 +80,24 @@ Create a file named `client.ts`:
 import { LiopClient } from '@nekzus/liop';
 
 async function main() {
-  // Initialize the Client
-  const client = new LiopClient({
-    name: "AI_Research_Agent",
-    version: "2.5.1"
-  });
+  // Initialize the Client (TLS options are optional for local development)
+  const client = new LiopClient();
 
+  // Connect to the mesh
   await client.connect();
   console.log("Joined LIOP Protocol...");
 
-  // Discover the server and inject logic
+  // Discover the server's tools and invoke logic
   try {
-    const result = await client.callTool("MyLocalDataNode", "query_database", {
-      query: "SELECT * FROM massive_table WHERE anomaly = true"
+    // Invoke the tool using a CallToolRequest
+    const result = await client.callTool({
+      name: "query_database",
+      arguments: {
+        query: "SELECT * FROM massive_table WHERE anomaly = true"
+      }
     });
 
-    console.log("Received mathematically-verified result:");
+    console.log("Received verified result:");
     console.log(result.content[0].text);
   } catch (err) {
     console.error("Agent execution failed:", err);

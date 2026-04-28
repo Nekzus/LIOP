@@ -5,7 +5,7 @@ description: "La base de red y Protocol Buffers de alto rendimiento"
 
 Mientras que el `@nekzus/liop` proporciona una excelente experiencia de desarrollador en Node.js y TypeScript, la verdad absoluta del protocolo reside en su núcleo: el **Backend en Rust**.
 
-Este espacio de trabajo (`servers/mesh-node/`) contiene las estructuras de datos hiper-optimizadas, el bucle de ejecución del motor `Wasmtime` y las primitivas de red puras de Libp2p. 
+Este espacio de trabajo (`servers/liop-node/`) contiene las estructuras de datos hiper-optimizadas, el bucle de ejecución del motor `Wasmtime` y las primitivas de red puras de Libp2p. 
 
 Solo deberías interactuar directamente con el Rust Core si estás:
 - Construyendo un SDK de LIOP para un nuevo lenguaje (ej., Python, Go, C#).
@@ -20,7 +20,7 @@ El Workspace de Cargo está estrictamente modularizado en componentes funcionale
   <Card title="liop-core" icon="cube">
     La Fuente de la Verdad (Source of Truth). Contiene las definiciones compiladas de Protobuf (`liop_core.proto`) construidas a través de `tonic` y `prost`. Este crate define la estructura binaria inalterable de todas las intenciones de red.
   </Card>
-  <Card title="liop-server" icon="shield-halved">
+  <Card title="liop-node" icon="shield-halved">
     El Nodo de Datos (Data Node). Aprovecha el crate `Wasmtime` de Bytecode Alliance para crear el límite de ejecución WASI para la lógica WebAssembly entrante. Incorpora vinculaciones arquitectónicas avanzadas para AWS Nitro Enclaves (TEEs) y RISC Zero (ZK-VM).
   </Card>
   <Card title="liop-client" icon="network-wired">
@@ -47,7 +47,7 @@ El backend en Rust implementa esto combinando dos tecnologías de vanguardia:
 
 ## Motor de Ejecución
 
-El diferenciador central de todo el Logic-Injection-on-Origin Protocol (LIOP) reside en `servers/mesh-node/src/executor.rs`.
+El diferenciador central de todo el Logic-Injection-on-Origin Protocol (LIOP) reside en `servers/liop-node/src/executor.rs`.
 
 Aquí, el binario nativo de Rust recibe un array de bytes que representa la intención del Agente de IA. Antes de la ejecución, el motor limita la memoria dinámicamente basándose en el token de autorización del Agente, pre-abre descriptores de archivos estrictos usando `WasiCtxBuilder` y entrega la carga a la CPU virtual.
 
@@ -55,7 +55,7 @@ Esto asegura un aislamiento total ante fallos (panic-isolation): si el `.wasm` d
 
 ### Características de Vanguardia (Truth Protocol)
 
-Entrando en el "Endgame" de Nivel-0 (Tier-0), `liop-server` opera más allá del sandboxing estándar:
+Entrando en el "Endgame" de Nivel-0 (Tier-0), `liop-node` opera más allá del sandboxing estándar:
 - **Observabilidad y Resiliencia**: Incluye instrumentación estructurada vía `tracing` y endpoints `/health` de hyper paralelizados, además de `config.toml` externalizada para despliegues dinámicos.
 - **Hooks de Conocimiento Cero (Zero-Knowledge Hooks)**: Antes de devolver una respuesta, la lógica puede envolverse en una zkVM para generar un Recibo matemático determinista del AST exacto aplicado sobre los datos localizados.
 - **Computación Ciega (Blind Computation)**: A través del trait `EnclaveProvider`, el motor de ejecución puede arrancar sin problemas dentro de capacidades de Hardware aisladas, previniendo el volcado de memoria a nivel de hipervisor y del SO host.

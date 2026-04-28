@@ -76,4 +76,13 @@ npx @nekzus/liop /ip4/1.2.3.4/tcp/4001/p2p/PEER_ID
 ## Security & Diagnostics
 The agent only communicates via **STDIO**. It prints status logs and discovery events strictly to `stderr`, ensuring that the `stdout` channel remains clean for valid JSON-RPC 2.0 messages required by the LLM client.
 
-If you encounter connection issues, check for the 🛡️ icon in the console to verify the Mesh status.
+### Local Mesh Diagnostics (`LiopMeshStatus`)
+The agent automatically exposes a local diagnostic tool called **`LiopMeshStatus`**. When an LLM calls this tool, the agent intercepts it locally instead of routing it over the P2P network. It instantly returns a rich, human-readable report detailing:
+- Connected Bootstrappers and Peer IDs
+- Active Nodes (Vault, Bank, Oracle)
+- Tool routing tables and Kademlia DHT state
+- Token consumption and telemetry estimates
+
+This allows AI clients to autonomously diagnose connection drops or verify which tools are available without burning bandwidth or duplicating diagnostic requests across multiple nodes.
+
+If you encounter connection issues, check for the 🛡️ icon in the console or ask the LLM to call `LiopMeshStatus`.

@@ -9,119 +9,125 @@ A diferencia de los clientes REST tradicionales que solo hacen un `<fetch>` a en
 
 ## Inicialización y Configuración
 
-Conectarse a la malla requiere instanciar el cliente con metadatos de identificación y propiedades de seguridad.
+El cliente acepta configuración TLS opcional para comunicación gRPC segura.
 
 ```typescript
 import { LiopClient } from "@nekzus/liop";
+import type { LiopTlsOptions } from "@nekzus/liop";
 
-const client = new LiopClient(
-  {
-    name: "ForensicLogAgent",
-    version: "1.0.0",
-  },
-  {
-    // Habilitar enrutamiento núcleo y Handshakes Post-Cuánticos
-    capabilities: {
-      roots: { listChanged: true },
-      quantumResistant: true 
-    },
-  }
-);
+const tlsConfig: LiopTlsOptions = {
+  // Opcional: credenciales TLS para gRPC
+};
+
+const client = new LiopClient(tlsConfig);
 ```
 
 ### Opciones de Configuración
 
-Al crear un `LiopClient`, el segundo argumento configura su presencia en la red:
+Al crear un `LiopClient`, puedes proporcionar:
 
-*   **`capabilities.roots`**: Declara si este agente soporta estándares del protocolo (como notificaciones de cambios en la jerarquía).
-*   **`capabilities.quantumResistant`**: Obliga al cliente a forzar Handshakes Post-Cuánticos (`Kyber768`) y encriptación simétrica (`AES-256-GCM`) al despachar binarios WASM hacia los Nodos de Datos remotos, garantizando máxima seguridad contra algoritmos de descifrado cuántico.
+*   **`tls?` (`LiopTlsOptions`)**: Credenciales TLS opcionales para comunicación gRPC segura. Si se omite, se usa transporte inseguro (adecuado para desarrollo local).
 
 ## Conexión a la Malla (Mesh)
 
-A diferencia de MCP, que requiere una tubería stdio directa o una URL de SSE preconfigurada, LIOP utiliza ruteo peer-to-peer descentralizado. 
-Tú proporcionas un **Peer ID** (la identidad única Ed25519 del Servidor al que quieres llegar) y el SDK se encarga de atravesar NATs automáticamente.
+A diferencia de MCP, que requiere una tubería stdio directa o una URL de SSE preconfigurada, LIOP utiliza ruteo peer-to-peer descentralizado. El SDK se encarga de atravesar NATs automáticamente.
 
 ```typescript
 // Conectarse al backbone de la red P2P
 await client.connect();
 
-console.log(`Agent Mesh ID: ${client.peerId}`);
+// O conectar a un nodo bootstrap específico
+await client.connect("/ip4/127.0.0.1/tcp/4001/p2p/PEER_ID", {
+  meshConfig: {
+    bootstrapNodes: ["/ip4/1.2.3.4/tcp/4001"],
+    identityPath: "~/.liop/identity.json"
+  }
+});
+
+// Verificar el estado después de la conexión
+console.log("Mesh conectado:", client.getServerInfo());
 ```
 
 ## Llamando a una Capacidad del Servidor (Tool)
 
-Una vez conectado, puedes invocar las capacidades expuestas por cualquier Nodo de Datos en el que confíes. Internamente, el SDK empaquetará tu intención en WASM y la inyectará sobre gRPC.
+Usa `resolveCapability()` para descubrir servidores en la DHT, luego invoca herramientas con `callTool()` mediante un objeto `CallToolRequest`:
 
 ```typescript
-try {
-  // Consultando a un par 'remote-database' para una tarea de SQL intensiva
-  // El servidor ejecuta la lógica nativamente consumiendo 0 ancho de banda de red
-  const result = await client.callTool(
-    "PeerID_del_Nodo_de_Base_de_Datos_123",
-    "execute_complex_sql",
-    { 
-      query: "SELECT * FROM petabytes_table WHERE anomaly_detected = true" 
-    },
-    { requireZkReceipt: true } // ¡Verificar matemáticamente la ejecución!
-  );
+// Descubrir herramientas disponibles en la malla
+const tools = await client.discoverTools();
+console.log("Herramientas disponibles:", tools);
 
-  console.log("Resultado Matemático devuelto:");
-  console.log(result.content[0].text);
-} catch (error) {
-  console.error("Inyección de Capacidad rechazada o fallida:", error);
-}
-```
+// Resolver una capacidad a un peer específico
+const target = await client.resolveCapability("execute_complex_sql");
 
-## Creando Watchdogs (Suscripciones Push)
-
-El verdadero poder de la Lógica-Inyectada-en-el-Origen es la habilidad de generar **Watchdogs**. En lugar de consultar manualmente `client.callTool()` cada 5 segundos, cargas un módulo de monitoreo persistente.
-
-```typescript
-// Desplegar un módulo de monitoreo persistente en un servidor
-await client.deployWatchdog(
-  "PeerID_Server_999",
-  "cpu_surge_monitor",
-  (event) => {
-    // Este callback se disparará solo cuando el servidor empuje un evento
-    // asíncronamente sobre el canal QUIC multiplexado.
-    console.log("🚨 PICO DETECTADO EN REMOTO:", event);
+// Invocar la herramienta
+const result = await client.callTool({
+  name: "execute_complex_sql",
+  arguments: { 
+    query: "SELECT * FROM petabytes_table WHERE anomaly_detected = true" 
   }
-);
+});
+
+console.log(result.content[0].text);
 ```
+
+<Tip>
+  Para control fino sobre el payload WASM enviado al servidor, usa el segundo parámetro de `callTool()` para pasar un `Buffer` binario.
+</Tip>
+
+## Creando Watchdogs (Suscripciones Push) [PLANIFICADO]
+
+> **Esta funcionalidad está en el roadmap pero aún no está implementada en la versión actual del SDK.**
+
+Los Watchdogs permiten suscripciones push persistentes. En lugar de hacer polling manual con `callTool()`, podrás desplegar un módulo watcher persistente que empuje eventos asíncronos a través de canales QUIC multiplexados de vuelta al agente. Sigue el progreso en el [repositorio de GitHub](https://github.com/Nekzus/Neural-Mesh-Protocol).
 
 ## Validación Criptográfica (El Escudo ZK)
 
 Aunque la capa de red está cifrada usando AES-256-GCM simétrico, el `LiopClient` por diseño duda del origen de la ejecución. 
 
-Cuando `callTool` retorna desde el Nodo de Datos remoto, el payload podría contener un hash `image_id` o un recibo `zk_receipt` (si el servidor está corriendo dentro de un TEE). Para probar matemáticamente que el servidor ejecutó exactamente el binario WASM que tú enviaste originalmente (y no uno alterado), debes invocar el verificador criptográfico:
+Cuando `callTool` retorna desde el Nodo de Datos remoto, el cliente realiza la verificación ZK internamente mediante su `LiopVerifier` integrado cuando existen recibos en el flujo de ejecución. El resultado expuesto de `callTool` se mantiene compatible con MCP (`content`/`isError`). También puedes verificar manualmente cuando dispones de artefactos de prueba crudos:
 
 ```typescript
-const isAuthentic = await client.verifyZkReceipt(
+// El cliente verifica automáticamente los ZK receipts durante callTool().
+// Para verificación manual, usa la instancia pública del verificador:
+const isValid = await client.verifier.verifyZkReceipt(
   wasmPayload, 
-  remoteResult.image_id, 
-  remoteResult.zk_receipt
+  remoteImageIdHex, 
+  zkReceiptBuffer
 );
 
-if (!isAuthentic) {
-  throw new Error("🚨 FATAL: Inconsistencia Matemática (Hack Detectado)");
+if (!isValid) {
+  throw new Error("Inconsistencia Matemática (Hack Detectado)");
 }
 ```
-*Nota: El adaptador `LiopMcpBridge` ejecuta automáticamente esta validación de forma nativa en favor de clientes MCP legacy (como Claude o Cursor), interceptando cualquier JSON alucinado automáticamente.*
+
+*Nota: El adaptador `LiopMcpBridge` ejecuta automáticamente esta validación de forma nativa.*
+
+## Gestión del Ciclo de Vida
+
+Siempre cierra el cliente de forma ordenada para liberar recursos de malla:
+
+```typescript
+try {
+  await client.connect();
+  // ... llamadas
+} finally {
+  await client.close();
+}
+```
 
 ## Manejo de Errores y Rechazos Zero-Trust
 
 Debido a que el Servidor impone un sandbox `WASI` estricto y utiliza el *Guardian Cero-Tiempo* para inspeccionar tu carga `.wasm` ANTES de la ejecución, tu cliente debe estar preparado para manejar rechazos del sandbox.
 
 ```typescript
-import { LiopError, ErrorCode } from "@nekzus/liop";
-
 try {
-  await client.callTool("PeerID", "read_file", { path: "/etc/passwd" });
+  await client.callTool({ name: "read_file", arguments: { path: "/etc/passwd" } });
 } catch (error) {
-  if (error instanceof LiopError) {
-    if (error.code === ErrorCode.CapabilityViolation) {
-      console.error("🚨 Ejecución en Sandbox Detenida: Intento de acceso no autorizado al sistema de archivos.");
-    }
+  if (error instanceof Error) {
+    console.error("Ejecución en Sandbox Detenida:", error.message);
   }
 }
 ```
+
+`LiopError` y `ErrorCode` están exportados por el SDK y pueden usarse en aplicaciones que normalizan o reenvuelven errores del protocolo. En runtime actual, algunos caminos siguen arrojando instancias nativas de `Error` según el contexto.

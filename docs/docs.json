@@ -56,7 +56,9 @@
                   "typescript-sdk/overview",
                   "typescript-sdk/agent",
                   "typescript-sdk/client",
-                  "typescript-sdk/server"
+                  "typescript-sdk/server",
+                  "typescript-sdk/gateway",
+                  "typescript-sdk/economy"
                 ]
               }
             ]
@@ -120,7 +122,9 @@
                   "es/typescript-sdk/overview",
                   "es/typescript-sdk/agent",
                   "es/typescript-sdk/client",
-                  "es/typescript-sdk/server"
+                  "es/typescript-sdk/server",
+                  "es/typescript-sdk/gateway",
+                  "es/typescript-sdk/economy"
                 ]
               }
             ]

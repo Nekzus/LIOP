@@ -78,21 +78,22 @@ Crea un archivo llamado `client.ts`:
 import { LiopClient } from '@nekzus/liop';
 
 async function main() {
-  const client = new LiopClient({
-    name: "AI_Research_Agent",
-    version: "2.5.1"
-  });
+  // TLS es opcional para desarrollo local
+  const client = new LiopClient();
 
   await client.connect();
   console.log("Conectado al Logic-Injection-on-Origin Protocol...");
 
   try {
-    // Descubre el servidor e inyecta la lógica
-    const result = await client.callTool("MyLocalDataNode", "query_database", {
-      query: "SELECT * FROM massive_table WHERE anomaly = true"
+    // Invoca la herramienta usando CallToolRequest
+    const result = await client.callTool({
+      name: "query_database",
+      arguments: {
+        query: "SELECT * FROM massive_table WHERE anomaly = true"
+      }
     });
 
-    console.log("Resultado verificado matemáticamente:");
+    console.log("Resultado recibido:");
     console.log(result.content[0].text);
   } catch (err) {
     console.error("Fallo en la ejecución del Agente:", err);
@@ -114,7 +115,7 @@ En otra terminal, lanza el Agente:
 ```bash
 npx tsx client.ts
 # Salida: Conectado al Logic-Injection-on-Origin Protocol...
-# Salida: Resultado verificado matemáticamente:
+# Salida: Resultado recibido:
 # Salida: Resultado de la consulta: SELECT * FROM massive_table WHERE anomaly = true
 ```
 

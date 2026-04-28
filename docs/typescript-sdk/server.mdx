@@ -41,7 +41,7 @@ When instantiating a `LiopServer`, the second parameter allows you to define adv
 
 *   **`security.forbiddenKeys` (Egress Filter):** An array of strings. If the model attempts to return a JSON containing any of these keys (e.g., `"clinical_history"`), the Egress Filter will destroy the response before it leaves the server mapping through objects recursively. Defaults to blocking `"password"`, `"token"`, `"secret"`, and `"privateKey"`.
 *   **`security.piiPatterns` (Sanitization):** Arrays of `PiiRule` objects. You can use our out-of-the-box templates (`PII_PRESETS.GLOBAL_STRICT`, `EU_GDPR`, `US_COMPLIANT`) and merge them with custom raw strings or regexes. The engine will intercept any outgoing text that matches combinations of IBAN logic, credit card numbers, or internal tracking IDs. Defaults to `GLOBAL_STRICT` if omitted.
-*   **Dynamic Return Structure (Auto-i18n):** No manual configuration required. The `LiopServer` automatically injects *Dynamic Return Structure* directives into payloads. This forces the AI to respect and return JSON keys exactly in the same native language the client used when making the request, eliminating the need for internationalization (i18n) libraries on your frontend.
+*   **Dynamic Return Structure (Auto-i18n) [PLANNED]:** This feature is on the roadmap. When implemented, the `LiopServer` will automatically inject *Dynamic Return Structure* directives into payloads, forcing the AI to respect and return JSON keys exactly in the same native language the client used when making the request, eliminating the need for internationalization (i18n) libraries on your frontend.
 
 ## Creating Capabilities (Tools)
 
@@ -81,6 +81,7 @@ LIOP Servers can also expose **Resources** (static data, schemas, or description
 
 ```typescript
 server.resource(
+  "Employee Records Schema",
   "liop://schema/employee_records",
   "The exact JSON schema representing the employee databases.",
   "application/json",
@@ -121,7 +122,11 @@ This automatically registers the `liop_blind_analyst` intelligent prompt into th
 
 ## Security & Memory Management
 
-When a Data Node receives a `.wasm` or `.js` payload, the Guardian Sentinel parses its Abstract Syntax Tree (AST) to ensure absolute security. This rigorous AST evaluation is aggressively cached in memory `O(1)` for blazing-fast subsequent executions of the exact same logic payload.
+When a Data Node receives a `.wasm` or `.js` payload, the **`GuardianTS`** module performs a Zero-Time Heuristic Inspection on its Abstract Syntax Tree (AST) to ensure absolute security. 
+
+Before any WebAssembly module is even instantiated or executed, `GuardianTS` scans all imports. It strictly rejects any payload that attempts to bind to unauthorized host APIs. Only standard WASI APIs (`wasi_snapshot_preview1`) and native `LIOP` sandboxed functions are allowed, categorically preventing sandbox escapes.
+
+This rigorous AST evaluation is aggressively cached in memory `O(1)` for blazing-fast subsequent executions of the exact same logic payload.
 
 If you are hot-deploying Zero-Day security patches on the host or need to forcefully invalidate the execution memory, you can purge the AST cache manually:
 
@@ -139,15 +144,20 @@ This powerful adapter intercepts incoming LIOP binary mesh requests, translates 
 
 ```typescript
 import { LiopMcpBridge } from "@nekzus/liop/bridge";
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 // Your standard legacy MCP implementation
-const mcpServer = new Server({ name: "LegacyWeatherApp", version: "1.0" });
+const mcpServer = new McpServer({ name: "LegacyWeatherApp", version: "1.0" });
 
-// Wrap it in the LIOP Bridge
+// Wrap it in the LIOP Bridge with full options
 const bridge = new LiopMcpBridge(mcpServer, {
-  publishToMesh: true,
-  meshIdentity: "WeatherNode_01"
+  publishToMesh: true,             // Announce this server on the P2P DHT
+  meshIdentity: "WeatherNode_01",  // Unique node identifier
+  serverInfo: { name: "WeatherBridge", version: "2.0" },  // Override server identity
+  security: {                      // Optional PII/egress protection
+    forbiddenKeys: ["api_key", "internal_token"],
+    piiPatterns: [...] 
+  }
 });
 
 // Start the bridge
@@ -155,6 +165,29 @@ await bridge.connect();
 ```
 
 Your legacy application is now fully accessible to Web3, decentralized, Post-Quantum AI agents around the globe without changing a single line of your original MCP logic.
+
+## Runtime and Lifecycle API
+
+In addition to `connect()`, `LiopServer` exposes low-level lifecycle and mesh inspection methods:
+
+```typescript
+// Explicit mesh bootstrap (same behavior as connect alias)
+await server.connectToMesh({
+  port: 50051,
+  meshConfig: {
+    bootstrapNodes: ["/ip4/1.2.3.4/tcp/4001/p2p/PEER_ID"],
+    listenAddresses: ["/ip4/0.0.0.0/tcp/0"],
+    identityPath: "~/.liop/identity.json"
+  }
+});
+
+const info = server.getServerInfo();
+const meshNode = server.getMeshNode();
+const grpcPort = server.getBoundPort();
+
+// Graceful shutdown for tests and production process teardown
+await server.close();
+```
 
 ## Starting the Server
 

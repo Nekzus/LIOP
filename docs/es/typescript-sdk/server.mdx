@@ -12,7 +12,7 @@ En lugar de escribir entornos de ejecución personalizados para gestionar WebAss
 Creas un Nodo de Datos indicándole a la red P2P quién eres y proporcionando las propiedades de configuración, como controles de seguridad de datos.
 
 ```typescript
-import { LiopServer, PII_PATTERNS } from "@nekzus/liop";
+import { LiopServer, PII_PRESETS } from "@nekzus/liop";
 
 const server = new LiopServer(
   {
@@ -24,7 +24,10 @@ const server = new LiopServer(
     workerPool: { enabled: true, maxThreads: 16 },
     // Configuración estricta de seguridad y prevención de fugas de datos
     security: {
-      piiPatterns: [PII_PATTERNS.EMAIL, PII_PATTERNS.IP_ADDRESS],
+      piiPatterns: [
+        ...PII_PRESETS.US_COMPLIANT,
+        /[A-Z]{3}-\d{5}/
+      ],
       forbiddenKeys: ["password", "ssn", "secret_token"]
     }
   }
@@ -36,8 +39,8 @@ const server = new LiopServer(
 Al instanciar un `LiopServer`, el segundo parámetro permite definir características avanzadas del nodo:
 
 *   **`security.forbiddenKeys` (Egress Filter):** Un array de strings. Si el modelo intenta devolver un JSON que contiene cualquiera de estas llaves (ej., `"password"`), el Egress Filter destruirá la respuesta antes de que abandone el servidor.
-*   **`security.piiPatterns` (Sanitización):** Expresiones regulares predefinidas (`PII_PATTERNS`) o personalizadas que escudriñan sub-cadenas de texto. Si un agente intenta filtrar un email en un bloque de texto libre, el motor lo intercepta.
-*   **Estructura Dinámica de Retorno (Auto-i18n):** No requiere configuración manual. El `LiopServer` inyecta automáticamente directivas *Dynamic Return Structure* en los payloads. Esto obliga a la IA a respetar y devolver las llaves JSON exactamente en el mismo idioma nativo que utilizó el cliente al hacer la solicitud, eliminando la necesidad de librerías de internacionalización (i18n) en tu frontend.
+*   **`security.piiPatterns` (Sanitización):** Arrays de `PiiRule`. Puedes usar presets (`PII_PRESETS.GLOBAL_STRICT`, `EU_GDPR`, `US_COMPLIANT`) y combinarlos con regex personalizadas. El motor intercepta cualquier salida que coincida con patrones sensibles.
+*   **Estructura Dinámica de Retorno (Auto-i18n) [PLANIFICADO]:** Esta funcionalidad está en el roadmap. Cuando se implemente, el `LiopServer` inyectará automáticamente directivas *Dynamic Return Structure* en los payloads, obligando a la IA a respetar y devolver las llaves JSON exactamente en el mismo idioma nativo que utilizó el cliente al hacer la solicitud, eliminando la necesidad de librerías de internacionalización (i18n) en tu frontend.
 
 ## Creando Capacidades (Tools)
 
@@ -77,6 +80,7 @@ Los Servidores LIOP también pueden exponer **Recursos** (datos estáticos, esqu
 
 ```typescript
 server.resource(
+  "Employee Records Schema",
   "liop://schema/employee_records",
   "El esquema JSON exacto que representa las bases de datos de empleados.",
   "application/json",
@@ -117,7 +121,11 @@ Esto registrará automáticamente el prompt inteligente `liop_blind_analyst` en 
 
 ## Seguridad y Gestión de Memoria
 
-Cuando un Nodo de Datos recibe un payload `.wasm` o `.js`, el Centinela (Guardian AST) somete su Árbol de Sintaxis Abstracta a una rigurosa validación de seguridad. Esta pesada evaluación de AST se cachea agresivamente en memoria `O(1)` para permitir ejecuciones subsiguientes veloces a la luz de la exactamente misma lógica.
+Cuando un Nodo de Datos recibe un payload `.wasm` o `.js`, el módulo **`GuardianTS`** somete su Árbol de Sintaxis Abstracta (AST) a una Inspección Heurística de Tiempo-Cero para garantizar seguridad absoluta.
+
+Antes de que cualquier módulo WebAssembly sea siquiera instanciado o ejecutado, `GuardianTS` escanea todas sus importaciones. Rechaza estrictamente cualquier payload que intente enlazarse a APIs no autorizadas del host. Solamente las APIs estándar de WASI (`wasi_snapshot_preview1`) y las funciones nativas en sandbox de `LIOP` son permitidas, previniendo categóricamente escapes de la sandbox.
+
+Esta pesada evaluación de AST se cachea agresivamente en memoria `O(1)` para permitir ejecuciones subsiguientes ultra veloces de exactamente la misma lógica.
 
 Si te encuentras desplegando parches de seguridad *Zero-Day* en el host de ejecución o necesitas invalidar forzosamente la memoria del Nodo, puedes purgar el almacenamiento en caché del AST de forma manual y síncrona:
 
@@ -135,15 +143,20 @@ Este poderoso adaptador intercepta las peticiones binarias entrantes de la malla
 
 ```typescript
 import { LiopMcpBridge } from "@nekzus/liop/bridge";
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 // Tu implementación estándar de MCP heredado
-const mcpServer = new Server({ name: "LegacyWeatherApp", version: "1.0" });
+const mcpServer = new McpServer({ name: "LegacyWeatherApp", version: "1.0" });
 
-// Envuélvelo en el Puente LIOP
+// Envuélvelo en el Puente LIOP con opciones completas
 const bridge = new LiopMcpBridge(mcpServer, {
-  publishToMesh: true,
-  meshIdentity: "WeatherNode_01"
+  publishToMesh: true,             // Anunciar este servidor en la DHT P2P
+  meshIdentity: "WeatherNode_01",  // Identificador único del nodo
+  serverInfo: { name: "WeatherBridge", version: "2.0" },  // Sobrescribir identidad
+  security: {                      // Protección PII/egress opcional
+    forbiddenKeys: ["api_key", "internal_token"],
+    piiPatterns: [...] 
+  }
 });
 
 // Inicia el puente
@@ -151,6 +164,29 @@ await bridge.connect();
 ```
 
 Tu aplicación heredada es ahora completamente accesible para Agentes de IA Web3, descentralizados y Post-Cuánticos en todo el mundo sin cambiar una sola línea de tu lógica MCP original.
+
+## API de Runtime y Ciclo de Vida
+
+Además de `connect()`, `LiopServer` expone métodos de bajo nivel para ciclo de vida e inspección de malla:
+
+```typescript
+// Bootstrap explícito de la malla (mismo comportamiento que el alias connect)
+await server.connectToMesh({
+  port: 50051,
+  meshConfig: {
+    bootstrapNodes: ["/ip4/1.2.3.4/tcp/4001/p2p/PEER_ID"],
+    listenAddresses: ["/ip4/0.0.0.0/tcp/0"],
+    identityPath: "~/.liop/identity.json"
+  }
+});
+
+const info = server.getServerInfo();
+const meshNode = server.getMeshNode();
+const grpcPort = server.getBoundPort();
+
+// Cierre ordenado para tests y apagado de procesos en producción
+await server.close();
+```
 
 ## Iniciando el Servidor
 

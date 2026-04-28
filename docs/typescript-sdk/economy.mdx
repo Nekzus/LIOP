@@ -1,0 +1,59 @@
+---
+title: "Economy and Telemetry"
+description: "Measure token consumption and export observability metrics"
+---
+
+The SDK ships with a token economy module designed to estimate cost and expose telemetry for MCP operations.
+
+## Estimators
+
+`createTokenEstimator()` initializes the best available estimator. By default, it loads the **`o200k_base`** BPE encoding scheme, which is the industry standard for modern OpenAI models (GPT-4o, o1, o3-mini) and provides a highly accurate baseline for Anthropic and Google models.
+
+`createSyncTokenEstimator()` provides an immediate heuristic fallback (chars/4) when asynchronous loading of the heavy BPE tokenizer is not possible.
+
+```typescript
+import {
+  createTokenEstimator,
+  createSyncTokenEstimator,
+  HeuristicTokenEstimator,
+  RealTokenEstimator
+} from "@nekzus/liop";
+
+// Automatically uses the o200k_base exact BPE tokenizer
+const asyncEstimator = await createTokenEstimator();
+const syncEstimator = createSyncTokenEstimator();
+
+const estimated = asyncEstimator.countTokens("hello liop");
+```
+
+## TokenTelemetryEngine
+
+`TokenTelemetryEngine` is a singleton collector for operation-level metrics:
+
+- Input/output token estimates
+- Operation type (`tools_list`, `tool_call`, `resource_read`, etc.)
+- Duration metadata
+- Session-level aggregates
+
+```typescript
+import { TokenTelemetryEngine } from "@nekzus/liop";
+
+const telemetry = TokenTelemetryEngine.getInstance();
+telemetry.record({
+  type: "tool_call",
+  method: "tools/call",
+  estimatedInputTokens: 120,
+  estimatedOutputTokens: 64
+});
+```
+
+## LiopOTelBridge
+
+`LiopOTelBridge` maps token telemetry into **OpenTelemetry `gen_ai.*` semantics** so external observability backends can ingest LIOP token data seamlessly.
+
+The bridge automatically binds to your global `MeterProvider` and emits the following metrics:
+- `gen_ai.client.token.usage` (Histogram)
+- `gen_ai.client.operation.duration` (Histogram)
+
+Use this module when you need production cost visibility across local and mesh-routed MCP workloads.
+

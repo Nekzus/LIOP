@@ -1,0 +1,55 @@
+---
+title: "Gateway and Stream"
+description: "Expose and route LIOP traffic with hybrid and stream bridges"
+---
+
+The SDK includes transport components for routing MCP traffic across local and mesh environments.
+
+## LiopHybridGateway
+
+`LiopHybridGateway` multiplexes HTTP/1.1 and HTTP/2 (gRPC) over a single TCP port and delegates MCP requests through `LiopMcpRouter`.
+
+```typescript
+import { LiopHybridGateway, LiopServer } from "@nekzus/liop";
+
+const server = new LiopServer({ name: "gateway-node", version: "1.0.0" });
+const gateway = new LiopHybridGateway(server, null, 50051);
+
+await gateway.listen(3000);
+// ... serve traffic
+await gateway.stop();
+```
+
+## LiopMcpRouter
+
+`LiopMcpRouter` is the request dispatcher used by the gateway and the CLI agent. It handles:
+
+- MCP method dispatch (`tools/list`, `tools/call`, `resources/*`, `prompts/*`)
+- Local tool execution and remote provider resolution via mesh manifests
+- ZK verification for remote responses
+- Manifest caching and adaptive discovery behavior
+
+## LiopStreamBridge
+
+`LiopStreamBridge` exposes a `LiopServer` over Streamable HTTP transport with session isolation.
+
+```typescript
+import { LiopServer, LiopStreamBridge } from "@nekzus/liop";
+
+const server = new LiopServer({ name: "stream-node", version: "1.0.0" });
+const stream = new LiopStreamBridge(server, {
+  port: 3000,
+  maxSessionsPerIp: 10,
+  sessionTimeoutMs: 30 * 60 * 1000
+});
+
+await stream.start();
+// ... streamable MCP traffic on /mcp
+await stream.stop();
+```
+
+## Security Notes
+
+- `LiopStreamBridge` supports Zero-Trust bearer enforcement via `ZERO_TRUST_TOKEN`.
+- Sessions are isolated and evicted when idle to reduce long-lived attack surfaces.
+- Gateway/router components preserve MCP JSON-RPC compatibility while keeping mesh-native routing behavior.
