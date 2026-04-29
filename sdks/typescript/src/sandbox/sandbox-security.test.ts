@@ -141,7 +141,9 @@ describe("Sandbox Security (V8 Fallback)", () => {
 			// biome-ignore lint/suspicious/noExplicitAny: Dynamic execution output
 			const output = result.output as any;
 			// The buffer should not exist at all in the global scope
-			expect(output.error).toMatch(/SharedArrayBuffer is not (defined|a constructor)/);
+			expect(output.error).toMatch(
+				/SharedArrayBuffer is not (defined|a constructor)/,
+			);
 		});
 	});
 });
