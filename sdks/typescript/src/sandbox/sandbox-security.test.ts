@@ -126,17 +126,12 @@ describe("Sandbox Security (V8 Fallback)", () => {
 	});
 
 	describe("SEC-GAP-4: SharedArrayBuffer Exposure", () => {
-		it("should permit SharedArrayBuffer but BLOCK sharing mechanisms (Worker, postMessage)", async () => {
+		it("should completely BLOCK SharedArrayBuffer instantiation (Score 100/100 Hardening)", async () => {
 			const code = `
                 function liop_main() {
                     try {
                         const sab = new SharedArrayBuffer(1024);
-                        const hasWorker = typeof Worker !== 'undefined';
-                        const hasPostMessage = typeof postMessage !== 'undefined';
-                        return {
-                            sabCreated: sab.byteLength === 1024,
-                            canShare: hasWorker || hasPostMessage
-                        };
+                        return { error: "Should not be able to create SAB" };
                     } catch(e) {
                         return { error: e.message };
                     }
@@ -145,9 +140,8 @@ describe("Sandbox Security (V8 Fallback)", () => {
 			const result = await sandbox.execute(code);
 			// biome-ignore lint/suspicious/noExplicitAny: Dynamic execution output
 			const output = result.output as any;
-			// The buffer exists but cannot leave the execution stack
-			expect(output.sabCreated).toBe(true);
-			expect(output.canShare).toBe(false);
+			// The buffer should not exist at all in the global scope
+			expect(output.error).toMatch(/SharedArrayBuffer is not (defined|a constructor)/);
 		});
 	});
 });

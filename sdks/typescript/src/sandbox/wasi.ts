@@ -159,6 +159,7 @@ export class WasiSandbox {
 			sandboxEnv.queueMicrotask = undefined;
 			sandboxEnv.eval = undefined;
 			sandboxEnv.Function = undefined;
+			sandboxEnv.SharedArrayBuffer = undefined;
 
 			// Inject strictly monitored globals
 			sandboxEnv.records = JSON.parse(JSON.stringify(records)); // Deep copy safety
