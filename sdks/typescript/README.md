@@ -4,7 +4,7 @@
     <img alt="Logic-Injection-on-Origin Protocol Logo" src="https://res.cloudinary.com/dsvsl0b0b/image/upload/v1774702621/Neural-Mesh-Protocol/hoanw0m6tybpz5fbl12n.svg?v=20260328" width="700">
   </picture>
 
-  <h1>Logic-Injection-on-Origin Protocol (LIOP) — TypeScript SDK</h1>
+<h1>Logic-Injection-on-Origin Protocol (LIOP) — TypeScript SDK</h1>
 <p align="center">
   <a href="https://github.com/Nekzus/LIOP/actions/workflows/ci.yml"><img src="https://github.com/Nekzus/LIOP/actions/workflows/ci.yml/badge.svg?event=push" alt="Github Workflow"></a>
   <a href="https://www.npmjs.com/package/@nekzus/liop"><img src="https://img.shields.io/npm/v/@nekzus/liop.svg" alt="npm version"></a>
@@ -16,7 +16,7 @@
   <a href="https://paypal.me/maseortega"><img src="https://img.shields.io/badge/donate-paypal-blue.svg?style=flat-square" alt="Donate"></a>
 </p>
 
-  <p><strong>The official TypeScript SDK for the Logic-Injection-on-Origin Protocol.</strong></p>
+<p><strong>The official TypeScript SDK for the Logic-Injection-on-Origin Protocol.</strong></p>
   <p>Deploy Logic-on-Origin with WebAssembly sandboxing, gRPC-speed execution, and full MCP backward compatibility.</p>
 </div>
 
@@ -30,19 +30,19 @@ This fundamentally solves the data privacy, bandwidth, and latency challenges of
 
 ### Key Capabilities
 
-| Feature | Description |
-|:--|:--|
-| **Logic-Injection-on-Origin** | LLMs send code, not queries. Data never leaves the origin server. |
-| **MCP Drop-in Replacement** | `LiopServer` mirrors the Anthropic MCP `Server` API — tools, resources, and prompts with `Zod` schemas. |
-| **Guardian AST** | Zero-time heuristic inspection blocks sandbox escapes (`require`, `fs`, `eval`, `fetch`, prototype pollution). |
-| **WASI Sandbox** | JavaScript payloads execute inside V8 isolates with CPU fuel limits and no access to Node.js globals. |
-| **PII Shield** | Multi-layer egress filter with Regional Presets (Email, Credit Card with Luhn, IP, Phone, SSN, IBAN Mod-97, Passport MRZ) and custom keys. |
-| **ZK-Receipts** | Cryptographic proof (SHA-256 + SHA-512 seal) that the returned result was computed honestly from the injected logic. |
-| **Worker Pool** | Heavy computation (crypto, sandboxing) dispatched to OS threads via `piscina`, unblocking the V8 event loop. |
-| **Cross-AI Adapters**| Zero-Shot system prompts automatically adapt instructions for Claude (XML-heavy) vs OpenAI/Gemini (JSON-schema). |
-| **MCP Bridge** | `LiopMcpBridge` adapts any `LiopServer` to the JSON-RPC 2.0 / stdio protocol used by Claude Desktop, Cursor, etc. |
-| **Post-Quantum Ready** | ML-KEM-768 (Kyber) handshake + AES-256-GCM symmetric encryption for transport-layer security. |
-| **P2P Mesh** | Kademlia DHT discovery via `libp2p` with TCP + WebSocket + Yamux multiplexing and Noise encryption. |
+| Feature                             | Description                                                                                                                                |
+| :---------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------- |
+| **Logic-Injection-on-Origin** | LLMs send code, not queries. Data never leaves the origin server.                                                                          |
+| **MCP Drop-in Replacement**   | `LiopServer` mirrors the Anthropic MCP `Server` API — tools, resources, and prompts with `Zod` schemas.                             |
+| **Guardian AST**              | Zero-time heuristic inspection blocks sandbox escapes (`require`, `fs`, `eval`, `fetch`, prototype pollution).                     |
+| **WASI Sandbox**              | JavaScript payloads execute inside V8 isolates with CPU fuel limits and no access to Node.js globals.                                      |
+| **PII Shield**                | Multi-layer egress filter with Regional Presets (Email, Credit Card with Luhn, IP, Phone, SSN, IBAN Mod-97, Passport MRZ) and custom keys. |
+| **ZK-Receipts**               | Cryptographic proof (SHA-256 + SHA-512 seal) that the returned result was computed honestly from the injected logic.                       |
+| **Worker Pool**               | Heavy computation (crypto, sandboxing) dispatched to OS threads via `piscina`, unblocking the V8 event loop.                             |
+| **Cross-AI Adapters**         | Zero-Shot system prompts automatically adapt instructions for Claude (XML-heavy) vs OpenAI/Gemini (JSON-schema).                           |
+| **MCP Bridge**                | `LiopMcpBridge` adapts any `LiopServer` to the JSON-RPC 2.0 / stdio protocol used by Claude Desktop, Cursor, etc.                      |
+| **Post-Quantum Ready**        | ML-KEM-768 (Kyber) handshake + AES-256-GCM symmetric encryption for transport-layer security.                                              |
+| **P2P Mesh**                  | Kademlia DHT discovery via `libp2p` with TCP + WebSocket + Yamux multiplexing and Noise encryption.                                      |
 
 ---
 
@@ -91,6 +91,7 @@ To use the Neural Mesh inside Claude Desktop, update your `claude_desktop_config
 ### Persistence & Identity
 
 The agent automatically manages your P2P identity:
+
 - **Identity Path**: `~/.liop/identity.json`. This file contains your unique PeerID. Keep it safe if you want to maintain a consistent identity in the mesh.
 - **Bootstrap Nodes**: By default, the agent connects to the **LIOP Alpha Nexus**. You can provide custom bootstrap addresses as CLI arguments:
   ```bash
@@ -197,24 +198,24 @@ new LiopServer(
 
 #### Methods
 
-| Method | Signature | Description |
-|:--|:--|:--|
-| `tool()` | `(name, description, zodSchema, handler)` | Registers a callable tool with Zod input validation. |
-| `prompt()` | `(name, description, args, handler)` | Registers a dynamic prompt template. |
-| `resource()` | `(name, uri, description?, mimeType?, content?)` | Registers a readable resource. |
-| `dataDictionary()` | `(schema, name?, uri?, description?)` | Broadcasts a data schema so LLMs can write accurate Logic-Injection-on-Origin code. |
-| `setSandboxData()` | `(records: Record[])` | Injects data into the sandbox as `env.records` for Logic-on-Origin tools. |
-| `enableZeroShotAutonomy()` | `()` | Registers the "Blind Analyst" prompt for autonomous code generation. |
-| `callTool()` | `(request: CallToolRequest)` | Invokes a registered tool (used locally or via MCP Bridge). |
-| `listTools()` | `()` | Returns all registered tools. |
-| `listPrompts()` | `()` | Returns all registered prompts. |
-| `getPrompt()` | `(request: GetPromptRequest)` | Returns a specific prompt by name. |
-| `listResources()` | `()` | Returns all registered resources. |
-| `readResource()` | `(uri: string)` | Reads a resource by URI. |
-| `getServerInfo()` | `()` | Returns the server's name and version. |
-| `connectToMesh()` | `()` | Connects to the libp2p Kademlia DHT. |
-| `clearAstCache()` | `()` | Invalidates the Guardian AST logic cache. |
-| `close()` | `()` | Destroys the worker pool and releases threads. |
+| Method                       | Signature                                          | Description                                                                         |
+| :--------------------------- | :------------------------------------------------- | :---------------------------------------------------------------------------------- |
+| `tool()`                   | `(name, description, zodSchema, handler)`        | Registers a callable tool with Zod input validation.                                |
+| `prompt()`                 | `(name, description, args, handler)`             | Registers a dynamic prompt template.                                                |
+| `resource()`               | `(name, uri, description?, mimeType?, content?)` | Registers a readable resource.                                                      |
+| `dataDictionary()`         | `(schema, name?, uri?, description?)`            | Broadcasts a data schema so LLMs can write accurate Logic-Injection-on-Origin code. |
+| `setSandboxData()`         | `(records: Record[])`                            | Injects data into the sandbox as `env.records` for Logic-on-Origin tools.         |
+| `enableZeroShotAutonomy()` | `()`                                             | Registers the "Blind Analyst" prompt for autonomous code generation.                |
+| `callTool()`               | `(request: CallToolRequest)`                     | Invokes a registered tool (used locally or via MCP Bridge).                         |
+| `listTools()`              | `()`                                             | Returns all registered tools.                                                       |
+| `listPrompts()`            | `()`                                             | Returns all registered prompts.                                                     |
+| `getPrompt()`              | `(request: GetPromptRequest)`                    | Returns a specific prompt by name.                                                  |
+| `listResources()`          | `()`                                             | Returns all registered resources.                                                   |
+| `readResource()`           | `(uri: string)`                                  | Reads a resource by URI.                                                            |
+| `getServerInfo()`          | `()`                                             | Returns the server's name and version.                                              |
+| `connectToMesh()`          | `()`                                             | Connects to the libp2p Kademlia DHT.                                                |
+| `clearAstCache()`          | `()`                                             | Invalidates the Guardian AST logic cache.                                           |
+| `close()`                  | `()`                                             | Destroys the worker pool and releases threads.                                      |
 
 ### `LiopMcpBridge`
 
@@ -226,6 +227,7 @@ await bridge.connect();
 ```
 
 **Supported JSON-RPC methods:**
+
 - `initialize` — Returns server capabilities and info
 - `tools/list` — Lists available tools
 - `tools/call` — Calls a tool (with ZK-Receipt verification)
@@ -255,7 +257,7 @@ await bridge.connect();
 ├─────────────────────────────────────────────────────┤
 │  Layer 4: ZK-Receipt (Integrity Verification)       │
 │  SHA-256 ImageID + SHA-512 RISC0-style Seal         │
-│  LiopMcpBridge verifies before forwarding to LLM     │
+│  LiopMcpBridge verifies before forwarding to LLM    │
 └─────────────────────────────────────────────────────┘
 ```
 
