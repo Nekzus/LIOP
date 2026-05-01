@@ -88,10 +88,10 @@
   "type": "module",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Nekzus/Neural-Mesh-Protocol.git"
+    "url": "git+https://github.com/Nekzus/LIOP.git"
   },
   "bugs": {
-    "url": "https://github.com/Nekzus/Neural-Mesh-Protocol/issues"
+    "url": "https://github.com/Nekzus/LIOP/issues"
   },
   "homepage": "https://nekzus-32.mintlify.app/",
   "publishConfig": {
