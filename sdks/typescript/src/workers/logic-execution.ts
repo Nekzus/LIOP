@@ -68,13 +68,15 @@ export default async function processLogicExecution(data: WorkerData): Promise<{
 		// 3. Decrypt Inputs
 		for (const [key, encValue] of Object.entries(inputs || {})) {
 			const valBuffer = Buffer.from(encValue);
+			// Extract 12-byte prepended nonce, ciphertext, and 16-byte AuthTag
+			const inputNonce = valBuffer.subarray(0, 12);
 			const valTag = valBuffer.subarray(-16);
-			const valData = valBuffer.subarray(0, -16);
+			const valData = valBuffer.subarray(12, -16);
 
 			const valDecipher = crypto.createDecipheriv(
 				"aes-256-gcm",
 				aesKey,
-				Buffer.from(aesNonce || new Uint8Array(12)),
+				inputNonce,
 			);
 			valDecipher.setAuthTag(valTag);
 			let valDecrypted = valDecipher.update(valData);

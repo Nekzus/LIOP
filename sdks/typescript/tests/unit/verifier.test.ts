@@ -2,11 +2,13 @@ import { describe, expect, it } from "vitest";
 import { LiopVerifier } from "../../src/crypto/verifier.js";
 import crypto from "node:crypto";
 
-function mockZK(imageId: string): Buffer {
+const dummySecret = crypto.randomBytes(32);
+
+function mockZK(imageId: string, secret?: Buffer): Buffer {
 	const journal = Buffer.from(JSON.stringify({ image_id: imageId }));
 	const journalLen = Buffer.alloc(2);
 	journalLen.writeUInt16BE(journal.length);
-	const seal = Buffer.alloc(32);
+	const seal = secret ? crypto.createHmac("sha256", secret).update(journal).digest() : Buffer.alloc(32);
 	return Buffer.concat([Buffer.from([0x01]), journalLen, journal, seal]);
 }
 
@@ -27,7 +29,8 @@ describe("LiopVerifier (Industrial Tier-0)", () => {
 		const isValid = await verifier.verifyZkReceipt(
 			mockPayload,
 			imageId,
-			mockZK(imageId),
+			mockZK(imageId, dummySecret),
+			dummySecret,
 		);
 
 		expect(isValid).toBe(true);
@@ -40,7 +43,8 @@ describe("LiopVerifier (Industrial Tier-0)", () => {
 		const isValid = await verifier.verifyZkReceipt(
 			tamperedPayload,
 			imageId,
-			mockZK(imageId),
+			mockZK(imageId, dummySecret),
+			dummySecret,
 		);
 
 		expect(isValid).toBe(false);
@@ -52,7 +56,8 @@ describe("LiopVerifier (Industrial Tier-0)", () => {
 		const isValid = await verifier.verifyZkReceipt(
 			mockPayload,
 			wrongImageId,
-			mockZK(wrongImageId),
+			mockZK(wrongImageId, dummySecret),
+			dummySecret,
 		);
 
 		expect(isValid).toBe(false);

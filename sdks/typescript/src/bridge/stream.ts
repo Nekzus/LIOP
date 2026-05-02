@@ -163,25 +163,35 @@ export class LiopStreamBridge {
 	private setupRoutes() {
 		this.app.use("*", cors());
 
+		// Initialize strict zero-trust token if not provided
+		if (!process.env.ZERO_TRUST_TOKEN) {
+			process.env.ZERO_TRUST_TOKEN = randomUUID();
+			log.info("=".repeat(60));
+			log.info("⚠️ STRICT ZERO-TRUST MODE ENABLED ⚠️");
+			log.info("No ZERO_TRUST_TOKEN found in environment.");
+			log.info("A secure ephemeral token has been generated for this session:");
+			log.info(`Token: ${process.env.ZERO_TRUST_TOKEN}`);
+			log.info("=".repeat(60));
+		}
+
 		// ZTA (Zero-Trust Architecture) Security Middleware
 		this.app.use("/mcp", async (c, next) => {
 			const auth = c.req.header("Authorization");
 
 			const expectedToken = process.env.ZERO_TRUST_TOKEN;
-			if (expectedToken) {
-				if (
-					!auth?.startsWith("Bearer ") ||
-					auth.split(" ")[1] !== expectedToken
-				) {
-					log.info(
-						"[LIOP-StreamBridge] ALERT: Access denied - Invalid Zero-Trust token.",
-					);
-					return c.json(
-						{ error: "Unauthorized: LIOP Zero-Trust Policy Enforced" },
-						401,
-					);
-				}
+			if (
+				!auth?.startsWith("Bearer ") ||
+				auth.split(" ")[1] !== expectedToken
+			) {
+				log.info(
+					"[LIOP-StreamBridge] ALERT: Access denied - Invalid Zero-Trust token.",
+				);
+				return c.json(
+					{ error: "Unauthorized: LIOP Zero-Trust Policy Enforced" },
+					401,
+				);
 			}
+
 			await next();
 		});
 

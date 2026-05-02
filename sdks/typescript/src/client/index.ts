@@ -224,23 +224,23 @@ export class LiopClient {
 		const { ciphertext: encryptedWasm, nonce: aesNonce } =
 			AesGcmWrapper.encryptPayload(_safePayload, sharedSecret);
 
-		// Encrypt inputs using the SAME session nonce for the multi-payload request (Standard LIOP V1)
+		// Encrypt inputs using a fresh random nonce per input to prevent AES-GCM nonce reuse
 		const encryptedInputs: Record<string, Uint8Array> = {};
+		const crypto = await import("node:crypto");
 		for (const [key, value] of Object.entries(request.arguments || {})) {
-			// We manually encrypt with the same nonce/key to match the Proto structure
-			// ideally we'd have per-field nonces, but for Alpha we follow the liop_core.proto v1.
-			const crypto = await import("node:crypto");
+			const inputNonce = crypto.randomBytes(12);
 			const cipher = crypto.createCipheriv(
 				"aes-256-gcm",
 				sharedSecret,
-				aesNonce,
+				inputNonce,
 			);
 			const encrypted = Buffer.concat([
 				cipher.update(JSON.stringify(value)),
 				cipher.final(),
 			]);
 			const authTag = cipher.getAuthTag();
-			encryptedInputs[key] = Buffer.concat([encrypted, authTag]);
+			// Prepend the 12-byte nonce to the ciphertext
+			encryptedInputs[key] = Buffer.concat([inputNonce, encrypted, authTag]);
 		}
 
 		// 4. Assemble and Execute gRPC LogicRequest
@@ -272,6 +272,7 @@ export class LiopClient {
 						_safePayload,
 						Buffer.from(response.cryptographic_proof).toString("hex"),
 						Buffer.from(response.zk_receipt),
+						Buffer.from(sharedSecret),
 					);
 
 					if (!isValid) {

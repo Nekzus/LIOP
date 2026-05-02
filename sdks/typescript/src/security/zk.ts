@@ -33,7 +33,11 @@ export const ZkVerifier = {
 	 * @throws ZkVerificationError if the proof is invalid or image IDs mismatch
 	 * @returns true if the proof mathematically verifies the execution
 	 */
-	verify(receipt: ZkReceipt, expectedImageId: Buffer): boolean {
+	verify(
+		receipt: ZkReceipt,
+		expectedImageId: Buffer,
+		sessionSecret?: Buffer,
+	): boolean {
 		// 1. Verify Image ID (Ensures the host executed the exact logic we sent, not a malicious one)
 		if (!receipt.imageId.equals(expectedImageId)) {
 			throw new ZkVerificationError(
@@ -75,6 +79,19 @@ export const ZkVerifier = {
 			}
 		} catch (_e) {
 			throw new ZkVerificationError("Failed to parse journal data.");
+		}
+
+		// 4. Mathematical Verification (HMAC-SHA256)
+		if (sessionSecret && sessionSecret.length > 0) {
+			const expectedSeal = crypto
+				.createHmac("sha256", sessionSecret)
+				.update(journal)
+				.digest();
+			if (!crypto.timingSafeEqual(seal, expectedSeal)) {
+				throw new ZkVerificationError(
+					"Invalid seal: HMAC verification failed.",
+				);
+			}
 		}
 
 		return true;
