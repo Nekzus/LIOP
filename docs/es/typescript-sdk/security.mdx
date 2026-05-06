@@ -1,12 +1,12 @@
 ---
 title: "Arquitectura de Seguridad"
-description: "Capas de defensa verificadas, pipelines criptográficos y mecanismos de protección de datos en el SDK TypeScript de LIOP"
+description: "Capas de defensa en profundidad, pipelines criptográficos y mecanismos de protección de datos en el SDK TypeScript de LIOP"
 ---
 
-El SDK de TypeScript de LIOP implementa una robusta arquitectura de seguridad basada en el principio de **defensa en profundidad** (defense-in-depth), compuesta por cuatro capas verificadas de forma independiente. Cada afirmación en esta página ha sido auditada contra el código fuente de `@nekzus/liop` v1.2.0.
+El SDK TypeScript de LIOP aplica un modelo de seguridad basado en **defensa en profundidad**, compuesto por cuatro capas independientes. Cada capa aborda una superficie de amenaza distinta — desde el análisis estático de código hasta el filtrado de datos post-ejecución — garantizando que ningún punto único de fallo pueda comprometer el sistema.
 
 <Note>
-  Este documento refleja el estado **verificado** del SDK TypeScript. Las características marcadas con **[ROADMAP]** están planificadas arquitectónicamente pero aún no implementadas en producción.
+  Las características marcadas con **[ROADMAP]** están definidas arquitectónicamente pero aún no están disponibles en la versión actual.
 </Note>
 
 ---
@@ -14,22 +14,22 @@ El SDK de TypeScript de LIOP implementa una robusta arquitectura de seguridad ba
 ## Resumen de las Capas de Seguridad
 
 <Frame>
-  <img className="block dark:hidden w-full" src="/images/animated-security-layers-light.svg" alt="Flujo Animado de Capas de Seguridad" />
-  <img className="hidden dark:block w-full" src="/images/animated-security-layers-dark.svg" alt="Flujo Animado de Capas de Seguridad" />
+  <img className="block dark:hidden w-full" src="/images/animated-security-layers-light.svg" alt="Arquitectura de Capas de Seguridad" />
+  <img className="hidden dark:block w-full" src="/images/animated-security-layers-dark.svg" alt="Arquitectura de Capas de Seguridad" />
 </Frame>
 
 | Capa | Propósito | Momento |
 |:-----|:----------|:--------|
-| **Guardian AST** | Bloquea imports WASM no autorizados antes de la ejecución | Pre-compilación |
-| **WASI Sandbox** | Aísla el runtime con globales envenenados y límites de CPU | Ejecución |
-| **PII Shield** | Previene fuga de datos con validadores algorítmicos | Post-ejecución |
-| **ZK-Receipt** | Provee prueba HMAC-SHA256 de computación honesta | Post-ejecución |
+| **Guardian AST** | Bloquea importaciones WASM no autorizadas antes de la ejecución | Pre-compilación |
+| **WASI Sandbox** | Aísla el entorno de ejecución con globales envenenados y límites de CPU | Ejecución |
+| **PII Shield** | Previene la fuga de datos mediante validadores algorítmicos | Post-ejecución |
+| **ZK-Receipt** | Proporciona prueba HMAC-SHA256 de computación honesta | Post-ejecución |
 
 ---
 
 ## Capa 1: Guardian AST
 
-El componente Guardian realiza una inspección estática inmediata (tiempo cero) de los módulos WebAssembly **antes** de que sean compilados. Utiliza `WebAssembly.Module.imports()` para enumerar y validar todas las solicitudes de importación dirigidas al host.
+El módulo Guardian AST realiza una inspección estática de latencia cero sobre los módulos WebAssembly **antes** de su compilación. Utiliza `WebAssembly.Module.imports()` para enumerar todas las solicitudes de importación dirigidas al host y validarlas contra una lista blanca estricta.
 
 ### Lista Blanca de Funciones WASI
 
@@ -41,17 +41,17 @@ fd_fdstat_get, environ_get, environ_sizes_get, args_get, args_sizes_get,
 clock_time_get, proc_exit, random_get
 ```
 
-Cualquier importación fuera de esta lista blanca estricta genera un error inmediato `SandboxViolation`. Un límite fijo de **128 importaciones totales** por módulo previene ataques de bomba lógica.
+Cualquier importación fuera de este conjunto dispara un error `SandboxViolation` inmediato. Un tope fijo de **128 importaciones totales** por módulo previene el agotamiento de recursos mediante payloads de tipo bomba lógica.
 
 <Warning>
-  El Guardian AST inspecciona **importaciones de módulos WASM**, no palabras clave de JavaScript. El bloqueo de APIs peligrosas de JS (`require`, `eval`, `fetch`, etc.) es manejado por la capa WASI Sandbox mediante envenenamiento de globales.
+  El Guardian AST inspecciona **importaciones de módulos WASM**, no globales de JavaScript. El bloqueo de APIs peligrosas de JS (`require`, `eval`, `fetch`) es gestionado por la Capa 2 mediante envenenamiento de globales.
 </Warning>
 
 ---
 
 ## Capa 2: WASI Sandbox
 
-El SDK proporciona un **motor de ejecución de doble vía**:
+El SDK proporciona un **motor de ejecución de doble vía** que enruta cada payload al mecanismo de aislamiento apropiado:
 
 | Vía | Tecnología | Caso de Uso |
 |:----|:-----------|:------------|
@@ -60,7 +60,7 @@ El SDK proporciona un **motor de ejecución de doble vía**:
 
 ### Envenenamiento de Globales V8
 
-12 vectores de ataque son explícitamente neutralizados en el contexto del sandbox:
+Doce vectores de ataque son neutralizados asignándoles `undefined` y sellándolos como no modificables:
 
 ```typescript
 const POISONED_GLOBALS = [
@@ -70,9 +70,9 @@ const POISONED_GLOBALS = [
 ];
 ```
 
-Cada uno se establece como `undefined` y se sella con `Object.defineProperty({ writable: false })`, seguido de un `Object.freeze()` recursivo (deep freeze) en todo el contexto del sandbox.
+Tras la asignación, el contexto completo del sandbox se congela recursivamente mediante `Object.freeze()`, impidiendo cualquier alteración del entorno aislado en tiempo de ejecución.
 
-### Restricciones de Consumo de CPU (Fuel)
+### Límites de Consumo de CPU
 
 | Parámetro | Valor |
 |:----------|:------|
@@ -80,9 +80,9 @@ Cada uno se establece como `undefined` y se sella con `Object.defineProperty({ w
 | **Límite de combustible** | 1.000.000 unidades |
 | **Directorio de trabajo** | Efímero (eliminado al finalizar) |
 
-### Teardown y Limpieza Física
+### Limpieza Post-Ejecución
 
-El sandbox realiza una destrucción y limpieza física del entorno después de cada ejecución:
+El sandbox destruye todos los artefactos temporales después de cada ciclo de ejecución:
 
 ```typescript
 await fs.rm(workingDir, { recursive: true, force: true });
@@ -92,7 +92,7 @@ await fs.rm(workingDir, { recursive: true, force: true });
 
 ## Capa 3: Escudo de Privacidad (PII Egress Shield)
 
-El escáner PII se ejecuta **después** de la ejecución del sandbox y **antes** de devolver resultados al llamador. Utiliza una combinación de patrones regex y validadores algorítmicos.
+El escáner PII intercepta toda la salida del sandbox **antes** de devolver los resultados al llamador. Aplica una combinación de patrones regex y validadores algorítmicos para detectar y bloquear datos sensibles.
 
 ### Patrones de Detección
 
@@ -100,13 +100,15 @@ El escáner PII se ejecuta **después** de la ejecución del sandbox y **antes**
 |:-------|:----------|:-----------|
 | **EMAIL** | Regex | Excluye `@example.com`, `@test.com` |
 | **CREDIT_CARD** | **Checksum Luhn** | Suma de dígitos mod 10 === 0 |
-| **IP_ADDRESS** | Regex + verificación de rango | Excluye `127.x.x.x`, valida octetos 0-255 |
-| **PHONE** | Regex + verificación de repetición | 7-15 dígitos, rechaza patrones `1111111` |
+| **IP_ADDRESS** | Regex + verificación de rango | Excluye `127.x.x.x`, valida octetos 0–255 |
+| **PHONE** | Regex + verificación de repetición | 7–15 dígitos, rechaza patrones `1111111` |
 | **SSN** | Validación estructural | Bloquea area=0/666/≥900, grupo=0, serial=0 |
 | **IBAN** | **ISO 7064 Mod-97 via BigInt** | `BigInt(cadenaNumérica) % 97n === 1n` |
 | **PASSPORT_MRZ** | Regex | Zona de Lectura Mecánica TD3 de 44 caracteres |
 
 ### Presets Regionales
+
+El SDK incluye tres conjuntos de patrones preconfigurados, adaptados a los marcos regulatorios más comunes:
 
 ```typescript
 PII_PRESETS.GLOBAL_STRICT  // 6 patrones (Excluye SSN)
@@ -114,46 +116,48 @@ PII_PRESETS.US_COMPLIANT   // 6 patrones (Incluye SSN, excluye IBAN)
 PII_PRESETS.EU_GDPR        // 6 patrones (Incluye IBAN, excluye SSN)
 ```
 
+Los presets pueden combinarse con reglas regex personalizadas para cumplir con requisitos de compliance específicos de cada organización. Consulte la [guía de configuración de LiopServer](/es/typescript-sdk/server) para ver ejemplos de uso.
+
 ### Protecciones Anti-Bypass
 
-- **Búsqueda O(1) de Claves Prohibidas**: Bloqueo directo vía `Set<string>.has()` para propiedades sensibles como `ssn`, `email`, `password`, `privateKey`.
-- **Defensa contra Anidación JSON**: El análisis recursivo de objetos JSON embebidos dentro de cadenas de texto neutraliza los intentos de ofuscación mediante envolturas de `JSON.stringify()`.
-- **Protección contra Referencias Circulares**: Un `WeakSet` previene caídas por recursión infinita al evaluar objetos auto-referenciantes.
-- **Política Aggregation-First (Agregación Primero)**: Bloquea la exportación de datos crudos a nivel de fila. Únicamente se permite el retorno de resultados matemáticamente agregados (conteos, promedios, resúmenes).
+- **Búsqueda de Claves Prohibidas**: Bloqueo O(1) mediante `Set<string>.has()` para nombres de campo como `ssn`, `email`, `password`, `privateKey`
+- **Defensa contra JSON Anidado**: El análisis recursivo de cadenas con JSON embebido neutraliza la ofuscación mediante envolturas de `JSON.stringify()`
+- **Protección contra Referencias Circulares**: Un `WeakSet` de seguimiento previene la recursión infinita en objetos auto-referenciantes
+- **Política Aggregation-First**: Bloquea la exportación de datos crudos a nivel de fila — solo pasan resultados agregados (conteos, promedios, resúmenes)
 
 ---
 
 ## Capa 4: ZK-Receipts
 
-Cada ejecución del sandbox produce un **recibo criptográfico** que prueba que el resultado fue computado honestamente a partir de la lógica inyectada.
+Cada ejecución del sandbox produce un **recibo criptográfico** que vincula la salida con la lógica exacta que la generó, proporcionando una prueba de computación honesta a prueba de manipulaciones.
 
 ### Estructura del Recibo (Binario v1)
 
 | Campo | Tamaño | Tipo | Descripción |
 |:------|:-------|:-----|:------------|
-| **Versión** | 1 byte | `0x01` | Byte de versión del protocolo |
-| **Largo del Diario** | 2 bytes | Big-Endian `UInt16` | Longitud del payload JSON posterior |
-| **Diario** | Variable | Cadena JSON | Contiene `image_id`, `fuel` y métricas de ejecución |
-| **Sello** | 32 bytes | HMAC-SHA256 | Firma criptográfica del diario |
+| **Version** | 1 byte | `0x01` | Identificador de versión del protocolo |
+| **Journal Length** | 2 bytes | Big-Endian `UInt16` | Longitud del payload JSON |
+| **Journal** | Variable | Cadena JSON | Contiene `image_id`, `fuel` y métricas de ejecución |
+| **Seal** | 32 bytes | HMAC-SHA256 | Compromiso criptográfico sobre el diario |
 
 ### Pipeline Criptográfico
 
-1. **Generación de ImageID**: Hash `SHA-256` del payload de lógica original — identifica el código exacto ejecutado
-2. **Ensamblaje del Diario**: JSON conteniendo `image_id`, `output_hash` (SHA-256 del resultado), `fuel` consumido, y `timestamp`
-3. **Sello HMAC**: `crypto.createHmac("sha256", sessionSecret).update(journal).digest()` — el secreto de sesión se deriva del **handshake ML-KEM-768 (Kyber)**
-4. **Verificación**: `crypto.timingSafeEqual(seal, expectedSeal)` — comparación en tiempo constante derrota ataques de temporización
+1. **Generación de ImageID**: Un hash `SHA-256` del payload de lógica original identifica de forma única el código exacto ejecutado
+2. **Ensamblaje del Journal**: Un objeto JSON que contiene `image_id`, `output_hash` (SHA-256 del resultado), `fuel` consumido y `timestamp`
+3. **Sello HMAC**: `crypto.createHmac("sha256", sessionSecret).update(journal).digest()` — el secreto de sesión se deriva del **intercambio de claves ML-KEM-768 (Kyber)**
+4. **Verificación**: `crypto.timingSafeEqual(seal, expectedSeal)` — comparación en tiempo constante que previene ataques de canal lateral por temporización
 
 <Tip>
-  El `sessionSecret` usado para la firma HMAC es la clave compartida negociada mediante Criptografía Post-Cuántica (ML-KEM-768). Esto significa que la integridad del ZK-Receipt es resistente a ataques cuánticos.
+  El `sessionSecret` utilizado para la firma HMAC es la clave compartida negociada mediante Criptografía Post-Cuántica (ML-KEM-768). Esto garantiza que la integridad del ZK-Receipt sea resistente a ataques cuánticos.
 </Tip>
 
 ---
 
 ## Seguridad de Transporte
 
-### Criptografía Post-Cuántica (ML-KEM-768)
+### Encapsulación de Claves Post-Cuántica (ML-KEM-768)
 
-El SDK utiliza el paquete `mlkem` (compatible con FIPS 203) para encapsulación de claves:
+El SDK utiliza el paquete `mlkem` (compatible con FIPS 203) para la encapsulación de claves:
 
 | Parámetro | Valor |
 |:----------|:------|
@@ -162,19 +166,19 @@ El SDK utiliza el paquete `mlkem` (compatible con FIPS 203) para encapsulación 
 | **Tamaño de Texto Cifrado** | 1.088 bytes |
 | **Secreto Compartido** | 32 bytes |
 | **Cifrado Simétrico** | AES-256-GCM |
-| **Nonce** | 12 bytes (único por input) |
+| **Nonce** | 12 bytes (único por entrada) |
 
 ### Aislamiento de Nonce
 
-Cada input cifrado utiliza un **nonce aleatorio fresco de 12 bytes** (`crypto.randomBytes(12)`), prepended al texto cifrado. Esto previene ataques de reutilización de nonce AES-GCM cuando múltiples inputs se cifran bajo la misma clave de sesión.
+Cada payload cifrado utiliza un **nonce aleatorio fresco de 12 bytes** (`crypto.randomBytes(12)`), antepuesto al texto cifrado. Esto previene la reutilización de nonce en AES-GCM cuando múltiples payloads se cifran bajo la misma clave de sesión.
 
-### Bridge Zero-Trust
+### Autenticación Zero-Trust del Bridge
 
-El `LiopStreamBridge` aplica autenticación obligatoria mediante token Bearer:
+El `LiopStreamBridge` aplica autenticación obligatoria mediante token Bearer en todos los endpoints HTTP:
 
-- Si no se establece la variable de entorno `ZERO_TRUST_TOKEN`, se auto-genera un token efímero seguro vía `randomUUID()`
-- Cada solicitud HTTP a `/mcp` requiere un header válido `Authorization: Bearer <token>`
-- Limitación de tasa por IP en la creación de sesiones (default: 10 sesiones concurrentes)
+- Si `ZERO_TRUST_TOKEN` no está configurado, se auto-genera un token efímero seguro vía `randomUUID()`
+- Cada solicitud a `/mcp` requiere un header válido `Authorization: Bearer <token>`
+- Limitación de tasa por IP en la creación de sesiones (por defecto: 10 sesiones concurrentes)
 - Expulsión automática de sesiones inactivas (TTL: 30 minutos)
 
 ---
@@ -193,27 +197,27 @@ El `LiopStreamBridge` aplica autenticación obligatoria mediante token Bearer:
 
 ## Aislamiento del Worker Pool
 
-Las operaciones criptográficas pesadas se despachan a threads del SO vía **Piscina** (pool de workers), previniendo que el event loop principal de V8 sea bloqueado:
+Las operaciones criptográficas de alto consumo se despachan a threads del sistema operativo mediante pools de workers **Piscina**, previniendo el bloqueo del event loop principal de V8:
 
 | Worker | Propósito |
 |:-------|:----------|
 | `logic-execution` | Instanciación del sandbox, descifrado AES, inspección AST |
 | `zk-verifier` | Deserialización de recibos, verificación HMAC |
 
-Configuración: 2–8 threads (producción), 0–1 threads (test), `FixedQueue`, 5s de timeout por inactividad.
+Configuración por defecto: 2–8 threads (producción), 0–1 threads (test), planificación `FixedQueue`, 5s de timeout por inactividad.
 
 ---
 
 ## Hoja de Ruta
 
-Las siguientes características están definidas arquitectónicamente pero **aún no implementadas** en el SDK TypeScript:
+Las siguientes capacidades están definidas arquitectónicamente y planificadas para versiones futuras:
 
 | Característica | Estado | Descripción |
 |:---------------|:-------|:------------|
 | **TEE Attestation** | 🔴 Planificado | Soporte para enclaves de hardware (AWS Nitro / Intel SGX) |
 | **ZK-VM Nativo** | 🔴 Planificado | Bindings RISC Zero o SP1 para pruebas de conocimiento cero reales |
-| **ZK Core Rust** | 🔴 Planificado | Reemplazar mock ZK en `zk.rs` con pruebas criptográficas nativas |
+| **ZK Core Rust** | 🔴 Planificado | Generación nativa de pruebas criptográficas en el core Rust |
 
 <Warning>
-  El SDK TypeScript actualmente utiliza **compromisos HMAC-SHA256** como sellos de ZK-Receipt. Si bien son criptográficamente sólidos para verificación de integridad, no son pruebas de conocimiento cero verdaderas. La migración a un ZK-VM nativo está planificada para una versión futura.
+  El SDK actual utiliza **compromisos HMAC-SHA256** como sellos de ZK-Receipt. Si bien son criptográficamente sólidos para la verificación de integridad, no constituyen pruebas de conocimiento cero verdaderas. La migración a un ZK-VM nativo está planificada para una versión futura.
 </Warning>
