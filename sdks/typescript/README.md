@@ -37,7 +37,7 @@ This fundamentally solves the data privacy, bandwidth, and latency challenges of
 | **Guardian AST**              | Zero-time heuristic inspection blocks sandbox escapes (`require`, `fs`, `eval`, `fetch`, prototype pollution).                     |
 | **WASI Sandbox**              | JavaScript payloads execute inside V8 isolates with CPU fuel limits and no access to Node.js globals.                                      |
 | **PII Shield**                | Multi-layer egress filter with Regional Presets (Email, Credit Card with Luhn, IP, Phone, SSN, IBAN Mod-97, Passport MRZ) and custom keys. |
-| **ZK-Receipts**               | Cryptographic proof (SHA-256 + SHA-512 seal) that the returned result was computed honestly from the injected logic.                       |
+| **ZK-Receipts**               | Cryptographic proof (SHA-256 ImageID + HMAC-SHA256 seal) that the returned result was computed honestly from the injected logic.            |
 | **Worker Pool**               | Heavy computation (crypto, sandboxing) dispatched to OS threads via `piscina`, unblocking the V8 event loop.                             |
 | **Cross-AI Adapters**         | Zero-Shot system prompts automatically adapt instructions for Claude (XML-heavy) vs OpenAI/Gemini (JSON-schema).                           |
 | **MCP Bridge**                | `LiopMcpBridge` adapts any `LiopServer` to the JSON-RPC 2.0 / stdio protocol used by Claude Desktop, Cursor, etc.                      |
@@ -390,10 +390,11 @@ await server.connectToMesh();
 
 This package is continuously tested across multiple platforms and Node.js versions via CI/CD:
 
-- **51+ tests** spanning unit, integration, and conformance suites
+- **209+ tests** spanning unit, integration, conformance, and crossnet suites
 - **Multi-OS matrix:** Ubuntu, Windows, macOS
 - **Node.js versions:** 22.x, 24.x
 - **Code quality:** Enforced by [Biome.js](https://biomejs.dev/) (linting + formatting)
+- **Security:** Verified defense-in-depth architecture — see [Security Architecture](https://nekzus-32.mintlify.app/typescript-sdk/security)
 
 > To run tests locally or contribute, clone the [repository](https://github.com/Nekzus/LIOP) and follow the [Contributing Guide](https://github.com/Nekzus/LIOP/blob/main/CONTRIBUTING.md).
 

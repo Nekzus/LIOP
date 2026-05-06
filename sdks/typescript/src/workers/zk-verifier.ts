@@ -1,5 +1,5 @@
-import { parentPort } from "node:worker_threads";
 import crypto from "node:crypto";
+import { parentPort } from "node:worker_threads";
 import { deriveLogicImageDigest } from "../crypto/logic-image-id.js";
 
 // Ensure this worker is used via Piscina pool

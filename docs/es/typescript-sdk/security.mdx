@@ -1,0 +1,219 @@
+---
+title: "Arquitectura de Seguridad"
+description: "Capas de defensa verificadas, pipelines criptográficos y mecanismos de protección de datos en el SDK TypeScript de LIOP"
+---
+
+El SDK de TypeScript de LIOP implementa una robusta arquitectura de seguridad basada en el principio de **defensa en profundidad** (defense-in-depth), compuesta por cuatro capas verificadas de forma independiente. Cada afirmación en esta página ha sido auditada contra el código fuente de `@nekzus/liop` v1.2.0.
+
+<Note>
+  Este documento refleja el estado **verificado** del SDK TypeScript. Las características marcadas con **[ROADMAP]** están planificadas arquitectónicamente pero aún no implementadas en producción.
+</Note>
+
+---
+
+## Resumen de las Capas de Seguridad
+
+<Frame>
+  <img className="block dark:hidden w-full" src="/images/animated-security-layers-light.svg" alt="Flujo Animado de Capas de Seguridad" />
+  <img className="hidden dark:block w-full" src="/images/animated-security-layers-dark.svg" alt="Flujo Animado de Capas de Seguridad" />
+</Frame>
+
+| Capa | Propósito | Momento |
+|:-----|:----------|:--------|
+| **Guardian AST** | Bloquea imports WASM no autorizados antes de la ejecución | Pre-compilación |
+| **WASI Sandbox** | Aísla el runtime con globales envenenados y límites de CPU | Ejecución |
+| **PII Shield** | Previene fuga de datos con validadores algorítmicos | Post-ejecución |
+| **ZK-Receipt** | Provee prueba HMAC-SHA256 de computación honesta | Post-ejecución |
+
+---
+
+## Capa 1: Guardian AST
+
+El componente Guardian realiza una inspección estática inmediata (tiempo cero) de los módulos WebAssembly **antes** de que sean compilados. Utiliza `WebAssembly.Module.imports()` para enumerar y validar todas las solicitudes de importación dirigidas al host.
+
+### Lista Blanca de Funciones WASI
+
+Solo las siguientes 14 funciones de `wasi_snapshot_preview1` están permitidas:
+
+```
+fd_write, fd_read, fd_close, fd_seek, fd_prestat_get, fd_prestat_dir_name,
+fd_fdstat_get, environ_get, environ_sizes_get, args_get, args_sizes_get,
+clock_time_get, proc_exit, random_get
+```
+
+Cualquier importación fuera de esta lista blanca estricta genera un error inmediato `SandboxViolation`. Un límite fijo de **128 importaciones totales** por módulo previene ataques de bomba lógica.
+
+<Warning>
+  El Guardian AST inspecciona **importaciones de módulos WASM**, no palabras clave de JavaScript. El bloqueo de APIs peligrosas de JS (`require`, `eval`, `fetch`, etc.) es manejado por la capa WASI Sandbox mediante envenenamiento de globales.
+</Warning>
+
+---
+
+## Capa 2: WASI Sandbox
+
+El SDK proporciona un **motor de ejecución de doble vía**:
+
+| Vía | Tecnología | Caso de Uso |
+|:----|:-----------|:------------|
+| **WASM Nativo** | `node:wasi` (preview1) | Binarios `.wasm` pre-compilados |
+| **V8 Isolate** | `node:vm` + contexto endurecido | Payloads JavaScript dinámicos |
+
+### Envenenamiento de Globales V8
+
+12 vectores de ataque son explícitamente neutralizados en el contexto del sandbox:
+
+```typescript
+const POISONED_GLOBALS = [
+  "require", "process", "global", "globalThis",
+  "Buffer", "setTimeout", "setInterval", "setImmediate",
+  "queueMicrotask", "eval", "Function", "SharedArrayBuffer"
+];
+```
+
+Cada uno se establece como `undefined` y se sella con `Object.defineProperty({ writable: false })`, seguido de un `Object.freeze()` recursivo (deep freeze) en todo el contexto del sandbox.
+
+### Restricciones de Consumo de CPU (Fuel)
+
+| Parámetro | Valor |
+|:----------|:------|
+| **Timeout de ejecución** | 5.000 ms (terminación forzada) |
+| **Límite de combustible** | 1.000.000 unidades |
+| **Directorio de trabajo** | Efímero (eliminado al finalizar) |
+
+### Teardown y Limpieza Física
+
+El sandbox realiza una destrucción y limpieza física del entorno después de cada ejecución:
+
+```typescript
+await fs.rm(workingDir, { recursive: true, force: true });
+```
+
+---
+
+## Capa 3: Escudo de Privacidad (PII Egress Shield)
+
+El escáner PII se ejecuta **después** de la ejecución del sandbox y **antes** de devolver resultados al llamador. Utiliza una combinación de patrones regex y validadores algorítmicos.
+
+### Patrones de Detección
+
+| Patrón | Algoritmo | Validación |
+|:-------|:----------|:-----------|
+| **EMAIL** | Regex | Excluye `@example.com`, `@test.com` |
+| **CREDIT_CARD** | **Checksum Luhn** | Suma de dígitos mod 10 === 0 |
+| **IP_ADDRESS** | Regex + verificación de rango | Excluye `127.x.x.x`, valida octetos 0-255 |
+| **PHONE** | Regex + verificación de repetición | 7-15 dígitos, rechaza patrones `1111111` |
+| **SSN** | Validación estructural | Bloquea area=0/666/≥900, grupo=0, serial=0 |
+| **IBAN** | **ISO 7064 Mod-97 via BigInt** | `BigInt(cadenaNumérica) % 97n === 1n` |
+| **PASSPORT_MRZ** | Regex | Zona de Lectura Mecánica TD3 de 44 caracteres |
+
+### Presets Regionales
+
+```typescript
+PII_PRESETS.GLOBAL_STRICT  // 6 patrones (Excluye SSN)
+PII_PRESETS.US_COMPLIANT   // 6 patrones (Incluye SSN, excluye IBAN)
+PII_PRESETS.EU_GDPR        // 6 patrones (Incluye IBAN, excluye SSN)
+```
+
+### Protecciones Anti-Bypass
+
+- **Búsqueda O(1) de Claves Prohibidas**: Bloqueo directo vía `Set<string>.has()` para propiedades sensibles como `ssn`, `email`, `password`, `privateKey`.
+- **Defensa contra Anidación JSON**: El análisis recursivo de objetos JSON embebidos dentro de cadenas de texto neutraliza los intentos de ofuscación mediante envolturas de `JSON.stringify()`.
+- **Protección contra Referencias Circulares**: Un `WeakSet` previene caídas por recursión infinita al evaluar objetos auto-referenciantes.
+- **Política Aggregation-First (Agregación Primero)**: Bloquea la exportación de datos crudos a nivel de fila. Únicamente se permite el retorno de resultados matemáticamente agregados (conteos, promedios, resúmenes).
+
+---
+
+## Capa 4: ZK-Receipts
+
+Cada ejecución del sandbox produce un **recibo criptográfico** que prueba que el resultado fue computado honestamente a partir de la lógica inyectada.
+
+### Estructura del Recibo (Binario v1)
+
+| Campo | Tamaño | Tipo | Descripción |
+|:------|:-------|:-----|:------------|
+| **Versión** | 1 byte | `0x01` | Byte de versión del protocolo |
+| **Largo del Diario** | 2 bytes | Big-Endian `UInt16` | Longitud del payload JSON posterior |
+| **Diario** | Variable | Cadena JSON | Contiene `image_id`, `fuel` y métricas de ejecución |
+| **Sello** | 32 bytes | HMAC-SHA256 | Firma criptográfica del diario |
+
+### Pipeline Criptográfico
+
+1. **Generación de ImageID**: Hash `SHA-256` del payload de lógica original — identifica el código exacto ejecutado
+2. **Ensamblaje del Diario**: JSON conteniendo `image_id`, `output_hash` (SHA-256 del resultado), `fuel` consumido, y `timestamp`
+3. **Sello HMAC**: `crypto.createHmac("sha256", sessionSecret).update(journal).digest()` — el secreto de sesión se deriva del **handshake ML-KEM-768 (Kyber)**
+4. **Verificación**: `crypto.timingSafeEqual(seal, expectedSeal)` — comparación en tiempo constante derrota ataques de temporización
+
+<Tip>
+  El `sessionSecret` usado para la firma HMAC es la clave compartida negociada mediante Criptografía Post-Cuántica (ML-KEM-768). Esto significa que la integridad del ZK-Receipt es resistente a ataques cuánticos.
+</Tip>
+
+---
+
+## Seguridad de Transporte
+
+### Criptografía Post-Cuántica (ML-KEM-768)
+
+El SDK utiliza el paquete `mlkem` (compatible con FIPS 203) para encapsulación de claves:
+
+| Parámetro | Valor |
+|:----------|:------|
+| **Algoritmo** | ML-KEM-768 (Kyber) |
+| **Tamaño de Clave Pública** | 1.184 bytes |
+| **Tamaño de Texto Cifrado** | 1.088 bytes |
+| **Secreto Compartido** | 32 bytes |
+| **Cifrado Simétrico** | AES-256-GCM |
+| **Nonce** | 12 bytes (único por input) |
+
+### Aislamiento de Nonce
+
+Cada input cifrado utiliza un **nonce aleatorio fresco de 12 bytes** (`crypto.randomBytes(12)`), prepended al texto cifrado. Esto previene ataques de reutilización de nonce AES-GCM cuando múltiples inputs se cifran bajo la misma clave de sesión.
+
+### Bridge Zero-Trust
+
+El `LiopStreamBridge` aplica autenticación obligatoria mediante token Bearer:
+
+- Si no se establece la variable de entorno `ZERO_TRUST_TOKEN`, se auto-genera un token efímero seguro vía `randomUUID()`
+- Cada solicitud HTTP a `/mcp` requiere un header válido `Authorization: Bearer <token>`
+- Limitación de tasa por IP en la creación de sesiones (default: 10 sesiones concurrentes)
+- Expulsión automática de sesiones inactivas (TTL: 30 minutos)
+
+---
+
+## Seguridad de Red P2P
+
+| Componente | Tecnología |
+|:-----------|:-----------|
+| **Cifrado de Transporte** | Protocolo Noise (Ed25519) |
+| **Multiplexación de Streams** | Yamux |
+| **Identidad** | Pares de claves Ed25519 persistentes |
+| **Descubrimiento** | Kademlia DHT con nodos bootstrap públicos |
+| **Transportes** | TCP + WebSocket |
+
+---
+
+## Aislamiento del Worker Pool
+
+Las operaciones criptográficas pesadas se despachan a threads del SO vía **Piscina** (pool de workers), previniendo que el event loop principal de V8 sea bloqueado:
+
+| Worker | Propósito |
+|:-------|:----------|
+| `logic-execution` | Instanciación del sandbox, descifrado AES, inspección AST |
+| `zk-verifier` | Deserialización de recibos, verificación HMAC |
+
+Configuración: 2–8 threads (producción), 0–1 threads (test), `FixedQueue`, 5s de timeout por inactividad.
+
+---
+
+## Hoja de Ruta
+
+Las siguientes características están definidas arquitectónicamente pero **aún no implementadas** en el SDK TypeScript:
+
+| Característica | Estado | Descripción |
+|:---------------|:-------|:------------|
+| **TEE Attestation** | 🔴 Planificado | Soporte para enclaves de hardware (AWS Nitro / Intel SGX) |
+| **ZK-VM Nativo** | 🔴 Planificado | Bindings RISC Zero o SP1 para pruebas de conocimiento cero reales |
+| **ZK Core Rust** | 🔴 Planificado | Reemplazar mock ZK en `zk.rs` con pruebas criptográficas nativas |
+
+<Warning>
+  El SDK TypeScript actualmente utiliza **compromisos HMAC-SHA256** como sellos de ZK-Receipt. Si bien son criptográficamente sólidos para verificación de integridad, no son pruebas de conocimiento cero verdaderas. La migración a un ZK-VM nativo está planificada para una versión futura.
+</Warning>

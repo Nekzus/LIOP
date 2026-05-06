@@ -1,41 +1,41 @@
 ---
 title: "Architecture"
-description: "Understanding the components, layers, and P2P routing of the Neural Mesh Protocol"
+description: "Understanding the components, layers, and P2P routing of the Logic-Injection-on-Origin Protocol"
 ---
 
-<img className="block dark:hidden" src="/images/architecture-light.svg" alt="NMP Architecture Diagram" />
-<img className="hidden dark:block" src="/images/architecture-dark.svg" alt="NMP Architecture Diagram" />
+<img className="block dark:hidden" src="/images/architecture-light.svg" alt="LIOP Architecture Diagram" />
+<img className="hidden dark:block" src="/images/architecture-dark.svg" alt="LIOP Architecture Diagram" />
 
-NMP operates on a fundamentally different paradigm than traditional REST APIs or the Model Context Protocol (MCP). It abandons the client-server hub-and-spoke JSON-RPC model in favor of a **decentralized, binary push model**. 
+LIOP operates on a fundamentally different paradigm than traditional REST APIs or the Model Context Protocol (MCP). It abandons the client-server hub-and-spoke JSON-RPC model in favor of a **decentralized, binary push model**. 
 
-By orchestrating Logic-on-Origin, NMP eliminates data gravity constraints, allowing Agent logic to travel to the dataset rather than forcing the dataset to travel to the Agent.
+By orchestrating Logic-on-Origin, LIOP eliminates data gravity constraints, allowing Agent logic to travel to the dataset rather than forcing the dataset to travel to the Agent.
 
 ## Protocol Scope
 
-NMP comprises several foundational pillars:
-- **NMP Specification**: The standardized implementation of Protobuf messages, libp2p routing, and WASI binary execution constraints.
-- **NMP SDKs**: Official TypeScript and Rust libraries to seamlessly integrate the mesh into existing applications.
-- **NMP Runtimes**: The core engine (usually `wasmtime`) that performs the mathematical sandboxing.
+LIOP comprises several foundational pillars:
+- **LIOP Specification**: The standardized implementation of Protobuf messages, libp2p routing, and WASI binary execution constraints.
+- **LIOP SDKs**: Official TypeScript and Rust libraries to seamlessly integrate the mesh into existing applications.
+- **LIOP Runtimes**: The core engine (usually `wasmtime`) that performs the mathematical sandboxing.
 
 <Note>
-  Similar to MCP, NMP is agnostic to the LLM model used beneath the hood. It strictly standardizes *how* the context and logical execution are securely exchanged.
+  Similar to MCP, LIOP is agnostic to the LLM model used beneath the hood. It strictly standardizes *how* the context and logical execution are securely exchanged.
 </Note>
 
 ## Mesh Participants
 
-In the Neural Mesh, every node is a Peer, but they assume distinct roles based on their computational purpose:
+In the LIOP Mesh, every node is a Peer, but they assume distinct roles based on their computational purpose:
 
 *   **Host System**: The underlying operating system, database, or device that holds the proprietary raw data.
-*   **Data Node (Server)**: A specialized NMP peer running adjacent to the Host System. It initializes the `WASI` sandbox and awaits remote modules. It protects the Host from malicious execution.
+*   **Data Node (Server)**: A specialized LIOP peer running adjacent to the Host System. It initializes the `WASI` sandbox and awaits remote modules. It protects the Host from malicious execution.
 *   **Agent Node (Client)**: Typically an Autonomous AI. It generates dynamic WebAssembly bytes (`.wasm`) mapped to an intent, and pushes these bytes into the Mesh to find corresponding Data Nodes.
 
 ## System Layers
 
-To ensure ultra-low latency and maximum security, NMP is strictly divided into two technical layers, orchestrated through mathematically verifiable pipelines.
+To ensure ultra-low latency and maximum security, LIOP is strictly divided into two technical layers, orchestrated through mathematically verifiable pipelines.
 
 <Frame>
-  <img className="block dark:hidden w-full" src="/images/topology-light.svg" alt="NMP Topology Architecture" />
-  <img className="hidden dark:block w-full" src="/images/topology-dark.svg" alt="NMP Topology Architecture" />
+  <img className="block dark:hidden w-full" src="/images/topology-light.svg" alt="LIOP Topology Architecture" />
+  <img className="hidden dark:block w-full" src="/images/topology-dark.svg" alt="LIOP Topology Architecture" />
 </Frame>
 
 ### 1. Transport Layer (libp2p & QUIC)
@@ -63,7 +63,7 @@ The final boundary before touching bare metal.
   <img className="hidden dark:block w-full" src="/images/master-flow-dark.svg" alt="Animated Logic-on-Origin Flow" />
 </Frame>
 
-Here is the exact lifecycle of an NMP execution, reflecting a 1:1 parity between our Architectural Models, Rust Backend, and Node.js SDK:
+Here is the exact lifecycle of a LIOP execution, reflecting a 1:1 parity between our Architectural Models, Rust Backend, and Node.js SDK:
 
 ### 1. The Client Emitter (`TypeScript Client`)
 - **WebAssembly Compilation:** The LLM's dynamic logic is evaluated and transformed into a `.wasm` binary stream.

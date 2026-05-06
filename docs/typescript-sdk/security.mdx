@@ -1,0 +1,219 @@
+---
+title: "Security Architecture"
+description: "Verified defense layers, cryptographic pipelines, and data protection mechanisms in the LIOP TypeScript SDK"
+---
+
+The LIOP TypeScript SDK implements a robust, **defense-in-depth** security architecture composed of four independently verified layers. Every claim on this page has been audited against the source code of `@nekzus/liop` v1.2.0.
+
+<Note>
+  This document reflects the **verified** state of the TypeScript SDK. Features marked with **[ROADMAP]** are architecturally planned but not yet implemented in production.
+</Note>
+
+---
+
+## Security Layers Overview
+
+<Frame>
+  <img className="block dark:hidden w-full" src="/images/animated-security-layers-light.svg" alt="Animated Security Layers Flow" />
+  <img className="hidden dark:block w-full" src="/images/animated-security-layers-dark.svg" alt="Animated Security Layers Flow" />
+</Frame>
+
+| Layer | Purpose | Timing |
+|:------|:--------|:-------|
+| **Guardian AST** | Blocks unauthorized WASM imports before execution | Pre-compile |
+| **WASI Sandbox** | Isolates runtime with poisoned globals and CPU fuel limits | Execution |
+| **PII Shield** | Prevents data leakage with algorithmic validators | Post-execution |
+| **ZK-Receipt** | Provides HMAC-SHA256 proof of honest computation | Post-execution |
+
+---
+
+## Layer 1: Guardian AST
+
+The Guardian AST module performs an immediate (zero-time) static inspection of WebAssembly modules **before** they are compiled. It uses `WebAssembly.Module.imports()` to enumerate and validate all host-bound import requests.
+
+### WASI Function Allowlist
+
+Only the following 14 `wasi_snapshot_preview1` functions are permitted:
+
+```
+fd_write, fd_read, fd_close, fd_seek, fd_prestat_get, fd_prestat_dir_name,
+fd_fdstat_get, environ_get, environ_sizes_get, args_get, args_sizes_get,
+clock_time_get, proc_exit, random_get
+```
+
+Any import outside this strict allowlist triggers an immediate `SandboxViolation` error. A hard limit of **128 total imports** per module prevents logic-bomb attacks.
+
+<Warning>
+  The Guardian AST inspects **WASM module imports**, not JavaScript keywords. Blocking of dangerous JS APIs (`require`, `eval`, `fetch`, etc.) is handled by the WASI Sandbox layer through global poisoning.
+</Warning>
+
+---
+
+## Layer 2: WASI Sandbox
+
+The SDK provides a **dual-path execution engine**:
+
+| Path | Technology | Use Case |
+|:-----|:-----------|:---------|
+| **Native WASM** | `node:wasi` (preview1) | Pre-compiled `.wasm` binaries |
+| **V8 Isolate** | `node:vm` + hardened context | Dynamic JavaScript payloads |
+
+### V8 Global Poisoning
+
+12 attack vectors are explicitly neutralized in the sandbox context:
+
+```typescript
+const POISONED_GLOBALS = [
+  "require", "process", "global", "globalThis",
+  "Buffer", "setTimeout", "setInterval", "setImmediate",
+  "queueMicrotask", "eval", "Function", "SharedArrayBuffer"
+];
+```
+
+Each is set to `undefined` and sealed with `Object.defineProperty({ writable: false })`, followed by a recursive `Object.freeze()` (deep freeze) on the entire sandbox context.
+
+### CPU Fuel Limits
+
+| Parameter | Value |
+|:----------|:------|
+| **Execution timeout** | 5,000 ms (hard kill) |
+| **Fuel limit** | 1,000,000 units |
+| **Working directory** | Ephemeral (deleted on teardown) |
+
+### Post-Execution Cleanup
+
+The sandbox performs physical cleanup after every execution:
+
+```typescript
+await fs.rm(workingDir, { recursive: true, force: true });
+```
+
+---
+
+## Layer 3: PII Egress Shield
+
+The PII Scanner runs **after** sandbox execution and **before** returning results to the caller. It uses a combination of regex patterns and algorithmic validators.
+
+### Detection Patterns
+
+| Pattern | Algorithm | Validation |
+|:--------|:----------|:-----------|
+| **EMAIL** | Regex | Excludes `@example.com`, `@test.com` |
+| **CREDIT_CARD** | **Luhn checksum** | Digit sum mod 10 === 0 |
+| **IP_ADDRESS** | Regex + range check | Excludes `127.x.x.x`, validates octets 0-255 |
+| **PHONE** | Regex + repetition check | 7-15 digits, rejects `1111111` patterns |
+| **SSN** | Structural validation | Blocks area=0/666/≥900, group=0, serial=0 |
+| **IBAN** | **ISO 7064 Mod-97 via BigInt** | `BigInt(numericString) % 97n === 1n` |
+| **PASSPORT_MRZ** | Regex | TD3 44-character Machine Readable Zone |
+
+### Regional Presets
+
+```typescript
+PII_PRESETS.GLOBAL_STRICT  // 6 patterns (Excludes SSN)
+PII_PRESETS.US_COMPLIANT   // 6 patterns (Includes SSN, excludes IBAN)
+PII_PRESETS.EU_GDPR        // 6 patterns (Includes IBAN, excludes SSN)
+```
+
+### Anti-Bypass Protections
+
+- **Forbidden Key O(1) Lookup**: `Set<string>.has()` for field names like `ssn`, `email`, `password`, `privateKey`
+- **Double JSON Defense**: Recursive parsing of JSON-in-strings defeats obfuscation via `JSON.stringify()` wrapping
+- **Circular Reference Guard**: `WeakSet` prevents infinite recursion on self-referencing objects
+- **Aggregation-First Policy**: Blocks raw row-level data export. Only aggregated results (counts, averages, summaries) pass through
+
+---
+
+## Layer 4: ZK-Receipts
+
+Every sandbox execution produces a **cryptographic receipt** proving that the result was computed honestly from the injected logic.
+
+### Receipt Structure (Binary v1)
+
+| Field | Size | Type | Description |
+|:------|:-----|:-----|:------------|
+| **Version** | 1 byte | `0x01` | Protocol version byte |
+| **Journal Length** | 2 bytes | Big-Endian `UInt16` | Length of the subsequent JSON payload |
+| **Journal** | Variable | JSON String | Contains `image_id`, `fuel`, and execution metrics |
+| **Seal** | 32 bytes | HMAC-SHA256 | Cryptographic signature of the journal |
+
+### Cryptographic Pipeline
+
+1. **ImageID Generation**: `SHA-256` hash of the original logic payload — fingerprints the exact code executed
+2. **Journal Assembly**: JSON containing `image_id`, `output_hash` (SHA-256 of result), `fuel` consumed, and `timestamp`
+3. **HMAC Seal**: `crypto.createHmac("sha256", sessionSecret).update(journal).digest()` — the session secret is derived from the **ML-KEM-768 (Kyber) handshake**
+4. **Verification**: `crypto.timingSafeEqual(seal, expectedSeal)` — constant-time comparison defeats timing attacks
+
+<Tip>
+  The `sessionSecret` used for HMAC signing is the shared key negotiated via Post-Quantum Cryptography (ML-KEM-768). This means the ZK-Receipt integrity is quantum-resistant.
+</Tip>
+
+---
+
+## Transport Security
+
+### Post-Quantum Cryptography (ML-KEM-768)
+
+The SDK uses the `mlkem` package (FIPS 203 compliant) for key encapsulation:
+
+| Parameter | Value |
+|:----------|:------|
+| **Algorithm** | ML-KEM-768 (Kyber) |
+| **Public Key Size** | 1,184 bytes |
+| **Ciphertext Size** | 1,088 bytes |
+| **Shared Secret** | 32 bytes |
+| **Symmetric Cipher** | AES-256-GCM |
+| **Nonce** | 12 bytes (unique per input) |
+
+### Nonce Isolation
+
+Each encrypted input uses a **fresh random 12-byte nonce** (`crypto.randomBytes(12)`), prepended to the ciphertext. This prevents AES-GCM nonce reuse attacks when multiple inputs are encrypted under the same session key.
+
+### Zero-Trust Bridge
+
+The `LiopStreamBridge` enforces mandatory Bearer token authentication:
+
+- If no `ZERO_TRUST_TOKEN` environment variable is set, a secure ephemeral token is auto-generated via `randomUUID()`
+- Every HTTP request to `/mcp` requires a valid `Authorization: Bearer <token>` header
+- Per-IP rate limiting on session creation (default: 10 concurrent sessions)
+- Automatic eviction of idle sessions (TTL: 30 minutes)
+
+---
+
+## P2P Network Security
+
+| Component | Technology |
+|:----------|:-----------|
+| **Transport Encryption** | Noise Protocol (Ed25519) |
+| **Stream Multiplexing** | Yamux |
+| **Identity** | Ed25519 persistent key pairs |
+| **Discovery** | Kademlia DHT with public bootstrap nodes |
+| **Transports** | TCP + WebSocket |
+
+---
+
+## Worker Pool Isolation
+
+Heavy cryptographic operations are dispatched to OS threads via **Piscina** (worker pool), preventing the main V8 event loop from being blocked:
+
+| Worker | Purpose |
+|:-------|:--------|
+| `logic-execution` | Sandbox instantiation, AES decryption, AST inspection |
+| `zk-verifier` | Receipt deserialization, HMAC verification |
+
+Configuration: 2–8 threads (production), 0–1 threads (test), `FixedQueue`, 5s idle timeout.
+
+---
+
+## Roadmap
+
+The following features are architecturally defined but **not yet implemented** in the TypeScript SDK:
+
+| Feature | Status | Description |
+|:--------|:-------|:------------|
+| **TEE Attestation** | 🔴 Planned | Hardware enclave support (AWS Nitro / Intel SGX) |
+| **Native ZK-VM** | 🔴 Planned | RISC Zero or SP1 bindings for true zero-knowledge proofs |
+| **Rust Core ZK** | 🔴 Planned | Replace mock ZK in `zk.rs` with native cryptographic proofs |
+
+<Warning>
+  The TypeScript SDK currently uses **HMAC-SHA256 commitments** as ZK-Receipt seals. While cryptographically sound for integrity verification, these are not true zero-knowledge proofs. Migration to a native ZK-VM is planned for a future release.
+</Warning>
