@@ -203,16 +203,13 @@ export class LiopServer {
 
 			const schemaResult = effectiveSchema.safeParse(parsed);
 			if (!schemaResult.success) {
-				// Include a truncated preview of the rejected value so the LLM can self-correct
-				const preview =
-					typeof parsed === "string"
-						? parsed.slice(0, 200)
-						: JSON.stringify(parsed).slice(0, 200);
+				// SEC-CRITICAL: Never expose rejected data in error messages.
+				// Only report the structural violation (unrecognized keys, type mismatches).
 				return `[LIOP] Output schema violation for ${toolName}: ${schemaResult.error.issues
 					.map((i) => `${i.path.join(".") || "<root>"} ${i.message}`)
 					.join(
 						"; ",
-					)}. Rejected value: ${preview}. HINT: Use 'env.records' to access the dataset inside your logic.`;
+					)}. HINT: Your output must conform to the declared schema. Use 'env.records' to access the dataset and return only allowed fields.`;
 			}
 		}
 
@@ -1180,13 +1177,14 @@ Protocol Adherence is mandatory for successful execution.`,
 						this.unwrapForAggregationPolicyScan(finalOutput),
 					);
 					if (violation || aggregationViolation) {
-						const reason =
-							violation ||
-							"Aggregation-First Policy Violation: row-level export blocked. HINT: Use .reduce() to produce a flat {key:value} object. Do NOT use .map() to create arrays of objects.";
+						// SEC-CRITICAL: Log details server-side, never expose to caller
+						const internalReason =
+							violation || "Aggregation-First Policy Violation";
 						log.info(
-							`[LIOP-RPC] Secure egress blocked in gRPC stream: ${reason}`,
+							`[LIOP-RPC] Secure egress blocked in gRPC stream: ${internalReason}`,
 						);
-						response.semantic_evidence = `[LIOP] Egress Security Violation. Output blocked due to policy enforcement (${reason}).`;
+						response.semantic_evidence =
+							"[LIOP] Egress Security Violation. Output blocked due to policy enforcement.";
 						response.is_error = true;
 					}
 
@@ -1267,11 +1265,17 @@ Protocol Adherence is mandatory for successful execution.`,
 				toolPolicy,
 			);
 			if (policyViolation) {
+				// SEC-CRITICAL: Log details server-side, never expose to caller
 				log.info(
 					`[LIOP-SDK] Output policy blocked for ${toolName || "unknown_tool"}: ${policyViolation}`,
 				);
 				return {
-					content: [{ type: "text", text: `[LIOP] ${policyViolation}` }],
+					content: [
+						{
+							type: "text",
+							text: "[LIOP] Egress Security Violation. Output blocked due to policy enforcement. HINT: Return only aggregated, non-PII results using .reduce() to produce a flat {key:value} object with allowed schema fields.",
+						},
+					],
 					isError: true,
 				};
 			}
@@ -1282,17 +1286,18 @@ Protocol Adherence is mandatory for successful execution.`,
 				workerResponse.output,
 			);
 			if (violation || aggregationViolation) {
-				const reason =
-					violation ||
-					"Aggregation-First Policy Violation: row-level export blocked. HINT: Use .reduce() to produce a flat {key:value} object. Do NOT use .map() to create arrays of objects.";
+				// SEC-CRITICAL: Log the specific violation reason server-side only.
+				// Never expose detection details (entity names, matched values) to the caller.
+				const internalReason =
+					violation || "Aggregation-First Policy Violation";
 				log.info(
-					`[LIOP-SDK] Secure egress blocked in local execution: ${reason}`,
+					`[LIOP-SDK] Secure egress blocked in local execution: ${internalReason}`,
 				);
 				return {
 					content: [
 						{
 							type: "text",
-							text: `[LIOP] Egress Security Violation. Output blocked due to policy enforcement (${reason}).`,
+							text: "[LIOP] Egress Security Violation. Output blocked due to policy enforcement. HINT: Return only aggregated, non-PII results using .reduce() to produce a flat {key:value} object with allowed schema fields.",
 						},
 					],
 					isError: true,

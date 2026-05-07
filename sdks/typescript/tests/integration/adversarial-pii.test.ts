@@ -94,7 +94,7 @@ return { results: extracted };
 		});
 
 		expect(result.isError).toBe(true);
-		expect(result.content[0].text).toMatch(/Egress Security Violation|PII Entity|Forbidden Key/);
+		expect(result.content[0].text).toContain("Egress Security Violation");
 	});
 
 	it("T2: should BLOCK direct 'id' key in output (exact match)", async () => {
@@ -109,7 +109,7 @@ return { id: r[0].id };
 		});
 
 		expect(result.isError).toBe(true);
-		expect(result.content[0].text).toMatch(/Forbidden Key/);
+		expect(result.content[0].text).toContain("Egress Security Violation");
 	});
 
 	it("T3: should BLOCK field-by-field with aliased keys (holders_exported)", async () => {
@@ -124,7 +124,7 @@ return { holders_exported: r.map(x => x.name) };
 		});
 
 		expect(result.isError).toBe(true);
-		expect(result.content[0].text).toMatch(/PII Entity|Egress Security/);
+		expect(result.content[0].text).toContain("Egress Security Violation");
 	});
 
 	it("T4: should BLOCK full field extraction with innocuous keys", async () => {
@@ -153,7 +153,7 @@ return { patientFullName: r[0].name };
 		});
 
 		expect(result.isError).toBe(true);
-		expect(result.content[0].text).toMatch(/fuzzy|Forbidden Key|PII Entity/);
+		expect(result.content[0].text).toContain("Egress Security Violation");
 	});
 
 	it("T6: should BLOCK compound keys (patientId → boundary match for 'id')", async () => {
@@ -168,7 +168,7 @@ return { patientId: r.map(x => x.id) };
 		});
 
 		expect(result.isError).toBe(true);
-		expect(result.content[0].text).toMatch(/fuzzy|Forbidden Key/);
+		expect(result.content[0].text).toContain("Egress Security Violation");
 	});
 
 	it("T7: should BLOCK plural key bypass ('names' contains 'name')", async () => {
@@ -183,7 +183,7 @@ return { names: r.map(x => x.name) };
 		});
 
 		expect(result.isError).toBe(true);
-		expect(result.content[0].text).toMatch(/fuzzy|Forbidden Key|PII Entity/);
+		expect(result.content[0].text).toContain("Egress Security Violation");
 	});
 
 	it("T8: should BLOCK snake_case compound keys (record_id)", async () => {
@@ -198,7 +198,7 @@ return { record_id: r.map(x => x.id) };
 		});
 
 		expect(result.isError).toBe(true);
-		expect(result.content[0].text).toMatch(/fuzzy|Forbidden Key/);
+		expect(result.content[0].text).toContain("Egress Security Violation");
 	});
 
 	it("SAFE-1: should ALLOW legitimate aggregation (no PII in output)", async () => {
