@@ -21,9 +21,10 @@ import type {
 	Tool,
 } from "../types.js";
 import { log } from "../utils/logger.js";
+import { NerScanner } from "./ner-scanner.js";
 import { PII_PATTERNS, PII_PRESETS, type PiiRule, PiiScanner } from "./pii.js";
 
-export { PII_PATTERNS, PII_PRESETS, type PiiRule, PiiScanner };
+export { NerScanner, PII_PATTERNS, PII_PRESETS, type PiiRule, PiiScanner };
 
 /**
  * When enabled, `payload` tools that are not LIOP v1 envelopes are passed through to the
@@ -52,6 +53,8 @@ export interface LiopServerOptions {
 	security?: {
 		piiPatterns?: PiiRule[];
 		forbiddenKeys?: string[];
+		/** Enable NLP-based Named Entity Recognition scanning on output values. */
+		enableNerScanning?: boolean;
 	};
 	taxonomy?: {
 		domain?: string;
@@ -190,7 +193,15 @@ export class LiopServer {
 		const parsed = this.parseUnknownJson(output);
 
 		if (policy.outputSchema) {
-			const schemaResult = policy.outputSchema.safeParse(parsed);
+			// SEC-HARDENING: Force strict mode on ZodObject schemas to prevent
+			// key aliasing bypasses via .passthrough(). If the schema was defined
+			// with .passthrough(), .strict() overrides it (creates a new instance).
+			const effectiveSchema =
+				policy.outputSchema instanceof z.ZodObject
+					? (policy.outputSchema as z.ZodObject<z.ZodRawShape>).strict()
+					: policy.outputSchema;
+
+			const schemaResult = effectiveSchema.safeParse(parsed);
 			if (!schemaResult.success) {
 				// Include a truncated preview of the rejected value so the LLM can self-correct
 				const preview =
@@ -338,6 +349,10 @@ export class LiopServer {
 		private serverInfo: ServerInfo,
 		private config?: LiopServerOptions,
 	) {
+		const nerScanner = this.config?.security?.enableNerScanning
+			? new NerScanner()
+			: null;
+
 		this.piiScanner = new PiiScanner(
 			this.config?.security?.piiPatterns ?? PII_PRESETS.GLOBAL_STRICT,
 			this.config?.security?.forbiddenKeys ?? [
@@ -362,6 +377,7 @@ export class LiopServer {
 				"secret",
 				"privateKey",
 			],
+			nerScanner,
 		);
 
 		// Initialize Zero-Blocking Worker Pool for Heavy Cryptography & Sandboxing

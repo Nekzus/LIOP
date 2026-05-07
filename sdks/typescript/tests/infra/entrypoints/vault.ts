@@ -73,7 +73,7 @@ async function main() {
 			averageAge: z.union([z.number(), z.string()]).optional(),
 			clientPayload: z.string().optional(),
 		})
-		.passthrough();
+		.strict();
 
 	liopServer.tool(
 		"Analyze_Synthetic_Medical_Records",

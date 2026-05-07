@@ -92,9 +92,29 @@ await fs.rm(workingDir, { recursive: true, force: true });
 
 ## Layer 3: PII Egress Shield
 
-The PII Scanner intercepts all sandbox output **before** results are returned to the caller. It applies a combination of regex patterns and algorithmic validators to detect and block sensitive data.
+The PII Scanner intercepts all sandbox output **before** results are returned to the caller. Starting from v3, it operates a **four-stage detection pipeline** that combines structural analysis, pattern matching, and natural language processing. Each stage is independent — the system blocks data if **any** stage detects a violation.
 
-### Detection Patterns
+### Detection Pipeline
+
+| Stage | Mechanism | Purpose |
+|:------|:----------|:--------|
+| **1. Exact Key Match** | `Set<string>.has()` — O(1) | Blocks well-known PII field names (`ssn`, `email`, `password`) |
+| **2. Fuzzy Key Match** | Boundary regex + substring | Catches aliases and variations (`patientId`, `names`, `fullName`) |
+| **3. Pattern Validators** | Regex + algorithmic checks | Detects PII values regardless of key naming (emails, credit cards, IBANs) |
+| **4. NER Content Scan** | `compromise` NLP engine | Identifies person names, places, and organizations in free text |
+
+### Stage 1–2: Key Analysis
+
+**Exact match** uses a `Set<string>` for O(1) constant-time lookup against a configurable list of forbidden keys.
+
+**Fuzzy match** extends protection to aliases and variations using two algorithms:
+
+- **Short tokens** (< 4 chars, e.g., `id`): Boundary-aware regex that detects `patientId`, `record_id`, `user-id` but allows `grid`, `video`, `android`
+- **Long tokens** (≥ 4 chars, e.g., `name`, `phone`): Substring containment that detects `firstName`, `accountName`, `names`
+
+A **safelist** of common English words and LIOP protocol internal keys prevents false positives on terms like `diagnosis`, `medication`, `image_id`, or `timestamp`.
+
+### Stage 3: Pattern Validators
 
 | Pattern | Algorithm | Validation |
 |:--------|:----------|:-----------|
@@ -105,6 +125,26 @@ The PII Scanner intercepts all sandbox output **before** results are returned to
 | **SSN** | Structural validation | Blocks area=0/666/≥900, group=0, serial=0 |
 | **IBAN** | **ISO 7064 Mod-97 via BigInt** | `BigInt(numericString) % 97n === 1n` |
 | **PASSPORT_MRZ** | Regex | TD3 44-character Machine Readable Zone |
+
+### Stage 4: Named Entity Recognition (NER)
+
+When `enableNerScanning` is set to `true`, the scanner leverages the [`compromise`](https://github.com/spencermountain/compromise) NLP library to detect person names, geographic locations, and organization names embedded in output values — regardless of the key used to store them.
+
+```typescript
+const server = new LiopServer(
+  { name: "secure-vault", version: "1.0.0" },
+  {
+    security: {
+      enableNerScanning: true,  // Activates NLP-based entity detection
+      forbiddenKeys: ["id", "name", "ssn", "email"],
+    },
+  },
+);
+```
+
+<Note>
+  NER scanning is **opt-in** during the alpha phase. It adds approximately 10ms of latency for typical output sizes (< 10KB). The `compromise` library operates entirely in-process with no external API calls.
+</Note>
 
 ### Regional Presets
 
@@ -120,10 +160,10 @@ Presets can be merged with custom regex rules for organization-specific complian
 
 ### Anti-Bypass Protections
 
-- **Forbidden Key Lookup**: O(1) blocking via `Set<string>.has()` for field names like `ssn`, `email`, `password`, `privateKey`
 - **Nested JSON Defense**: Recursive parsing of JSON-encoded strings defeats obfuscation through `JSON.stringify()` wrapping
 - **Circular Reference Guard**: `WeakSet` tracking prevents infinite recursion on self-referencing objects
 - **Aggregation-First Policy**: Blocks raw row-level data export — only aggregated results (counts, averages, summaries) pass through
+- **Output Schema Enforcement**: When a `Zod` output schema is defined, `.strict()` mode is automatically applied, rejecting any keys not explicitly allowed in the schema
 
 ---
 

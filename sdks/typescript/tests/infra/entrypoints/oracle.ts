@@ -78,7 +78,7 @@ async function main() {
 			changes: z.array(z.string()).optional(),
 			clientPayload: z.string().optional(),
 		})
-		.passthrough();
+		.strict();
 
 	server.tool(
 		"Analyze_Synthetic_Market_Data",

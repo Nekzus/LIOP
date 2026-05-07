@@ -92,9 +92,29 @@ await fs.rm(workingDir, { recursive: true, force: true });
 
 ## Capa 3: Escudo de Privacidad (PII Egress Shield)
 
-El escáner PII intercepta toda la salida del sandbox **antes** de devolver los resultados al llamador. Aplica una combinación de patrones regex y validadores algorítmicos para detectar y bloquear datos sensibles.
+El escáner PII intercepta toda la salida del sandbox **antes** de devolver los resultados al llamador. A partir de la v3, opera un **pipeline de detección en cuatro etapas** que combina análisis estructural, coincidencia de patrones y procesamiento de lenguaje natural. Cada etapa es independiente — el sistema bloquea los datos si **cualquier** etapa detecta una violación.
 
-### Patrones de Detección
+### Pipeline de Detección
+
+| Etapa | Mecanismo | Propósito |
+|:------|:----------|:---------|
+| **1. Coincidencia Exacta de Claves** | `Set<string>.has()` — O(1) | Bloquea nombres de campo PII conocidos (`ssn`, `email`, `password`) |
+| **2. Coincidencia Difusa de Claves** | Regex de contorno + subcadena | Captura aliases y variaciones (`patientId`, `names`, `fullName`) |
+| **3. Validadores de Patrones** | Regex + verificaciones algorítmicas | Detecta valores PII independientemente del nombre de la clave |
+| **4. Escaneo NER de Contenido** | Motor NLP `compromise` | Identifica nombres de personas, lugares y organizaciones en texto libre |
+
+### Etapas 1–2: Análisis de Claves
+
+La **coincidencia exacta** utiliza un `Set<string>` para búsqueda en tiempo constante O(1) contra una lista configurable de claves prohibidas.
+
+La **coincidencia difusa** extiende la protección a aliases y variaciones mediante dos algoritmos:
+
+- **Tokens cortos** (< 4 caracteres, ej. `id`): Regex con detección de contorno que identifica `patientId`, `record_id`, `user-id` pero permite `grid`, `video`, `android`
+- **Tokens largos** (≥ 4 caracteres, ej. `name`, `phone`): Contención por subcadena que detecta `firstName`, `accountName`, `names`
+
+Una **lista segura** de palabras comunes del inglés y claves internas del protocolo LIOP previene falsos positivos en términos como `diagnosis`, `medication`, `image_id` o `timestamp`.
+
+### Etapa 3: Validadores de Patrones
 
 | Patrón | Algoritmo | Validación |
 |:-------|:----------|:-----------|
@@ -105,6 +125,26 @@ El escáner PII intercepta toda la salida del sandbox **antes** de devolver los 
 | **SSN** | Validación estructural | Bloquea area=0/666/≥900, grupo=0, serial=0 |
 | **IBAN** | **ISO 7064 Mod-97 via BigInt** | `BigInt(cadenaNumérica) % 97n === 1n` |
 | **PASSPORT_MRZ** | Regex | Zona de Lectura Mecánica TD3 de 44 caracteres |
+
+### Etapa 4: Reconocimiento de Entidades Nombradas (NER)
+
+Cuando `enableNerScanning` se establece en `true`, el escáner utiliza la librería NLP [`compromise`](https://github.com/spencermountain/compromise) para detectar nombres de personas, ubicaciones geográficas y nombres de organizaciones embebidos en los valores de salida — independientemente de la clave utilizada para almacenarlos.
+
+```typescript
+const server = new LiopServer(
+  { name: "secure-vault", version: "1.0.0" },
+  {
+    security: {
+      enableNerScanning: true,  // Activa la detección de entidades por NLP
+      forbiddenKeys: ["id", "name", "ssn", "email"],
+    },
+  },
+);
+```
+
+<Note>
+  El escaneo NER es **opt-in** durante la fase alpha. Añade aproximadamente 10ms de latencia para tamaños de salida típicos (< 10KB). La librería `compromise` opera enteramente dentro del proceso sin realizar llamadas a APIs externas.
+</Note>
 
 ### Presets Regionales
 
@@ -120,10 +160,10 @@ Los presets pueden combinarse con reglas regex personalizadas para cumplir con r
 
 ### Protecciones Anti-Bypass
 
-- **Búsqueda de Claves Prohibidas**: Bloqueo O(1) mediante `Set<string>.has()` para nombres de campo como `ssn`, `email`, `password`, `privateKey`
 - **Defensa contra JSON Anidado**: El análisis recursivo de cadenas con JSON embebido neutraliza la ofuscación mediante envolturas de `JSON.stringify()`
 - **Protección contra Referencias Circulares**: Un `WeakSet` de seguimiento previene la recursión infinita en objetos auto-referenciantes
 - **Política Aggregation-First**: Bloquea la exportación de datos crudos a nivel de fila — solo pasan resultados agregados (conteos, promedios, resúmenes)
+- **Aplicación de Output Schema**: Cuando se define un esquema de salida `Zod`, el modo `.strict()` se aplica automáticamente, rechazando cualquier clave no permitida explícitamente en el esquema
 
 ---
 
