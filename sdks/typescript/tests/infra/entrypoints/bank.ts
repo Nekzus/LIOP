@@ -78,9 +78,9 @@ async function main() {
 			avgBalance: z.union([z.number(), z.string()]).optional(),
 			balanceByCurrency: z.record(z.union([z.number(), z.string()])).optional(),
 			columns: z.array(z.string()).optional(),
-			accounts: z.array(z.string()).optional(),
-			balances: z.array(z.union([z.number(), z.string()])).optional(),
 			clientPayload: z.string().optional(),
+			// SEC-HARDENING: Removed 'balances' and 'accounts' arrays —
+			// individual values are quasi-identifiers (re-identification risk).
 		})
 		// Allow any extra key with numeric values (generic aggregation output).
 		// PII protection is enforced by layers 2-4 (fuzzy keys, regex, NER).

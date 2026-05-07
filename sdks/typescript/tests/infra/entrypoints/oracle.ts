@@ -75,10 +75,9 @@ async function main() {
 			maxPrice: z.number().optional(),
 			minPrice: z.number().optional(),
 			columns: z.array(z.string()).optional(),
-			prices: z.array(z.number()).optional(),
-			volumes: z.array(z.union([z.number(), z.string()])).optional(),
-			changes: z.array(z.string()).optional(),
 			clientPayload: z.string().optional(),
+			// SEC-HARDENING: Removed 'prices', 'volumes', 'changes' arrays —
+			// individual values are quasi-identifiers (ticker re-identification risk).
 		})
 		// Allow any extra key with numeric values (generic aggregation output).
 		// PII protection is enforced by layers 2-4 (fuzzy keys, regex, NER).
