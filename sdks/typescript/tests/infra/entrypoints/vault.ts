@@ -67,11 +67,21 @@ async function main() {
 	liopServer.setSandboxData(patients as unknown as Record<string, unknown>[]);
 	const medicalAggregatedOutputSchema = z
 		.object({
+			// Domain-specific keys
 			totalPatients: z.number().optional(),
 			hypertensionCount: z.number().optional(),
 			percentage: z.union([z.number(), z.string()]).optional(),
 			averageAge: z.union([z.number(), z.string()]).optional(),
 			clientPayload: z.string().optional(),
+			// Generic aggregation keys (LLMs generate these naturally)
+			total: z.number().optional(),
+			count: z.number().optional(),
+			avgAge: z.union([z.number(), z.string()]).optional(),
+			avg: z.union([z.number(), z.string()]).optional(),
+			sum: z.number().optional(),
+			min: z.number().optional(),
+			max: z.number().optional(),
+			result: z.union([z.number(), z.string()]).optional(),
 		})
 		.strict();
 

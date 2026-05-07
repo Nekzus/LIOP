@@ -169,8 +169,10 @@ export class LiopServer {
 
 		if (policy.enforceAggregationFirst) {
 			const rowExtractionPatterns = [
-				/return\s+env\.records\b/i,
-				/return\s*\{[\s\S]*\b(accounts|patients|rows|records)\s*:\s*env\.records/i,
+				// Block raw record dumps but allow safe aggregation chains
+				// (.reduce, .length, .filter().length, .every, .some)
+				/return\s+env\.records(?!\s*\.\s*(?:reduce|length|filter|every|some|find)\b)/i,
+				/return\s*\{[\s\S]*\b(accounts|patients|rows|records)\s*:\s*env\.records(?!\s*\.\s*(?:reduce|length|filter)\b)/i,
 			];
 			if (rowExtractionPatterns.some((p) => p.test(compact))) {
 				return "Preflight policy rejected: potential row-level export pattern detected.";
