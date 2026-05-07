@@ -65,10 +65,11 @@ async function main() {
 	server.setSandboxData(marketTicks as unknown as Record<string, unknown>[]);
 	const marketAggregatedOutputSchema = z
 		.object({
-			// Domain-specific keys
+			// Domain-specific keys (may accept strings/arrays)
 			total: z.number().optional(),
 			total_records: z.number().optional(),
 			avgPrice: z.union([z.number(), z.string()]).optional(),
+			avgPE: z.union([z.number(), z.string()]).optional(),
 			positives: z.number().optional(),
 			negatives: z.number().optional(),
 			maxPrice: z.number().optional(),
@@ -78,16 +79,10 @@ async function main() {
 			volumes: z.array(z.union([z.number(), z.string()])).optional(),
 			changes: z.array(z.string()).optional(),
 			clientPayload: z.string().optional(),
-			// Generic aggregation keys (LLMs generate these naturally)
-			count: z.number().optional(),
-			avg: z.union([z.number(), z.string()]).optional(),
-			avgPE: z.union([z.number(), z.string()]).optional(),
-			sum: z.number().optional(),
-			min: z.number().optional(),
-			max: z.number().optional(),
-			result: z.union([z.number(), z.string()]).optional(),
 		})
-		.strict();
+		// Allow any extra key with numeric values (generic aggregation output).
+		// PII protection is enforced by layers 2-4 (fuzzy keys, regex, NER).
+		.catchall(z.number());
 
 	server.tool(
 		"Analyze_Synthetic_Market_Data",

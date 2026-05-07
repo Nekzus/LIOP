@@ -67,23 +67,17 @@ async function main() {
 	liopServer.setSandboxData(patients as unknown as Record<string, unknown>[]);
 	const medicalAggregatedOutputSchema = z
 		.object({
-			// Domain-specific keys
+			// Domain-specific keys (may accept strings)
 			totalPatients: z.number().optional(),
 			hypertensionCount: z.number().optional(),
 			percentage: z.union([z.number(), z.string()]).optional(),
 			averageAge: z.union([z.number(), z.string()]).optional(),
-			clientPayload: z.string().optional(),
-			// Generic aggregation keys (LLMs generate these naturally)
-			total: z.number().optional(),
-			count: z.number().optional(),
 			avgAge: z.union([z.number(), z.string()]).optional(),
-			avg: z.union([z.number(), z.string()]).optional(),
-			sum: z.number().optional(),
-			min: z.number().optional(),
-			max: z.number().optional(),
-			result: z.union([z.number(), z.string()]).optional(),
+			clientPayload: z.string().optional(),
 		})
-		.strict();
+		// Allow any extra key with numeric values (generic aggregation output).
+		// PII protection is enforced by layers 2-4 (fuzzy keys, regex, NER).
+		.catchall(z.number());
 
 	liopServer.tool(
 		"Analyze_Synthetic_Medical_Records",

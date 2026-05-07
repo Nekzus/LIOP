@@ -196,12 +196,21 @@ export class LiopServer {
 
 		if (policy.outputSchema) {
 			// SEC-HARDENING: Force strict mode on ZodObject schemas to prevent
-			// key aliasing bypasses via .passthrough(). If the schema was defined
-			// with .passthrough(), .strict() overrides it (creates a new instance).
-			const effectiveSchema =
-				policy.outputSchema instanceof z.ZodObject
-					? (policy.outputSchema as z.ZodObject<z.ZodRawShape>).strict()
-					: policy.outputSchema;
+			// key aliasing bypasses via .passthrough(). However, respect schemas
+			// that explicitly use .catchall() — calling .strict() would override
+			// the catchall with ZodNever, destroying the developer's intent.
+			const effectiveSchema = (() => {
+				if (!(policy.outputSchema instanceof z.ZodObject)) {
+					return policy.outputSchema;
+				}
+				const obj = policy.outputSchema as z.ZodObject<z.ZodRawShape>;
+				// If schema has an explicit catchall (not ZodNever), respect it
+				if (!(obj._def.catchall instanceof z.ZodNever)) {
+					return obj;
+				}
+				// Otherwise force strict to block unrecognized keys by default
+				return obj.strict();
+			})();
 
 			const schemaResult = effectiveSchema.safeParse(parsed);
 			if (!schemaResult.success) {
