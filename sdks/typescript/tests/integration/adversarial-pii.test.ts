@@ -300,8 +300,8 @@ return out;
 		});
 
 		expect(result.isError).toBe(true);
-		// Dynamic keys blocked by egress shield (schema strict + aggregation policy)
-		expect(result.content[0].text).toContain("Egress Security Violation");
+		// Dynamic keys blocked by egress shield (schema strict + aggregation limit)
+		expect(result.content[0].text).toContain("Output schema violation");
 
 		await strictServer.close();
 	});

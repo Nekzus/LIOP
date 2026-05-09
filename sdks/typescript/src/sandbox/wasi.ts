@@ -160,6 +160,7 @@ export class WasiSandbox {
 			sandboxEnv.eval = undefined;
 			sandboxEnv.Function = undefined;
 			sandboxEnv.SharedArrayBuffer = undefined;
+			sandboxEnv.Date = undefined;
 
 			// [DoS Defense] Block off-heap memory allocation vectors.
 			// Logic-on-Origin operates on JSON data (env.records) — binary buffers

@@ -1361,15 +1361,24 @@ Protocol Adherence is mandatory for successful execution.`,
 				toolPolicy,
 			);
 			if (policyViolation) {
-				// SEC-CRITICAL: Log details server-side, never expose to caller
+				// SEC-CRITICAL: Log details server-side, never expose to caller in Production
 				log.info(
 					`[LIOP-SDK] Output policy blocked for ${toolName || "unknown_tool"}: ${policyViolation}`,
 				);
+
+				const isDev =
+					process.env.NODE_ENV === "development" ||
+					process.env.NODE_ENV === "test";
+
+				const errorMessage = isDev
+					? policyViolation
+					: "[LIOP] Egress Security Violation. Output blocked due to policy enforcement. HINT: Return only aggregated, non-PII results using .reduce() to produce a flat {key:value} object with allowed schema fields.";
+
 				return {
 					content: [
 						{
 							type: "text",
-							text: "[LIOP] Egress Security Violation. Output blocked due to policy enforcement. HINT: Return only aggregated, non-PII results using .reduce() to produce a flat {key:value} object with allowed schema fields.",
+							text: errorMessage,
 						},
 					],
 					isError: true,
@@ -1383,17 +1392,27 @@ Protocol Adherence is mandatory for successful execution.`,
 			);
 			if (violation || aggregationViolation) {
 				// SEC-CRITICAL: Log the specific violation reason server-side only.
-				// Never expose detection details (entity names, matched values) to the caller.
+				// Never expose detection details (entity names, matched values) to the caller in Production.
 				const internalReason =
-					violation || "Aggregation-First Policy Violation";
+					violation ||
+					"Aggregation-First Policy Violation: Output blocked due to dynamic flat-key policy enforcement.";
 				log.info(
 					`[LIOP-SDK] Secure egress blocked in local execution: ${internalReason}`,
 				);
+
+				const isDev =
+					process.env.NODE_ENV === "development" ||
+					process.env.NODE_ENV === "test";
+
+				const errorMessage = isDev
+					? `[LIOP] Egress Security Violation: ${internalReason}`
+					: "[LIOP] Egress Security Violation. Output blocked due to policy enforcement. HINT: Return only aggregated, non-PII results using .reduce() to produce a flat {key:value} object with allowed schema fields.";
+
 				return {
 					content: [
 						{
 							type: "text",
-							text: "[LIOP] Egress Security Violation. Output blocked due to policy enforcement. HINT: Return only aggregated, non-PII results using .reduce() to produce a flat {key:value} object with allowed schema fields.",
+							text: errorMessage,
 						},
 					],
 					isError: true,
