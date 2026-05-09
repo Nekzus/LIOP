@@ -79,8 +79,10 @@ async function main() {
 			// SEC-HARDENING: Removed 'prices', 'volumes', 'changes' arrays —
 			// individual values are quasi-identifiers (ticker re-identification risk).
 		})
-		// Allow any extra key with numeric values (generic aggregation output).
-		// PII protection is enforced by layers 2-4 (fuzzy keys, regex, NER).
+		// Dynamic aggregation keys (e.g., sector names, specific tickers).
+		// Security note: .catchall() is a STRUCTURAL choice, not a security boundary.
+		// Defense-in-depth: PII Scanner (Layer 3) blocks names/IDs/emails,
+		// Aggregation-First (Layer 4) blocks arrays of objects.
 		.catchall(z.number());
 
 	server.tool(

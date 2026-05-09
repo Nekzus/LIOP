@@ -82,8 +82,10 @@ async function main() {
 			// SEC-HARDENING: Removed 'balances' and 'accounts' arrays —
 			// individual values are quasi-identifiers (re-identification risk).
 		})
-		// Allow any extra key with numeric values (generic aggregation output).
-		// PII protection is enforced by layers 2-4 (fuzzy keys, regex, NER).
+		// Dynamic aggregation keys (e.g., currency codes, bucket labels).
+		// Security note: .catchall() is a STRUCTURAL choice, not a security boundary.
+		// Defense-in-depth: PII Scanner (Layer 3) blocks names/IDs/emails,
+		// Aggregation-First (Layer 4) blocks arrays of objects.
 		.catchall(z.number());
 
 	liopServer.tool(

@@ -15,6 +15,46 @@
  */
 import nlp from "compromise/three";
 
+/**
+ * Medical/pharmaceutical vocabulary safelist.
+ * These terms are tagged as #Medication to prevent the NER
+ * from misclassifying them as person/organization names.
+ * Extends progressively — add terms as false positives arise.
+ */
+const MEDICAL_VOCABULARY: Record<string, string> = {
+	aspirin: "Medication",
+	lisinopril: "Medication",
+	metformin: "Medication",
+	amlodipine: "Medication",
+	atorvastatin: "Medication",
+	omeprazole: "Medication",
+	losartan: "Medication",
+	simvastatin: "Medication",
+	levothyroxine: "Medication",
+	ibuprofen: "Medication",
+	acetaminophen: "Medication",
+	amoxicillin: "Medication",
+	ciprofloxacin: "Medication",
+	prednisone: "Medication",
+	warfarin: "Medication",
+	insulin: "Medication",
+	hydrochlorothiazide: "Medication",
+	gabapentin: "Medication",
+	albuterol: "Medication",
+	pantoprazole: "Medication",
+	// Generic clinical terms
+	hypertension: "Condition",
+	diabetes: "Condition",
+	bronchitis: "Condition",
+	pneumonia: "Condition",
+	asthma: "Condition",
+};
+
+// Register medical vocabulary BEFORE any scan operations.
+// compromise's addWords() overrides the default classification,
+// preventing these terms from being tagged as #Person or #Organization.
+nlp.addWords(MEDICAL_VOCABULARY);
+
 /** Single named entity detected by the NER scanner. */
 export interface NerEntity {
 	type: "person" | "place" | "organization";

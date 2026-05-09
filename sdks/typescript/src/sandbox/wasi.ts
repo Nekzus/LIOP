@@ -161,6 +161,23 @@ export class WasiSandbox {
 			sandboxEnv.Function = undefined;
 			sandboxEnv.SharedArrayBuffer = undefined;
 
+			// [DoS Defense] Block off-heap memory allocation vectors.
+			// Logic-on-Origin operates on JSON data (env.records) — binary buffers
+			// serve no legitimate purpose and enable memory exhaustion DoS.
+			// (Uint8Array(2GB) bypassed Piscina's maxOldGenerationSizeMb limit)
+			sandboxEnv.ArrayBuffer = undefined;
+			sandboxEnv.Uint8Array = undefined;
+			sandboxEnv.Int8Array = undefined;
+			sandboxEnv.Uint16Array = undefined;
+			sandboxEnv.Int16Array = undefined;
+			sandboxEnv.Uint32Array = undefined;
+			sandboxEnv.Int32Array = undefined;
+			sandboxEnv.Float32Array = undefined;
+			sandboxEnv.Float64Array = undefined;
+			sandboxEnv.BigInt64Array = undefined;
+			sandboxEnv.BigUint64Array = undefined;
+			sandboxEnv.DataView = undefined;
+
 			// Inject strictly monitored globals
 			sandboxEnv.records = JSON.parse(JSON.stringify(records)); // Deep copy safety
 			sandboxEnv.env = JSON.parse(JSON.stringify(env));
@@ -207,6 +224,13 @@ export class WasiSandbox {
 			const scriptCode = `
 				(function() {
 					try {
+						Object.freeze(Object.prototype);
+						Object.freeze(Array.prototype);
+						Object.freeze(String.prototype);
+						Object.freeze(Number.prototype);
+						Object.freeze(Boolean.prototype);
+						Object.freeze(Object.getPrototypeOf(function(){}));
+
 						${processedLogic}
 						if (typeof liop_main === 'function') {
 							return liop_main(env);

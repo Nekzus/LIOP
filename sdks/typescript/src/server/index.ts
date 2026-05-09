@@ -49,12 +49,21 @@ export interface LiopServerOptions {
 		minThreads?: number;
 		maxThreads?: number;
 		idleTimeout?: number;
+		/** Max heap memory per worker in MB (default: 64). Prevents heap bomb DoS. */
+		maxHeapMb?: number;
 	};
 	security?: {
 		piiPatterns?: PiiRule[];
 		forbiddenKeys?: string[];
 		/** Enable NLP-based Named Entity Recognition scanning on output values. */
 		enableNerScanning?: boolean;
+		/** Rate limiting configuration for tool calls (OWASP A01). */
+		rateLimit?: {
+			/** Maximum calls per window per tool (default: 30). */
+			maxPerWindow?: number;
+			/** Sliding window duration in milliseconds (default: 60000 = 1 min). */
+			windowMs?: number;
+		};
 	};
 	taxonomy?: {
 		domain?: string;
@@ -96,6 +105,11 @@ export class LiopServer {
 	private readonly CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 	private readonly THROTTLE_THRESHOLD = 5;
 	private readonly THROTTLE_COOLDOWN_MS = 60 * 1000; // 60 seconds
+
+	// [OWASP-A01] Sliding window rate limiter — prevents micro-query exfiltration
+	private toolCallWindows: Map<string, number[]> = new Map();
+	private readonly toolCallMaxPerWindow: number;
+	private readonly toolCallWindowMs: number;
 
 	private tools: Map<
 		string,
@@ -288,6 +302,17 @@ export class LiopServer {
 		input: unknown,
 		policyObj?: boolean | AggregationPolicy,
 	): boolean {
+		const maxRows =
+			typeof policyObj === "object" &&
+			typeof policyObj.maxOutputRows === "number"
+				? policyObj.maxOutputRows
+				: 10;
+		const allowPrimitives =
+			typeof policyObj === "object" &&
+			typeof policyObj.allowPrimitiveArrays === "boolean"
+				? policyObj.allowPrimitiveArrays
+				: true;
+
 		if (typeof input === "string") {
 			const trimmed = input.trim();
 			if (
@@ -307,17 +332,6 @@ export class LiopServer {
 		}
 
 		if (Array.isArray(input)) {
-			const maxRows =
-				typeof policyObj === "object" &&
-				typeof policyObj.maxOutputRows === "number"
-					? policyObj.maxOutputRows
-					: 10;
-			const allowPrimitives =
-				typeof policyObj === "object" &&
-				typeof policyObj.allowPrimitiveArrays === "boolean"
-					? policyObj.allowPrimitiveArrays
-					: true;
-
 			if (
 				input.length > 0 &&
 				input.every((item) => typeof item === "object" && item !== null)
@@ -345,6 +359,12 @@ export class LiopServer {
 		}
 
 		if (input && typeof input === "object") {
+			const keys = Object.keys(input as Record<string, unknown>);
+			// Treat flat dictionary with too many keys as non-aggregated leakage risk (Dynamic Key Bypass).
+			if (keys.length > maxRows) {
+				return true;
+			}
+
 			return Object.values(input as Record<string, unknown>).some((value) =>
 				this.violatesAggregationFirstPolicy(value, policyObj),
 			);
@@ -388,6 +408,15 @@ export class LiopServer {
 			nerScanner,
 		);
 
+		// [OWASP-A01] Rate limit: config > env > default (30 calls/min)
+		const rlConfig = this.config?.security?.rateLimit;
+		this.toolCallWindowMs =
+			rlConfig?.windowMs ??
+			Number.parseInt(process.env.LIOP_RATE_LIMIT_WINDOW_MS ?? "60000", 10);
+		this.toolCallMaxPerWindow =
+			rlConfig?.maxPerWindow ??
+			Number.parseInt(process.env.LIOP_RATE_LIMIT_MAX ?? "30", 10);
+
 		// Initialize Zero-Blocking Worker Pool for Heavy Cryptography & Sandboxing
 		const isTS = import.meta.url.endsWith(".ts");
 		const workerExt = isTS ? ".ts" : ".js";
@@ -428,6 +457,13 @@ export class LiopServer {
 			maxQueue: "auto",
 			taskQueue: new FixedQueue(),
 			execArgv,
+			// [DoS Defense] Enforce hard memory ceiling per worker thread.
+			// Workers exceeding this limit are terminated by Node.js runtime.
+			resourceLimits: {
+				maxOldGenerationSizeMb:
+					this.config?.workerPool?.maxHeapMb ??
+					Number.parseInt(process.env.LIOP_WORKER_MAX_HEAP_MB ?? "64", 10),
+			},
 		});
 
 		// [Token Economy] Auto-register LIOP protocol spec as a single Resource.
@@ -878,6 +914,42 @@ Protocol Adherence is mandatory for successful execution.`,
 	}
 
 	/**
+	 * Sliding window rate limiter for tool call frequency.
+	 * Prevents micro-query exfiltration attacks where an attacker
+	 * makes hundreds of individually-legitimate calls to reconstruct
+	 * the full dataset field by field. (OWASP A01)
+	 */
+	private checkToolCallRateLimit(toolName: string): CallToolResult | null {
+		const now = Date.now();
+		const windowMs = this.toolCallWindowMs;
+		const maxPerWindow = this.toolCallMaxPerWindow;
+
+		const window = this.toolCallWindows.get(toolName) || [];
+		// Evict expired timestamps outside the sliding window
+		const active = window.filter((t) => now - t < windowMs);
+
+		if (active.length >= maxPerWindow) {
+			const retryAfterSec = Math.ceil((active[0] + windowMs - now) / 1000);
+			return {
+				content: [
+					{
+						type: "text",
+						text:
+							`LIOP_RATE_LIMITED: Too many calls to ${toolName}. ` +
+							`Max ${maxPerWindow} per ${windowMs / 1000}s window. ` +
+							`Retry after ${retryAfterSec}s.`,
+					},
+				],
+				isError: true,
+			};
+		}
+
+		active.push(now);
+		this.toolCallWindows.set(toolName, active);
+		return null;
+	}
+
+	/**
 	 * Emulates calling a tool (used locally or via LIOPMcpBridge)
 	 */
 	public async callTool(request: CallToolRequest): Promise<CallToolResult> {
@@ -885,6 +957,10 @@ Protocol Adherence is mandatory for successful execution.`,
 		if (!entry) {
 			throw new Error(`Tool not found: ${request.name}`);
 		}
+
+		// [OWASP-A01] Rate limiting: prevent micro-query exfiltration
+		const rateLimitResult = this.checkToolCallRateLimit(request.name);
+		if (rateLimitResult) return rateLimitResult;
 
 		try {
 			// Validate inputs natively with Zod before execution
@@ -1204,11 +1280,20 @@ Protocol Adherence is mandatory for successful execution.`,
 					});
 				} catch (error: unknown) {
 					const e = error as Error;
-					log.error(`[LIOP-RPC] Execution Error: ${e.message}`);
+					const isDev =
+						process.env.NODE_ENV === "development" ||
+						process.env.NODE_ENV === "test";
+
+					const detail = e.message || String(error);
+					log.error(`[LIOP-RPC] Execution Error: ${detail}`);
+
+					const errorMessage = isDev
+						? `Execution Error: ${detail}`
+						: "[LIOP] Execution Failed. The injected logic violated runtime constraints or encountered a fatal error.";
 
 					// Send error response before closing, avoiding "stream closed without results"
 					const errorResponse: LogicResponse = {
-						semantic_evidence: `Execution Error: ${e.message}`,
+						semantic_evidence: errorMessage,
 						cryptographic_proof: Buffer.from(""),
 						zk_receipt: Buffer.from(""),
 						is_error: true,
@@ -1318,11 +1403,22 @@ Protocol Adherence is mandatory for successful execution.`,
 			return { content };
 		} catch (error: unknown) {
 			const e = error as Error;
+			const isDev =
+				process.env.NODE_ENV === "development" ||
+				process.env.NODE_ENV === "test";
+
+			const detail = e.message || String(error);
+			log.error(`[LIOP-SDK] WorkerPool Execution Fault: ${detail}`);
+
+			const errorMessage = isDev
+				? `WorkerPoolError: ${detail}`
+				: "[LIOP] Execution Failed. The injected logic violated runtime constraints or encountered a fatal error.";
+
 			return {
 				content: [
 					{
 						type: "text",
-						text: `WorkerPoolError: ${e.message || String(error)}`,
+						text: errorMessage,
 					},
 				],
 				isError: true,

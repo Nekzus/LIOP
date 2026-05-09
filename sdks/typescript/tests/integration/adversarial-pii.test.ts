@@ -51,6 +51,7 @@ describe("PII Egress Shield v3 — Adversarial Vectors", () => {
 				age: 42,
 				bloodType: "O+",
 				diagnosis: "Hypertension",
+				medications: ["Lisinopril", "Aspirin"],
 			},
 			{
 				id: "PAT-1092",
@@ -58,6 +59,7 @@ describe("PII Egress Shield v3 — Adversarial Vectors", () => {
 				age: 58,
 				bloodType: "A-",
 				diagnosis: "Type 2 Diabetes",
+				medications: ["Metformin", "Aspirin"],
 			},
 			{
 				id: "PAT-4432",
@@ -65,6 +67,7 @@ describe("PII Egress Shield v3 — Adversarial Vectors", () => {
 				age: 29,
 				bloodType: "B+",
 				diagnosis: "Acute Bronchitis",
+				medications: ["Amoxicillin"],
 			},
 		]);
 
@@ -228,5 +231,78 @@ return { ts: 42, valid: true };
 		});
 
 		expect(result.isError).toBeFalsy();
+	});
+
+	it("SAFE-3: should ALLOW medication count aggregation (NER safelist)", async () => {
+		const result = await server.callTool({
+			name: "analyze_records",
+			arguments: {
+				payload: `@LIOP{wasi_v1,MedCount}
+const meds = {};
+env.records.forEach(r => {
+    if (r.medications) {
+        r.medications.forEach(m => {
+            meds[m] = (meds[m] || 0) + 1;
+        });
+    }
+});
+return meds;
+@END`,
+			},
+		});
+		// Should pass because medication names are safelisted in NER
+		expect(result.isError).toBeFalsy();
+	});
+
+	it("T9: should BLOCK dynamic-key scalar extraction when outputSchema is strict", async () => {
+		// Create a fresh server with STRICT output schema (no catchall)
+		const strictServer = new LiopServer(
+			{ name: "StrictSchema-Test", version: "1.0.0" },
+			{
+				security: {
+					forbiddenKeys: ["id", "name", "ssn"],
+				},
+			},
+		);
+
+		strictServer.setSandboxData([
+			{ id: "P001", name: "Alice", age: 32, balance: 12450.75 },
+			{ id: "P002", name: "Bob", age: 45, balance: 85600.2 },
+		]);
+
+		const strictOutputSchema = z.object({
+			total: z.number().optional(),
+			avgAge: z.number().optional(),
+			avgBalance: z.number().optional(),
+		}); // NO .catchall() → .strict() enforced by framework
+
+		strictServer.tool(
+			"strict_analyze",
+			"Analyze with strict schema",
+			{ payload: z.string() },
+			async () => ({ content: [], isError: true }),
+			{
+				enforceAggregationFirst: true,
+				outputSchema: strictOutputSchema,
+			},
+		);
+
+		// Attempt: dynamic key extraction (the bypass that worked with .catchall)
+		const result = await strictServer.callTool({
+			name: "strict_analyze",
+			arguments: {
+				payload: `@LIOP{wasi_v1,DynKeyBypass}
+const out = {};
+env.records.forEach((r, i) => { out['acct_' + i] = r.balance; });
+return out;
+@END`,
+			},
+		});
+
+		expect(result.isError).toBe(true);
+		// Dynamic keys blocked by egress shield (schema strict + aggregation policy)
+		expect(result.content[0].text).toContain("Egress Security Violation");
+
+		await strictServer.close();
 	});
 });

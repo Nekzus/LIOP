@@ -97,6 +97,14 @@ export class LiopMcpRouter {
 				);
 			});
 		}
+
+		// [OWASP-A01] Startup warning when diagnostic level exposes full topology
+		if (process.env.LIOP_DIAGNOSTIC_LEVEL === "full") {
+			process.stderr.write(
+				"⚠️ [LIOP-Security] Diagnostic level set to FULL — " +
+					"PeerIDs and network topology are exposed. Do NOT use in production.\n",
+			);
+		}
 	}
 
 	private shouldSkipManifestQuery(peerId: string): boolean {
@@ -884,6 +892,18 @@ export class LiopMcpRouter {
 		return null;
 	}
 
+	/**
+	 * Redacts a PeerID for external-facing diagnostics.
+	 * LIOP_DIAGNOSTIC_LEVEL controls verbosity:
+	 *   - "redacted" (default): truncated to last 8 chars
+	 *   - "full": complete PeerID (development only)
+	 */
+	private redactPeerId(peerId: string): string {
+		const level = process.env.LIOP_DIAGNOSTIC_LEVEL || "redacted";
+		if (level === "full") return peerId;
+		return `***${peerId.slice(-8)}`;
+	}
+
 	// biome-ignore lint/suspicious/noExplicitAny: MCP JSON-RPC params/id are polymorphic
 	private async transcodeMcpToLiop(id: any, params: any): Promise<any> {
 		const toolName = params.name;
@@ -925,7 +945,7 @@ export class LiopMcpRouter {
 				.map((addr) => {
 					const parts = addr.split("/");
 					const id = parts[parts.length - 1];
-					return `  • ${id ? id.slice(-8) : "Unknown"} (${addr})`;
+					return `  • ${id ? id.slice(-8) : "Unknown"} (bootstrap)`;
 				})
 				.join("\n");
 
@@ -934,11 +954,15 @@ export class LiopMcpRouter {
 					(this.meshNode as any).getRoutingTableSize()
 				: 0;
 
-			const localPeerId = this.meshNode?.getPeerId() || "Offline";
+			const rawPeerId = this.meshNode?.getPeerId() || "Offline";
+			const localPeerId =
+				rawPeerId === "Offline" ? rawPeerId : this.redactPeerId(rawPeerId);
 
 			const cachedToolList = Array.from(this.manifestCache.entries())
 				.flatMap(([peerId, { manifest }]) =>
-					manifest.tools.map((t) => `  • ${t.name} (from origin: ${peerId})`),
+					manifest.tools.map(
+						(t) => `  • ${t.name} (from origin: ${this.redactPeerId(peerId)})`,
+					),
 				)
 				.join("\n");
 

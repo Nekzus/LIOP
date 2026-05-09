@@ -37,4 +37,35 @@ describe("WasiSandbox (Industrial Tier-0)", () => {
         // but here we just rely on the default or the fact it's an infinite loop.
         await expect(sandbox.execute(loopLogic, [], {})).rejects.toThrow(/Isolate Fault/);
     }, 15000);
+
+    it("should block TypedArray constructors (heap bomb DoS defense)", async () => {
+        const heapBombLogic = `
+            function liop_main(env) {
+                try {
+                    return typeof Uint8Array;
+                } catch(e) {
+                    return 'denied';
+                }
+            }
+        `;
+
+        const result = await sandbox.execute(heapBombLogic, [], {});
+        // Uint8Array must be poisoned in the sandbox — undefined, not a constructor
+        expect(result.output).toBe("undefined");
+    });
+
+    it("should block ArrayBuffer constructor (off-heap memory DoS defense)", async () => {
+        const arrayBufferLogic = `
+            function liop_main(env) {
+                try {
+                    return typeof ArrayBuffer;
+                } catch(e) {
+                    return 'denied';
+                }
+            }
+        `;
+
+        const result = await sandbox.execute(arrayBufferLogic, [], {});
+        expect(result.output).toBe("undefined");
+    });
 });
