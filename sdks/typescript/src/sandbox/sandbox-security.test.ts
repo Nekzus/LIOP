@@ -212,8 +212,6 @@ return res;
 			arguments: { payload: payloadLarge },
 		});
 		expect(res.isError).toBe(true);
-		expect(res.content[0].text).toContain(
-			"Aggregation-First Policy Violation",
-		);
+		expect(res.content[0].text).toContain("Aggregation-First Policy Violation");
 	});
 });
