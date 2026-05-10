@@ -22,6 +22,30 @@ All notable changes to this project will be documented in this file. See
 
 ### Features
 
+* **infra:** jump to v1.4.0 to resolve persistent release loop ([f751963](https://github.com/Nekzus/LIOP/commit/f75196395ae3abd1d664f19b7117311223c2fbcb))
+* **security:** implement conditional egress error opacity and timing attack defense ([a64c5ba](https://github.com/Nekzus/LIOP/commit/a64c5ba8a4e78a7a92f4181466b0fa5d69c3d2d4))
+* **security:** Phase 112 industrial security hardening of the TS SDK ([0c54a28](https://github.com/Nekzus/LIOP/commit/0c54a28a502d46a4e8ff8107254ac2eab81fe22f))
+* **security:** PII Egress Shield v3 — defense-in-depth with NER, fuzzy matching & strict schemas ([37c5a60](https://github.com/Nekzus/LIOP/commit/37c5a60881cd2c174676d47b200d49a38f1903a1))
+
+# [1.3.0-alpha.1](https://github.com/Nekzus/LIOP/compare/v1.2.0...v1.3.0-alpha.1) (2026-05-10)
+
+
+### Bug Fixes
+
+* **infra:** align npm registry versions and trigger alpha.2 release ([88ad2dd](https://github.com/Nekzus/LIOP/commit/88ad2ddbb0f874bca4aa6202bdb163e5fb6b303b))
+* **infra:** force release v1.3.0-alpha.2 to resolve tag collision ([e91e4f0](https://github.com/Nekzus/LIOP/commit/e91e4f0a438a735a8b1061cd2e330660ca8464e6))
+* **infra:** manual version bump to v1.3.0-alpha.2 to synchronize npm and fix tag loop ([c49bebb](https://github.com/Nekzus/LIOP/commit/c49bebb32768636fb5104772a04eb2276a0f3f83))
+* **infra:** revert pnpm version to v10.33.0 to bypass Docker build strictness introduced in v11 ([a7d1fb3](https://github.com/Nekzus/LIOP/commit/a7d1fb31d7fa93e688ef6aab1c4711c029aca12b))
+* **infra:** trigger alpha.2 release to sync npm registry ([89f8961](https://github.com/Nekzus/LIOP/commit/89f89617a72620e8d5b8c273f4682be068bd2ef7))
+* **infra:** trigger clean release v1.3.0-alpha.3 after tag stabilization ([26d9794](https://github.com/Nekzus/LIOP/commit/26d9794649d3f8319a88eef004e5fff1412ae2fd))
+* **infra:** trigger fresh CI pipeline for semantic-release ([2528ac7](https://github.com/Nekzus/LIOP/commit/2528ac78a0ed9e19d72d93f1ef26dfa900bbbffc))
+* **security:** redact PII from all error messages — zero data leakage in responses ([1cbce81](https://github.com/Nekzus/LIOP/commit/1cbce81dd9f402410817a42eb4e41cad3ca31632))
+* **security:** remove quasi-identifier arrays from output schemas ([217e255](https://github.com/Nekzus/LIOP/commit/217e255bb56875a01d3471b63880a93e224c08f7))
+* **security:** resolve false-positive blocks on legitimate aggregation queries ([451c6d1](https://github.com/Nekzus/LIOP/commit/451c6d148994472babb608512d7c80d55ba1d1ab))
+
+
+### Features
+
 * **security:** implement conditional egress error opacity and timing attack defense ([a64c5ba](https://github.com/Nekzus/LIOP/commit/a64c5ba8a4e78a7a92f4181466b0fa5d69c3d2d4))
 * **security:** Phase 112 industrial security hardening of the TS SDK ([0c54a28](https://github.com/Nekzus/LIOP/commit/0c54a28a502d46a4e8ff8107254ac2eab81fe22f))
 * **security:** PII Egress Shield v3 — defense-in-depth with NER, fuzzy matching & strict schemas ([37c5a60](https://github.com/Nekzus/LIOP/commit/37c5a60881cd2c174676d47b200d49a38f1903a1))
