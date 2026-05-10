@@ -25,11 +25,11 @@ async function main() {
     const rawArgs = process.argv.join(" ");
     let scenarioArg = "average-age"; // default
 
-    // Support both native arguments and npm-intercepted configs
-    const npmScenario = process.env.npm_config_scenario;
-    if (npmScenario === "hypertension" || rawArgs.includes("--scenario=hypertension")) {
+    // Support both native arguments and pnpm/npm intercepted configs
+    const configScenario = process.env.pnpm_config_scenario || process.env.npm_config_scenario;
+    if (configScenario === "hypertension" || rawArgs.includes("--scenario=hypertension")) {
         scenarioArg = "hypertension";
-    } else if (npmScenario === "average-age" || rawArgs.includes("--scenario=average-age")) {
+    } else if (configScenario === "average-age" || rawArgs.includes("--scenario=average-age")) {
         scenarioArg = "average-age";
     }
 
