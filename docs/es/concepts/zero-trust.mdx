@@ -37,6 +37,12 @@ Este filtro inspecciona dinámicamente el buffer de salida buscando información
 **Defensa contra Ofuscación JSON**:
 Los agentes podrían intentar evadir escáneres estáticos mediante doble serialización. Para neutralizar esto, el `PiiScanner` implementa *parsing profundo recursivo*. Si un string devuelto contiene estructuras JSON internas, el Escudo las de-serializa para exponer y filtrar su contenido, volviendo inútil cualquier intento de contrabando de datos.
 
+**Política de Agregación Primero**:
+Más allá del escaneo PII, el Filtro de Egreso impone una heurística de **Agregación Primero** que bloquea la exportación masiva de datos a nivel de fila. Si la salida del sandbox contiene arrays con más elementos tipo objeto que el umbral configurado (por defecto: 10), la respuesta se rechaza. Solo pasan los resultados agregados (conteos, promedios, resúmenes), previniendo la exfiltración masiva de datos incluso cuando los registros individuales no contienen PII.
+
+**Opacidad Condicional de Errores**:
+En entornos de producción (`NODE_ENV=production`), todas las violaciones de Egreso devuelven un mensaje genérico `[LIOP] Egress Security Violation` sin ningún detalle interno. En entornos de desarrollo/test, se exponen errores de validación de esquema detallados y sugerencias correctivas para habilitar la iteración rápida y la autocorrección del LLM.
+
 ## 4. Sandboxing (WASI)
 
 Como se detalla en [Sandboxing con WASI](/es/concepts/wasi-sandboxing), la ejecución está aislada por las restricciones de CPU y memoria del runtime, garantizando que no haya acceso no autorizado a recursos del host.

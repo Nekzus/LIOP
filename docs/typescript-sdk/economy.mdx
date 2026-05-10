@@ -57,3 +57,16 @@ The bridge automatically binds to your global `MeterProvider` and emits the foll
 
 Use this module when you need production cost visibility across local and mesh-routed MCP workloads.
 
+## LiopMeshStatus Integration
+
+The LIOP Agent exposes a local diagnostic tool called **`LiopMeshStatus`** that consumes the `TokenTelemetryEngine` internally to produce a rich, human-readable status block via `formatStatusBlock()`. When an LLM calls this tool, it receives a structured report containing:
+
+- **Session ID** and uptime
+- **Estimator model** (`o200k_base` or heuristic)
+- **Operation breakdown** — each MCP method called, with input/output token estimates
+- **Cumulative totals** — total tokens consumed across the session
+- **Cost projection** — estimated cost based on configurable per-token pricing
+
+<Tip>
+  The token economy telemetry is **intentionally visible** in the `LiopMeshStatus` output. This transparency enables B2B clients to audit consumption patterns and allows AI agents to autonomously manage their context window budgets without requiring external monitoring infrastructure.
+</Tip>

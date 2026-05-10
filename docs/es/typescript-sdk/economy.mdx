@@ -56,3 +56,17 @@ El puente se acopla automáticamente a tu `MeterProvider` global y emite las sig
 - `gen_ai.client.operation.duration` (Histograma)
 
 Usa este módulo cuando necesites visibilidad de costo en producción para cargas MCP locales y enrutadas por malla.
+
+## Integración con LiopMeshStatus
+
+El LIOP Agent expone una herramienta de diagnóstico local llamada **`LiopMeshStatus`** que consume el `TokenTelemetryEngine` internamente para producir un bloque de estado enriquecido y legible por humanos vía `formatStatusBlock()`. Cuando un LLM invoca esta herramienta, recibe un reporte estructurado que contiene:
+
+- **ID de Sesión** y tiempo activo
+- **Modelo del estimador** (`o200k_base` o heurístico)
+- **Desglose de operaciones** — cada método MCP invocado, con estimaciones de tokens de entrada/salida
+- **Totales acumulados** — tokens totales consumidos durante la sesión
+- **Proyección de costo** — costo estimado basado en precios por token configurables
+
+<Tip>
+  La telemetría de economía de tokens es **intencionalmente visible** en la salida de `LiopMeshStatus`. Esta transparencia permite a los clientes B2B auditar patrones de consumo y a los agentes de IA autogestionar sus presupuestos de ventana de contexto sin requerir infraestructura de monitoreo externa.
+</Tip>

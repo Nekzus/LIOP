@@ -34,7 +34,10 @@ El motor arranca con limitadores estrictos:
 - **Tiempo de Ejecución (Combustible):** Si el módulo entra en un bucle infinito, el motor lo detiene por agotamiento de combustible (`Out-Of-Fuel`).
 - **Límite de Memoria Máximo:** Si el módulo intenta un desbordamiento o alojar memoria excesiva, se dispara un `OOM Trap` inmediato.
 - **Cero Sockets Prohibidos:** La lógica corre offline dentro del Servidor. No puede abrir puertos ni conectarse a internet sin autorización. Su única salida es lo que `retorna` al orquestador.
-- **Aislamiento en Node.js (V8 Isolation):** En el SDK de TypeScript (`@nekzus/liop`), implementamos límites idénticos empleando contextos aislados (`node:vm`). Esto asegura un aislamiento rígido, despojando al entorno de ejecución de acceso a globales del sistema.
+- **Aislamiento en Node.js (V8 Isolation):** En el SDK de TypeScript (`@nekzus/liop`), implementamos límites idénticos empleando contextos aislados (`node:vm`). Esto asegura un aislamiento rígido, despojando al entorno de ejecución de **25 globales envenenados** (`process`, `require`, `eval`, `Function`, `Date`, `ArrayBuffer`, `Uint8Array`, y más), eliminando cualquier posibilidad de escalada al sistema host.
+- **Defensa contra Canal Lateral de Tiempo:** El objeto `Date` se envenena dentro del sandbox para prevenir que la lógica inyectada mida diferencias de tiempo de ejecución, que podrían usarse para inferir el tamaño del dataset o patrones de ejecución internos.
+- **Defensa contra Heap Bomb:** Los 12 constructores de `TypedArray` (`Uint8Array`, `Float64Array`, `DataView`, etc.) se neutralizan para prevenir la asignación de buffers binarios masivos que crashearían el proceso worker por agotamiento del heap V8. Cada worker está adicionalmente restringido a un techo de memoria configurable vía `maxHeapMb` (por defecto: 64 MB).
+- **Defensa contra Contaminación de Prototipos:** Seis prototipos core de JavaScript (`Object`, `Array`, `String`, `Number`, `Boolean`, `Function`) se congelan vía `Object.freeze()` dentro del IIFE del sandbox antes de que el código de usuario se ejecute, previniendo que la lógica inyectada sobreescriba métodos nativos.
 - **Pool de Workers (Piscina):** Para evitar bloqueos, el SDK aísla este ciclo dentro de hilos paralelos (vía `piscina`), logrando un rendimiento industrial consistente.
 
 ## Hacia el Modelo de Componentes (Preview 2)

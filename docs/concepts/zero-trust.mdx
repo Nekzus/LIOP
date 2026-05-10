@@ -39,6 +39,12 @@ This filter dynamically analyzes the output buffer (checking for Personally Iden
 **Double JSON Encoding Defense (Deep-Parsing Recursion)**:
 AI Agents may attempt to bypass static regex scanners by double-serializing strings (`"\"id\":\"...\""`). To counteract this, the `PiiScanner` implements recursive deep-parsing. If a returned string resembles an object, the Shield dynamically de-serializes it internally to expose the obfuscated schema before applying the matching algorithms, rendering string-contraband techniques entirely ineffective.
 
+**Aggregation-First Policy**:
+Beyond PII scanning, the Egress Filter enforces an **Aggregation-First** heuristic that blocks raw row-level data exports. If the sandbox output contains arrays with more object elements than the configured threshold (default: 10), the response is rejected. Only aggregated results (counts, averages, summaries) pass through, preventing bulk data exfiltration even when individual records contain no PII.
+
+**Conditional Error Opacity**:
+In production environments (`NODE_ENV=production`), all Egress violations return a generic `[LIOP] Egress Security Violation` message with zero internal details. In development/test environments, detailed schema validation errors and corrective hints are exposed to enable rapid iteration and LLM self-correction.
+
 ## 4. Sandboxing (WASI)
 
 As detailed in the [WASI Sandboxing](/concepts/wasi-sandboxing) chapter, the execution layer is fundamentally isolated by the CPU restrictions imposed by the bytecode runtime, ensuring zero unauthorized I/O or network escalation.

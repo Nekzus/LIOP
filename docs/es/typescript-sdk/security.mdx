@@ -3,7 +3,7 @@ title: "Arquitectura de Seguridad"
 description: "Capas de defensa en profundidad, pipelines criptográficos y mecanismos de protección de datos en el SDK TypeScript de LIOP"
 ---
 
-El SDK TypeScript de LIOP aplica un modelo de seguridad basado en **defensa en profundidad**, compuesto por cuatro capas independientes. Cada capa aborda una superficie de amenaza distinta — desde el análisis estático de código hasta el filtrado de datos post-ejecución — garantizando que ningún punto único de fallo pueda comprometer el sistema.
+El SDK TypeScript de LIOP aplica un modelo de seguridad basado en **defensa en profundidad**, compuesto por seis capas independientes. Cada capa aborda una superficie de amenaza distinta — desde el análisis estático de código hasta el filtrado de datos post-ejecución — garantizando que ningún punto único de fallo pueda comprometer el sistema.
 
 <Note>
   Las características marcadas con **[ROADMAP]** están definidas arquitectónicamente pero aún no están disponibles en la versión actual.
@@ -21,8 +21,10 @@ El SDK TypeScript de LIOP aplica un modelo de seguridad basado en **defensa en p
 | Capa | Propósito | Momento |
 |:-----|:----------|:--------|
 | **Guardian AST** | Bloquea importaciones WASM no autorizadas antes de la ejecución | Pre-compilación |
-| **WASI Sandbox** | Aísla el entorno de ejecución con globales envenenados y límites de CPU | Ejecución |
+| **WASI Sandbox** | Aísla el entorno de ejecución con 25 globales envenenados y límites de CPU | Ejecución |
+| **Prototype Defense** | Congela 6 prototipos core para prevenir ataques de contaminación | Ejecución |
 | **PII Shield** | Previene la fuga de datos mediante validadores algorítmicos | Post-ejecución |
+| **Aggregation Policy** | Impone límites de cardinalidad en la salida de datos a nivel de fila | Post-ejecución |
 | **ZK-Receipt** | Proporciona prueba HMAC-SHA256 de computación honesta | Post-ejecución |
 
 ---
@@ -60,17 +62,44 @@ El SDK proporciona un **motor de ejecución de doble vía** que enruta cada payl
 
 ### Envenenamiento de Globales V8
 
-Doce vectores de ataque son neutralizados asignándoles `undefined` y sellándolos como no modificables:
+Veinticinco vectores de ataque son neutralizados asignándoles `undefined` y sellándolos como no modificables:
 
 ```typescript
 const POISONED_GLOBALS = [
+  // APIs Core de Node.js / Runtime
   "require", "process", "global", "globalThis",
   "Buffer", "setTimeout", "setInterval", "setImmediate",
-  "queueMicrotask", "eval", "Function", "SharedArrayBuffer"
+  "queueMicrotask", "eval", "Function", "SharedArrayBuffer",
+  // Defensa contra Canal Lateral de Tiempo
+  "Date",
+  // Defensa contra Heap Bomb / Explotación Binaria
+  "ArrayBuffer", "Uint8Array", "Int8Array",
+  "Uint16Array", "Int16Array", "Uint32Array", "Int32Array",
+  "Float32Array", "Float64Array",
+  "BigInt64Array", "BigUint64Array", "DataView"
 ];
 ```
 
+<Tip>
+  El **envenenamiento de `Date`** previene que la lógica inyectada realice análisis de canal lateral por temporización para inferir el tamaño del dataset o los patrones de ejecución. El **envenenamiento de TypedArrays** previene ataques DoS de tipo Heap Bomb que alojan buffers binarios masivos para crashear el proceso worker.
+</Tip>
+
 Tras la asignación, el contexto completo del sandbox se congela recursivamente mediante `Object.freeze()`, impidiendo cualquier alteración del entorno aislado en tiempo de ejecución.
+
+### Defensa contra Contaminación de Prototipos
+
+Dentro del IIFE del sandbox, seis prototipos core de JavaScript se congelan antes de que el código de usuario se ejecute:
+
+```typescript
+Object.freeze(Object.prototype);
+Object.freeze(Array.prototype);
+Object.freeze(String.prototype);
+Object.freeze(Number.prototype);
+Object.freeze(Boolean.prototype);
+Object.freeze(Function.prototype);
+```
+
+Esto previene que la lógica inyectada añada o sobreescriba métodos en tipos nativos (ej., sobreescribir `Array.prototype.map` para exfiltrar datos). El congelamiento se aplica dentro del wrapper IIFE, garantizando que no pueda ser eludido por el código inyectado.
 
 ### Límites de Consumo de CPU
 
@@ -245,6 +274,55 @@ Las operaciones criptográficas de alto consumo se despachan a threads del siste
 | `zk-verifier` | Deserialización de recibos, verificación HMAC |
 
 Configuración por defecto: 2–8 threads (producción), 0–1 threads (test), planificación `FixedQueue`, 5s de timeout por inactividad.
+
+### Defensa contra Heap Bomb
+
+Cada thread worker está restringido mediante `resourceLimits.maxOldGenerationSizeMb` de V8 (por defecto: **64 MB**, configurable vía `workerPool.maxHeapMb` o la variable de entorno `LIOP_WORKER_MAX_HEAP_MB`). Si la lógica inyectada intenta alojar memoria más allá de este límite, el worker se termina inmediatamente con un `WorkerPoolError`, previniendo ataques de denegación de servicio que buscan agotar el heap de Node.js.
+
+---
+
+## Política de Agregación Primero
+
+El SDK impone una heurística de **Agregación Primero** que bloquea la exportación de datos crudos a nivel de fila desde el sandbox. Esta es la última defensa computacional antes de la capa de ZK-Receipt.
+
+### Cómo Funciona
+
+Tras la ejecución, la salida se escanea recursivamente buscando arrays que contengan objetos. Si el número de elementos tipo objeto supera el umbral configurado, la respuesta se bloquea:
+
+| Parámetro | Por defecto | Descripción |
+|:----------|:------------|:------------|
+| **`maxOutputRows`** | 10 | Número máximo de elementos tipo objeto permitidos en un array |
+| **`allowPrimitiveArrays`** | `true` | Permite arrays que contengan únicamente valores primitivos (números, strings) |
+
+```typescript
+server.tool(
+  "analyze_data",
+  "Análisis agregado",
+  { query: z.string() },
+  async ({ query }) => { /* ... */ },
+  {
+    enforceAggregationFirst: {
+      maxOutputRows: 5,
+      allowPrimitiveArrays: true
+    }
+  }
+);
+```
+
+### Normalización Condicional de Errores
+
+El SDK implementa **reporte de errores consciente del entorno** para violaciones de políticas:
+
+| Entorno | Comportamiento |
+|:--------|:---------------|
+| `development` / `test` | Expone errores de validación Zod detallados, metadatos de discrepancia de esquema y mensajes `HINT` para habilitar la autocorrección del LLM |
+| `production` | Devuelve un mensaje genérico `[LIOP] Egress Security Violation` sin filtrar ningún detalle interno |
+
+Esto se controla automáticamente mediante `process.env.NODE_ENV`. En despliegues de producción, asegúrese siempre de que `NODE_ENV=production` esté configurado para activar la opacidad total de errores.
+
+<Warning>
+  Los mensajes de error detallados en modo desarrollo pueden incluir nombres de campos, estructuras de esquemas y extractos de valores rechazados. Nunca exponga la salida de errores en modo desarrollo a clientes no confiables.
+</Warning>
 
 ---
 

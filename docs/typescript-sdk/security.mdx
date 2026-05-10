@@ -3,7 +3,7 @@ title: "Security Architecture"
 description: "Defense-in-depth layers, cryptographic pipelines, and data protection mechanisms in the LIOP TypeScript SDK"
 ---
 
-The LIOP TypeScript SDK enforces a **defense-in-depth** security model composed of four independent layers. Each layer addresses a distinct threat surface — from static code analysis to post-execution data filtering — ensuring that no single point of failure can compromise the system.
+The LIOP TypeScript SDK enforces a **defense-in-depth** security model composed of six independent layers. Each layer addresses a distinct threat surface — from static code analysis to post-execution data filtering — ensuring that no single point of failure can compromise the system.
 
 <Note>
   Features marked with **[ROADMAP]** are architecturally defined but not yet available in the current release.
@@ -21,8 +21,10 @@ The LIOP TypeScript SDK enforces a **defense-in-depth** security model composed 
 | Layer | Purpose | Timing |
 |:------|:--------|:-------|
 | **Guardian AST** | Blocks unauthorized WASM imports before execution | Pre-compile |
-| **WASI Sandbox** | Isolates runtime with poisoned globals and CPU fuel limits | Execution |
+| **WASI Sandbox** | Isolates runtime with 25 poisoned globals and CPU fuel limits | Execution |
+| **Prototype Defense** | Freezes 6 core prototypes to prevent pollution attacks | Execution |
 | **PII Shield** | Prevents data leakage with algorithmic validators | Post-execution |
+| **Aggregation Policy** | Enforces output cardinality limits on row-level data | Post-execution |
 | **ZK-Receipt** | Provides HMAC-SHA256 proof of honest computation | Post-execution |
 
 ---
@@ -60,17 +62,44 @@ The SDK provides a **dual-path execution engine** that routes payloads to the ap
 
 ### V8 Global Poisoning
 
-Twelve attack vectors are neutralized by setting each to `undefined` and sealing them as non-writable:
+Twenty-five attack vectors are neutralized by setting each to `undefined` and sealing them as non-writable:
 
 ```typescript
 const POISONED_GLOBALS = [
+  // Core Node.js / Runtime APIs
   "require", "process", "global", "globalThis",
   "Buffer", "setTimeout", "setInterval", "setImmediate",
-  "queueMicrotask", "eval", "Function", "SharedArrayBuffer"
+  "queueMicrotask", "eval", "Function", "SharedArrayBuffer",
+  // Timing Side-Channel Defense
+  "Date",
+  // Heap Bomb / Binary Exploitation Defense
+  "ArrayBuffer", "Uint8Array", "Int8Array",
+  "Uint16Array", "Int16Array", "Uint32Array", "Int32Array",
+  "Float32Array", "Float64Array",
+  "BigInt64Array", "BigUint64Array", "DataView"
 ];
 ```
 
+<Tip>
+  **`Date` poisoning** prevents injected logic from performing timing side-channel analysis to infer dataset size or execution patterns. **TypedArray poisoning** prevents heap bomb DoS attacks that allocate massive binary buffers to crash the worker process.
+</Tip>
+
 After assignment, the entire sandbox context is recursively frozen via `Object.freeze()`, preventing any runtime modification of the execution environment.
+
+### Prototype Pollution Defense
+
+Inside the sandbox IIFE, six core JavaScript prototypes are frozen before user code executes:
+
+```typescript
+Object.freeze(Object.prototype);
+Object.freeze(Array.prototype);
+Object.freeze(String.prototype);
+Object.freeze(Number.prototype);
+Object.freeze(Boolean.prototype);
+Object.freeze(Function.prototype);
+```
+
+This prevents injected logic from adding or overriding methods on built-in types (e.g., overwriting `Array.prototype.map` to exfiltrate data). The freeze is applied within the IIFE wrapper, ensuring it cannot be bypassed by the injected code.
 
 ### CPU Fuel Limits
 
@@ -245,6 +274,55 @@ Computationally intensive cryptographic operations are dispatched to OS-level th
 | `zk-verifier` | Receipt deserialization, HMAC verification |
 
 Default configuration: 2–8 threads (production), 0–1 threads (test), `FixedQueue` scheduling, 5s idle timeout.
+
+### Heap Bomb Defense
+
+Each worker thread is constrained via V8's `resourceLimits.maxOldGenerationSizeMb` (default: **64 MB**, configurable via `workerPool.maxHeapMb` or the `LIOP_WORKER_MAX_HEAP_MB` environment variable). If injected logic attempts to allocate memory beyond this limit, the worker is terminated immediately with a `WorkerPoolError`, preventing denial-of-service attacks that target Node.js heap exhaustion.
+
+---
+
+## Aggregation-First Policy
+
+The SDK enforces an **Aggregation-First** heuristic that blocks raw row-level data from leaving the sandbox. This is the last computational defense before the ZK-Receipt layer.
+
+### How It Works
+
+After execution, the output is recursively scanned for arrays containing objects. If the number of object elements exceeds the configured threshold, the response is blocked:
+
+| Parameter | Default | Description |
+|:----------|:--------|:------------|
+| **`maxOutputRows`** | 10 | Maximum number of object-type array elements allowed |
+| **`allowPrimitiveArrays`** | `true` | Permits arrays containing only primitive values (numbers, strings) |
+
+```typescript
+server.tool(
+  "analyze_data",
+  "Aggregated analysis",
+  { query: z.string() },
+  async ({ query }) => { /* ... */ },
+  {
+    enforceAggregationFirst: {
+      maxOutputRows: 5,
+      allowPrimitiveArrays: true
+    }
+  }
+);
+```
+
+### Conditional Error Normalization
+
+The SDK implements **environment-aware error reporting** for policy violations:
+
+| Environment | Behavior |
+|:------------|:---------|
+| `development` / `test` | Exposes detailed Zod validation errors, schema mismatch metadata, and `HINT` messages to enable LLM self-correction |
+| `production` | Returns a generic `[LIOP] Egress Security Violation` message with zero internal details leaked |
+
+This is controlled automatically via `process.env.NODE_ENV`. In production deployments, always ensure `NODE_ENV=production` is set to activate full error opacity.
+
+<Warning>
+  Detailed error messages in development mode may include field names, schema structures, and rejected value excerpts. Never expose development-mode error output to untrusted clients.
+</Warning>
 
 ---
 

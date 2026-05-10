@@ -188,9 +188,24 @@ new LiopServer(
   serverInfo: { name: string; version: string },
   config?: {
     capabilities?: Record<string, unknown>;
+    workerPool?: {
+      enabled?: boolean;           // Enable OS-thread sandboxing (default: true)
+      maxThreads?: number;         // Max worker threads (default: CPU count)
+      maxHeapMb?: number;          // V8 heap limit per worker (default: 64, env: LIOP_WORKER_MAX_HEAP_MB)
+    };
     security?: {
       piiPatterns?: PiiRule[];     // Regex/validator rules for PII detection
       forbiddenKeys?: string[];    // Keys stripped from outgoing responses
+      enableNerScanning?: boolean; // NLP entity detection via compromise (default: false)
+      rateLimit?: {                // Sliding window rate limiter per tool
+        maxPerWindow?: number;     // Max calls per window (default: 30)
+        windowMs?: number;         // Window duration in ms (default: 60000)
+      };
+    };
+    taxonomy?: {                   // Data domain classification
+      domain?: string;             // e.g., "finance", "healthcare"
+      clearanceTier?: string;      // e.g., "tier-0", "tier-1"
+      executionTypes?: string[];   // e.g., ["aggregation", "analytics"]
     };
   }
 )
@@ -243,22 +258,31 @@ await bridge.connect();
 ### The Shield — Multi-Layer Defense
 
 ```
-┌─────────────────────────────────────────────────────┐
-│  Layer 1: Guardian AST (Zero-Time Static Analysis)  │
-│  Blocks: require, import(), fs, eval, fetch,        │
-│  process, global, __proto__, XMLHttpRequest         │
-├─────────────────────────────────────────────────────┤
-│  Layer 2: WASI Sandbox (V8 Isolate)                 │
-│  No Node.js globals • CPU Fuel limits • 3s timeout  │
-├─────────────────────────────────────────────────────┤
-│  Layer 3: PII Shield (Egress Filter)                │
-│  Scans output for Email, SSN, Credit Card, IP       │
-│  Strips forbidden keys from response objects        │
-├─────────────────────────────────────────────────────┤
-│  Layer 4: ZK-Receipt (Integrity Verification)       │
-│  SHA-256 ImageID + SHA-512 RISC0-style Seal         │
-│  LiopMcpBridge verifies before forwarding to LLM    │
-└─────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────┐
+│  Layer 1: Guardian AST (Zero-Time Static Analysis)        │
+│  Blocks: require, import(), fs, eval, fetch, process,     │
+│  global, __proto__, XMLHttpRequest • 128 import cap       │
+├───────────────────────────────────────────────────────────┤
+│  Layer 2: WASI Sandbox (V8 Isolate)                       │
+│  25 poisoned globals (incl. Date, TypedArrays) •          │
+│  CPU Fuel limits • 5s timeout • maxHeapMb (64MB default)  │
+├───────────────────────────────────────────────────────────┤
+│  Layer 3: Prototype Pollution Defense                     │
+│  Object.freeze() on 6 core prototypes (Object, Array,     │
+│  String, Number, Boolean, Function) inside sandbox IIFE   │
+├───────────────────────────────────────────────────────────┤
+│  Layer 4: PII Shield (Egress Filter)                      │
+│  Scans output for Email, SSN, Credit Card, IP, IBAN,      │
+│  Passport MRZ • Strips forbidden keys • NER opt-in        │
+├───────────────────────────────────────────────────────────┤
+│  Layer 5: Aggregation-First Policy                        │
+│  Blocks raw row export • maxOutputRows (default: 10) •    │
+│  Conditional error: detailed (dev) vs opaque (production) │
+├───────────────────────────────────────────────────────────┤
+│  Layer 6: ZK-Receipt (Integrity Verification)             │
+│  SHA-256 ImageID + HMAC-SHA256 Seal (Kyber768-derived)    │
+│  LiopMcpBridge verifies before forwarding to LLM          │
+└───────────────────────────────────────────────────────────┘
 ```
 
 ### PII Patterns
@@ -390,7 +414,7 @@ await server.connectToMesh();
 
 This package is continuously tested across multiple platforms and Node.js versions via CI/CD:
 
-- **209+ tests** spanning unit, integration, conformance, and crossnet suites
+- **227+ tests** spanning unit, integration, conformance, adversarial, and crossnet suites
 - **Multi-OS matrix:** Ubuntu, Windows, macOS
 - **Node.js versions:** 22.x, 24.x
 - **Code quality:** Enforced by [Biome.js](https://biomejs.dev/) (linting + formatting)

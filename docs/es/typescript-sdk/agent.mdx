@@ -85,4 +85,16 @@ El agente expone automáticamente una herramienta de diagnóstico local llamada 
 
 Esto permite a los clientes de IA autodiagnosticar caídas de conexión o verificar qué herramientas están disponibles sin quemar ancho de banda ni duplicar peticiones de diagnóstico a través de múltiples nodos.
 
+### Variables de Entorno
+
+El comportamiento del agente se puede personalizar mediante las siguientes variables de entorno:
+
+| Variable | Por defecto | Descripción |
+|:---------|:------------|:------------|
+| `LIOP_NEXUS_URL` | *(ninguno)* | URL del nodo Nexus para Auto-Discovery. El agente resuelve el PeerID y el multiaddr desde el endpoint `/health` automáticamente |
+| `LIOP_LOG_LEVEL` | `info` | Controla la verbosidad de los logs (`silent`, `info`, `debug`). Establecer en `silent` para suprimir toda la salida stderr |
+| `LIOP_EXPECTED_PROVIDERS` | `4` | Número de proveedores de la malla a esperar durante el warm-up antes de declarar la fase de descubrimiento completa |
+| `LIOP_GRPC_PORT` | `50051` | Sobreescribe el puerto gRPC por defecto del servidor RPC interno |
+| `LIOP_WORKER_MAX_HEAP_MB` | `64` | Tamaño máximo del heap V8 por thread worker (defensa contra Heap Bomb) |
+
 Si encuentras problemas de conexión, busca el icono 🛡️ en la consola o pídele al LLM que ejecute `LiopMeshStatus`.
