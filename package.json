@@ -1,6 +1,6 @@
 {
   "name": "liop",
-  "version": "1.0.0-alpha.2",
+  "version": "1.3.0-alpha.2",
   "private": true,
   "description": "Logic-Injection-on-Origin Protocol (LIOP) - Official High-Performance WebAssembly Logic-on-Origin Execution Sandbox",
   "author": "Nekzus",
