@@ -3,6 +3,23 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.3.0-alpha.1](https://github.com/Nekzus/LIOP/compare/v1.2.0...v1.3.0-alpha.1) (2026-05-10)
+
+
+### Bug Fixes
+
+* **infra:** revert pnpm version to v10.33.0 to bypass Docker build strictness introduced in v11 ([a7d1fb3](https://github.com/Nekzus/LIOP/commit/a7d1fb31d7fa93e688ef6aab1c4711c029aca12b))
+* **security:** redact PII from all error messages — zero data leakage in responses ([1cbce81](https://github.com/Nekzus/LIOP/commit/1cbce81dd9f402410817a42eb4e41cad3ca31632))
+* **security:** remove quasi-identifier arrays from output schemas ([217e255](https://github.com/Nekzus/LIOP/commit/217e255bb56875a01d3471b63880a93e224c08f7))
+* **security:** resolve false-positive blocks on legitimate aggregation queries ([451c6d1](https://github.com/Nekzus/LIOP/commit/451c6d148994472babb608512d7c80d55ba1d1ab))
+
+
+### Features
+
+* **security:** implement conditional egress error opacity and timing attack defense ([a64c5ba](https://github.com/Nekzus/LIOP/commit/a64c5ba8a4e78a7a92f4181466b0fa5d69c3d2d4))
+* **security:** Phase 112 industrial security hardening of the TS SDK ([0c54a28](https://github.com/Nekzus/LIOP/commit/0c54a28a502d46a4e8ff8107254ac2eab81fe22f))
+* **security:** PII Egress Shield v3 — defense-in-depth with NER, fuzzy matching & strict schemas ([37c5a60](https://github.com/Nekzus/LIOP/commit/37c5a60881cd2c174676d47b200d49a38f1903a1))
+
 # [1.2.0](https://github.com/Nekzus/Neural-Mesh-Protocol/compare/v1.1.2...v1.2.0) (2026-04-28)
 
 
