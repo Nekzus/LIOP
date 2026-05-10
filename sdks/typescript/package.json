@@ -1,6 +1,6 @@
 {
   "name": "@nekzus/liop",
-  "version": "1.3.0-alpha.2",
+  "version": "1.3.0-alpha.1",
   "description": "Official SDK for Logic-Injection-on-Origin Protocol (LIOP). Deploy Logic-on-Origin with WebAssembly at gRPC speed and bidirectional MCP compatibility.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
