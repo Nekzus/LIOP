@@ -319,7 +319,10 @@ export class PiiScanner {
 	 *   3. Regex/algorithmic pattern match on string values
 	 *   4. NER content scan on string values (if enabled)
 	 */
-	public scan(input: unknown, seen = new WeakSet<object>()): string | null {
+	public async scan(
+		input: unknown,
+		seen = new WeakSet<object>(),
+	): Promise<string | null> {
 		if (input === null || input === undefined) return null;
 
 		// 1. String Scan (Direct Regex/String/Definition check)
@@ -334,7 +337,7 @@ export class PiiScanner {
 				try {
 					const parsed = JSON.parse(trimmed);
 					// Successfully parsed JSON string. Recursively scan the unescaped object.
-					const violation = this.scan(parsed, seen);
+					const violation = await this.scan(parsed, seen);
 					if (violation) return violation;
 				} catch (_e) {
 					// Silent fallback: It looked like JSON but wasn't valid. Proceed with raw string check.
@@ -347,7 +350,7 @@ export class PiiScanner {
 
 			// Layer 3: NER Content Scan — detect person names in free-text values
 			if (this.nerScanner) {
-				const nerResult = this.nerScanner.scan(input);
+				const nerResult = await this.nerScanner.scan(input);
 				if (nerResult.detected) {
 					const personEntity = nerResult.entities.find(
 						(e) => e.type === "person",
@@ -369,7 +372,7 @@ export class PiiScanner {
 
 			if (Array.isArray(input)) {
 				for (const element of input) {
-					const violation = this.scan(element, seen);
+					const violation = await this.scan(element, seen);
 					if (violation) return violation;
 				}
 			} else {
@@ -386,7 +389,7 @@ export class PiiScanner {
 					if (fuzzyViolation) return fuzzyViolation;
 
 					// Recurse into values
-					const violation = this.scan(value, seen);
+					const violation = await this.scan(value, seen);
 					if (violation) return violation;
 				}
 			}

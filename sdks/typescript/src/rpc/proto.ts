@@ -9,18 +9,19 @@ const __dirname = path.dirname(__filename);
 import * as fs from "node:fs";
 import { log } from "../utils/logger.js";
 
-// Selection logic
-const PROD_PROTO_PATH = path.resolve(__dirname, "../protocol/liop_core.proto");
-// 2. Fallback to monorepo development path
+// Selection logic: support both flat dist/ and original src/ structure
+const PROD_PATHS = [
+	path.resolve(__dirname, "./protocol/liop_core.proto"), // Flat dist/ (tsup)
+	path.resolve(__dirname, "../protocol/liop_core.proto"), // dist/rpc/ (tsc)
+];
+
 const DEV_PROTO_PATH = path.resolve(
 	__dirname,
 	"../../../../protocol/proto/liop_core.proto",
 );
 
 // Selection logic
-const PROTO_PATH = fs.existsSync(PROD_PROTO_PATH)
-	? PROD_PROTO_PATH
-	: DEV_PROTO_PATH;
+const PROTO_PATH = PROD_PATHS.find((p) => fs.existsSync(p)) || DEV_PROTO_PATH;
 
 if (!fs.existsSync(PROTO_PATH)) {
 	log.error(`[LIOP-Proto] CRITICAL: Proto file not found at ${PROTO_PATH}`);

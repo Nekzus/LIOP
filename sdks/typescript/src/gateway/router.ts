@@ -941,13 +941,18 @@ export class LiopMcpRouter {
 					: [];
 			const bootstrapCount = bootstrapNodes.length;
 
-			const bootstrapList = bootstrapNodes
-				.map((addr) => {
-					const parts = addr.split("/");
-					const id = parts[parts.length - 1];
-					return `  • ${id ? id.slice(-8) : "Unknown"} (bootstrap)`;
-				})
-				.join("\n");
+			const diagLevel = process.env.LIOP_DIAGNOSTIC_LEVEL || "redacted";
+			const showBootstraps = diagLevel !== "minimal";
+
+			const bootstrapList = showBootstraps
+				? bootstrapNodes
+						.map((addr) => {
+							const parts = addr.split("/");
+							const id = parts[parts.length - 1];
+							return `  • ${id ? id.slice(-8) : "Unknown"} (bootstrap)`;
+						})
+						.join("\n")
+				: "";
 
 			const routingTableSize = this.meshNode
 				? // biome-ignore lint/suspicious/noExplicitAny: access internal nodes
@@ -969,8 +974,10 @@ export class LiopMcpRouter {
 			const statusText = [
 				`LIOP Mesh Status: ${meshState === "Active" ? "Active" : "Offline"}`,
 				`Local Agent Identity: ${localPeerId}`,
-				`Network: ${connections} Conns | ${routingTableSize} DHT Peers | ${bootstrapCount} Bootstraps`,
-				bootstrapCount > 0 ? `\nActive Bootstraps:\n${bootstrapList}\n` : "",
+				`Network: ${connections} Conns | ${routingTableSize} Mesh Nodes | ${bootstrapCount} Bootstraps`,
+				showBootstraps && bootstrapCount > 0
+					? `\nActive Bootstraps:\n${bootstrapList}\n`
+					: "",
 				`Discovery: ${stats.candidates} Candidates | ${stats.success} OK | ${stats.failures} FAIL`,
 				`Tooling: ${providerCount} Providers | ${cachedTools} Total Remote Tools`,
 				cachedTools > 0

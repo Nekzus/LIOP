@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { serve } from "@hono/node-server";
-import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
+import type { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import type { JSONRPCMessage } from "@modelcontextprotocol/sdk/types.js";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
@@ -72,9 +72,12 @@ export class LiopStreamBridge {
 	/**
 	 * Creates a new per-session transport instance and wires it to the LIOPMcpBridge logic.
 	 */
-	private createSessionTransport(
+	private async createSessionTransport(
 		clientIp: string,
-	): WebStandardStreamableHTTPServerTransport {
+	): Promise<WebStandardStreamableHTTPServerTransport> {
+		const { WebStandardStreamableHTTPServerTransport } = await import(
+			"@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js"
+		);
 		const transport = new WebStandardStreamableHTTPServerTransport({
 			sessionIdGenerator: () => randomUUID(),
 			onsessioninitialized: (sessionId: string) => {
@@ -231,8 +234,8 @@ export class LiopStreamBridge {
 				return c.json({ error: "Too Many Sessions: Rate limit exceeded" }, 429);
 			}
 
-			const transport = this.createSessionTransport(clientIp);
-			return transport.handleRequest(c.req.raw);
+			const transport = await this.createSessionTransport(clientIp);
+			return await transport.handleRequest(c.req.raw);
 		});
 	}
 

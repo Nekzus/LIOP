@@ -13,7 +13,15 @@
  *
  * @see https://github.com/spencermountain/compromise
  */
-import nlp from "compromise/three";
+// Types for compromise (minimal)
+type NlpDoc = {
+	people: () => { out: (type: string) => string[] };
+	places: () => { out: (type: string) => string[] };
+	organizations: () => { out: (type: string) => string[] };
+};
+type NlpStatic = ((text: string) => NlpDoc) & {
+	addWords: (words: Record<string, string>) => void;
+};
 
 /**
  * Medical/pharmaceutical vocabulary safelist.
@@ -50,11 +58,6 @@ const MEDICAL_VOCABULARY: Record<string, string> = {
 	asthma: "Condition",
 };
 
-// Register medical vocabulary BEFORE any scan operations.
-// compromise's addWords() overrides the default classification,
-// preventing these terms from being tagged as #Person or #Organization.
-nlp.addWords(MEDICAL_VOCABULARY);
-
 /** Single named entity detected by the NER scanner. */
 export interface NerEntity {
 	type: "person" | "place" | "organization";
@@ -82,19 +85,36 @@ const NON_TEXT_PATTERN = /^[\d\s.,:;!?()[\]{}<>@#$%^&*+=|\\/"'`~_-]+$/;
  * to ensure sensitive data does not leak through aliased output keys.
  */
 export class NerScanner {
+	private static nlp: NlpStatic | null = null;
+
+	/**
+	 * Lazy loads the compromise library only when needed.
+	 */
+	private async getNlp(): Promise<NlpStatic> {
+		if (!NerScanner.nlp) {
+			// biome-ignore lint/suspicious/noExplicitAny: dynamic import of optional dependency
+			const mod = (await import("compromise/three")) as any;
+			// compromise export can vary depending on bundling
+			NerScanner.nlp = (mod.default || mod) as NlpStatic;
+			NerScanner.nlp.addWords(MEDICAL_VOCABULARY);
+		}
+		return NerScanner.nlp;
+	}
+
 	/**
 	 * Scans a single string value for named entities.
 	 * Returns detected entities if the text contains recognizable PII.
 	 */
-	scan(text: string): NerScanResult {
+	async scan(text: string): Promise<NerScanResult> {
 		if (text.length < MIN_TEXT_LENGTH || NON_TEXT_PATTERN.test(text)) {
 			return { detected: false, entities: [] };
 		}
 
+		const nlp = await this.getNlp();
 		const doc = nlp(text);
 		const entities: NerEntity[] = [];
 
-		const people = doc.people().out("array") as string[];
+		const people = doc.people().out("array");
 		for (const person of people) {
 			const trimmed = person.trim();
 			if (trimmed.length >= MIN_TEXT_LENGTH) {
@@ -102,7 +122,7 @@ export class NerScanner {
 			}
 		}
 
-		const places = doc.places().out("array") as string[];
+		const places = doc.places().out("array");
 		for (const place of places) {
 			const trimmed = place.trim();
 			if (trimmed.length >= MIN_TEXT_LENGTH) {
@@ -110,7 +130,7 @@ export class NerScanner {
 			}
 		}
 
-		const orgs = doc.organizations().out("array") as string[];
+		const orgs = doc.organizations().out("array");
 		for (const org of orgs) {
 			const trimmed = org.trim();
 			if (trimmed.length >= MIN_TEXT_LENGTH) {
@@ -128,7 +148,10 @@ export class NerScanner {
 	 * Recursively scans all string values within an object/array.
 	 * Stops at the first detection for performance (fail-fast).
 	 */
-	scanDeep(input: unknown, seen = new WeakSet<object>()): NerScanResult {
+	async scanDeep(
+		input: unknown,
+		seen = new WeakSet<object>(),
+	): Promise<NerScanResult> {
 		if (input === null || input === undefined) {
 			return { detected: false, entities: [] };
 		}
@@ -150,7 +173,7 @@ export class NerScanner {
 			const allEntities: NerEntity[] = [];
 
 			for (const value of values) {
-				const result = this.scanDeep(value, seen);
+				const result = await this.scanDeep(value, seen);
 				if (result.detected) {
 					allEntities.push(...result.entities);
 					// Fail-fast: return immediately on first person detection

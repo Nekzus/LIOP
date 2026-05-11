@@ -1,5 +1,6 @@
 import { Buffer } from "node:buffer";
 import crypto from "node:crypto";
+import * as fs from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -243,9 +244,17 @@ export class LiopServer {
 			this.violatesAggregationFirstPolicy(
 				this.unwrapForAggregationPolicyScan(parsed),
 				policy.enforceAggregationFirst,
+				this.sandboxRecords.length,
 			)
 		) {
-			return "Aggregation-First Policy Violation: row-level export blocked. HINT: Use .reduce() to produce a flat {key:value} object. Do NOT use .map() to create arrays of objects.";
+			const isDev =
+				process.env.NODE_ENV === "development" ||
+				process.env.NODE_ENV === "test" ||
+				process.env.LIOP_SEC_VERBOSE === "1";
+
+			return isDev
+				? "Aggregation-First Policy Violation: row-level export or K-Anonymity violation blocked. HINT: Use .reduce() to produce a flat {key:value} object. Do NOT use .map() to create arrays of objects. Ensure dataset size > 10 for detailed results."
+				: "Aggregation-First Policy Violation: Output blocked due to privacy constraints.";
 		}
 
 		return null;
@@ -301,6 +310,7 @@ export class LiopServer {
 	private violatesAggregationFirstPolicy(
 		input: unknown,
 		policyObj?: boolean | AggregationPolicy,
+		recordsCount?: number,
 	): boolean {
 		const maxRows =
 			typeof policyObj === "object" &&
@@ -323,6 +333,7 @@ export class LiopServer {
 					return this.violatesAggregationFirstPolicy(
 						JSON.parse(trimmed),
 						policyObj,
+						recordsCount,
 					);
 				} catch {
 					return false;
@@ -341,7 +352,7 @@ export class LiopServer {
 					return true;
 				}
 				return input.some((item) =>
-					this.violatesAggregationFirstPolicy(item, policyObj),
+					this.violatesAggregationFirstPolicy(item, policyObj, recordsCount),
 				);
 			}
 
@@ -354,19 +365,36 @@ export class LiopServer {
 			}
 
 			return input.some((item) =>
-				this.violatesAggregationFirstPolicy(item, policyObj),
+				this.violatesAggregationFirstPolicy(item, policyObj, recordsCount),
 			);
 		}
 
 		if (input && typeof input === "object") {
 			const keys = Object.keys(input as Record<string, unknown>);
+
+			// K-ANONYMITY: If source dataset is too small (< 10), enforce extreme restriction.
+			// Only allow simple global counts/totals (max 2 keys, no nesting).
+			if (recordsCount !== undefined && recordsCount > 0 && recordsCount < 10) {
+				if (keys.length > 2) return true;
+				// Check for nesting/arrays in a small sample
+				const values = Object.values(input as Record<string, unknown>);
+				if (
+					values.some(
+						(v) =>
+							Array.isArray(v) || (typeof v === "object" && v !== null),
+					)
+				) {
+					return true;
+				}
+			}
+
 			// Treat flat dictionary with too many keys as non-aggregated leakage risk (Dynamic Key Bypass).
 			if (keys.length > maxRows) {
 				return true;
 			}
 
 			return Object.values(input as Record<string, unknown>).some((value) =>
-				this.violatesAggregationFirstPolicy(value, policyObj),
+				this.violatesAggregationFirstPolicy(value, policyObj, recordsCount),
 			);
 		}
 
@@ -445,11 +473,17 @@ export class LiopServer {
 			>;
 		}
 
+		// Support both flat dist/ and original src/ structure
+		const workerPaths = [
+			path.resolve(__dirname, `./workers/logic-execution${workerExt}`), // Flat dist/ (tsup)
+			path.resolve(__dirname, `../workers/logic-execution${workerExt}`), // Original src/
+		];
+
+		const workerFilename =
+			workerPaths.find((p) => fs.existsSync(p)) || workerPaths[1];
+
 		this.workerPool = new Piscina({
-			filename: path.resolve(
-				__dirname,
-				`../workers/logic-execution${workerExt}`,
-			),
+			filename: workerFilename,
 			minThreads: this.config?.workerPool?.minThreads ?? (isTest ? 0 : 2),
 			maxThreads: this.config?.workerPool?.maxThreads ?? (isTest ? 1 : 8),
 			idleTimeout:
@@ -1257,7 +1291,7 @@ Protocol Adherence is mandatory for successful execution.`,
 					};
 
 					// Final PII check for gRPC egress
-					const violation = this.piiScanner.scan([
+					const violation = await this.piiScanner.scan([
 						{ type: "text", text: finalOutput },
 					]);
 					const aggregationViolation = this.violatesAggregationFirstPolicy(
@@ -1368,11 +1402,12 @@ Protocol Adherence is mandatory for successful execution.`,
 
 				const isDev =
 					process.env.NODE_ENV === "development" ||
-					process.env.NODE_ENV === "test";
+					process.env.NODE_ENV === "test" ||
+					process.env.LIOP_SEC_VERBOSE === "1";
 
 				const errorMessage = isDev
 					? policyViolation
-					: "[LIOP] Egress Security Violation. Output blocked due to policy enforcement. HINT: Return only aggregated, non-PII results using .reduce() to produce a flat {key:value} object with allowed schema fields.";
+					: "[LIOP] Egress Security Violation. Output blocked due to policy enforcement. Ensure your logic uses strictly aggregated, non-PII patterns.";
 
 				return {
 					content: [
@@ -1386,7 +1421,7 @@ Protocol Adherence is mandatory for successful execution.`,
 			}
 
 			// Professional PII Protection Guard
-			const violation = this.piiScanner.scan(content);
+			const violation = await this.piiScanner.scan(content);
 			const aggregationViolation = this.violatesAggregationFirstPolicy(
 				workerResponse.output,
 			);
@@ -1402,11 +1437,12 @@ Protocol Adherence is mandatory for successful execution.`,
 
 				const isDev =
 					process.env.NODE_ENV === "development" ||
-					process.env.NODE_ENV === "test";
+					process.env.NODE_ENV === "test" ||
+					process.env.LIOP_SEC_VERBOSE === "1";
 
 				const errorMessage = isDev
 					? `[LIOP] Egress Security Violation: ${internalReason}`
-					: "[LIOP] Egress Security Violation. Output blocked due to policy enforcement. HINT: Return only aggregated, non-PII results using .reduce() to produce a flat {key:value} object with allowed schema fields.";
+					: "[LIOP] Egress Security Violation. Output blocked due to policy enforcement. Ensure your logic uses strictly aggregated, non-PII patterns.";
 
 				return {
 					content: [
@@ -1424,7 +1460,8 @@ Protocol Adherence is mandatory for successful execution.`,
 			const e = error as Error;
 			const isDev =
 				process.env.NODE_ENV === "development" ||
-				process.env.NODE_ENV === "test";
+				process.env.NODE_ENV === "test" ||
+				process.env.LIOP_SEC_VERBOSE === "1";
 
 			const detail = e.message || String(error);
 			log.error(`[LIOP-SDK] WorkerPool Execution Fault: ${detail}`);
