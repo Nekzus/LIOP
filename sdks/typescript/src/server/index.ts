@@ -11,6 +11,7 @@ import { zodToJsonSchema } from "zod-to-json-schema";
 import { type LiopManifest, MeshNode } from "../mesh/node.js";
 import { LiopRpcServer } from "../rpc/server.js";
 import type { LogicRequest, LogicResponse } from "../rpc/types.js";
+import { TaintAnalyzer } from "../security/taint-analyzer.js";
 import type {
 	CallToolRequest,
 	CallToolResult,
@@ -60,8 +61,10 @@ export interface LiopServerOptions {
 		enableNerScanning?: boolean;
 		/** Rate limiting configuration for tool calls (OWASP A01). */
 		rateLimit?: {
-			/** Maximum calls per window per tool (default: 30). */
+			/** Maximum calls per window per tool (default: 15). */
 			maxPerWindow?: number;
+			/** Maximum calls per window across ALL tools combined (default: 40). */
+			globalMaxPerWindow?: number;
 			/** Sliding window duration in milliseconds (default: 60000 = 1 min). */
 			windowMs?: number;
 		};
@@ -111,6 +114,13 @@ export class LiopServer {
 	private toolCallWindows: Map<string, number[]> = new Map();
 	private readonly toolCallMaxPerWindow: number;
 	private readonly toolCallWindowMs: number;
+
+	// [OWASP-A01] Global cross-tool rate limiter — prevents distributed micro-query attacks
+	private globalCallWindow: number[] = [];
+	private readonly globalCallMaxPerWindow: number;
+
+	// [SEC] AST-level taint tracker for PII side-channel prevention
+	private readonly taintAnalyzer: TaintAnalyzer;
 
 	private tools: Map<
 		string,
@@ -179,23 +189,31 @@ export class LiopServer {
 		logic: string,
 		policy?: LogicExecutionPolicy,
 	): string | null {
-		if (!policy) return null;
-		const compact = logic.replace(/\s+/g, " ");
+		// Phase 1: Regex-based row-level export detection (fast path)
+		if (policy) {
+			const compact = logic.replace(/\s+/g, " ");
 
-		if (policy.enforceAggregationFirst) {
-			const rowExtractionPatterns = [
-				// Block raw record dumps but allow safe aggregation chains
-				// (.reduce, .length, .filter().length, .every, .some)
-				/return\s+env\.records(?!\s*\.\s*(?:reduce|length|filter|every|some|find)\b)/i,
-				/return\s*\{[\s\S]*\b(accounts|patients|rows|records)\s*:\s*env\.records(?!\s*\.\s*(?:reduce|length|filter)\b)/i,
-			];
-			if (rowExtractionPatterns.some((p) => p.test(compact))) {
-				return "Preflight policy rejected: potential row-level export pattern detected.";
+			if (policy.enforceAggregationFirst) {
+				const rowExtractionPatterns = [
+					// Block raw record dumps but allow safe aggregation chains
+					// (.reduce, .length, .filter().length, .every, .some)
+					/return\s+env\.records(?!\s*\.\s*(?:reduce|length|filter|every|some|find)\b)/i,
+					/return\s*\{[\s\S]*\b(accounts|patients|rows|records)\s*:\s*env\.records(?!\s*\.\s*(?:reduce|length|filter)\b)/i,
+				];
+				if (rowExtractionPatterns.some((p) => p.test(compact))) {
+					return "Preflight policy rejected: potential row-level export pattern detected.";
+				}
+			}
+
+			if (policy.preflightDenyPatterns?.some((p) => p.test(compact))) {
+				return "Preflight policy rejected: custom deny pattern matched.";
 			}
 		}
 
-		if (policy.preflightDenyPatterns?.some((p) => p.test(compact))) {
-			return "Preflight policy rejected: custom deny pattern matched.";
+		// Phase 2: AST-level taint tracking (detects PII side-channel derivation)
+		const taintViolation = this.taintAnalyzer.analyze(logic);
+		if (taintViolation) {
+			return `Preflight policy rejected: ${taintViolation.reason}`;
 		}
 
 		return null;
@@ -372,16 +390,15 @@ export class LiopServer {
 		if (input && typeof input === "object") {
 			const keys = Object.keys(input as Record<string, unknown>);
 
-			// K-ANONYMITY: If source dataset is too small (< 10), enforce extreme restriction.
-			// Only allow simple global counts/totals (max 2 keys, no nesting).
+			// K-ANONYMITY: If source dataset is too small (< 10), enforce restriction.
+			// Allow basic statistical summaries (max 3 keys: count/avg/stddev, no nesting).
 			if (recordsCount !== undefined && recordsCount > 0 && recordsCount < 10) {
-				if (keys.length > 2) return true;
+				if (keys.length > 3) return true;
 				// Check for nesting/arrays in a small sample
 				const values = Object.values(input as Record<string, unknown>);
 				if (
 					values.some(
-						(v) =>
-							Array.isArray(v) || (typeof v === "object" && v !== null),
+						(v) => Array.isArray(v) || (typeof v === "object" && v !== null),
 					)
 				) {
 					return true;
@@ -436,14 +453,42 @@ export class LiopServer {
 			nerScanner,
 		);
 
-		// [OWASP-A01] Rate limit: config > env > default (30 calls/min)
+		// [OWASP-A01] Rate limit: config > env > default (15 calls/min per-tool, 40 global)
 		const rlConfig = this.config?.security?.rateLimit;
 		this.toolCallWindowMs =
 			rlConfig?.windowMs ??
 			Number.parseInt(process.env.LIOP_RATE_LIMIT_WINDOW_MS ?? "60000", 10);
 		this.toolCallMaxPerWindow =
 			rlConfig?.maxPerWindow ??
-			Number.parseInt(process.env.LIOP_RATE_LIMIT_MAX ?? "30", 10);
+			Number.parseInt(process.env.LIOP_RATE_LIMIT_MAX ?? "15", 10);
+		this.globalCallMaxPerWindow =
+			rlConfig?.globalMaxPerWindow ??
+			Number.parseInt(process.env.LIOP_RATE_LIMIT_GLOBAL_MAX ?? "40", 10);
+
+		// [SEC] Initialize AST-level taint analyzer with PII field definitions
+		const forbiddenKeys = this.config?.security?.forbiddenKeys ?? [
+			"id",
+			"name",
+			"fullName",
+			"firstName",
+			"lastName",
+			"address",
+			"street",
+			"city",
+			"postalCode",
+			"zipCode",
+			"phone",
+			"email",
+			"ssn",
+			"accountHolder",
+			"accountNumber",
+			"account_number",
+			"password",
+			"token",
+			"secret",
+			"privateKey",
+		];
+		this.taintAnalyzer = new TaintAnalyzer(forbiddenKeys);
 
 		// Initialize Zero-Blocking Worker Pool for Heavy Cryptography & Sandboxing
 		const isTS = import.meta.url.endsWith(".ts");
@@ -547,6 +592,20 @@ export class LiopServer {
 		}
 
 		lines.push(
+			"",
+			"TAINT TRACKING (Phase 108):",
+			"- AST-level analysis blocks PII-derived scalars (charCodeAt, charAt, etc.)",
+			"- Operations on restricted fields are tracked through variable assignments",
+			"- Boolean inference (field.charCodeAt(0) < N ? 1 : 0) is blocked",
+			"- Allowed: aggregations on non-PII fields (balance, amount, date)",
+			"",
+			"K-ANONYMITY:",
+			"- Datasets < 10 records: max 3 scalar output fields, no nesting",
+			"- Datasets >= 10 records: max 10 output fields",
+			"",
+			"RATE LIMITS (OWASP A01):",
+			"- Per-tool: 15 calls/min (configurable via LIOP_RATE_LIMIT_MAX)",
+			"- Global: 40 calls/min across all tools (LIOP_RATE_LIMIT_GLOBAL_MAX)",
 			"",
 			"OPTIONAL PARAMETERS:",
 			"- __liop_bypass_ast_cache: boolean (force AST re-evaluation)",
@@ -984,6 +1043,42 @@ Protocol Adherence is mandatory for successful execution.`,
 	}
 
 	/**
+	 * Global cross-tool rate limiter.
+	 * Prevents attackers from distributing micro-queries across multiple tools
+	 * to evade per-tool rate limits. (OWASP A01)
+	 */
+	private checkGlobalRateLimit(): CallToolResult | null {
+		const now = Date.now();
+		const windowMs = this.toolCallWindowMs;
+		const maxGlobal = this.globalCallMaxPerWindow;
+
+		this.globalCallWindow = this.globalCallWindow.filter(
+			(t) => now - t < windowMs,
+		);
+
+		if (this.globalCallWindow.length >= maxGlobal) {
+			const retryAfterSec = Math.ceil(
+				(this.globalCallWindow[0] + windowMs - now) / 1000,
+			);
+			return {
+				content: [
+					{
+						type: "text",
+						text:
+							`LIOP_RATE_LIMITED: Global call limit exceeded. ` +
+							`Max ${maxGlobal} total calls per ${windowMs / 1000}s window. ` +
+							`Retry after ${retryAfterSec}s.`,
+					},
+				],
+				isError: true,
+			};
+		}
+
+		this.globalCallWindow.push(now);
+		return null;
+	}
+
+	/**
 	 * Emulates calling a tool (used locally or via LIOPMcpBridge)
 	 */
 	public async callTool(request: CallToolRequest): Promise<CallToolResult> {
@@ -993,6 +1088,8 @@ Protocol Adherence is mandatory for successful execution.`,
 		}
 
 		// [OWASP-A01] Rate limiting: prevent micro-query exfiltration
+		const globalLimitResult = this.checkGlobalRateLimit();
+		if (globalLimitResult) return globalLimitResult;
 		const rateLimitResult = this.checkToolCallRateLimit(request.name);
 		if (rateLimitResult) return rateLimitResult;
 

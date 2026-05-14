@@ -261,7 +261,9 @@ export class WasiSandbox {
 				});
 
 				const duration = performance.now() - startTime;
-				const fuelUsed = Math.floor(duration * 1500 + 100);
+				// SEC: Normalize fuel to buckets of 100 to prevent timing side-channel inference
+				const rawFuel = Math.floor(duration * 1500 + 100);
+				const fuelUsed = Math.ceil(rawFuel / 100) * 100;
 
 				if (fuelUsed > 1000000) {
 					throw new Error(

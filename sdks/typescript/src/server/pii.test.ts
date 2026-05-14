@@ -19,7 +19,9 @@ describe("PiiScanner (The Shield V2 - Military Grade)", () => {
 		expect(await scanner.scan("My IP is 192.168.1.1")).toBe(
 			PII_PATTERNS.IP_ADDRESS.name,
 		);
-		expect(await scanner.scan("Here is a forbidden-word")).toBe("forbidden-word");
+		expect(await scanner.scan("Here is a forbidden-word")).toBe(
+			"forbidden-word",
+		);
 	});
 
 	it("should exclude safe words to prevent false positives", async () => {
@@ -40,7 +42,9 @@ describe("PiiScanner (The Shield V2 - Military Grade)", () => {
 
 	it("should NOT detect fake credit cards (Algorithmic rejection)", async () => {
 		// Just changed the last digit; Luhn should fail
-		expect(await scanner.scan("Fake ID number: 4242 4242 4242 4243")).toBe(null);
+		expect(await scanner.scan("Fake ID number: 4242 4242 4242 4243")).toBe(
+			null,
+		);
 	});
 
 	it("should detect forbidden keys in objects (Key Auditing)", async () => {
@@ -48,7 +52,9 @@ describe("PiiScanner (The Shield V2 - Military Grade)", () => {
 		expect(await scanner.scan({ nested: { ssn: "999-00-9999" } })).toBe(
 			"Forbidden Key: ssn",
 		);
-		expect(await scanner.scan({ name: "John Doe" })).toBe("Forbidden Key: name");
+		expect(await scanner.scan({ name: "John Doe" })).toBe(
+			"Forbidden Key: name",
+		);
 	});
 
 	it("should detect PII in nested values", async () => {
@@ -90,7 +96,9 @@ describe("PiiScanner (The Shield V2 - Military Grade)", () => {
 		const maliciousPayload = '{"total_records": 12, "data": [{"id":"P001"}]}';
 
 		// With Deep-Parsing Recursion, it should successfully unescape the payload and find the forbidden key 'id'
-		expect(await strictScanner.scan(maliciousPayload)).toBe("Forbidden Key: id");
+		expect(await strictScanner.scan(maliciousPayload)).toBe(
+			"Forbidden Key: id",
+		);
 
 		// Also check that stringified arrays work
 		const maliciousArray = '[{"id":"P002"}]';
@@ -101,15 +109,17 @@ describe("PiiScanner (The Shield V2 - Military Grade)", () => {
 		const bankingScanner = new PiiScanner([PII_PATTERNS.IBAN]);
 
 		// Valid IBANs
-		expect(await bankingScanner.scan("Transfer to DE89370400440532013000")).toBe(
-			PII_PATTERNS.IBAN.name,
-		);
+		expect(
+			await bankingScanner.scan("Transfer to DE89370400440532013000"),
+		).toBe(PII_PATTERNS.IBAN.name);
 		expect(await bankingScanner.scan("Payment GB82WEST12345698765432")).toBe(
 			PII_PATTERNS.IBAN.name,
 		);
 
 		// Invalid IBAN (Checksum altered)
-		expect(await bankingScanner.scan("Fake IBAN DE89370400440532013001")).toBe(null);
+		expect(await bankingScanner.scan("Fake IBAN DE89370400440532013001")).toBe(
+			null,
+		);
 	});
 
 	it("should detect and validate strict Social Security Numbers", async () => {

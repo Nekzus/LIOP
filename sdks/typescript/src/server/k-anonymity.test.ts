@@ -1,10 +1,10 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { LiopServer } from "./index.js";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { z } from "zod";
+import { LiopServer } from "./index.js";
 
 /**
  * LIOP K-Anonymity & Egress Security Suite
- * Validates that the mesh node correctly restricts output precision 
+ * Validates that the mesh node correctly restricts output precision
  * based on the source dataset size to prevent statistical inference.
  */
 describe("K-Anonymity Security Enforcement", () => {
@@ -23,7 +23,10 @@ describe("K-Anonymity Security Enforcement", () => {
 
 	it("should allow detailed aggregation when dataset size >= 10", async () => {
 		// Setup 10 mock records (K-Anonymity Threshold met)
-		const records = Array.from({ length: 10 }, (_, i) => ({ id: i, val: i * 10 }));
+		const records = Array.from({ length: 10 }, (_, i) => ({
+			id: i,
+			val: i * 10,
+		}));
 		server.setSandboxData(records);
 
 		server.tool(
@@ -58,7 +61,10 @@ describe("K-Anonymity Security Enforcement", () => {
 
 	it("should block complex aggregation when dataset size < 10 (K-Anonymity Violation)", async () => {
 		// Setup only 3 records (Below K-Anonymity Threshold)
-		const records = Array.from({ length: 3 }, (_, i) => ({ id: i, val: i * 10 }));
+		const records = Array.from({ length: 3 }, (_, i) => ({
+			id: i,
+			val: i * 10,
+		}));
 		server.setSandboxData(records);
 
 		server.tool(
@@ -109,7 +115,12 @@ describe("K-Anonymity Security Enforcement", () => {
 				content: [
 					{
 						type: "text",
-						text: JSON.stringify({ too: "much", detail: "here", and: "more" }),
+						text: JSON.stringify({
+							too: "much",
+							detail: "here",
+							and: "more",
+							extra: "field",
+						}),
 					},
 				],
 			}),
@@ -120,7 +131,7 @@ describe("K-Anonymity Security Enforcement", () => {
 			name: "prod_test",
 			arguments: {
 				payload:
-					"@LIOP{wasi_v1,test}\nreturn {too:'much', detail:'here', and:'more'}\n@END",
+					"@LIOP{wasi_v1,test}\nreturn {too:'much', detail:'here', and:'more', extra:'field'}\n@END",
 			},
 		});
 

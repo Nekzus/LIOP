@@ -252,8 +252,8 @@ describe("LiopServer", () => {
 			content: [{ type: "text", text: msg }],
 		}));
 
-		// Fire 30 calls (the default max)
-		for (let i = 0; i < 30; i++) {
+		// Fire 15 calls (the new default max)
+		for (let i = 0; i < 15; i++) {
 			const r = await server.callTool({
 				name: "echo",
 				arguments: { msg: `call-${i}` },
@@ -261,7 +261,7 @@ describe("LiopServer", () => {
 			expect(r.isError).toBeFalsy();
 		}
 
-		// The 31st call should be rate limited with retry-after
+		// The 16th call should be rate limited with retry-after
 		const blocked = await server.callTool({
 			name: "echo",
 			arguments: { msg: "overflow" },
@@ -355,5 +355,43 @@ return { size: a.length };
 
 		expect(result.isError).toBe(true);
 		expect(result.content[0].text).toMatch(/memory|heap|Worker|resource/i);
+	});
+
+	it("should enforce global cross-tool rate limit", async () => {
+		const server = new LiopServer(
+			{ name: "test", version: "1" },
+			{
+				security: {
+					rateLimit: {
+						maxPerWindow: 100,
+						globalMaxPerWindow: 5,
+						windowMs: 60000,
+					},
+				},
+			},
+		);
+		server.tool("toolA", "A", { msg: z.string() }, async ({ msg }) => ({
+			content: [{ type: "text", text: msg }],
+		}));
+		server.tool("toolB", "B", { msg: z.string() }, async ({ msg }) => ({
+			content: [{ type: "text", text: msg }],
+		}));
+
+		// Distribute calls across tools to stay under per-tool limit
+		for (let i = 0; i < 3; i++) {
+			await server.callTool({ name: "toolA", arguments: { msg: `${i}` } });
+		}
+		for (let i = 0; i < 2; i++) {
+			await server.callTool({ name: "toolB", arguments: { msg: `${i}` } });
+		}
+
+		// 6th call should hit global limit
+		const blocked = await server.callTool({
+			name: "toolA",
+			arguments: { msg: "overflow" },
+		});
+		expect(blocked.isError).toBe(true);
+		expect(blocked.content[0].text).toContain("LIOP_RATE_LIMITED");
+		expect(blocked.content[0].text).toContain("Global");
 	});
 });
