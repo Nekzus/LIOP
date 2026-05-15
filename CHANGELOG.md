@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.0.0-alpha.2](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.1...v2.0.0-alpha.2) (2026-05-15)
+
+
+### Features
+
+* **sdk:** implement AST-based taint tracking to mitigate PII exfiltration side-channels ([9f00d6e](https://github.com/Nekzus/LIOP/commit/9f00d6ec1735de895ac97aa61c64471917f173a6))
+* **sdk:** implement k-anonymity egress protection and security hardening ([bd7c725](https://github.com/Nekzus/LIOP/commit/bd7c725661d92ba091a95f269540d60dd7efc61f))
+
 # [2.0.0-alpha.1](https://github.com/Nekzus/LIOP/compare/v1.2.0...v2.0.0-alpha.1) (2026-05-10)
 
 
