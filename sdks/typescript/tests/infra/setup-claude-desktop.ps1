@@ -27,7 +27,7 @@ $liopLocal = @{
 # No NODE_ENV → production defaults. No Docker hacks. Pure Zero-Trust.
 $liopNpm = @{
     command = "npx.cmd"
-    args = @("-y", "@nekzus/liop")
+    args = @("-y", "@nekzus/liop@latest")
     env = @{
         LIOP_NEXUS_URL = $nexusUrl
         LIOP_LOG_LEVEL = "info"

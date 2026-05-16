@@ -109,7 +109,7 @@ function main(): void {
 	const npxCmd = process.platform === "win32" ? "npx.cmd" : "npx";
 	mcpServers["liop-mesh-npm"] = {
 		command: npxCmd,
-		args: ["-y", "@nekzus/liop"],
+		args: ["-y", "@nekzus/liop@latest"],
 		env: {
 			LIOP_NEXUS_URL: nexusUrl,
 			LIOP_LOG_LEVEL: "info",

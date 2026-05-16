@@ -135,7 +135,7 @@ The high-performance Data Node host, written in Rust. This is where injected WAS
 ### Install the TypeScript SDK
 
 ```bash
-npm install @nekzus/liop
+npm install @nekzus/liop@latest
 ```
 
 ### Run the Zero-Config Agent (CLI)
@@ -143,7 +143,7 @@ npm install @nekzus/liop
 For end-users wanting to integrate with **Claude Desktop** instantly:
 
 ```bash
-npx -y @nekzus/liop
+npx -y @nekzus/liop@latest
 ```
 
 ### Build the Rust Backend

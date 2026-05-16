@@ -49,7 +49,7 @@ This fundamentally solves the data privacy, bandwidth, and latency challenges of
 ## Installation
 
 ```bash
-npm install @nekzus/liop
+npm install @nekzus/liop@latest
 ```
 
 > **Requirements:** Node.js ≥ 20.0. The SDK uses `node:crypto`, `node:vm`, and `piscina` (worker threads) internally.
@@ -66,10 +66,10 @@ You can run the agent directly using `npx` (recommended) or install it globally:
 
 ```bash
 # Run instantly
-npx @nekzus/liop
+npx @nekzus/liop@latest
 
 # Or install globally
-npm install -g @nekzus/liop
+npm install -g @nekzus/liop@latest
 liop
 ```
 
@@ -82,7 +82,7 @@ To integrate LIOP into Claude Desktop, update your `claude_desktop_config.json` 
   "mcpServers": {
     "liop": {
       "command": "npx",
-      "args": ["-y", "@nekzus/liop"],
+      "args": ["-y", "@nekzus/liop@latest"],
       "env": {
         "LIOP_NEXUS_URL": "http://your-nexus-host:3000",
         "LIOP_LOG_LEVEL": "info"
@@ -99,7 +99,7 @@ The agent automatically manages your P2P identity:
 - **Identity Path**: `~/.liop/identity.json`. This file contains your unique PeerID. Keep it safe if you want to maintain a consistent identity in the mesh.
 - **Bootstrap Nodes**: By default, the agent connects to the **LIOP Alpha Nexus**. You can provide custom bootstrap addresses as CLI arguments:
   ```bash
-  npx @nekzus/liop /ip4/1.2.3.4/tcp/4001/p2p/PEER_ID
+  npx @nekzus/liop@latest /ip4/1.2.3.4/tcp/4001/p2p/PEER_ID
   ```
 
 ---

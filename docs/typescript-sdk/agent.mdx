@@ -12,13 +12,13 @@ Instead of writing a custom server, users can simply run the agent to instantly 
 The agent is distributed via the main SDK package. You can run it directly using `npx`:
 
 ```bash
-npx -y @nekzus/liop
+npx -y @nekzus/liop@latest
 ```
 
 Or install it globally to have the `liop` command available system-wide:
 
 ```bash
-npm install -g @nekzus/liop
+npm install -g @nekzus/liop@latest
 liop
 ```
 
@@ -32,7 +32,7 @@ LIOP is designed to be a drop-in replacement for MCP servers. To add LIOP tools 
   "mcpServers": {
     "liop": {
       "command": "npx",
-      "args": ["-y", "@nekzus/liop"],
+      "args": ["-y", "@nekzus/liop@latest"],
       "env": {
         "LIOP_NEXUS_URL": "http://your-nexus-host:3000",
         "LIOP_LOG_LEVEL": "info"
@@ -46,7 +46,7 @@ LIOP is designed to be a drop-in replacement for MCP servers. To add LIOP tools 
   "mcpServers": {
     "liop": {
       "command": "npx",
-      "args": ["-y", "@nekzus/liop"],
+      "args": ["-y", "@nekzus/liop@latest"],
       "env": {
         "LIOP_NEXUS_URL": "http://your-nexus-host:3000",
         "LIOP_LOG_LEVEL": "info"
@@ -78,7 +78,7 @@ The agent uses the `LiopMcpRouter` internally. When a tool call is received from
 By default, the agent connects to the official **LIOP Alpha Nexus**. However, you can point it to any mesh bootstrap node:
 
 ```bash
-npx @nekzus/liop /ip4/1.2.3.4/tcp/4001/p2p/PEER_ID
+npx @nekzus/liop@latest /ip4/1.2.3.4/tcp/4001/p2p/PEER_ID
 ```
 
 ## Security & Diagnostics
