@@ -7,7 +7,7 @@ This demo is designed for **educational and technical auditing purposes**. It pr
 - **LiopCompiler**: Simulation of logic packaging into an LIOP binary.
 - **GuardianAST**: Security module that performs deep code inspection before instantiation.
 - **WasiSandbox**: Isolated execution environment with resource monitoring (Fuel) and virtual filesystem.
-- **ZK-Verifier**: Mathematical verification of computational integrity using ZK-Receipts (RISC Zero style).
+- **ZK-Verifier**: Cryptographic verification of computational integrity using ZK-Receipts (HMAC-SHA256 commitments).
 
 ## How to Run
 Ensure you are in the demo directory and that dependencies have been installed at the SDK root.

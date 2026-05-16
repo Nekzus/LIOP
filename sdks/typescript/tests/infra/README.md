@@ -4,14 +4,15 @@ This directory contains the Docker orchestration for LIOP's production-grade net
 
 ## Architecture
 
-We spin up a 4-node topology inside an isolated Docker bridge network (`172.20.0.0/24`):
+We spin up a 5-node topology inside an isolated Docker bridge network (`172.20.0.0/24`):
 
-1. **Nexus Node** (`172.20.0.10`): The bootstrap seed. Enables DHT discovery.
-2. **Vault Node** (`172.20.0.11`): The data provider. Holds Logic-on-Origin models & tools.
-3. **Agent Node** (`172.20.0.12`): An automated consumer connecting to the mesh.
-4. **Test Runner** (`172.20.0.100`): Runs Vitest to perform assertions.
+1. **Nexus Node** (`172.20.0.10`): The bootstrap seed. Enables DHT discovery and MCP HTTP routing.
+2. **Vault Node** (`172.20.0.11`): Industrial data provider with medical datasets.
+3. **Bank Node** (`172.20.0.12`): Industrial data provider with financial transactions.
+4. **Oracle Node** (`172.20.0.13`): Industrial data provider with market data.
+5. **Test Runner** (`172.20.0.100`): Runs Vitest to perform cross-network assertions.
 
-Additionally, a **Claude Desktop Client** runs natively on the host and connects to the Docker network via the Nexus published port (`13001`).
+Additionally, a **Claude Desktop Client** runs natively on the host and connects to the Docker network via the Nexus published port (`13000`).
 
 ## Commands
 
