@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "liop-agent": "./dist/bin/agent.js"
+    "liop": "./dist/bin/agent.js"
   },
   "sideEffects": false,
   "files": [

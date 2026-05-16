@@ -15,11 +15,11 @@ The agent is distributed via the main SDK package. You can run it directly using
 npx -y @nekzus/liop
 ```
 
-Or install it globally to have the `liop-agent` command available system-wide:
+Or install it globally to have the `liop` command available system-wide:
 
 ```bash
 npm install -g @nekzus/liop
-liop-agent
+liop
 ```
 
 ## 🤖 Claude Desktop Integration
@@ -30,9 +30,9 @@ LIOP is designed to be a drop-in replacement for MCP servers. To add LIOP tools 
 ```json Windows (%APPDATA%\Claude\claude_desktop_config.json)
 {
   "mcpServers": {
-    "liop-agent": {
+    "liop": {
       "command": "npx",
-      "args": ["-y", "@nekzus/liop", "liop-agent"],
+      "args": ["-y", "@nekzus/liop"],
       "env": {
         "LIOP_NEXUS_URL": "http://your-nexus-host:3000",
         "LIOP_LOG_LEVEL": "info"
@@ -44,9 +44,9 @@ LIOP is designed to be a drop-in replacement for MCP servers. To add LIOP tools 
 ```json macOS (~/Library/Application Support/Claude/claude_desktop_config.json)
 {
   "mcpServers": {
-    "liop-agent": {
+    "liop": {
       "command": "npx",
-      "args": ["-y", "@nekzus/liop", "liop-agent"],
+      "args": ["-y", "@nekzus/liop"],
       "env": {
         "LIOP_NEXUS_URL": "http://your-nexus-host:3000",
         "LIOP_LOG_LEVEL": "info"

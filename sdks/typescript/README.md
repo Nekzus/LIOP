@@ -58,7 +58,7 @@ npm install @nekzus/liop
 
 ## LIOP Agent (CLI)
 
-The SDK includes a zero-config agent (`liop-agent`) designed to bridge the Logic-Injection-on-Origin Protocol with local AI clients like **Claude Desktop**.
+The SDK includes a zero-config agent CLI (`liop`) designed to bridge the Logic-Injection-on-Origin Protocol with local AI clients like **Claude Desktop**.
 
 ### Installation & Run
 
@@ -70,7 +70,7 @@ npx @nekzus/liop
 
 # Or install globally
 npm install -g @nekzus/liop
-liop-agent
+liop
 ```
 
 ### 🤖 Claude Desktop Configuration
@@ -80,9 +80,9 @@ To integrate LIOP into Claude Desktop, update your `claude_desktop_config.json` 
 ```json
 {
   "mcpServers": {
-    "liop-agent": {
+    "liop": {
       "command": "npx",
-      "args": ["-y", "@nekzus/liop", "liop-agent"],
+      "args": ["-y", "@nekzus/liop"],
       "env": {
         "LIOP_NEXUS_URL": "http://your-nexus-host:3000",
         "LIOP_LOG_LEVEL": "info"

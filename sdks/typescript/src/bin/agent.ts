@@ -280,7 +280,7 @@ async function main() {
 
 	// Initialize local server node (lightweight, no tools registered locally)
 	const liopServer = new LiopServer({
-		name: "@nekzus/liop-agent",
+		name: "@nekzus/liop",
 		version: "1.0.0",
 	});
 
