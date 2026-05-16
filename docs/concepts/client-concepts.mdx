@@ -1,9 +1,9 @@
 ---
 title: "Client Concepts"
-description: "How Agent Nodes leverage the Neural Mesh for discovery and execution"
+description: "How Agent Nodes leverage the LIOP Mesh for discovery and execution"
 ---
 
-In the Neural Mesh Protocol, a "Client" is best understood as an **Agent Node** or an Intelligence orchestrator. While the Server guarantees safe execution, the Client is responsible for discovering data, defining intents, and weaving the logic that traverses the network.
+In the Logic-Injection-on-Origin Protocol, a "Client" is best understood as an **Agent Node** or an Intelligence orchestrator. While the Server guarantees safe execution, the Client is responsible for discovering data, defining intents, and weaving the logic that traverses the network.
 
 Agent Nodes harness the Mesh through three core mechanisms: **Discovery (DHT)**, **Elicitation Handshakes**, and **Logic Injection**.
 
@@ -11,7 +11,7 @@ Agent Nodes harness the Mesh through three core mechanisms: **Discovery (DHT)**,
 
 In traditional Client-Server architectures, the Client must know the exact IP address or Domain Name System (DNS) entry of the server it wishes to query (e.g., `https://api.internal.corp/`). 
 
-Agent Nodes in NMP operate in a purely decentralized topology. Here is how they rapidly discover the resources they need:
+Agent Nodes in LIOP operate in a purely decentralized topology. Here is how they rapidly discover the resources they need:
 
 <Frame>
   <img className="block dark:hidden w-full" src="/images/client-dht-light.svg" alt="Distributed Hash Table Routing" />
@@ -30,8 +30,8 @@ This grants AI ecosystems extreme resilience and automatic load balancing.
 Because the Mesh is decentralized, trust cannot be derived from standard centralized Certificate Authorities (CAs) used in mTLS.
 
 When an Agent Node locates a Data Node, it initiates a **Zero-Trust Handshake (Elicitation)** before any logic is executed.
-- NMP uses the **Noise Protocol Framework**, meaning connections are encrypted natively at the transport layer (QUIC) using symmetric keys derived from the Agent's identity.
-- **Post-Quantum Cryptography (PQC)**: Advanced drafts of NMP Client Elicitations encapsulate intents using ML-KEM-768. This prevents intercepting adversaries from recording the communication today and decrypting it a decade from now with quantum machines.
+- LIOP uses the **Noise Protocol Framework**, meaning connections are encrypted natively at the transport layer (QUIC) using symmetric keys derived from the Agent's identity.
+- **Post-Quantum Cryptography (PQC)**: LIOP Client Elicitations encapsulate intents using ML-KEM-768. This prevents intercepting adversaries from recording the communication today and decrypting it a decade from now with quantum machines.
 
 If the Data Node requires human consent or specific authorization tokens, it responds to the Elicitation request prompting the Agent/User for the required OAuth scopes natively.
 
@@ -52,11 +52,11 @@ Instead of dispatching sequential JSON commands to retrieve raw text, the Agent 
 4. **Streaming (`MeshNode`)**: The Client multiplexes the connection via `Yamux` along with `Noise` and streams the encrypted `.wasm` binary to the target Mesh exactly once.
 5. **ZK-Verification**: Upon result retrieval via the libp2p ingress, the Agent locally validates the ZK-Receipt, generating absolute trust in the foreign computational output.
 
-By offloading the computation *away* from its own core loop, the Agent Client remains highly lightweight, free to orchestrate hundreds of other concurrent data connections across the Neural Mesh simultaneously while remote servers perform the heavy mathematical and memory-intensive lifting.
+By offloading the computation *away* from its own core loop, the Agent Client remains highly lightweight, free to orchestrate hundreds of other concurrent data connections across the LIOP Mesh simultaneously while remote servers perform the heavy mathematical and memory-intensive lifting.
 
 ### Execution Runtime Model (Node.js Tier-0)
 
-Once the data is flowing, the Node.js Host orchestrates the process leveraging extreme concurrency. The overarching goal of the Neural Mesh SDK is to execute rigorous cryptographic and security boundaries without ever blocking the **Main Event Loop**, securing the responsiveness needed for high-traffic Agent applications.
+Once the data is flowing, the Node.js Host orchestrates the process leveraging extreme concurrency. The overarching goal of the LIOP SDK is to execute rigorous cryptographic and security boundaries without ever blocking the **Main Event Loop**, securing the responsiveness needed for high-traffic Agent applications.
 
 <Frame>
   <img className="block dark:hidden w-full" src="/images/animated-sdk-flow-light.svg" alt="Animated SDK Runtime Flow" />
@@ -72,7 +72,7 @@ This is the origin point representing your custom application. Whether it is an 
 Prior to network transmission, `GuardianTS` acts as the first defensive checkpoint. Utilizing V8's native `WebAssembly.compile()` pipeline as a dry-run heuristic, it scans the generated `.wasm` binary in *zero-time* for malicious syscall imports (e.g., trying to escape the `wasi_snapshot_preview1` sandbox). If illegal instructions are detected, the payload is destroyed before it even reaches the cryptography module.
 
 #### 3. Worker Pool (Piscina Cryptography)
-Instead of forcing the Node.js Main Thread to calculate intensive mathematical encryptions, NMP implements parallel offloading using a native `piscina` Worker Pool. 
+Instead of forcing the Node.js Main Thread to calculate intensive mathematical encryptions, LIOP implements parallel offloading using a native `piscina` Worker Pool. 
 - **Egress (Outbound):** Worker threads simultaneously lock the validated `.wasm` using `Kyber768` (Post-Quantum Cryptography) and seal it inside an `AES-256-GCM` envelope.
 - **Ingress (Return):** When the resulting `ZK-Receipt / AES Payload` arrives back from the network, it is immediately routed *back* into this Worker Pool to be decrypted and mathematically verified *concurrently*, completely saving the primary Node thread from blocking.
 

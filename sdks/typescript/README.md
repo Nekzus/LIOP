@@ -75,14 +75,18 @@ liop-agent
 
 ### 🤖 Claude Desktop Configuration
 
-To use the Neural Mesh inside Claude Desktop, update your `claude_desktop_config.json` (typically found in `%APPDATA%\Claude\claude_desktop_config.json` on Windows):
+To integrate LIOP into Claude Desktop, update your `claude_desktop_config.json` (typically found in `%APPDATA%\Claude\claude_desktop_config.json` on Windows):
 
 ```json
 {
   "mcpServers": {
     "liop-agent": {
       "command": "npx",
-      "args": ["-y", "@nekzus/liop"]
+      "args": ["-y", "@nekzus/liop", "liop-agent"],
+      "env": {
+        "LIOP_NEXUS_URL": "http://your-nexus-host:3000",
+        "LIOP_LOG_LEVEL": "info"
+      }
     }
   }
 }
@@ -198,7 +202,11 @@ new LiopServer(
       forbiddenKeys?: string[];    // Keys stripped from outgoing responses
       enableNerScanning?: boolean; // NLP entity detection via compromise (default: false)
       rateLimit?: {                // Sliding window rate limiter per tool
-        maxPerWindow?: number;     // Max calls per window (default: 30)
+        maxPerWindow?: number;     // Max calls per window (default: 15)
+        windowMs?: number;         // Window duration in ms (default: 60000)
+      };
+      globalRateLimit?: {           // Cross-tool aggregate rate limiter
+        maxPerWindow?: number;     // Max total calls per window (default: 40)
         windowMs?: number;         // Window duration in ms (default: 60000)
       };
     };
@@ -260,20 +268,21 @@ await bridge.connect();
 ```
 ┌───────────────────────────────────────────────────────────┐
 │  Layer 1: Guardian AST (Zero-Time Static Analysis)        │
-│  Blocks: require, import(), fs, eval, fetch, process,     │
-│  global, __proto__, XMLHttpRequest • 128 import cap       │
+│  14-function WASI allowlist • 128 import cap • Blocks     │
+│  require, import(), fs, eval, fetch, __proto__            │
 ├───────────────────────────────────────────────────────────┤
 │  Layer 2: WASI Sandbox (V8 Isolate)                       │
 │  25 poisoned globals (incl. Date, TypedArrays) •          │
 │  CPU Fuel limits • 5s timeout • maxHeapMb (64MB default)  │
+│  Object.freeze() on 6 core prototypes                     │
 ├───────────────────────────────────────────────────────────┤
-│  Layer 3: Prototype Pollution Defense                     │
-│  Object.freeze() on 6 core prototypes (Object, Array,     │
-│  String, Number, Boolean, Function) inside sandbox IIFE   │
+│  Layer 3: Taint Analyzer (IFC — Static)                   │
+│  Acorn AST 3-pass analysis blocks PII side-channels:      │
+│  charCodeAt, boolean inference, arithmetic derivation     │
 ├───────────────────────────────────────────────────────────┤
 │  Layer 4: PII Shield (Egress Filter)                      │
-│  Scans output for Email, SSN, Credit Card, IP, IBAN,      │
-│  Passport MRZ • Strips forbidden keys • NER opt-in        │
+│  4-stage pipeline: exact key → fuzzy key → pattern        │
+│  validators (Luhn, IBAN Mod-97) → NER (compromise)        │
 ├───────────────────────────────────────────────────────────┤
 │  Layer 5: Aggregation-First Policy                        │
 │  Blocks raw row export • maxOutputRows (default: 10) •    │
@@ -281,7 +290,7 @@ await bridge.connect();
 ├───────────────────────────────────────────────────────────┤
 │  Layer 6: ZK-Receipt (Integrity Verification)             │
 │  SHA-256 ImageID + HMAC-SHA256 Seal (Kyber768-derived)    │
-│  LiopMcpBridge verifies before forwarding to LLM          │
+│  Timing-safe verification • LiopMcpBridge auto-verifies   │
 └───────────────────────────────────────────────────────────┘
 ```
 
@@ -331,9 +340,10 @@ The following shows a complete Logic-Injection-on-Origin execution cycle (handle
 2. LiopServer receives the payload via tools/call (JSON-RPC or direct)
 3. Guardian AST inspects for sandbox escapes (zero-time heuristic analysis)
 4. Code executes inside a V8 isolate with CPU fuel limits (no Node.js globals)
-5. PII Shield scans output for forbidden data and keys
-6. ZK-Receipt generated (SHA-256 logic hash + SHA-512 seal)
-7. Result + receipt returned to the LLM (raw data never exposed)
+5. Taint Analyzer blocks PII side-channel derivation (charCodeAt, boolean inference)
+6. PII Shield scans output for forbidden data and keys
+7. ZK-Receipt generated (SHA-256 ImageID + HMAC-SHA256 seal)
+8. Result + receipt returned to the LLM (raw data never exposed)
 ```
 
 ### Data Dictionary & Zero-Shot Autonomy
@@ -414,11 +424,11 @@ await server.connectToMesh();
 
 This package is continuously tested across multiple platforms and Node.js versions via CI/CD:
 
-- **227+ tests** spanning unit, integration, conformance, adversarial, and crossnet suites
+- **259+ tests** spanning unit, integration, conformance, adversarial, and crossnet suites
 - **Multi-OS matrix:** Ubuntu, Windows, macOS
-- **Node.js versions:** 22.x, 24.x
+- **Node.js versions:** 20.x, 22.x
 - **Code quality:** Enforced by [Biome.js](https://biomejs.dev/) (linting + formatting)
-- **Security:** Verified defense-in-depth architecture — see [Security Architecture](https://nekzus-32.mintlify.app/typescript-sdk/security)
+- **Security:** Verified 6-layer defense-in-depth architecture — see [Security Architecture](https://nekzus-32.mintlify.app/typescript-sdk/security)
 
 > To run tests locally or contribute, clone the [repository](https://github.com/Nekzus/LIOP) and follow the [Contributing Guide](https://github.com/Nekzus/LIOP/blob/main/CONTRIBUTING.md).
 

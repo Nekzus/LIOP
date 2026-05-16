@@ -38,8 +38,10 @@ async function resolveBootstrapFromUrl(url: string): Promise<string | null> {
 		);
 		if (!tcpAddr) return null;
 
-		// Rewrite internal Docker IP using industrial mapper if available
-		let resolved = industrialAddressMapper(tcpAddr);
+		// Rewrite internal Docker IP using development mapper if available
+		const isDevMode =
+			process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test";
+		let resolved = isDevMode ? industrialAddressMapper(tcpAddr) : tcpAddr;
 		if (!resolved || resolved === tcpAddr) {
 			const urlHost = new URL(url).hostname;
 			resolved = tcpAddr.replace(/\/ip4\/[^/]+/, `/ip4/${urlHost}`);
@@ -93,9 +95,12 @@ function normalizeBootstrap(addr: string): string {
 }
 
 /**
- * industrialAddressMapper
+ * industrialAddressMapper (DEVELOPMENT ONLY)
  *
- * Mapea IPs internas de Docker a puertos industriales mapeados en el Host.
+ * Maps Docker-internal IPs to host-published ports for local demo environments.
+ * This function is ONLY active when NODE_ENV is "development" or "test".
+ * In production, it is completely bypassed.
+ *
  * Nexus (172.20.0.10) -> 13001
  * Vault (172.20.0.11) -> 13003
  * Bank  (172.20.0.12) -> 13004
@@ -169,6 +174,10 @@ async function main() {
 
 		// Priority 1.1: Explicit file from environment variable
 		if (process.env.LIOP_BOOTSTRAP_FILE) {
+			log.warn(
+				"LIOP_BOOTSTRAP_FILE is deprecated and will be removed in the next major version. " +
+					"Use LIOP_NEXUS_URL for Auto-Discovery instead.",
+			);
 			const filePath = path.resolve(process.env.LIOP_BOOTSTRAP_FILE);
 			if (fs.existsSync(filePath)) {
 				const addr = fs.readFileSync(filePath, "utf8").trim();
@@ -282,7 +291,10 @@ async function main() {
 	const meshNode = new MeshNode({
 		identityPath: identityPath,
 		bootstrapNodes: bootstrapNodes,
-		addressMapper: industrialAddressMapper,
+		addressMapper:
+			process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test"
+				? industrialAddressMapper
+				: undefined,
 	});
 
 	// Start P2P Mesh

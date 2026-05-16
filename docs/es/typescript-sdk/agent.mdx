@@ -32,7 +32,11 @@ LIOP está diseñado para ser un reemplazo directo de los servidores MCP. Para a
   "mcpServers": {
     "liop-agent": {
       "command": "npx",
-      "args": ["-y", "@nekzus/liop"]
+      "args": ["-y", "@nekzus/liop", "liop-agent"],
+      "env": {
+        "LIOP_NEXUS_URL": "http://tu-nexus-host:3000",
+        "LIOP_LOG_LEVEL": "info"
+      }
     }
   }
 }
@@ -42,7 +46,11 @@ LIOP está diseñado para ser un reemplazo directo de los servidores MCP. Para a
   "mcpServers": {
     "liop-agent": {
       "command": "npx",
-      "args": ["-y", "@nekzus/liop"]
+      "args": ["-y", "@nekzus/liop", "liop-agent"],
+      "env": {
+        "LIOP_NEXUS_URL": "http://tu-nexus-host:3000",
+        "LIOP_LOG_LEVEL": "info"
+      }
     }
   }
 }
@@ -93,8 +101,15 @@ El comportamiento del agente se puede personalizar mediante las siguientes varia
 |:---------|:------------|:------------|
 | `LIOP_NEXUS_URL` | *(ninguno)* | URL del nodo Nexus para Auto-Discovery. El agente resuelve el PeerID y el multiaddr desde el endpoint `/health` automáticamente |
 | `LIOP_LOG_LEVEL` | `info` | Controla la verbosidad de los logs (`silent`, `info`, `debug`). Establecer en `silent` para suprimir toda la salida stderr |
-| `LIOP_EXPECTED_PROVIDERS` | `4` | Número de proveedores de la malla a esperar durante el warm-up antes de declarar la fase de descubrimiento completa |
+| `LIOP_EXPECTED_PROVIDERS` | `1` | Número de proveedores de la malla a esperar durante el warm-up inicial. El polling adaptativo DHT continúa descubriendo proveedores adicionales en segundo plano |
+| `LIOP_INITIAL_DISCOVERY_TIMEOUT_MS` | `8000` | Tiempo máximo (ms) a esperar durante la fase inicial de descubrimiento de la malla antes de continuar |
+| `LIOP_MCP_COMPACT_TOOL_DESCRIPTIONS` | `true` | Elimina metadatos verbosos del protocolo en las descripciones de herramientas, reduciendo el consumo de tokens en ~500 por herramienta. Establecer en `0` para desactivar |
 | `LIOP_GRPC_PORT` | `50051` | Sobreescribe el puerto gRPC por defecto del servidor RPC interno |
 | `LIOP_WORKER_MAX_HEAP_MB` | `64` | Tamaño máximo del heap V8 por thread worker (defensa contra Heap Bomb) |
 
+<Warning>
+  `LIOP_BOOTSTRAP_FILE` está **deprecada** desde v2.0.0-alpha. Usa `LIOP_NEXUS_URL` en su lugar. El agente emitirá un warning si detecta esta variable.
+</Warning>
+
 Si encuentras problemas de conexión, busca el icono 🛡️ en la consola o pídele al LLM que ejecute `LiopMeshStatus`.
+

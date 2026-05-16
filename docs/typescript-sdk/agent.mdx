@@ -32,7 +32,11 @@ LIOP is designed to be a drop-in replacement for MCP servers. To add LIOP tools 
   "mcpServers": {
     "liop-agent": {
       "command": "npx",
-      "args": ["-y", "@nekzus/liop"]
+      "args": ["-y", "@nekzus/liop", "liop-agent"],
+      "env": {
+        "LIOP_NEXUS_URL": "http://your-nexus-host:3000",
+        "LIOP_LOG_LEVEL": "info"
+      }
     }
   }
 }
@@ -42,7 +46,11 @@ LIOP is designed to be a drop-in replacement for MCP servers. To add LIOP tools 
   "mcpServers": {
     "liop-agent": {
       "command": "npx",
-      "args": ["-y", "@nekzus/liop"]
+      "args": ["-y", "@nekzus/liop", "liop-agent"],
+      "env": {
+        "LIOP_NEXUS_URL": "http://your-nexus-host:3000",
+        "LIOP_LOG_LEVEL": "info"
+      }
     }
   }
 }
@@ -93,8 +101,15 @@ The agent behavior can be customized via the following environment variables:
 |:---------|:--------|:------------|
 | `LIOP_NEXUS_URL` | *(none)* | URL of the Nexus node for Auto-Discovery. The agent resolves the PeerID and multiaddr from the `/health` endpoint automatically |
 | `LIOP_LOG_LEVEL` | `info` | Controls log verbosity (`silent`, `info`, `debug`). Set to `silent` to suppress all stderr output |
-| `LIOP_EXPECTED_PROVIDERS` | `4` | Number of mesh providers to wait for during warm-up before declaring the discovery phase complete |
+| `LIOP_EXPECTED_PROVIDERS` | `1` | Number of mesh providers to wait for during initial warm-up. The adaptive DHT polling continues discovering additional providers in the background |
+| `LIOP_INITIAL_DISCOVERY_TIMEOUT_MS` | `8000` | Maximum time (ms) to wait for the initial mesh discovery phase before proceeding |
+| `LIOP_MCP_COMPACT_TOOL_DESCRIPTIONS` | `true` | Strips verbose protocol metadata from tool descriptions, reducing token consumption by ~500 tokens per tool. Set to `0` to opt-out |
 | `LIOP_GRPC_PORT` | `50051` | Override the default gRPC port for the internal RPC server |
 | `LIOP_WORKER_MAX_HEAP_MB` | `64` | Maximum V8 heap size per worker thread (Heap Bomb defense) |
 
+<Warning>
+  `LIOP_BOOTSTRAP_FILE` is **deprecated** since v2.0.0-alpha. Use `LIOP_NEXUS_URL` instead. The agent will log a warning if this variable is detected.
+</Warning>
+
 If you encounter connection issues, check for the 🛡️ icon in the console or ask the LLM to call `LiopMeshStatus`.
+

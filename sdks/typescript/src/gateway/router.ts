@@ -639,7 +639,7 @@ export class LiopMcpRouter {
 		}>
 	> {
 		const EXPECTED_PROVIDERS = Number.parseInt(
-			process.env.LIOP_EXPECTED_PROVIDERS ?? "4",
+			process.env.LIOP_EXPECTED_PROVIDERS ?? "1",
 			10,
 		);
 
@@ -649,7 +649,7 @@ export class LiopMcpRouter {
 		// This prevents a ~20s block when a node (e.g. Bank) is absent.
 		if (this.manifestCache.size < EXPECTED_PROVIDERS && this.meshNode) {
 			const initialTimeoutMs = Number.parseInt(
-				process.env.LIOP_INITIAL_DISCOVERY_TIMEOUT_MS ?? "12000",
+				process.env.LIOP_INITIAL_DISCOVERY_TIMEOUT_MS ?? "8000",
 				10,
 			);
 			const boundedTimeoutMs =
@@ -1133,10 +1133,17 @@ export class LiopMcpRouter {
 			}
 		}
 
-		// Host-mode convenience (opt-in):
-		// Some Docker Desktop setups publish gRPC ports on the host as 13011/13021/13031.
-		// Inside Docker networks we must keep the manifest-advertised container port.
-		if (manifestEntry && process.env.LIOP_USE_PUBLISHED_GRPC_PORTS === "1") {
+		// Development-only convenience (opt-in):
+		// Docker Desktop setups publish gRPC ports on the host as 13011/13021/13031.
+		// This mapping is DISABLED in production (NODE_ENV=production) to enforce
+		// dynamic port negotiation via the manifest protocol.
+		const isDevMode =
+			process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test";
+		if (
+			isDevMode &&
+			manifestEntry &&
+			process.env.LIOP_USE_PUBLISHED_GRPC_PORTS === "1"
+		) {
 			const providerName =
 				manifestEntry.manifest.serverInfo?.name?.toLowerCase() || "";
 			if (providerName.includes("vault")) grpcPort = 13011;

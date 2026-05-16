@@ -28,15 +28,6 @@ import { PII_PATTERNS, PII_PRESETS, type PiiRule, PiiScanner } from "./pii.js";
 
 export { NerScanner, PII_PATTERNS, PII_PRESETS, type PiiRule, PiiScanner };
 
-/**
- * When enabled, `payload` tools that are not LIOP v1 envelopes are passed through to the
- * registered handler unchanged (no worker extraction). Default off for strict protocol tests.
- */
-function respectPlainToolPayload(): boolean {
-	const v = process.env.LIOP_RESPECT_PLAIN_TOOL_PAYLOAD?.toLowerCase().trim();
-	return v === "1" || v === "true" || v === "yes";
-}
-
 export type ToolHandler<T extends z.ZodRawShape = z.ZodRawShape> = (
 	args: z.infer<z.ZodObject<T>>,
 	extra: { signal?: AbortSignal },
@@ -789,9 +780,6 @@ export class LiopServer {
 				}
 
 				if (!logic) {
-					if (respectPlainToolPayload()) {
-						return await handler(args as z.infer<z.ZodObject<T>>, _extra);
-					}
 					stats.failures++;
 					stats.lastAttempt = now;
 					this.connectionStats.set(clientId, stats);

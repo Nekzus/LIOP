@@ -30,10 +30,6 @@ services:
     environment:
       LIOP_NODE_ROLE: nexus
       LIOP_LOG_LEVEL: info
-      # Short tool descriptions in MCP tools/list (aligned with examples/industrial-demo UX).
-      LIOP_MCP_COMPACT_TOOL_DESCRIPTIONS: "1"
-      # Host/Inspector: route tools/call to published gRPC ports (13011/13021/13031), not 50051.
-      LIOP_USE_PUBLISHED_GRPC_PORTS: "0"
     volumes:
       - ./nexus-data:/app/data
     networks:
@@ -57,7 +53,6 @@ services:
     environment:
       LIOP_NODE_ROLE: vault
       LIOP_LOG_LEVEL: info
-      LIOP_MCP_COMPACT_TOOL_DESCRIPTIONS: "1"
     volumes:
       - ./nexus-data:/app/data
     networks:
@@ -79,7 +74,6 @@ services:
     environment:
       LIOP_NODE_ROLE: bank
       LIOP_LOG_LEVEL: info
-      LIOP_MCP_COMPACT_TOOL_DESCRIPTIONS: "1"
     volumes:
       - ./nexus-data:/app/data
     networks:
@@ -101,7 +95,6 @@ services:
     environment:
       LIOP_NODE_ROLE: oracle
       LIOP_LOG_LEVEL: info
-      LIOP_MCP_COMPACT_TOOL_DESCRIPTIONS: "1"
     volumes:
       - ./nexus-data:/app/data
     networks:

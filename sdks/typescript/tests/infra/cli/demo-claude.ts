@@ -10,13 +10,12 @@ function toPosixPath(p: string): string {
 	return p.replaceAll("\\", "/");
 }
 
-function resolveInfraPaths(): { sdkDir: string; sdkDist: string; nexusBeacon: string } {
+function resolveInfraPaths(): { sdkDir: string; sdkDist: string } {
 	const here = path.dirname(fileURLToPath(import.meta.url));
 	const infraDir = path.resolve(here, "..");
 	const sdkDir = path.resolve(infraDir, "../..");
 	const sdkDist = toPosixPath(path.resolve(infraDir, "../../dist/bin/agent.js"));
-	const nexusBeacon = toPosixPath(path.resolve(infraDir, "nexus-data/nexus.multiaddr"));
-	return { sdkDir, sdkDist, nexusBeacon };
+	return { sdkDir, sdkDist };
 }
 
 function ensureBuiltAgent(sdkDir: string, sdkDist: string): void {
@@ -77,7 +76,7 @@ function readExistingConfig(configPath: string): JsonObject {
 }
 
 function main(): void {
-	const { sdkDir, sdkDist, nexusBeacon } = resolveInfraPaths();
+	const { sdkDir, sdkDist } = resolveInfraPaths();
 	const configPath = resolveClaudeConfigPath();
 	const configDir = path.dirname(configPath);
 	const nexusHost = process.env.LIOP_NEXUS_HOST ?? "127.0.0.1";
@@ -90,24 +89,30 @@ function main(): void {
 	const cfg = readExistingConfig(configPath);
 	const mcpServers = cfg.mcpServers as JsonObject;
 
+	// ─── liop-mesh (Local SDK — Development Mode) ───────────────────────────
+	// Uses NODE_ENV=development to enable Docker address mapping and port remapping.
 	mcpServers["liop-mesh"] = {
 		command: "node",
 		args: [sdkDist],
 		env: {
+			NODE_ENV: "development",
 			LIOP_NEXUS_URL: nexusUrl,
-			LIOP_BOOTSTRAP_FILE: nexusBeacon,
 			LIOP_LOG_LEVEL: "info",
-			// Short MCP tool descriptions (matches docker demo + examples/industrial-demo UX).
-			// Full LIOP envelope spec stays in prompts/get → liop_blind_analyst.
-			LIOP_MCP_COMPACT_TOOL_DESCRIPTIONS: "1",
-			// Cloud MCP: give mesh discovery time before first tools/list completes.
-			LIOP_INITIAL_DISCOVERY_TIMEOUT_MS: "20000",
-			LIOP_TOOLS_LIST_TAIL_POLL_MS: "8000",
 			// Host runs agent against Docker demo: gRPC in manifests is 50051 (container);
 			// published host ports are 13011/13021/13031 (see tests/infra/docker-compose.yml).
 			LIOP_USE_PUBLISHED_GRPC_PORTS: "1",
-			// Tools hosted on the agent (if any) accept plain payloads; mesh providers use Docker env.
-			LIOP_RESPECT_PLAIN_TOOL_PAYLOAD: "1",
+		},
+	};
+
+	// ─── liop-mesh-npm (NPM Package — Production Mode) ──────────────────────
+	// No NODE_ENV → production defaults. No Docker hacks. Pure Zero-Trust.
+	const npxCmd = process.platform === "win32" ? "npx.cmd" : "npx";
+	mcpServers["liop-mesh-npm"] = {
+		command: npxCmd,
+		args: ["-y", "@nekzus/liop", "liop-agent"],
+		env: {
+			LIOP_NEXUS_URL: nexusUrl,
+			LIOP_LOG_LEVEL: "info",
 		},
 	};
 
@@ -115,10 +120,14 @@ function main(): void {
 	fs.writeFileSync(configPath, `${JSON.stringify(cfg, null, 2)}\n`, "utf8");
 
 	process.stdout.write("\n═══════════════════════════════════════════\n");
-	process.stdout.write("  Claude Desktop -> LIOP Mesh\n");
+	process.stdout.write("  🧠 Claude Desktop → LIOP Mesh\n");
 	process.stdout.write("═══════════════════════════════════════════\n");
 	process.stdout.write(`  Config: ${configPath}\n`);
 	process.stdout.write(`  LIOP_NEXUS_URL: ${nexusUrl}\n`);
+	process.stdout.write("───────────────────────────────────────────\n");
+	process.stdout.write("  ✅ liop-mesh      (local SDK, dev mode)\n");
+	process.stdout.write("  ✅ liop-mesh-npm  (NPM package, prod mode)\n");
+	process.stdout.write("───────────────────────────────────────────\n");
 	process.stdout.write("  Restart Claude Desktop to apply changes.\n");
 	process.stdout.write("═══════════════════════════════════════════\n");
 }

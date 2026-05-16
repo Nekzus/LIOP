@@ -1,13 +1,15 @@
 /**
- * MCP UX: optional compact tool descriptions for clients (e.g. cloud models)
- * that over-trigger on long "envelope / injection" wording in tools/list.
+ * MCP UX: compact tool descriptions are ENABLED by default to optimize
+ * token consumption for LLM clients (e.g. Claude Desktop).
  *
+ * Set LIOP_MCP_COMPACT_TOOL_DESCRIPTIONS=0 to restore verbose descriptions.
  * Full LIOP payload format remains in prompts/get → liop_blind_analyst.
  */
 export function mcpCompactToolDescriptions(): boolean {
 	const v =
 		process.env.LIOP_MCP_COMPACT_TOOL_DESCRIPTIONS?.toLowerCase().trim();
-	return v === "1" || v === "true" || v === "yes";
+	if (v === "0" || v === "false" || v === "no") return false;
+	return true;
 }
 
 /**

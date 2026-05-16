@@ -32,7 +32,7 @@ LIOP solves this by completely inverting the architecture: **We move the math to
     The Node.js SDK leverages a Native Worker Pool (`piscina`), bypassing the single-threaded V8 limit to achieve transactional parities identical to massive Rust setups.
   </Card>
   <Card title="Mathematical Verification" icon="signature">
-    Built-in architectures for Zero-Knowledge Proofs (ZK-SNARKs) allowing origin servers to Cryptographically sign verifiable receipts (ZK-Receipts) of the execution.
+    Built-in HMAC-SHA256 cryptographic receipts (ZK-Receipts) that prove honest computation. Native ZK-VM integration is on the roadmap.
   </Card>
   <Card title="Decentralized DHT Mesh" icon="network-wired">
     Zero central authorities. Agent and Developer discovery happens instantly and securely over a global `libp2p` Kademlia Distributed Hash Table.

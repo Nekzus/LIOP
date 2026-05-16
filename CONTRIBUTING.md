@@ -1,7 +1,7 @@
-# Contributing to Neural Mesh Protocol (NMP)
+# Contributing to Logic-Injection-on-Origin Protocol (LIOP)
 *Para la versión en Español, ver la sección más abajo.* 
 
-Thank you for your interest in contributing to the Neural Mesh Protocol (NMP). We are building the successor to the Model Context Protocol (MCP) by shifting the paradigm from Context-Pulling to **Logic-on-Origin (LoO)**. 
+Thank you for your interest in contributing to the Logic-Injection-on-Origin Protocol (LIOP). We are building the successor to the Model Context Protocol (MCP) by shifting the paradigm from Context-Pulling to **Logic-on-Origin (LoO)**. 
 
 To ensure the highest quality, military-grade security, and a cohesive developer experience, please adhere to the following guidelines.
 
@@ -9,7 +9,7 @@ To ensure the highest quality, military-grade security, and a cohesive developer
 By participating in this project, you agree to abide by our Code of Conduct. We expect all contributors to maintain a professional, respectful, and inclusive environment.
 
 ## 2. Core Philosophy: Logic-on-Origin (LoO)
-NMP is built on the **Postulate of Origin (Logic-on-Origin)**. All contributions must respect the Zero-Trust architecture. 
+LIOP is built on the **Postulate of Origin (Logic-on-Origin)**. All contributions must respect the Zero-Trust architecture. 
 - Agents send logic (WASM/JS); data never leaves the Origin Server without explicit, cryptographically verifiable intent.
 - Ensure any new feature adheres to the Sandboxing (WASI/V8 Guardian AST) and Cryptographic validation (ZK-Receipts) principles.
 
@@ -31,7 +31,7 @@ We follow a structured branching model:
 - Any new features must include their respective unit tests, demonstrating 100% reliability, especially concerning PII detection or logic sandboxing.
 
 ## 6. Security (PII & Zero-Trust)
-- NMP operates with a **Zero-Tolerance** policy for Personal Identifiable Information (PII) leakage.
+- LIOP operates with a **Zero-Tolerance** policy for Personal Identifiable Information (PII) leakage.
 - Never hardcode secrets, tokens, or absolute local paths.
 - If you touch the egress filters or AST validators, you must mathematically prove your changes via tests (e.g., Luhn validation, avoiding catastrophic backtracking).
 
@@ -41,9 +41,9 @@ We follow a structured branching model:
 
 ---
 
-# Contribuir a Neural Mesh Protocol (NMP)
+# Contribuir a Logic-Injection-on-Origin Protocol (LIOP)
 
-Gracias por tu interés en contribuir al Neural Mesh Protocol (NMP). Estamos construyendo el sucesor del Model Context Protocol (MCP) cambiando el paradigma de la Extracción de Contexto hacia el núcleo de **Logic-on-Origin (LoO)**.
+Gracias por tu interés en contribuir al Logic-Injection-on-Origin Protocol (LIOP). Estamos construyendo el sucesor del Model Context Protocol (MCP) cambiando el paradigma de la Extracción de Contexto hacia el núcleo de **Logic-on-Origin (LoO)**.
 
 Para garantizar la más alta calidad, seguridad de grado militar y una experiencia de desarrollo cohesiva, por favor adhiérete a las siguientes directrices.
 
@@ -51,7 +51,7 @@ Para garantizar la más alta calidad, seguridad de grado militar y una experienc
 Al participar en este proyecto, aceptas cumplir con nuestro Código de Conducta. Esperamos que todos los contribuidores mantengan un ambiente profesional, respetuoso e inclusivo.
 
 ## 2. Filosofía Central: Logic-on-Origin (LoO)
-NMP está construido sobre el **Postulado de Origen (Logic-on-Origin)**. Todas las contribuciones deben respetar la arquitectura Zero-Trust.
+LIOP está construido sobre el **Postulado de Origen (Logic-on-Origin)**. Todas las contribuciones deben respetar la arquitectura Zero-Trust.
 - Los agentes envían lógica (WASM/JS); los datos nunca abandonan el Servidor de Origen sin una intención explícita y criptográficamente verificable.
 - Asegúrate de que cualquier nueva característica se adhiera a los principios de Sandboxing (WASI/V8 Guardian AST) y validación criptográfica (ZK-Receipts).
 
@@ -73,7 +73,7 @@ Seguimos un modelo estructurado:
 - Toda nueva funcionalidad debe incluir sus respectivas pruebas unitarias, demostrando 100% de fiabilidad, especialmente en lo relativo a la detección de PII o el sandboxing lógico.
 
 ## 6. Seguridad (PII y Zero-Trust)
-- NMP opera con una política de **Cero Tolerancia** para fugas de Información Personal Identificable (PII).
+- LIOP opera con una política de **Cero Tolerancia** para fugas de Información Personal Identificable (PII).
 - Nunca dejes secretos, tokens o rutas locales absolutas en el código.
 - Si modificas los filtros de salida (egress) o los validadores AST, debes probar matemáticamente tus cambios mediante tests (ej. validación Luhn, evitar backtracking catastrófico).
 

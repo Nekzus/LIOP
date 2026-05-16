@@ -40,8 +40,8 @@ An LIOP Agent interacting with an explicit LIOP Server pushes executable logic (
 #### 4.2 Symmetric Payload Sealing
 - The agreed Post-Quantum symmetric secret acts as the cipher for `AES-256-GCM`, enveloping the entirety of the execution payload inside a zero-trust capsule.
 
-#### 4.3 Computational Integrity (ZK-SNARKs)
-- Host environments may generate Zero-Knowledge Receipts using the `risc0-zkvm` integration. The receipt cryptographically guarantees that the output provided exactly matches the execution of the requested logic *and* the dataset, without revealing the dataset.
+#### 4.3 Computational Integrity (ZK-Receipts)
+- The SDK generates **HMAC-SHA256 commitments** that cryptographically bind the output to the exact logic executed, sealed with the Post-Quantum session secret. Migration to a native ZK-VM (RISC Zero / SP1) is planned for future releases.
 
 ### 5. Execution Core (The Sandbox)
 
@@ -53,7 +53,7 @@ An LIOP Agent interacting with an explicit LIOP Server pushes executable logic (
 - Before a payload enters the Wasmtime Engine, LIOP evaluates its Abstract Syntax Tree (AST). It destructs payloads attempting to import forbidden JS/C++ system modules outside of the LIOP specification.
 
 #### 5.3 Military-Grade PII Defense
-- The LIOP SDK injects a Tier-1 PII Shield at the Egress stage. Employs Luhn Algorithm matching for credits cards, precise NIST-compliant boundaries (`\b`), and specific whitelist semantic checks (Safe Words) to ensure no raw identifiers escape the Origin node.
+- The LIOP SDK injects a Tier-1 PII Shield at the Egress stage. Employs Luhn Algorithm matching for credit cards, precise NIST-compliant boundaries (`\b`), and specific safelist semantic checks (Safe Words) to ensure no raw identifiers escape the Origin node.
 
 ### 6. Zero-Shot Autonomy (Self-Healing AI)
 LIOP features built-in self-instructing middleware. Should an Agent attempt a JSON-RPC interaction over MCP legacy adapters, but violate the Logic-Injection-on-Origin protocol structure (e.g., pulling raw data instead of pushing a module), LIOP intercepts the request, blocks it, and returns a cognitive plaintext instruction manual to the Agent so it can rewrite its own intent.
@@ -93,8 +93,8 @@ Un Agente LIOP interactuando con un Servidor explícito LIOP inyecta una lógica
 #### 4.2 Sellado Simétrico del Payload
 - El secreto Post-Cuántic simétrico acordado se emplea como cifrado para `AES-256-GCM`, envolviendo el payload de ejecución entero dentro de una cápsula zero-trust.
 
-#### 4.3 Integridad Computacional (ZK-SNARKs)
-- Los entornos anfitriones pueden generar Recibos de Cero Conocimiento (ZK-Receipts) empleando la integración `risc0-zkvm`. El recibo garantiza criptográficamente que la salida proveída concuerda exactamente con la ejecución de la lógica solicitada *y* el conjunto de datos, sin revelar el conjunto de datos por sí mismo.
+#### 4.3 Integridad Computacional (ZK-Receipts)
+- El SDK genera **compromisos HMAC-SHA256** que vinculan criptográficamente la salida a la lógica exacta ejecutada, sellados con el secreto de sesión Post-Cuántico. La migración a un ZK-VM nativo (RISC Zero / SP1) está planificada para futuras versiones.
 
 ### 5. Núcleo de Ejecución (El Sandbox)
 
