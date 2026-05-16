@@ -149,6 +149,29 @@ function industrialAddressMapper(addr: string): string | null {
  * No hardcoded tools, PeerIDs, or port mappings.
  */
 async function main() {
+	// Auto-Relaunch: Ensure system CA certificates are loaded for TLS compatibility.
+	// Corporate proxies (Cloudflare WARP, Zscaler) inject custom root CAs into the
+	// OS certificate store. Node.js ignores these by default, causing UNABLE_TO_VERIFY_LEAF_SIGNATURE.
+	// Pattern: if --use-system-ca is not active, re-spawn with the flag transparently.
+	// stdio: "inherit" ensures Claude Desktop's JSON-RPC pipe is passed through cleanly.
+	if (
+		(process.platform === "win32" || process.platform === "darwin") &&
+		!process.execArgv.includes("--use-system-ca") &&
+		!(process.env.NODE_OPTIONS ?? "").includes("--use-system-ca")
+	) {
+		const { spawn } = await import("node:child_process");
+		const child = spawn(
+			process.execPath,
+			["--use-system-ca", ...process.argv.slice(1)],
+			{ stdio: "inherit", env: process.env },
+		);
+		child.on("exit", (code) => process.exit(code ?? 1));
+		child.on("error", () => process.exit(1));
+		// Block parent — child handles all I/O from here
+		await new Promise(() => {});
+		return;
+	}
+
 	const buildTime = new Date().toISOString();
 	log.info(`[LIOP-Agent] 🚀 Version 1.2.0-alpha.9 | Build: ${buildTime}`);
 

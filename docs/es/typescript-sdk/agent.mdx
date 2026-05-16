@@ -35,7 +35,8 @@ LIOP está diseñado para ser un reemplazo directo de los servidores MCP. Para a
       "args": ["-y", "@nekzus/liop@latest"],
       "env": {
         "LIOP_NEXUS_URL": "http://tu-nexus-host:3000",
-        "LIOP_LOG_LEVEL": "info"
+        "LIOP_LOG_LEVEL": "info",
+        "NODE_OPTIONS": "--use-system-ca"
       }
     }
   }
@@ -49,7 +50,8 @@ LIOP está diseñado para ser un reemplazo directo de los servidores MCP. Para a
       "args": ["-y", "@nekzus/liop@latest"],
       "env": {
         "LIOP_NEXUS_URL": "http://tu-nexus-host:3000",
-        "LIOP_LOG_LEVEL": "info"
+        "LIOP_LOG_LEVEL": "info",
+        "NODE_OPTIONS": "--use-system-ca"
       }
     }
   }

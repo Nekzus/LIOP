@@ -85,7 +85,8 @@ To integrate LIOP into Claude Desktop, update your `claude_desktop_config.json` 
       "args": ["-y", "@nekzus/liop@latest"],
       "env": {
         "LIOP_NEXUS_URL": "http://your-nexus-host:3000",
-        "LIOP_LOG_LEVEL": "info"
+        "LIOP_LOG_LEVEL": "info",
+        "NODE_OPTIONS": "--use-system-ca"
       }
     }
   }

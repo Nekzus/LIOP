@@ -113,6 +113,7 @@ function main(): void {
 		env: {
 			LIOP_NEXUS_URL: nexusUrl,
 			LIOP_LOG_LEVEL: "info",
+			NODE_OPTIONS: "--use-system-ca",
 		},
 	};
 
