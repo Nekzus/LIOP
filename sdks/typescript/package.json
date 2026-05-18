@@ -11,8 +11,7 @@
   "files": [
     "dist",
     "README.md",
-    "LICENSE",
-    "socket.yml"
+    "LICENSE"
   ],
   "exports": {
     ".": {
@@ -154,6 +153,20 @@
   "peerDependenciesMeta": {
     "@modelcontextprotocol/sdk": {
       "optional": true
+    }
+  },
+  "overrides": {
+    "type-is": "2.0.1",
+    "content-type": "1.0.5"
+  },
+  "resolutions": {
+    "type-is": "2.0.1",
+    "content-type": "1.0.5"
+  },
+  "pnpm": {
+    "overrides": {
+      "type-is": "2.0.1",
+      "content-type": "1.0.5"
     }
   }
 }
