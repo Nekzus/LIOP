@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.0.0-alpha.10](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.9...v2.0.0-alpha.10) (2026-05-18)
+
+
+### Bug Fixes
+
+* **sdk:** override dependency resolutions in root package.json ([292e4b9](https://github.com/Nekzus/LIOP/commit/292e4b9f68d3abefdd8d448611085f2d50d0086f))
+
 # [2.0.0-alpha.9](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.8...v2.0.0-alpha.9) (2026-05-18)
 
 
