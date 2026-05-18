@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.0.0-alpha.7](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.6...v2.0.0-alpha.7) (2026-05-18)
+
+
+### Bug Fixes
+
+* **sdk:** include socket.yml in published npm package for supply chain triage ([205e6e2](https://github.com/Nekzus/LIOP/commit/205e6e20f8ec26ff81270dbb670964097fea0cf6))
+
 # [2.0.0-alpha.6](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.5...v2.0.0-alpha.6) (2026-05-18)
 
 
