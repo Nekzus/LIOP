@@ -54,6 +54,25 @@ npm install @nekzus/liop@latest
 
 > **Requirements:** Node.js ≥ 20.0. The SDK uses `node:crypto`, `node:vm`, and `piscina` (worker threads) internally.
 
+### Zero-Bloat & Micro-Deployments (Opt-Out)
+
+By default, the SDK provides out-of-the-box MCP backward compatibility (`LiopMcpBridge`) by declaring `@modelcontextprotocol/sdk` as an optional dependency (which is automatically resolved by standard installations of NPM, PNPM, or Yarn).
+
+For constrained production environments (e.g., Docker, AWS Lambda, Edge/IoT) where every megabyte counts, you can perform a **pure, zero-bloat LIOP installation** by opting out of the optional dependencies:
+
+```bash
+# npm
+npm install @nekzus/liop@latest --no-optional
+
+# pnpm
+pnpm add @nekzus/liop@latest --without optional
+
+# yarn
+yarn add @nekzus/liop@latest --ignore-optional
+```
+
+The SDK uses dynamic `import()` statements under the hood to ensure that MCP translator modules are only loaded if they are actually instantiated, guaranteeing a lightweight memory footprint.
+
 ---
 
 ## LIOP Agent (CLI)

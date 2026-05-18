@@ -27,6 +27,26 @@ yarn add @nekzus/liop@latest zod
   We strongly recommend installing `zod` alongside the SDK. Just like the official MCP specification, LIOP relies on Zod parsing to guarantee that Execution Arguments passed by the AI Agent perfectly match the Server's capability manifest.
 </Note>
 
+## Zero-Bloat Architecture (Opt-Out Installations)
+
+By default, `@nekzus/liop` provides out-of-the-box backward compatibility with the Model Context Protocol (MCP) via the `LiopMcpBridge` module. To make this integration seamless, the package lists `@modelcontextprotocol/sdk` as an optional and peer dependency, meaning standard installations (`npm install @nekzus/liop`) will automatically resolve and install it.
+
+However, for constrained production environments (such as Docker edge containers, AWS Lambda, or IoT deployments) where every megabyte counts, you can perform a **pure, zero-bloat LIOP installation** by opting out of the optional dependencies:
+
+<CodeGroup>
+```bash npm
+npm install @nekzus/liop@latest --no-optional
+```
+```bash pnpm
+pnpm add @nekzus/liop@latest --without optional
+```
+```bash yarn
+yarn add @nekzus/liop@latest --ignore-optional
+```
+</CodeGroup>
+
+This drops the installation size dramatically. The SDK uses dynamic `import()` under the hood, meaning the MCP bridge logic is only loaded if requested, maintaining a pristine runtime memory footprint.
+
 ## Under the Hood: The Javy Compiler
 
 You might be wondering: *If LIOP relies on injecting compiled WebAssembly (`.wasm`) logic, how can I build Agents purely in TypeScript?*
