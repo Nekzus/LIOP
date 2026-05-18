@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.0.0-alpha.5](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.4...v2.0.0-alpha.5) (2026-05-18)
+
+
+### Bug Fixes
+
+* **release:** release alpha.5 with synchronized git notes ([41924cc](https://github.com/Nekzus/LIOP/commit/41924cc3061b6053232ba84f8a9143fc76719f48))
+* **release:** retry alpha.5 release with annotated tag ([7d6cb2c](https://github.com/Nekzus/LIOP/commit/7d6cb2cf843378cdb073a9630cdfeb808716334f))
+* **release:** trigger alpha.5 release for DDP integration ([4eebe8d](https://github.com/Nekzus/LIOP/commit/4eebe8d509d00de8ed91cb9756d6ddf7382ebc63))
+
 # [2.0.0-alpha.4](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.3...v2.0.0-alpha.4) (2026-05-18)
 
 
