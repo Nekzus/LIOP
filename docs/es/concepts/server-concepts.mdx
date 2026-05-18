@@ -139,14 +139,21 @@ const server = new LiopServer({
 El **Filtro de Egreso** escaneará cada objeto devuelto y bloqueará cualquier clave que coincida con estos términos prohibidos.
 
 ### Política de Privacidad Diferencial
-Para datasets por debajo del `smallDatasetThreshold` (por defecto: 50 registros), el servidor aplica automáticamente ruido Laplace calibrado a todas las salidas numéricas. Configure el perfil de privacidad por herramienta:
+Para datasets por debajo del `smallDatasetThreshold` (por defecto: 50 registros), el servidor aplica automáticamente ruido Laplace calibrado a todas las salidas numéricas. Configure el perfil de privacidad en el constructor del servidor:
 
 ```typescript
-server.registerTool("analyze", handler, {
-  dpEpsilon: 2.0,        // Presupuesto de privacidad (mayor = menos ruido)
-  dpSensitivity: 1000.0, // Cambio máximo por registro para campos SUM
-  queryBudgetPerField: 5, // Máximo de consultas por campo
-});
+const server = new LiopServer(
+  { name: "secure-vault", version: "1.0.0" },
+  {
+    security: {
+      dpConfig: {
+        epsilon: 2.0,            // Presupuesto de privacidad (mayor = menos ruido)
+        sensitivity: 1000.0,     // Cambio máximo por registro para campos SUM
+        smallDatasetThreshold: 50 // Sin ruido para datasets sobre este tamaño
+      }
+    }
+  }
+);
 ```
 
 El motor deriva automáticamente la **sensibilidad por campo** basándose en el nombre de la clave:

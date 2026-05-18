@@ -78,6 +78,10 @@ LIOP mitiga esto con un **Mecanismo de Laplace** calibrado que inyecta ruido mat
 
 Todo el ruido se genera mediante `crypto.randomBytes()` del módulo `crypto` de Node.js (respaldado por el pool de entropía del sistema operativo), **nunca** `Math.random()`. Esto previene ataques de reconstrucción de estado donde un adversario podría predecir valores futuros de ruido observando 3-5 salidas ruidosas, según lo exige NIST SP 800-226.
 
+### Modo de Auditoría Determinista (DDP)
+
+Para escenarios de auditoría SOX/PCI-DSS que requieran Recibos ZK reproducibles, el motor soporta **Privacidad Diferencial Determinista (DDP)**. Cuando se activa, el generador de ruido Laplace inicializa un PRNG basado en SHA-256 con semilla `dataset_hash + image_id`, produciendo ruido idéntico para consultas idénticas sobre datasets inmutables. Esto restaura la verificabilidad completa del Recibo ZK sin violar la garantía matemática de privacidad — la semilla permanece criptográficamente impredecible para observadores externos que no tengan acceso tanto al dataset como a la lógica inyectada.
+
 ### Sensibilidad Query-Aware
 
 En lugar de aplicar una sensibilidad global única a todos los campos de salida, el motor detecta automáticamente el tipo de consulta a partir del nombre del campo:

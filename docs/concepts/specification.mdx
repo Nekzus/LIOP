@@ -56,7 +56,8 @@ An LIOP Agent interacting with an explicit LIOP Server pushes executable logic (
 
 ### 5.4 Differential Privacy Engine (NIST SP 800-226)
 - Automatically injects query-aware Laplace noise into all numeric egress fields for datasets below configuration thresholds.
-- Enforces an $\epsilon \ge 1.0$ floor for $n < 10$ and relies exclusively on OS-level CSPRNG (`crypto.randomBytes`), physically neutralizing deterministic state-reconstruction attacks.
+- Enforces an $\epsilon \ge 1.0$ floor for $n < 10$ and defaults to OS-level CSPRNG (`crypto.randomBytes`), neutralizing deterministic state-reconstruction attacks.
+- Supports **Deterministic Differential Privacy (DDP)** for audit reproducibility, using SHA-256-seeded PRNG derived from `dataset_hash + image_id` to produce verifiable, repeatable ZK-Receipts.
 
 ## 6. Zero-Shot Autonomy (Self-Healing AI)
 LIOP features built-in self-instructing middleware. Should an Agent attempt a JSON-RPC interaction over MCP legacy adapters, but violate the Logic-on-Origin protocol structure (e.g., pulling raw data instead of pushing a module), LIOP intercepts the request, blocks it, and returns a cognitive plaintext instruction manual to the Agent so it can rewrite its own intent.

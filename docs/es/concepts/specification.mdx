@@ -56,7 +56,8 @@ Un Agente LIOP interactuando con un Nodo de Datos inyecta una lógica ejecutable
 
 ### 5.4 Motor de Privacidad Diferencial (NIST SP 800-226)
 - Inyecta automáticamente ruido Laplace query-aware en todos los campos numéricos de egreso para datasets por debajo de los umbrales de configuración.
-- Impone un piso de $\epsilon \ge 1.0$ para $n < 10$ y se apoya exclusivamente en CSPRNG a nivel de SO (`crypto.randomBytes`), neutralizando físicamente los ataques de reconstrucción de estado determinista.
+- Impone un piso de $\epsilon \ge 1.0$ para $n < 10$ y utiliza por defecto CSPRNG a nivel de SO (`crypto.randomBytes`), neutralizando ataques de reconstrucción de estado determinista.
+- Soporta **Privacidad Diferencial Determinista (DDP)** para reproducibilidad en auditorías, utilizando un PRNG con semilla SHA-256 derivada de `dataset_hash + image_id` para producir Recibos ZK verificables y repetibles.
 
 ## 6. Autonomía Zero-Shot (Self-Correcting AI)
 LIOP implementa un sistema de guía integrado. Si un Agente intenta interactuar mediante solicitudes tradicionales de extracción (ej. pedir descargar archivos brutos), el protocolo intercepta la petición, la deniega, y devuelve manuales cognitivos para que el Agente pueda auto-corregir su intención y proveer la lógica WebAssembly adecuada.

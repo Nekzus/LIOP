@@ -425,7 +425,7 @@ await server.connectToMesh();
 
 This package is continuously tested across multiple platforms and Node.js versions via CI/CD:
 
-- **259+ tests** spanning unit, integration, conformance, adversarial, and crossnet suites
+- **285+ tests** spanning unit, integration, conformance, adversarial, and crossnet suites
 - **Multi-OS matrix:** Ubuntu, Windows, macOS
 - **Node.js versions:** 20.x, 22.x
 - **Code quality:** Enforced by [Biome.js](https://biomejs.dev/) (linting + formatting)

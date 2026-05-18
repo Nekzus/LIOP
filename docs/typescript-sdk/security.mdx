@@ -206,15 +206,17 @@ Every sandbox execution produces a **cryptographic receipt** that binds the outp
 |:------|:-----|:-----|:------------|
 | **Version** | 1 byte | `0x01` | Protocol version identifier |
 | **Journal Length** | 2 bytes | Big-Endian `UInt16` | Length of the JSON payload |
-| **Journal** | Variable | JSON string | Contains `image_id`, `fuel`, and execution metrics |
+| **Journal** | Variable | JSON string | Contains `image_id`, `dataset_hash`, `output_hash`, `fuel`, and `ts` |
 | **Seal** | 32 bytes | HMAC-SHA256 | Cryptographic commitment over the journal |
 
 ### Cryptographic Pipeline
 
 1. **ImageID Generation**: A `SHA-256` hash of the original logic payload fingerprints the exact code that was executed
-2. **Journal Assembly**: A JSON object containing `image_id`, `output_hash` (SHA-256 of the result), `fuel` consumed, and `timestamp`
-3. **HMAC Seal**: `crypto.createHmac("sha256", sessionSecret).update(journal).digest()` — the session secret is derived from the **ML-KEM-768 (Kyber) key exchange**
-4. **Verification**: `crypto.timingSafeEqual(seal, expectedSeal)` — constant-time comparison prevents timing side-channel attacks
+2. **Dataset Hash**: A `SHA-256` hash of the serialized dataset anchors the data state at execution time (SOX audit trail compliance)
+3. **Differential Privacy**: Laplace noise is applied to numeric outputs *before* commitment, ensuring the ZK-Receipt matches the noisy data the client receives. Supports **DDP mode** (seeded PRNG via `dataset_hash + image_id`) for audit reproducibility.
+4. **Journal Assembly**: A JSON object containing `image_id`, `dataset_hash`, `output_hash` (SHA-256 of the post-DP result), `fuel` consumed, and `ts` (timestamp)
+5. **HMAC Seal**: `crypto.createHmac("sha256", sessionSecret).update(journal).digest()` — the session secret is derived from the **ML-KEM-768 (Kyber) key exchange**
+6. **Verification**: `crypto.timingSafeEqual(seal, expectedSeal)` — constant-time comparison prevents timing side-channel attacks
 
 <Tip>
   The `sessionSecret` used for HMAC signing is the shared key negotiated via Post-Quantum Cryptography (ML-KEM-768). This ensures that ZK-Receipt integrity remains quantum-resistant.

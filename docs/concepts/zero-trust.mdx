@@ -80,6 +80,10 @@ LIOP mitigates this with a calibrated **Laplace Mechanism** that injects mathema
 
 All noise is generated using `crypto.randomBytes()` from the Node.js `crypto` module (backed by the OS-level entropy pool), **never** `Math.random()`. This prevents state-reconstruction attacks where an adversary could predict future noise values by observing 3-5 noisy outputs, as mandated by NIST SP 800-226.
 
+### Deterministic Audit Mode (DDP)
+
+For SOX/PCI-DSS audit scenarios requiring reproducible ZK-Receipts, the engine supports **Deterministic Differential Privacy (DDP)**. When activated, the Laplace noise generator initializes a SHA-256-based PRNG seeded with `dataset_hash + image_id`, producing identical noise for identical queries on immutable datasets. This restores full ZK-Receipt verifiability without violating the mathematical privacy guarantee — the seed remains cryptographically unpredictable to external observers who lack access to both the dataset and the exact injected logic.
+
 ### Query-Aware Sensitivity
 
 Instead of applying a single global sensitivity to all output fields, the engine automatically detects the query type from the field name:

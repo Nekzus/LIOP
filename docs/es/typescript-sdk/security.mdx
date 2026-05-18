@@ -206,15 +206,17 @@ Cada ejecución del sandbox produce un **recibo criptográfico** que vincula la 
 |:------|:-------|:-----|:------------|
 | **Version** | 1 byte | `0x01` | Identificador de versión del protocolo |
 | **Journal Length** | 2 bytes | Big-Endian `UInt16` | Longitud del payload JSON |
-| **Journal** | Variable | Cadena JSON | Contiene `image_id`, `fuel` y métricas de ejecución |
+| **Journal** | Variable | Cadena JSON | Contiene `image_id`, `dataset_hash`, `output_hash`, `fuel` y `ts` |
 | **Seal** | 32 bytes | HMAC-SHA256 | Compromiso criptográfico sobre el diario |
 
 ### Pipeline Criptográfico
 
 1. **Generación de ImageID**: Un hash `SHA-256` del payload de lógica original identifica de forma única el código exacto ejecutado
-2. **Ensamblaje del Journal**: Un objeto JSON que contiene `image_id`, `output_hash` (SHA-256 del resultado), `fuel` consumido y `timestamp`
-3. **Sello HMAC**: `crypto.createHmac("sha256", sessionSecret).update(journal).digest()` — el secreto de sesión se deriva del **intercambio de claves ML-KEM-768 (Kyber)**
-4. **Verificación**: `crypto.timingSafeEqual(seal, expectedSeal)` — comparación en tiempo constante que previene ataques de canal lateral por temporización
+2. **Hash del Dataset**: Un hash `SHA-256` del dataset serializado ancla el estado de los datos al momento de la ejecución (cumplimiento de auditoría SOX)
+3. **Privacidad Diferencial**: El ruido Laplace se aplica a las salidas numéricas *antes* del compromiso, garantizando que el ZK-Receipt coincida con los datos ruidosos que el cliente recibe. Soporta **modo DDP** (PRNG con semilla via `dataset_hash + image_id`) para reproducibilidad en auditorías.
+4. **Ensamblaje del Journal**: Un objeto JSON que contiene `image_id`, `dataset_hash`, `output_hash` (SHA-256 del resultado post-DP), `fuel` consumido y `ts` (timestamp)
+5. **Sello HMAC**: `crypto.createHmac("sha256", sessionSecret).update(journal).digest()` — el secreto de sesión se deriva del **intercambio de claves ML-KEM-768 (Kyber)**
+6. **Verificación**: `crypto.timingSafeEqual(seal, expectedSeal)` — comparación en tiempo constante que previene ataques de canal lateral por temporización
 
 <Tip>
   El `sessionSecret` utilizado para la firma HMAC es la clave compartida negociada mediante Criptografía Post-Cuántica (ML-KEM-768). Esto garantiza que la integridad del ZK-Receipt sea resistente a ataques cuánticos.

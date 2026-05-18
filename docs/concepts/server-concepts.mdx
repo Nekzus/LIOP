@@ -143,14 +143,21 @@ const server = new LiopServer({
 The **O(1) Egress Filter** will use a high-performance memory `Set` to scan every return object and block any key matching these terms, even if they are nested deep within a JSON structure.
 
 ### Differential Privacy Policy
-For datasets below the `smallDatasetThreshold` (default: 50 records), the server automatically applies calibrated Laplace noise to all numeric outputs. Configure the privacy profile per tool:
+For datasets below the `smallDatasetThreshold` (default: 50 records), the server automatically applies calibrated Laplace noise to all numeric outputs. Configure the privacy profile in the server constructor:
 
 ```typescript
-server.registerTool("analyze", handler, {
-  dpEpsilon: 2.0,        // Privacy budget (higher = less noise, more utility)
-  dpSensitivity: 1000.0, // Max change per record for SUM fields
-  queryBudgetPerField: 5, // Max queries before field exhaustion
-});
+const server = new LiopServer(
+  { name: "secure-vault", version: "1.0.0" },
+  {
+    security: {
+      dpConfig: {
+        epsilon: 2.0,            // Privacy budget (higher = less noise, more utility)
+        sensitivity: 1000.0,     // Max change per record for SUM fields
+        smallDatasetThreshold: 50 // Skip noise for datasets above this size
+      }
+    }
+  }
+);
 ```
 
 The engine automatically derives **per-field sensitivity** based on the output key name:
