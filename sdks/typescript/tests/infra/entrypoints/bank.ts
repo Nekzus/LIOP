@@ -107,6 +107,12 @@ async function main() {
 		{
 			enforceAggregationFirst: true,
 			outputSchema: bankAggregatedOutputSchema,
+			// Phase 110: SOX/PCI-DSS Financial Privacy Profile
+			// Engine auto-derives per-field sensitivity (count→1, avg→s/n).
+			// Global sensitivity covers SUM fields (max plausible single balance).
+			dpEpsilon: 2.0,
+			dpSensitivity: 100000.0,
+			queryBudgetPerField: 5,
 		},
 	);
 

@@ -59,4 +59,45 @@ Al ejecutar la lógica dentro de un Enclave, garantizamos que ni el proveedor de
 
 Junto a la respuesta, el servidor puede emitir un **Recibo ZK**. El Agente verifica este recibo criptográfico en milisegundos, asegurando matemáticamente que el resultado proviene de la ejecución exacta de su binario sobre los datos protegidos, sin que el servidor tenga que revelar los datos al exterior para ser auditado. 
 
+**Ancla de Integridad de Datos**: Cada Recibo ZK incluye un `dataset_hash` — un digest SHA-256 del dataset subyacente al momento de la ejecución. Este ancla criptográfica permite a los clientes verificar que el dataset fue idéntico entre consultas consecutivas, separando definitivamente el ruido legítimo de Privacidad Diferencial de cualquier mutación no autorizada de los datos.
+
 **Validación Estructural ZK**: Esta validación (`verifyZkReceipt`) es ejecutada de forma nativa tanto por el `LiopClient` como por el adaptador `LiopMcpBridge`. Estos componentes actúan como guardianes Zero-Trust infalibles, comprobando las firmas e impidiendo que datos adulterados u orígenes comprometidos sean entregados a la IA.
+
+## 7. Motor de Privacidad Diferencial (Mecanismo de Laplace)
+
+Cuando el sandbox WASI ejecuta lógica inyectada sobre datasets pequeños (por debajo del umbral configurable `smallDatasetThreshold`, por defecto: 50 registros), las salidas numéricas sin proteger podrían revelar información a nivel individual mediante **ataques de diferenciación** (ejecutar la misma consulta antes y después de agregar un registro) o **ataques de búsqueda binaria** (iterar umbrales de filtro para aislar un registro único).
+
+LIOP mitiga esto con un **Mecanismo de Laplace** calibrado que inyecta ruido matemáticamente acotado en todos los campos numéricos de la salida antes del egreso.
+
+<Frame>
+  <img className="block dark:hidden w-full" src="/images/animated-dp-engine-light.svg" alt="Pipeline del Motor de Privacidad Diferencial" />
+  <img className="hidden dark:block w-full" src="/images/animated-dp-engine-dark.svg" alt="Pipeline del Motor de Privacidad Diferencial" />
+</Frame>
+
+### Fuente de Ruido CSPRNG
+
+Todo el ruido se genera mediante `crypto.randomBytes()` del módulo `crypto` de Node.js (respaldado por el pool de entropía del sistema operativo), **nunca** `Math.random()`. Esto previene ataques de reconstrucción de estado donde un adversario podría predecir valores futuros de ruido observando 3-5 salidas ruidosas, según lo exige NIST SP 800-226.
+
+### Sensibilidad Query-Aware
+
+En lugar de aplicar una sensibilidad global única a todos los campos de salida, el motor detecta automáticamente el tipo de consulta a partir del nombre del campo:
+
+| Tipo de Consulta | Patrón de Clave | Sensibilidad | Justificación |
+|:---|:---|:---|:---|
+| **COUNT** | `count`, `length`, `size`, `num`, `total_records` | Siempre `1` | Agregar/eliminar un registro cambia el conteo como máximo en 1 |
+| **AVERAGE** | `avg`, `mean`, `average` | `sensibilidadGlobal / n` | Contribución acotada por registro |
+| **SUM** | Cualquier otra clave numérica | `sensibilidadGlobal` | Valor máximo plausible configurado por el operador |
+
+Esto refleja la arquitectura de la librería de Privacidad Diferencial de Google, que utiliza `CountParams`, `SumParams` y `MeanParams` separados — cada uno con calibración de sensibilidad independiente.
+
+### Piso de Epsilon
+
+Para datasets con menos de 10 registros, el motor impone un epsilon mínimo de `1.0`, independientemente de la configuración del operador. Esto previene la destrucción catastrófica de utilidad donde el ruido sobrepasa completamente la señal. La categoría más sensible de Apple (Datos de Salud) utiliza ε=2.0 sobre millones de registros; usar ε<1.0 en datasets diminutos produce resultados matemáticamente absurdos.
+
+### Invariantes de Post-Procesamiento
+
+Siguiendo el **Algoritmo TopDown del Censo de EE.UU. 2020**, el motor impone dos restricciones de post-procesamiento que son **gratuitas** bajo el teorema de post-procesamiento de DP (no consumen presupuesto de privacidad adicional):
+
+1. **Enteros no-negativos**: Todos los campos de conteo se redondean y restringen a `≥ 0`.
+2. **Preservación de tipo**: Las entradas enteras producen salidas enteras; las entradas no-negativas permanecen no-negativas.
+

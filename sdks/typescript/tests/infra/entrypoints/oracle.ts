@@ -103,6 +103,12 @@ async function main() {
 		{
 			enforceAggregationFirst: true,
 			outputSchema: marketAggregatedOutputSchema,
+			// Phase 110: Public Market Data Privacy Profile
+			// Public market data prioritizes utility over privacy.
+			// Engine auto-derives count sensitivity=1.
+			dpEpsilon: 4.0,
+			dpSensitivity: 500.0,
+			queryBudgetPerField: 10,
 		},
 	);
 

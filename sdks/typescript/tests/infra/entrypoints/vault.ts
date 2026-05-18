@@ -100,6 +100,14 @@ async function main() {
 		{
 			enforceAggregationFirst: true,
 			outputSchema: medicalAggregatedOutputSchema,
+			// Phase 110: HIPAA Expert Determination Privacy Profile
+			// Apple Health uses ε=2.0 on millions of records. Using ε<1.0 on
+			// a 5-record dataset destroys utility (NIST SP 800-226 §4.3).
+			// The engine automatically derives per-field sensitivity
+			// (count→1, avg→sensitivity/n, sum→configured value).
+			dpEpsilon: 2.0,
+			dpSensitivity: 1.0, 
+			queryBudgetPerField: 3, // HIPAA: highly restricted
 		},
 	);
 

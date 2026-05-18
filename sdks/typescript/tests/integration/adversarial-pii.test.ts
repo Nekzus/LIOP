@@ -228,7 +228,9 @@ return { total, avgAge };
 			},
 		});
 
-		expect(result.isError).toBeFalsy();
+		if (result.isError) {
+			throw new Error("SAFE-1 FAILURE REASON: " + result.content[0].text);
+		}
 	});
 
 	it("SAFE-2: should ALLOW safelisted keys (image_id, timestamp)", async () => {

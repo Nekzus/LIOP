@@ -138,6 +138,32 @@ const server = new LiopServer({
 
 El **Filtro de Egreso** escaneará cada objeto devuelto y bloqueará cualquier clave que coincida con estos términos prohibidos.
 
+### Política de Privacidad Diferencial
+Para datasets por debajo del `smallDatasetThreshold` (por defecto: 50 registros), el servidor aplica automáticamente ruido Laplace calibrado a todas las salidas numéricas. Configure el perfil de privacidad por herramienta:
+
+```typescript
+server.registerTool("analyze", handler, {
+  dpEpsilon: 2.0,        // Presupuesto de privacidad (mayor = menos ruido)
+  dpSensitivity: 1000.0, // Cambio máximo por registro para campos SUM
+  queryBudgetPerField: 5, // Máximo de consultas por campo
+});
+```
+
+El motor deriva automáticamente la **sensibilidad por campo** basándose en el nombre de la clave:
+- **Claves de conteo** (`count`, `length`, `size`, `num`): sensibilidad = 1
+- **Claves de promedio** (`avg`, `mean`): sensibilidad = `dpSensitivity / recordCount`
+- **Claves de suma/otras**: sensibilidad = `dpSensitivity`
+
+**Referencia industrial para calibración de ε:**
+
+| Dominio | ε | Referencia |
+|:---|:---|:---|
+| Salud (HIPAA) | `2.0` | Apple Health Data |
+| Finanzas (SOX/PCI) | `2.0` | Directrices PET del DOJ |
+| Datos Públicos | `4.0–8.0` | US Census, Google RAPPOR |
+
+Consulte [Seguridad Zero-Trust § Motor de Privacidad Diferencial](/es/concepts/zero-trust#7-motor-de-privacidad-diferencial-mecanismo-de-laplace) para la inmersión técnica completa.
+
 ### Estructura Dinámica de Retorno (Auto-i18n Nativo) [PLANIFICADO]
 LIOP introduce un patrón arquitectónico donde la fricción por traducción no existe. Esta funcionalidad está en el roadmap.
 

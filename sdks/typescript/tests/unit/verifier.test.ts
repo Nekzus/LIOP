@@ -4,8 +4,11 @@ import crypto from "node:crypto";
 
 const dummySecret = crypto.randomBytes(32);
 
-function mockZK(imageId: string, secret?: Buffer): Buffer {
-	const journal = Buffer.from(JSON.stringify({ image_id: imageId }));
+function mockZK(imageId: string, secret?: Buffer, datasetHash?: string): Buffer {
+	const journal = Buffer.from(JSON.stringify({
+		image_id: imageId,
+		dataset_hash: datasetHash || crypto.createHash("sha256").update("[]").digest("hex"),
+	}));
 	const journalLen = Buffer.alloc(2);
 	journalLen.writeUInt16BE(journal.length);
 	const seal = secret ? crypto.createHmac("sha256", secret).update(journal).digest() : Buffer.alloc(32);
@@ -61,5 +64,19 @@ describe("LiopVerifier (Industrial Tier-0)", () => {
 		);
 
 		expect(isValid).toBe(false);
+	});
+
+	it("should include dataset_hash in ZK-Receipt journal (Phase 110)", () => {
+		const imageId = verifier.deriveImageId(mockPayload).toString("hex");
+		const datasetHash = crypto.createHash("sha256").update(JSON.stringify([{ id: 1 }])).digest("hex");
+		const receipt = mockZK(imageId, dummySecret, datasetHash);
+
+		// Parse journal from receipt: v1 byte + 2-byte length + journal
+		const journalLen = receipt.readUInt16BE(1);
+		const journalBuf = receipt.subarray(3, 3 + journalLen);
+		const journal = JSON.parse(journalBuf.toString("utf-8"));
+
+		expect(journal.dataset_hash).toBe(datasetHash);
+		expect(journal.dataset_hash).toMatch(/^[a-f0-9]{64}$/);
 	});
 });

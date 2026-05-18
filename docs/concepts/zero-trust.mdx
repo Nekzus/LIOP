@@ -61,4 +61,45 @@ In scenarios where an Agent must trust a remote Server (e.g., "Did the Server ac
 
 The current implementation uses **HMAC-SHA256 commitments**: each execution generates a SHA-256 `ImageID` (hash of the injected logic) and an HMAC-SHA256 `Seal` derived from the Post-Quantum session secret. This binds the output to the exact logic executed, making forgery computationally infeasible. Migration to a native ZK-VM engine (RISC Zero / SP1) for full zero-knowledge proofs is planned for future releases.
 
+**Dataset Integrity Anchor**: Each ZK-Receipt includes a `dataset_hash` — a SHA-256 digest of the underlying dataset at execution time. This cryptographic anchor allows clients to verify that the dataset was identical across consecutive queries, definitively separating legitimate Differential Privacy noise from unauthorized data mutation.
+
 **The ZK Shield Proxy**: This cryptographic validation (`verifyZkReceipt`) is performed natively by both the SDK's `LiopClient` (via `client.verifier`) and the `LiopMcpRouter`. These components act as a Zero-Trust Shield, automatically isolating compromised environments and blocking the delivery of adulterated execution payloads back to the calling LLM framework.
+
+## 7. Differential Privacy Engine (Laplace Mechanism)
+
+When the WASI sandbox executes injected logic on small datasets (below the configurable `smallDatasetThreshold`, default: 50 records), raw numeric outputs could reveal individual-level information through **differencing attacks** (running the same query before and after adding a record) or **binary search attacks** (iterating filter thresholds to isolate a single record).
+
+LIOP mitigates this with a calibrated **Laplace Mechanism** that injects mathematically bounded noise into all numeric output fields before egress.
+
+<Frame>
+  <img className="block dark:hidden w-full" src="/images/animated-dp-engine-light.svg" alt="Differential Privacy Engine Pipeline" />
+  <img className="hidden dark:block w-full" src="/images/animated-dp-engine-dark.svg" alt="Differential Privacy Engine Pipeline" />
+</Frame>
+
+### CSPRNG Noise Source
+
+All noise is generated using `crypto.randomBytes()` from the Node.js `crypto` module (backed by the OS-level entropy pool), **never** `Math.random()`. This prevents state-reconstruction attacks where an adversary could predict future noise values by observing 3-5 noisy outputs, as mandated by NIST SP 800-226.
+
+### Query-Aware Sensitivity
+
+Instead of applying a single global sensitivity to all output fields, the engine automatically detects the query type from the field name:
+
+| Query Type | Key Pattern | Sensitivity | Rationale |
+|:---|:---|:---|:---|
+| **COUNT** | `count`, `length`, `size`, `num`, `total_records` | Always `1` | Adding/removing one record changes count by at most 1 |
+| **AVERAGE** | `avg`, `mean`, `average` | `globalSensitivity / n` | Bounded contribution per record |
+| **SUM** | Any other numeric key | `globalSensitivity` | Operator-configured max plausible value |
+
+This mirrors Google's Differential Privacy library architecture, which uses separate `CountParams`, `SumParams`, and `MeanParams` — each with independent sensitivity calibration.
+
+### Epsilon Floor
+
+For datasets with fewer than 10 records, the engine enforces a minimum epsilon of `1.0`, regardless of the operator's configuration. This prevents catastrophic utility destruction where noise completely overwhelms the signal. Apple's most sensitive category (Health Data) uses ε=2.0 on millions of records; using ε<1.0 on tiny datasets produces mathematically meaningless results.
+
+### Post-Processing Invariants
+
+Following the **US Census 2020 TopDown Algorithm**, the engine enforces two post-processing constraints that are **free** under the DP post-processing theorem (they do not consume additional privacy budget):
+
+1. **Non-negative integers**: All count fields are rounded and clamped to `≥ 0`.
+2. **Type preservation**: Integer inputs produce integer outputs; non-negative inputs remain non-negative.
+

@@ -99,9 +99,15 @@ export class TaintAnalyzer {
 	 * Analyzes injected source code for PII taint violations.
 	 *
 	 * @param sourceCode - The raw JavaScript logic extracted from the LIOP envelope
+	 * @param recordCount - Size of source dataset (enables correlation/min-max gates for small sets)
+	 * @param minMaxBlockThreshold - Threshold below which extrema/correlation extraction is blocked
 	 * @returns A TaintViolation if PII-derived values flow to output, null if clean
 	 */
-	analyze(sourceCode: string): TaintViolation | null {
+	analyze(
+		sourceCode: string,
+		recordCount?: number,
+		minMaxBlockThreshold: number = 50,
+	): TaintViolation | null {
 		let ast: acorn.Node;
 		try {
 			// Wrap in function body to handle bare `return` statements
@@ -126,7 +132,309 @@ export class TaintAnalyzer {
 		this.propagateTaint(ast, recordBoundVars, taintedVars);
 
 		// Pass 3: Check if any return statement contains tainted values
-		return this.checkReturnStatements(ast, recordBoundVars, taintedVars);
+		const taintResult = this.checkReturnStatements(
+			ast,
+			recordBoundVars,
+			taintedVars,
+		);
+		if (taintResult) return taintResult;
+
+		// Pass 4: Correlation Guard — detect multiple reduce on same field (F-01)
+		if (
+			recordCount !== undefined &&
+			recordCount > 0 &&
+			recordCount < minMaxBlockThreshold
+		) {
+			const correlationResult = this.detectCorrelatedAggregations(ast);
+			if (correlationResult) {
+				// Augment error with the actual threshold for clarity (Phase 109 requirement)
+				correlationResult.reason = correlationResult.reason.replace(
+					"50 records",
+					`${minMaxBlockThreshold} records`,
+				);
+				return correlationResult;
+			}
+		}
+
+		// Pass 5: Min/Max Gate — block extrema extraction on small datasets (F-02)
+		if (
+			recordCount !== undefined &&
+			recordCount > 0 &&
+			recordCount < minMaxBlockThreshold
+		) {
+			const minMaxResult = this.detectMinMaxExtraction(ast);
+			if (minMaxResult) {
+				minMaxResult.reason = minMaxResult.reason.replace(
+					"50 records",
+					`${minMaxBlockThreshold} records`,
+				);
+				return minMaxResult;
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * Extracts all unique field names accessed via env.records operations.
+	 * Used by the Query Budget to enforce per-field query limits.
+	 */
+	extractQueriedFields(sourceCode: string): string[] {
+		let ast: acorn.Node;
+		try {
+			ast = acorn.parse(`function w(env) {\n${sourceCode}\n}`, {
+				ecmaVersion: 2022,
+				sourceType: "script",
+			});
+		} catch {
+			return [];
+		}
+
+		const fields = new Set<string>();
+
+		const visitors: SimpleVisitors<void> = {
+			CallExpression: (node) => {
+				if (node.callee.type !== "MemberExpression") return;
+				const callee = node.callee as acorn.MemberExpression;
+
+				// Only track fields accessed within array methods (map, filter, reduce)
+				const methodName = this.getPropertyName(callee);
+				if (!methodName || !this.isEnvRecordsChain(callee.object)) return;
+
+				const callback = node.arguments[0];
+				if (
+					!callback ||
+					(callback.type !== "ArrowFunctionExpression" &&
+						callback.type !== "FunctionExpression")
+				)
+					return;
+
+				const fn = callback as acorn.ArrowFunctionExpression;
+				let paramIndex = 0;
+				if (TaintAnalyzer.REDUCE_METHODS.has(methodName)) {
+					paramIndex = 1; // 2nd arg is the record in reduce
+				}
+
+				if (fn.params.length > paramIndex) {
+					const recordParam = fn.params[paramIndex];
+					if (recordParam.type === "Identifier") {
+						const paramName = (recordParam as acorn.Identifier).name;
+						const extracted = this.extractFieldsFromBody(
+							fn.body as acorn.Node,
+							paramName,
+						);
+						for (const f of extracted) fields.add(f);
+					}
+				}
+			},
+		};
+
+		simple(ast, visitors);
+		return Array.from(fields);
+	}
+
+	// ── Pass 4: Correlation Guard ─────────────────────────────────────
+
+	/**
+	 * Detects when 2+ reduce/aggregation calls access the same field.
+	 * This prevents differencing attacks: sum(all.field) - sum(excl1.field) = individual value.
+	 * Exempt: .length access (metadata, not field access).
+	 */
+	private detectCorrelatedAggregations(ast: acorn.Node): TaintViolation | null {
+		const fieldAggCounts = new Map<string, number>();
+
+		const visitors: SimpleVisitors<void> = {
+			CallExpression: (node) => {
+				if (node.callee.type !== "MemberExpression") return;
+
+				const callee = node.callee as acorn.MemberExpression;
+				const methodName = this.getPropertyName(callee);
+
+				// Only track reduce/reduceRight aggregations
+				if (!methodName || !TaintAnalyzer.REDUCE_METHODS.has(methodName))
+					return;
+
+				// Must be called on env.records or a derivation of it (.slice(), .filter())
+				if (!this.isEnvRecordsChain(callee.object)) return;
+
+				// Extract the field name accessed in the callback
+				const callback = node.arguments[0];
+				if (
+					!callback ||
+					(callback.type !== "ArrowFunctionExpression" &&
+						callback.type !== "FunctionExpression")
+				)
+					return;
+
+				const fn = callback as acorn.ArrowFunctionExpression;
+				const recordParam = fn.params.length > 1 ? fn.params[1] : fn.params[0];
+				if (!recordParam || recordParam.type !== "Identifier") return;
+
+				const paramName = (recordParam as acorn.Identifier).name;
+				const fields = this.extractFieldsFromBody(
+					fn.body as acorn.Node,
+					paramName,
+				);
+
+				for (const field of fields) {
+					const current = fieldAggCounts.get(field) ?? 0;
+					fieldAggCounts.set(field, current + 1);
+				}
+			},
+		};
+
+		simple(ast, visitors);
+
+		for (const [field, count] of fieldAggCounts) {
+			if (count >= 2) {
+				return {
+					reason:
+						`Correlation guard: ${count} aggregations detected on field '${field}'. ` +
+						"Multiple correlated aggregations on the same field can enable differencing attacks. " +
+						"Use a single aggregation per numeric field, or increase dataset size above 50 records.",
+				};
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * Checks if a node is env.records or a chain like env.records.slice(N) / env.records.filter(...)
+	 */
+	private isEnvRecordsChain(node: acorn.Node): boolean {
+		if (this.isEnvRecordsAccess(node)) return true;
+
+		// Handle env.records.slice(N), env.records.filter(...)
+		if (node.type === "CallExpression") {
+			const call = node as acorn.CallExpression;
+			if (call.callee.type === "MemberExpression") {
+				const member = call.callee as acorn.MemberExpression;
+				const method = this.getPropertyName(member);
+				if (
+					method &&
+					(method === "slice" || method === "filter" || method === "toSorted")
+				) {
+					return this.isEnvRecordsChain(member.object);
+				}
+			}
+		}
+
+		// Handle [...env.records] (SpreadElement in ArrayExpression assigned to var)
+		return false;
+	}
+
+	/**
+	 * Extracts field names accessed on a record parameter within a function body.
+	 * e.g., in `(s, r) => s + r.balance`, extracts "balance".
+	 * Ignores .length as it's metadata, not a field access.
+	 */
+	private extractFieldsFromBody(body: acorn.Node, paramName: string): string[] {
+		const fields: string[] = [];
+
+		const visitors: SimpleVisitors<void> = {
+			MemberExpression: (node) => {
+				if (
+					node.object.type === "Identifier" &&
+					(node.object as acorn.Identifier).name === paramName
+				) {
+					const prop = this.getPropertyName(node);
+					// Exempt .length — it's array metadata, not a data field
+					if (prop && prop !== "length") {
+						fields.push(prop);
+					}
+				}
+			},
+		};
+
+		simple(body, visitors);
+		return fields;
+	}
+
+	// ── Pass 5: Min/Max Gate ──────────────────────────────────────────
+
+	/**
+	 * Detects Math.min/max and sort()[0] patterns that expose individual
+	 * record values from small datasets.
+	 */
+	private detectMinMaxExtraction(ast: acorn.Node): TaintViolation | null {
+		let violation: TaintViolation | null = null;
+
+		const visitors: SimpleVisitors<void> = {
+			CallExpression: (node) => {
+				if (violation) return;
+
+				// Pattern: Math.min(...env.records.map(r => r.field))
+				// Pattern: Math.max(...env.records.map(r => r.field))
+				if (node.callee.type === "MemberExpression") {
+					const callee = node.callee as acorn.MemberExpression;
+					if (
+						callee.object.type === "Identifier" &&
+						(callee.object as acorn.Identifier).name === "Math"
+					) {
+						const method = this.getPropertyName(callee);
+						if (method === "min" || method === "max") {
+							// Check if any argument is a spread of env.records.map
+							if (
+								node.arguments.some(
+									(arg) =>
+										arg.type === "SpreadElement" &&
+										this.isRecordsMapCall(
+											(arg as acorn.SpreadElement).argument,
+										),
+								)
+							) {
+								violation = {
+									reason:
+										`Min/Max gate: Math.${method}() on individual records blocked for small datasets (n < 50). ` +
+										"Use avg/stddev/count for privacy-safe aggregations.",
+								};
+							}
+						}
+					}
+				}
+			},
+
+			// Pattern: env.records.sort(...)[0].field or [...env.records].sort(...)[0].field
+			MemberExpression: (node) => {
+				if (violation) return;
+
+				// Check for sort result indexed access: .sort(...)[0]
+				if (node.computed && node.object.type === "CallExpression") {
+					const call = node.object as acorn.CallExpression;
+					if (call.callee.type === "MemberExpression") {
+						const method = this.getPropertyName(
+							call.callee as acorn.MemberExpression,
+						);
+						if (method === "sort" || method === "toSorted") {
+							const sortTarget = (call.callee as acorn.MemberExpression).object;
+							if (this.isEnvRecordsChain(sortTarget)) {
+								violation = {
+									reason:
+										"Min/Max gate: .sort()[index] on individual records blocked for small datasets (n < 50). " +
+										"Use avg/stddev/count for privacy-safe aggregations.",
+								};
+							}
+						}
+					}
+				}
+			},
+		};
+
+		simple(ast, visitors);
+		return violation;
+	}
+
+	/**
+	 * Checks if a node is env.records.map(callback) — used by Min/Max Gate.
+	 */
+	private isRecordsMapCall(node: acorn.Node): boolean {
+		if (node.type !== "CallExpression") return false;
+		const call = node as acorn.CallExpression;
+		if (call.callee.type !== "MemberExpression") return false;
+		const callee = call.callee as acorn.MemberExpression;
+		const method = this.getPropertyName(callee);
+		return method === "map" && this.isEnvRecordsChain(callee.object);
 	}
 
 	// ── Pass 1: Record-Bound Variable Identification ──────────────────

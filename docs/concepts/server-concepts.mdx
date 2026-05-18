@@ -142,6 +142,32 @@ const server = new LiopServer({
 
 The **O(1) Egress Filter** will use a high-performance memory `Set` to scan every return object and block any key matching these terms, even if they are nested deep within a JSON structure.
 
+### Differential Privacy Policy
+For datasets below the `smallDatasetThreshold` (default: 50 records), the server automatically applies calibrated Laplace noise to all numeric outputs. Configure the privacy profile per tool:
+
+```typescript
+server.registerTool("analyze", handler, {
+  dpEpsilon: 2.0,        // Privacy budget (higher = less noise, more utility)
+  dpSensitivity: 1000.0, // Max change per record for SUM fields
+  queryBudgetPerField: 5, // Max queries before field exhaustion
+});
+```
+
+The engine automatically derives **per-field sensitivity** based on the output key name:
+- **Count keys** (`count`, `length`, `size`, `num`): sensitivity = 1
+- **Average keys** (`avg`, `mean`): sensitivity = `dpSensitivity / recordCount`
+- **Sum/other keys**: sensitivity = `dpSensitivity`
+
+**Industry Reference for ε calibration:**
+
+| Domain | ε | Reference |
+|:---|:---|:---|
+| Healthcare (HIPAA) | `2.0` | Apple Health Data |
+| Finance (SOX/PCI) | `2.0` | DOJ PET Guidelines |
+| Public Data | `4.0–8.0` | US Census, Google RAPPOR |
+
+See [Zero-Trust Security § Differential Privacy](/concepts/zero-trust#7-differential-privacy-engine-laplace-mechanism) for the full technical deep-dive.
+
 ### Dynamic Return Structure (Native Auto-i18n) [PLANNED]
 LIOP introduces an architectural pattern where cross-border language translation friction is non-existent. This feature is on the roadmap.
 

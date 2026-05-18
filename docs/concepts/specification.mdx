@@ -39,7 +39,8 @@ An LIOP Agent interacting with an explicit LIOP Server pushes executable logic (
 - The agreed Post-Quantum symmetric secret acts as the cipher for `AES-256-GCM`, enveloping the entirety of the execution payload inside a zero-trust capsule.
 
 ### 4.3 Computational Integrity (ZK-Receipts)
-- The SDK generates **HMAC-SHA256 commitments** that cryptographically bind the output to the exact logic executed, sealed with the Post-Quantum session secret. Migration to a native ZK-VM (RISC Zero / SP1) is planned for future releases.
+- The SDK generates **HMAC-SHA256 commitments** that cryptographically bind the output to the exact logic executed, sealed with the Post-Quantum session secret.
+- **Dataset Integrity Anchor**: Receipts now embed a `dataset_hash`, guaranteeing that Differential Privacy perturbations are strictly applied to immutable, non-tampered origin datasets. Migration to a native ZK-VM (RISC Zero / SP1) is planned for future releases.
 
 ## 5. Execution Core (The Sandbox)
 
@@ -52,6 +53,10 @@ An LIOP Agent interacting with an explicit LIOP Server pushes executable logic (
 
 ### 5.3 Military-Grade PII Defense
 - The LIOP SDK injects a Tier-1 PII Shield at the Egress stage. Employs Luhn Algorithm matching for credit cards, precise NIST-compliant boundaries (`\b`), and specific safelist semantic checks (Safe Words) to ensure no raw identifiers escape the Origin node.
+
+### 5.4 Differential Privacy Engine (NIST SP 800-226)
+- Automatically injects query-aware Laplace noise into all numeric egress fields for datasets below configuration thresholds.
+- Enforces an $\epsilon \ge 1.0$ floor for $n < 10$ and relies exclusively on OS-level CSPRNG (`crypto.randomBytes`), physically neutralizing deterministic state-reconstruction attacks.
 
 ## 6. Zero-Shot Autonomy (Self-Healing AI)
 LIOP features built-in self-instructing middleware. Should an Agent attempt a JSON-RPC interaction over MCP legacy adapters, but violate the Logic-on-Origin protocol structure (e.g., pulling raw data instead of pushing a module), LIOP intercepts the request, blocks it, and returns a cognitive plaintext instruction manual to the Agent so it can rewrite its own intent.

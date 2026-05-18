@@ -1,0 +1,168 @@
+<svg width="900" height="400" viewBox="0 0 900 400" xmlns="http://www.w3.org/2000/svg">
+    <!-- Base Background -->
+    <rect width="900" height="400" fill="#09090b" rx="16" />
+    
+    <defs>
+        <radialGradient id="glowBlue" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.15" />
+            <stop offset="100%" stop-color="#3b82f6" stop-opacity="0" />
+        </radialGradient>
+        <radialGradient id="glowPurple" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#8b5cf6" stop-opacity="0.15" />
+            <stop offset="100%" stop-color="#8b5cf6" stop-opacity="0" />
+        </radialGradient>
+    </defs>
+
+    <style>
+        .title { font-family: 'Inter', system-ui, sans-serif; font-size: 14px; font-weight: 600; fill: #fafafa; }
+        .subtitle { font-family: 'Inter', system-ui, sans-serif; font-size: 12px; font-weight: 400; fill: #a1a1aa; }
+        .phase-label { font-family: 'Inter', system-ui, sans-serif; font-size: 11px; font-weight: 700; fill: #60a5fa; letter-spacing: 2px; }
+        .io-label { font-family: 'Inter', system-ui, sans-serif; font-size: 10px; font-weight: 700; fill: #71717a; letter-spacing: 1px; }
+        
+        .icon-blue { fill: none; stroke: #60a5fa; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+        .icon-purple { fill: none; stroke: #a78bfa; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+        @keyframes streamPulse {
+            from { stroke-dashoffset: 24; }
+            to { stroke-dashoffset: 0; }
+        }
+        
+        .anim-track {
+            stroke: #60a5fa;
+            stroke-width: 4;
+            stroke-linecap: round;
+            stroke-dasharray: 0 24;
+            animation: streamPulse 0.6s linear infinite;
+            filter: drop-shadow(0 0 6px rgba(96,165,250,0.6));
+        }
+    </style>
+
+    <!-- Base Track -->
+    <path d="M 0 120 L 830 120 A 20 20 0 0 1 850 140 L 850 260 A 20 20 0 0 1 830 280 L 0 280" fill="none" stroke="#27272a" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+    
+    <!-- Animated Track -->
+    <path d="M 0 120 L 830 120 A 20 20 0 0 1 850 140 L 850 260 A 20 20 0 0 1 830 280 L 0 280" fill="none" class="anim-track" stroke-linejoin="round" />
+
+    <!-- Labels Phase -->
+    <text x="95" y="45" class="phase-label">PHASE 1: QUERY ANALYSIS</text>
+    <text x="595" y="205" class="phase-label">PHASE 2: NOISE INJECTION</text>
+
+    <!-- ROW 1 (Left to Right) -->
+    
+    <!-- Box 1: Raw Output -->
+    <g transform="translate(95, 75)">
+        <circle cx="105" cy="45" r="70" fill="url(#glowBlue)" />
+        <rect x="0" y="0" width="210" height="90" rx="12" fill="#18181b" stroke="#27272a" stroke-width="1.5" />
+        <path d="M 12 1.5 L 198 1.5" stroke="#3b82f6" stroke-width="3" stroke-linecap="round" />
+        
+        <g transform="translate(16, 21)">
+            <rect width="48" height="48" rx="10" fill="#09090b" stroke="#27272a" stroke-width="1.5" />
+            <circle cx="24" cy="24" r="20" fill="url(#glowBlue)" />
+            <g transform="translate(12, 12)">
+                <ellipse cx="12" cy="5" rx="9" ry="3" class="icon-blue" />
+                <path d="M3 5V19A9 3 0 0 0 21 19V5" class="icon-blue" />
+                <path d="M3 12A9 3 0 0 0 21 12" class="icon-blue" />
+            </g>
+        </g>
+        <text x="80" y="42" class="title">① Raw Output</text>
+        <text x="80" y="62" class="subtitle">applyDpToOutput()</text>
+    </g>
+
+    <!-- Box 2: Sensitivity -->
+    <g transform="translate(345, 75)">
+        <circle cx="105" cy="45" r="70" fill="url(#glowBlue)" />
+        <rect x="0" y="0" width="210" height="90" rx="12" fill="#18181b" stroke="#27272a" stroke-width="1.5" />
+        <path d="M 12 1.5 L 198 1.5" stroke="#3b82f6" stroke-width="3" stroke-linecap="round" />
+        
+        <g transform="translate(16, 21)">
+            <rect width="48" height="48" rx="10" fill="#09090b" stroke="#27272a" stroke-width="1.5" />
+            <circle cx="24" cy="24" r="20" fill="url(#glowBlue)" />
+            <g transform="translate(12, 12)">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" class="icon-blue" />
+            </g>
+        </g>
+        <text x="80" y="42" class="title">② Sensitivity</text>
+        <text x="80" y="62" class="subtitle">deriveFieldSensitivity()</text>
+    </g>
+
+    <!-- Box 3: Epsilon Floor -->
+    <g transform="translate(595, 75)">
+        <circle cx="105" cy="45" r="70" fill="url(#glowBlue)" />
+        <rect x="0" y="0" width="210" height="90" rx="12" fill="#18181b" stroke="#27272a" stroke-width="1.5" />
+        <path d="M 12 1.5 L 198 1.5" stroke="#3b82f6" stroke-width="3" stroke-linecap="round" />
+        
+        <g transform="translate(16, 21)">
+            <rect width="48" height="48" rx="10" fill="#09090b" stroke="#27272a" stroke-width="1.5" />
+            <circle cx="24" cy="24" r="20" fill="url(#glowBlue)" />
+            <g transform="translate(12, 12)">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" class="icon-blue" />
+            </g>
+        </g>
+        <text x="80" y="42" class="title">③ Epsilon Floor</text>
+        <text x="80" y="62" class="subtitle">ε ≥ 1.0 (n &lt; 10)</text>
+    </g>
+
+    <!-- ROW 2 (Right to Left) -->
+    
+    <!-- Box 4: CSPRNG Noise -->
+    <g transform="translate(595, 235)">
+        <circle cx="105" cy="45" r="70" fill="url(#glowPurple)" />
+        <rect x="0" y="0" width="210" height="90" rx="12" fill="#18181b" stroke="#27272a" stroke-width="1.5" />
+        <path d="M 12 1.5 L 198 1.5" stroke="#8b5cf6" stroke-width="3" stroke-linecap="round" />
+        
+        <g transform="translate(16, 21)">
+            <rect width="48" height="48" rx="10" fill="#09090b" stroke="#27272a" stroke-width="1.5" />
+            <circle cx="24" cy="24" r="20" fill="url(#glowPurple)" />
+            <g transform="translate(12, 12)">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" class="icon-purple" />
+            </g>
+        </g>
+        <text x="80" y="42" class="title">④ CSPRNG Noise</text>
+        <text x="80" y="62" class="subtitle">addLaplaceNoise()</text>
+    </g>
+
+    <!-- Box 5: Semantic Clamp -->
+    <g transform="translate(345, 235)">
+        <circle cx="105" cy="45" r="70" fill="url(#glowPurple)" />
+        <rect x="0" y="0" width="210" height="90" rx="12" fill="#18181b" stroke="#27272a" stroke-width="1.5" />
+        <path d="M 12 1.5 L 198 1.5" stroke="#8b5cf6" stroke-width="3" stroke-linecap="round" />
+        
+        <g transform="translate(16, 21)">
+            <rect width="48" height="48" rx="10" fill="#09090b" stroke="#27272a" stroke-width="1.5" />
+            <circle cx="24" cy="24" r="20" fill="url(#glowPurple)" />
+            <g transform="translate(12, 12)">
+                <path d="M8 3v3a2 2 0 0 1-2 2H3" class="icon-purple" />
+                <path d="M21 8h-3a2 2 0 0 1-2-2V3" class="icon-purple" />
+                <path d="M3 16h3a2 2 0 0 1 2 2v3" class="icon-purple" />
+                <path d="M16 21v-3a2 2 0 0 1 2-2h3" class="icon-purple" />
+            </g>
+        </g>
+        <text x="80" y="42" class="title">⑤ Semantic Clamp</text>
+        <text x="80" y="62" class="subtitle">walkAndNoise()</text>
+    </g>
+
+    <!-- Box 6: Safe Egress -->
+    <g transform="translate(95, 235)">
+        <circle cx="105" cy="45" r="70" fill="url(#glowPurple)" />
+        <rect x="0" y="0" width="210" height="90" rx="12" fill="#18181b" stroke="#27272a" stroke-width="1.5" />
+        <path d="M 12 1.5 L 198 1.5" stroke="#8b5cf6" stroke-width="3" stroke-linecap="round" />
+        
+        <g transform="translate(16, 21)">
+            <rect width="48" height="48" rx="10" fill="#09090b" stroke="#27272a" stroke-width="1.5" />
+            <circle cx="24" cy="24" r="20" fill="url(#glowPurple)" />
+            <g transform="translate(12, 12)">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" class="icon-purple" />
+                <polyline points="22 4 12 14.01 9 11.01" class="icon-purple" />
+            </g>
+        </g>
+        <text x="80" y="42" class="title">⑥ Safe Egress</text>
+        <text x="80" y="62" class="subtitle">DP Protected Payload</text>
+    </g>
+
+    <!-- IO Labels placed last to render on top of card glows -->
+    <text x="47" y="96" text-anchor="middle" class="io-label">FROM ORIGIN</text>
+    <text x="47" y="110" text-anchor="middle" class="io-label">SANDBOX</text>
+
+    <text x="47" y="256" text-anchor="middle" class="io-label">TO ZK-VM</text>
+    <text x="47" y="270" text-anchor="middle" class="io-label">RECEIPT</text>
+</svg>

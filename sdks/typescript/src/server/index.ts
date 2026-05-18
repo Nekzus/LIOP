@@ -72,6 +72,8 @@ export interface AggregationPolicy {
 	maxOutputRows?: number;
 	/** Allow arrays containing only primitive values (default: true) */
 	allowPrimitiveArrays?: boolean;
+	/** Block min/max extraction when dataset size < this value (default: 50) */
+	minMaxBlockThreshold?: number;
 }
 
 export interface LogicExecutionPolicy {
@@ -88,6 +90,21 @@ export interface LogicExecutionPolicy {
 	 * Optional additional deny patterns checked against extracted logic source.
 	 */
 	preflightDenyPatterns?: RegExp[];
+	/**
+	 * Differential Privacy epsilon per query (default: 1.0).
+	 * Lower = stronger privacy + more noise. Standard: Apple iOS uses 1.0.
+	 */
+	dpEpsilon?: number;
+	/**
+	 * DP sensitivity: max change when one record added/removed (default: 1.0).
+	 * For SUM queries on a field with range [0, X], set sensitivity = X.
+	 */
+	dpSensitivity?: number;
+	/**
+	 * Max queries per numeric field per PQC session (default: 5).
+	 * Prevents multi-query differencing attacks.
+	 */
+	queryBudgetPerField?: number;
 }
 
 export class LiopServer {
@@ -109,6 +126,9 @@ export class LiopServer {
 	// [OWASP-A01] Global cross-tool rate limiter — prevents distributed micro-query attacks
 	private globalCallWindow: number[] = [];
 	private readonly globalCallMaxPerWindow: number;
+
+	// [DP] Query Budget — tracks per-field query counts to prevent multi-query differencing
+	private fieldQueryBudget: Map<string, Map<string, number>> = new Map();
 
 	// [SEC] AST-level taint tracker for PII side-channel prevention
 	private readonly taintAnalyzer: TaintAnalyzer;
@@ -202,9 +222,45 @@ export class LiopServer {
 		}
 
 		// Phase 2: AST-level taint tracking (detects PII side-channel derivation)
-		const taintViolation = this.taintAnalyzer.analyze(logic);
+		// Pass recordCount and minMaxBlockThreshold to enable Correlation Guard (Pass 4) and Min/Max Gate (Pass 5)
+		let minMaxThreshold = 50;
+		if (typeof policy?.enforceAggregationFirst === "object") {
+			minMaxThreshold =
+				policy.enforceAggregationFirst.minMaxBlockThreshold ?? 50;
+		}
+		const taintViolation = this.taintAnalyzer.analyze(
+			logic,
+			this.sandboxRecords.length,
+			minMaxThreshold,
+		);
 		if (taintViolation) {
 			return `Preflight policy rejected: ${taintViolation.reason}`;
+		}
+
+		// Phase 3: Query Budget Enforcement (prevents multi-query differencing)
+		const queryLimit = policy?.queryBudgetPerField ?? 5;
+		const extractedFields = this.taintAnalyzer.extractQueriedFields(logic);
+
+		if (extractedFields.length > 0) {
+			let toolBudget = this.fieldQueryBudget.get(_toolName);
+			if (!toolBudget) {
+				toolBudget = new Map<string, number>();
+				this.fieldQueryBudget.set(_toolName, toolBudget);
+			}
+
+			// Check budget before incrementing to avoid partial updates on failure
+			for (const field of extractedFields) {
+				const count = toolBudget.get(field) ?? 0;
+				if (count >= queryLimit) {
+					return `Preflight policy rejected: Query budget exceeded for field '${field}' (max ${queryLimit} per session). Rotate PQC session to reset budget.`;
+				}
+			}
+
+			// All fields within budget, increment them
+			for (const field of extractedFields) {
+				const count = toolBudget.get(field) ?? 0;
+				toolBudget.set(field, count + 1);
+			}
 		}
 
 		return null;
@@ -1297,6 +1353,10 @@ Protocol Adherence is mandatory for successful execution.`,
 						await Kyber768Wrapper.generateKeyPair();
 
 					const sessionToken = crypto.randomUUID();
+
+					// [SECURITY] Reset session-bound state
+					this.fieldQueryBudget.clear();
+
 					this.sessions.set(sessionToken, {
 						capability_hash: request.capability_hash,
 						kyber_sk: secretKey,
@@ -1444,6 +1504,16 @@ Protocol Adherence is mandatory for successful execution.`,
 		toolName?: string,
 	): Promise<CallToolResult> {
 		try {
+			// [DP] Prepare Differential Privacy configuration
+			const dpPolicy = toolName ? this.tools.get(toolName)?.policy : undefined;
+			const dpConfig = dpPolicy
+				? {
+						epsilon: dpPolicy.dpEpsilon ?? 1.0,
+						sensitivity: dpPolicy.dpSensitivity ?? 1.0,
+						smallDatasetThreshold: 50,
+					}
+				: undefined;
+
 			// Transparent local execution without dynamic PQC
 			const workerResponse = await this.workerPool.run({
 				ciphertext: new Uint8Array(0),
@@ -1454,11 +1524,15 @@ Protocol Adherence is mandatory for successful execution.`,
 				records: this.sandboxRecords,
 				sessionToken: "local-dev-token",
 				isEncrypted: false, // Use plaintext for local Logic-on-Origin injection
+				dpConfig, // Pass DP Config to apply inside worker before ZK-Receipt commitment
 			});
+
+			// DP is now applied directly inside the worker to ensure ZK-Receipt integrity
+			const dpOutput = workerResponse.output;
 
 			// Standard MCP Content Array
 			const textOutput = JSON.stringify({
-				computation_result: workerResponse.output,
+				computation_result: dpOutput,
 				image_id: workerResponse.image_id,
 				zk_receipt: workerResponse.zk_receipt,
 				status: "Worker Pool Execution Success",
@@ -1476,7 +1550,7 @@ Protocol Adherence is mandatory for successful execution.`,
 				: undefined;
 			const policyViolation = this.validateOutputPolicy(
 				toolName || "unknown_tool",
-				workerResponse.output,
+				dpOutput, // Phase 109: Validate NOISY output to ensure invariants
 				toolPolicy,
 			);
 			if (policyViolation) {
@@ -1508,7 +1582,7 @@ Protocol Adherence is mandatory for successful execution.`,
 			// Professional PII Protection Guard
 			const violation = await this.piiScanner.scan(content);
 			const aggregationViolation = this.violatesAggregationFirstPolicy(
-				workerResponse.output,
+				dpOutput, // Phase 109: Validate NOISY output
 			);
 			if (violation || aggregationViolation) {
 				// SEC-CRITICAL: Log the specific violation reason server-side only.
@@ -1551,9 +1625,18 @@ Protocol Adherence is mandatory for successful execution.`,
 			const detail = e.message || String(error);
 			log.error(`[LIOP-SDK] WorkerPool Execution Fault: ${detail}`);
 
-			const errorMessage = isDev
-				? `WorkerPoolError: ${detail}`
-				: "[LIOP] Execution Failed. The injected logic violated runtime constraints or encountered a fatal error.";
+			// [OOM Hardening] Detect V8 worker termination due to heap limit
+			const isOom =
+				detail.includes("worker_thread_exited") ||
+				detail.includes("ERR_WORKER_OUT_OF_MEMORY") ||
+				detail.includes("terminated") ||
+				detail.includes("heap limit");
+
+			const errorMessage = isOom
+				? "[LIOP] Execution terminated: memory limit exceeded (64MB heap). Reduce data processing volume."
+				: isDev
+					? `WorkerPoolError: ${detail}`
+					: "[LIOP] Execution Failed. The injected logic violated runtime constraints or encountered a fatal error.";
 
 			return {
 				content: [
