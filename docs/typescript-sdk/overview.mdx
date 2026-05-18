@@ -40,7 +40,7 @@ The developer never has to manually write or compile Rust/Wasm.
 The TypeScript SDK operates at strict architectural parity with the high-performance Rust core, ensuring true Zero-Trust enterprise constraints:
 
 - **Post-Quantum Cryptography (ML-KEM-768):** End-to-end asymmetric encapsulation (`crystals-kyber`) and symmetric AES-256-GCM authentication.
-- **Hybrid Mesh Transport:** Unrestricted Node.js & browser peering through dual WebSockets (WS/Mplex) and TCP (Yamux) libp2p listeners.
+- **Hybrid Mesh Transport:** Unrestricted Node.js & browser peering through WebSockets (WS) and TCP (Yamux) libp2p listeners.
 - **Guardian-TS (Zero-Time AST Inspection):** Proactive sandbox-escape mitigation that blocks illegal host capabilities *before* `node:wasi` execution logic triggers.
 - **ZK-Receipt Ready:** Native architectural support for trustless Mathematical Execution Proofs against Zero-Knowledge Virtual Machines (zkVMs).
 - **Multi-Core Scaling (Worker Pool):** Hardware-accelerated transactional performance using `piscina`. Bypasses V8's Single-Thread Event Loop bottleneck by offloading PQC decryption, AST inspection, and WASI Sandboxing to isolated OS-level threads.

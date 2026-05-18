@@ -24,7 +24,7 @@ Un Agente LIOP interactuando con un Nodo de Datos inyecta una lógica ejecutable
 - LIOP erradica por completo la necesidad de hubs o puntos de conexión centralizados.
 
 ### 3.2 Transporte y Multiplexación
-- Las conexiones utilizan multiplexación nativa, permitiendo cientos de inyecciones `Logic-Injection-on-Origin` concurrentes sobre un solo socket sin sufrir bloqueos de cabecera.
+- Las conexiones utilizan multiplexación vía Yamux, permitiendo cientos de inyecciones `Logic-on-Origin` concurrentes sobre un solo socket TCP abierto sin sufrir bloqueos de cabecera (Head-Of-Line Blocking).
 
 ### 3.3 Capa de Datos (Protobuf & gRPC)
 - Los payloads binarios se encapsulan en definiciones estrictas de Protocol Buffers (`.proto`).

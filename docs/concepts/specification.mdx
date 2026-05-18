@@ -24,7 +24,7 @@ An LIOP Agent interacting with an explicit LIOP Server pushes executable logic (
 - LIOP completely eliminates centralized brokering or hubs.
 
 ### 3.2 Transport & Multiplexing
-- Connections use Multiplexing via Yamux or Mplex, allowing hundreds of concurrent `Logic-on-Origin` injections to occur over a single opened TCP socket without Head-Of-Line Blocking.
+- Connections use Multiplexing via Yamux, allowing hundreds of concurrent `Logic-on-Origin` injections to occur over a single opened TCP socket without Head-Of-Line Blocking.
 
 ### 3.3 RPC Layer (Tonic / gRPC)
 - Raw binary payloads are encapsulated in strict Protobuf definitions (`.proto`).

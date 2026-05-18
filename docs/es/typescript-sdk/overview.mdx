@@ -37,12 +37,11 @@ El SDK incluye un puente de compilación nativo. Cuando un Agente TypeScript inv
 
 El SDK TypeScript mantiene paridad arquitectónica con el núcleo en Rust, asegurando restricciones Zero-Trust de grado profesional:
 
-- **Criptografía Post-Cuántica (ML-KEM-768):** Encapsulación asimétrica (`crystals-kyber`) y autenticación simétrica AES-256-GCM de extremo a extremo.
-- **Transporte Híbrido (QUIC/TCP/WS):** Capa unificada P2P veloz usando QUIC para mínima latencia.
-- **Seguridad en Profundidad:** Soporte nativo para TLS/mTLS, configuraciones descentralizadas y Rate-Limiting anti-DoS.
-- **Guardian-TS (Inspección AST):** Mitigación proactiva de escapes del sandbox mediante el análisis del binario antes de su ejecución.
-- **ZK-Receipt Ready:** Soporte nativo para Pruebas Cero Conocimiento matemáticas contra zkVMs.
-- **Escalado Multi-Core (Worker Pool):** Alto rendimiento mediante `piscina`, delegando el descifrado y la ejecución de sandboxes a hilos del SO independientes del Event Loop de V8.
+- **Criptografía Post-Cuántica (ML-KEM-768):** Encapsulación asimétrica de extremo a extremo (`crystals-kyber`) y autenticación simétrica AES-256-GCM.
+- **Transporte de Malla Híbrido:** Conexión P2P sin restricciones para Node.js y navegadores a través de WebSockets (WS) y oyentes libp2p TCP (Yamux).
+- **Guardian-TS (Inspección AST en Tiempo Cero):** Mitigación proactiva de escapes del sandbox que bloquea capacidades no autorizadas del host *antes* de que se active la lógica de ejecución `node:wasi`.
+- **Listo para ZK-Receipt:** Soporte arquitectónico nativo para Pruebas Matemáticas de Ejecución sin confianza frente a Máquinas Virtuales de Conocimiento Cero (zkVMs).
+- **Escalado Multi-Core (Pool de Workers):** Rendimiento transaccional acelerado por hardware usando `piscina`. Supera el cuello de botella del Event Loop de hilo único de V8 al delegar el descifrado PQC, la inspección AST y el Sandboxing WASI a hilos independientes a nivel de sistema operativo.
 
 ## Exportaciones Principales
 
