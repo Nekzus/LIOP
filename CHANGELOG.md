@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.0.0-alpha.9](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.8...v2.0.0-alpha.9) (2026-05-18)
+
+
+### Bug Fixes
+
+* **sdk:** remove redundant resolutions property in package.json to eliminate build warnings ([0c2550c](https://github.com/Nekzus/LIOP/commit/0c2550cb6d6d4658b39899aaf6593602a935dfa5))
+
 # [2.0.0-alpha.8](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.7...v2.0.0-alpha.8) (2026-05-18)
 
 
