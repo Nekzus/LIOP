@@ -6,5 +6,5 @@ version: 2
 issueRules:
   # Triage: Legitimate maintenance handover of jshttp libraries (type-is, content-type)
   # to Blake Embrey is safe and verified. Ignore false positives on unstable ownership.
-  unstable-ownership:
+  unstableOwnership:
     action: ignore

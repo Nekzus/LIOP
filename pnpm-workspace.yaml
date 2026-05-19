@@ -25,8 +25,3 @@ auditConfig:
     - GHSA-xjpj-3mr7-gcpf
     - GHSA-q3j6-qgpj-74h6
     - GHSA-v39h-62p7-jpjc
-
-overrides:
-  protobufjs: "^7.5.6"
-  type-is: "2.0.1"
-  content-type: "1.0.5"
