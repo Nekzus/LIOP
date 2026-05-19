@@ -4,6 +4,11 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  protobufjs: ^7.5.6
+  type-is: 2.0.1
+  content-type: 1.0.5
+
 importers:
 
   .:
@@ -146,6 +151,9 @@ importers:
       acorn-walk:
         specifier: ^8.3.5
         version: 8.3.5
+      content-type:
+        specifier: 1.0.5
+        version: 1.0.5
       hono:
         specifier: ^4.12.5
         version: 4.12.8
@@ -167,6 +175,12 @@ importers:
       piscina:
         specifier: ^5.1.4
         version: 5.1.4
+      protobufjs:
+        specifier: ^7.5.6
+        version: 7.5.8
+      type-is:
+        specifier: 2.0.1
+        version: 2.0.1
       uint8arrays:
         specifier: ^3.1.1
         version: 3.1.1
@@ -5725,8 +5739,7 @@ snapshots:
   content-disposition@1.0.1:
     optional: true
 
-  content-type@1.0.5:
-    optional: true
+  content-type@1.0.5: {}
 
   conventional-changelog-angular@8.3.0:
     dependencies:
@@ -6791,8 +6804,7 @@ snapshots:
   math-intrinsics@1.1.0:
     optional: true
 
-  media-typer@1.1.0:
-    optional: true
+  media-typer@1.1.0: {}
 
   meow@13.2.0: {}
 
@@ -6810,13 +6822,11 @@ snapshots:
       braces: 3.0.3
       picomatch: 2.3.1
 
-  mime-db@1.54.0:
-    optional: true
+  mime-db@1.54.0: {}
 
   mime-types@3.0.2:
     dependencies:
       mime-db: 1.54.0
-    optional: true
 
   mime@4.1.0: {}
 
@@ -7736,7 +7746,6 @@ snapshots:
       content-type: 1.0.5
       media-typer: 1.1.0
       mime-types: 3.0.2
-    optional: true
 
   typescript@5.9.3: {}
 
