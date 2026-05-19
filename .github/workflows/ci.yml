@@ -110,7 +110,7 @@ jobs:
     needs: [lint, test, security]
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/alpha' || startsWith(github.ref, 'refs/heads/feat/'))
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/alpha' || github.ref == 'refs/heads/beta' || startsWith(github.ref, 'refs/heads/feat/'))
     permissions:
       contents: write
       issues: write
