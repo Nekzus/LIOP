@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.0.0-alpha.11](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.10...v2.0.0-alpha.11) (2026-05-19)
+
+
+### Bug Fixes
+
+* **sdk:** enforce secure dependency resolutions for NPM consumers ([6b2fdba](https://github.com/Nekzus/LIOP/commit/6b2fdba4c68053e58af42440b5d35ae281eb3910))
+
 # [2.0.0-alpha.10](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.9...v2.0.0-alpha.10) (2026-05-18)
 
 
