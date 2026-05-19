@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.0.0-alpha.14](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.13...v2.0.0-alpha.14) (2026-05-19)
+
+
+### Performance Improvements
+
+* **sdk:** optimize package score by purging unused deps and bundling pure libraries ([332d639](https://github.com/Nekzus/LIOP/commit/332d639de9d6b83dd06aaf7b9078c8ef255a9253))
+
 # [2.0.0-alpha.13](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.12...v2.0.0-alpha.13) (2026-05-19)
 
 
