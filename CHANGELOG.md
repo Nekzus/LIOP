@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.0.0-alpha.13](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.12...v2.0.0-alpha.13) (2026-05-19)
+
+
+### Bug Fixes
+
+* **sdk:** initialize beta release channel for production hardening ([a90a70c](https://github.com/Nekzus/LIOP/commit/a90a70c5044d9000699d59513660bbc56146ddcf))
+* **sdk:** relax CSPRNG autocorrelation threshold to resolve flaky CI failures ([a488950](https://github.com/Nekzus/LIOP/commit/a488950be18b1831e7640e760e74dafd01558dbd))
+* **sdk:** use float for primitive noise test to avoid 0.5% integer collision ([1215a63](https://github.com/Nekzus/LIOP/commit/1215a633fa1a860707d356ab40076397aed0ebe0))
+
 # [2.0.0-alpha.12](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.11...v2.0.0-alpha.12) (2026-05-19)
 
 
