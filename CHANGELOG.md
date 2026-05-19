@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.0.0-alpha.15](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.14...v2.0.0-alpha.15) (2026-05-19)
+
+
+### Bug Fixes
+
+* **sdk:** bundle @opentelemetry/api as noExternal to avoid peer dep load errors ([35ff566](https://github.com/Nekzus/LIOP/commit/35ff566b79d8314f3c819773a266c6f4f8e00c07))
+
 # [2.0.0-alpha.14](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.13...v2.0.0-alpha.14) (2026-05-19)
 
 
