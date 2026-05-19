@@ -149,9 +149,9 @@ describe("Differential Privacy Engine", () => {
 		});
 
 		it("should return primitive numbers with noise when output is just a number", () => {
-			const noisy = applyDpToOutput(42, { epsilon: 1.0, sensitivity: 100 }, 3);
+			const noisy = applyDpToOutput(42.5, { epsilon: 1.0, sensitivity: 100 }, 3);
 			expect(typeof noisy).toBe("number");
-			expect(noisy).not.toBe(42);
+			expect(noisy).not.toBe(42.5);
 		});
 
 		it("should NEVER mutate the original input object (data integrity)", () => {
