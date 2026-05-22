@@ -54,9 +54,12 @@ describe("LiopMcpRouter", () => {
 			id: 1,
 		});
 
-		expect(response.error).toBeUndefined();
-		expect(response.result.contents[0].uri).toBe("liop://remote/schema");
-		expect(response.result.contents[0].text).toBe('{"foo": "bar"}');
-		expect(response.result.contents[0].mimeType).toBe("application/json");
+		expect(response).not.toBeNull();
+		// biome-ignore lint/suspicious/noExplicitAny: test payload verification
+		const result = response?.result as any;
+		expect(response?.error).toBeUndefined();
+		expect(result.contents[0].uri).toBe("liop://remote/schema");
+		expect(result.contents[0].text).toBe('{"foo": "bar"}');
+		expect(result.contents[0].mimeType).toBe("application/json");
 	});
 });
