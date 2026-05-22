@@ -148,7 +148,7 @@ jobs:
       - name: Publish Package to NPM (OIDC Trusted Publishing)
         run: |
           if [ "${{ github.ref_name }}" = "main" ]; then
-            pnpm --filter @nekzus/liop publish --no-git-checks --provenance --no-interactive
+            pnpm --filter @nekzus/liop publish --no-git-checks --provenance
           else
-            pnpm --filter @nekzus/liop publish --no-git-checks --provenance --no-interactive --tag ${{ github.ref_name }}
+            pnpm --filter @nekzus/liop publish --no-git-checks --provenance --tag ${{ github.ref_name }}
           fi
