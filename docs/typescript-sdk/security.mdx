@@ -207,6 +207,7 @@ Presets can be merged with custom regex rules for organization-specific complian
 - **Circular Reference Guard**: `WeakSet` tracking prevents infinite recursion on self-referencing objects
 - **Aggregation-First Policy**: Blocks raw row-level data export — only aggregated results (counts, averages, summaries) pass through
 - **Output Schema Enforcement**: When a `Zod` output schema is defined, `.strict()` mode is automatically applied, rejecting any keys not explicitly allowed in the schema
+- **Cryptographic & Envelope Unwrapping**: Automatically isolates and extracts the raw business data payload from MCP/LIOP envelopes and gRPC proxied responses (via `unwrapForAggregationPolicyScan`) before scanning. This prevents false positives from binary metadata and cryptographic seals (like HMAC-SHA256 ZK-Receipt signatures).
 
 ---
 

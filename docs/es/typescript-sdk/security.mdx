@@ -207,6 +207,7 @@ Los presets pueden combinarse con reglas regex personalizadas para cumplir con r
 - **Protección contra Referencias Circulares**: Un `WeakSet` de seguimiento previene la recursión infinita en objetos auto-referenciantes
 - **Política Aggregation-First**: Bloquea la exportación de datos crudos a nivel de fila — solo pasan resultados agregados (conteos, promedios, resúmenes)
 - **Aplicación de Output Schema**: Cuando se define un esquema de salida `Zod`, el modo `.strict()` se aplica automáticamente, rechazando cualquier clave no permitida explícitamente en el esquema
+- **Desempaquetado Criptográfico y de Envoltura**: Aísla y extrae automáticamente el payload de datos de negocio real de las envolturas de transporte MCP/LIOP y de las respuestas proxied de gRPC (mediante `unwrapForAggregationPolicyScan`) antes de realizar el escaneo. Esto evita falsos positivos procedentes de metadatos binarios y sellos criptográficos (como las firmas HMAC-SHA256 de los recibos ZK).
 
 ---
 

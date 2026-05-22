@@ -42,6 +42,9 @@ AI Agents may attempt to bypass static regex scanners by double-serializing stri
 **Aggregation-First Policy**:
 Beyond PII scanning, the Egress Filter enforces an **Aggregation-First** heuristic that blocks raw row-level data exports. If the sandbox output contains arrays with more object elements than the configured threshold (default: 10), the response is rejected. Only aggregated results (counts, averages, summaries) pass through, preventing bulk data exfiltration even when individual records contain no PII.
 
+**Cryptographic & Transport Wrapper Unwrapping**:
+To prevent false positive triggers caused by HMAC-SHA256 ZK-Receipt signatures, JSON-RPC envelopes, or gRPC proxied tool responses (such as `{ content: [{ type: "text", text: "..." }] }`), the Egress Shield executes its scan strictly over the unwrapped business data (via `unwrapForAggregationPolicyScan`). This ensures that cryptographic seals and routing wrappers do not interfere with safety policies.
+
 **Conditional Error Opacity**:
 In production environments (`NODE_ENV=production`), all Egress violations return a generic `[LIOP] Egress Security Violation` message with zero internal details. In development/test environments, detailed schema validation errors and corrective hints are exposed to enable rapid iteration and LLM self-correction.
 

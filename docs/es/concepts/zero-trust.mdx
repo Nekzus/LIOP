@@ -40,6 +40,9 @@ Los agentes podrían intentar evadir escáneres estáticos mediante doble serial
 **Política de Agregación Primero**:
 Más allá del escaneo PII, el Filtro de Egreso impone una heurística de **Agregación Primero** que bloquea la exportación masiva de datos a nivel de fila. Si la salida del sandbox contiene arrays con más elementos tipo objeto que el umbral configurado (por defecto: 10), la respuesta se rechaza. Solo pasan los resultados agregados (conteos, promedios, resúmenes), previniendo la exfiltración masiva de datos incluso cuando los registros individuales no contienen PII.
 
+**Desempaquetado Criptográfico y de Envolturas**:
+Para evitar falsos positivos causados por las firmas HMAC-SHA256 de los recibos ZK, envolturas JSON-RPC o respuestas proxied de herramientas gRPC (como `{ content: [{ type: "text", text: "..." }] }`), el Escudo de Egreso realiza su escaneo estrictamente sobre el payload de negocio desempaquetado (mediante `unwrapForAggregationPolicyScan`). Esto garantiza que los sellos criptográficos y los metadatos de enrutamiento no interfieran con las políticas de seguridad.
+
 **Opacidad Condicional de Errores**:
 En entornos de producción (`NODE_ENV=production`), todas las violaciones de Egreso devuelven un mensaje genérico `[LIOP] Egress Security Violation` sin ningún detalle interno. En entornos de desarrollo/test, se exponen errores de validación de esquema detallados y sugerencias correctivas para habilitar la iteración rápida y la autocorrección del LLM.
 

@@ -349,6 +349,10 @@ const server = new LiopServer(info, {
 // Any response containing these keys → instantly blocked with "Egress Security Violation"
 ```
 
+### Envelope & Cryptographic Unwrapping
+
+To avoid false positive triggers caused by HMAC-SHA256 ZK-Receipt signatures or transport wrapper frames (such as `{ content: [{ type: "text", text: "..." }] }`), the PII Shield and Aggregation-First engines scan only the unwrapped business data (via `unwrapForAggregationPolicyScan`). Cryptographic seals and protocol routing structures are isolated and excluded from compliance scans.
+
 ---
 
 ## Logic-Injection-on-Origin Flow
