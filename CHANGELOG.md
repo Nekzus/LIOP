@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.0.0-alpha.20](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.19...v2.0.0-alpha.20) (2026-05-22)
+
+
+### Bug Fixes
+
+* **sdk:** document small dataset K-Anonymity rules in tool descriptions and prompts ([2cd46d0](https://github.com/Nekzus/LIOP/commit/2cd46d08680ac39fdadf294ef8042932029dba4e))
+
 # [2.0.0-alpha.19](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.18...v2.0.0-alpha.19) (2026-05-22)
 
 
