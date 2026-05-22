@@ -114,6 +114,7 @@ function main(): void {
 			LIOP_NEXUS_URL: nexusUrl,
 			LIOP_LOG_LEVEL: "info",
 			NODE_OPTIONS: "--use-system-ca",
+			LIOP_DOCKER_MAP: "true",
 		},
 	};
 
