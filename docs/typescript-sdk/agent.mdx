@@ -108,6 +108,8 @@ The agent behavior can be customized via the following environment variables:
 | `LIOP_MCP_COMPACT_TOOL_DESCRIPTIONS` | `true` | Strips verbose protocol metadata from tool descriptions, reducing token consumption by ~500 tokens per tool. Set to `0` to opt-out |
 | `LIOP_GRPC_PORT` | `50051` | Override the default gRPC port for the internal RPC server |
 | `LIOP_WORKER_MAX_HEAP_MB` | `64` | Maximum V8 heap size per worker thread (Heap Bomb defense) |
+| `LIOP_DOCKER_MAP` | `false` | Force translation of Docker-internal container IPs (`172.x.x.x`) to the host loopback (`127.0.0.1`), mapping target gRPC services to host-published ports for running containerized mesh nodes in local environments |
+| `LIOP_DEV_MODE` | `false` | Enables development heuristics, which automatically activates Docker port mapping if the Nexus URL points to local demo ports (`13000`/`13001`) |
 
 <Warning>
   `LIOP_BOOTSTRAP_FILE` is **deprecated** since v2.0.0-alpha. Use `LIOP_NEXUS_URL` instead. The agent will log a warning if this variable is detected.

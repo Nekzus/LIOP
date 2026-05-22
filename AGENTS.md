@@ -72,4 +72,12 @@ Agents must enforce these six layers of defense:
 
 ---
 
+## 🔒 Secure CI/CD & Publishing (OIDC)
+- **Tokenless Infrastructure**: Static npm tokens (`NPM_TOKEN`) are strictly prohibited in the CI pipeline. The repository uses **OIDC / Trusted Publishers** on npmjs.com.
+- **Decoupled pnpm Workspace Publishing**: Do not enable `"npmPublish": true` in semantic-release configuration. Standard npm publishing breaks under pnpm workspaces. Publishing is decoupled: semantic-release tags the code, and a native `pnpm publish --provenance --no-git-checks` command executes the publish step.
+- **Provenance Verification**: `--provenance` is mandatory in CI to guarantee build origin.
+
+---
+
 *This file is read by Antigravity IDE at start-up to ensure architectural alignment.*
+
