@@ -52,6 +52,12 @@ This fundamentally solves the data privacy, bandwidth, and latency challenges of
 npm install @nekzus/liop@latest
 ```
 
+Or for the latest stable zero-trust features on the beta channel:
+
+```bash
+npm install @nekzus/liop@beta
+```
+
 > **Requirements:** Node.js ≥ 20.0. The SDK uses `node:crypto`, `node:vm`, and `piscina` (worker threads) internally.
 
 ### Zero-Bloat & Micro-Deployments (Opt-Out)
