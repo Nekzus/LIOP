@@ -24,7 +24,7 @@
             "@semantic-release/npm",
             {
                 "pkgRoot": "sdks/typescript",
-                "npmPublish": true
+                "npmPublish": false
             }
         ],
         [

@@ -144,3 +144,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
         run: npx semantic-release
+
+      - name: Publish Package to NPM (OIDC Trusted Publishing)
+        run: |
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            pnpm --filter @nekzus/liop publish --no-git-checks --provenance --no-interactive
+          else
+            pnpm --filter @nekzus/liop publish --no-git-checks --provenance --no-interactive --tag ${{ github.ref_name }}
+          fi
