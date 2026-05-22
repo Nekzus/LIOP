@@ -35,6 +35,9 @@ Estas directivas representan el ADN del protocolo y deben respetarse en cada imp
 - **2026-05-22**: **Optimización de Seguridad y Estabilidad del Ecosistema**. 
   - **Mitigación de Egress Shield en Claude Desktop**: Actualizado el System Prompt `liop_blind_analyst` y descripciones en `index.ts` del servidor para instruir dinámicamente a la IA sobre la regla de K-Anonymity en datasets pequeños (< 10 registros). Se restringe el output a un máximo de 3 claves y se prohíbe anidamiento, eliminando bucles rápidos de reintentos y pérdidas de conexión WebSocket.
   - **Hardening de Suite de Pruebas**: Migrado `vitest.config.ts` en el SDK TypeScript a la API de **Vitest 4.x**. La propiedad `poolOptions` (y su sub-opción `singleFork`) fue eliminada en v4 como *breaking change*; el pool por defecto ya es `"forks"` nativamente. Se implementó `maxWorkers: process.env.CI ? 1 : undefined` para limitar la concurrencia a un único worker secuencial en entornos de CI (GitHub Actions), neutralizando fugas de memoria y crashes nativos en servidores de recursos limitados. Adicionalmente, se corrigieron errores de tipo estricto en `router.test.ts` (`response possibly null` y `result is unknown`). Batería completa de 286/286 tests unitarios superada con éxito (Exit code 0).
+- **2026-05-22**: **Promoción a la Rama Beta (Estabilización)**. Tras superar de manera impecable la auditoría de compilación estática, las pruebas unitarias y de integración cruzada, y la validación en vivo de las políticas de Differential Privacy y sandboxing en Claude Desktop, se promueve formalmente la versión estable de la rama `alpha` hacia la rama `beta` del repositorio.
+
+
 
 ---
 
