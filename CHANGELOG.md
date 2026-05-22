@@ -3,6 +3,69 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.0.0-beta.1](https://github.com/Nekzus/LIOP/compare/v1.2.0...v2.0.0-beta.1) (2026-05-22)
+
+
+### Bug Fixes
+
+* **ci/sdk-ts:** resolve CodeQL Node 20 deprecation and fix libp2p PeerId type drift ([db1cece](https://github.com/Nekzus/LIOP/commit/db1cecefe3afd5929e790dec63f0cc78af055bf2))
+* **ci:** bypass semantic-release ENONPMTOKEN validation by using manual OIDC publish step ([8ca4161](https://github.com/Nekzus/LIOP/commit/8ca416117557dfa05646fdd3dc98b7e9e8420374))
+* **ci:** remove invalid --no-interactive flag from pnpm publish ([d648759](https://github.com/Nekzus/LIOP/commit/d64875979eef90a560b50b22b9811d72ff132f9e))
+* **ci:** remove NPM_TOKEN env variable to enable OIDC Trusted Publishing ([d3e4e9c](https://github.com/Nekzus/LIOP/commit/d3e4e9c7ac677b9f1d10b87ea470515019e19992))
+* **infra:** align npm registry versions and trigger alpha.2 release ([88ad2dd](https://github.com/Nekzus/LIOP/commit/88ad2ddbb0f874bca4aa6202bdb163e5fb6b303b))
+* **infra:** force release v1.3.0-alpha.2 to resolve tag collision ([e91e4f0](https://github.com/Nekzus/LIOP/commit/e91e4f0a438a735a8b1061cd2e330660ca8464e6))
+* **infra:** manual version bump to v1.3.0-alpha.2 to synchronize npm and fix tag loop ([c49bebb](https://github.com/Nekzus/LIOP/commit/c49bebb32768636fb5104772a04eb2276a0f3f83))
+* **infra:** revert pnpm version to v10.33.0 to bypass Docker build strictness introduced in v11 ([a7d1fb3](https://github.com/Nekzus/LIOP/commit/a7d1fb31d7fa93e688ef6aab1c4711c029aca12b))
+* **infra:** trigger alpha.2 release to sync npm registry ([89f8961](https://github.com/Nekzus/LIOP/commit/89f89617a72620e8d5b8c273f4682be068bd2ef7))
+* **infra:** trigger clean release v1.3.0-alpha.3 after tag stabilization ([26d9794](https://github.com/Nekzus/LIOP/commit/26d9794649d3f8319a88eef004e5fff1412ae2fd))
+* **infra:** trigger fresh CI pipeline for semantic-release ([2528ac7](https://github.com/Nekzus/LIOP/commit/2528ac78a0ed9e19d72d93f1ef26dfa900bbbffc))
+* **release:** release alpha.5 with synchronized git notes ([41924cc](https://github.com/Nekzus/LIOP/commit/41924cc3061b6053232ba84f8a9143fc76719f48))
+* **release:** retry alpha.5 release with annotated tag ([7d6cb2c](https://github.com/Nekzus/LIOP/commit/7d6cb2cf843378cdb073a9630cdfeb808716334f))
+* **release:** trigger alpha.5 release for DDP integration ([4eebe8d](https://github.com/Nekzus/LIOP/commit/4eebe8d509d00de8ed91cb9756d6ddf7382ebc63))
+* **sdk-ts:** upgrade @libp2p/kad-dht to 16.3.0 and align libp2p dependencies to fix typescript build ([1ea3540](https://github.com/Nekzus/LIOP/commit/1ea3540bd2a3e0e3a7eadc2d804d4f6a0888c332))
+* **sdk:** add beta install instructions and finalize production hardening ([d5304d4](https://github.com/Nekzus/LIOP/commit/d5304d42a76757668310e428af23fb2767806620))
+* **sdk:** bundle @opentelemetry/api as noExternal to avoid peer dep load errors ([35ff566](https://github.com/Nekzus/LIOP/commit/35ff566b79d8314f3c819773a266c6f4f8e00c07))
+* **sdk:** document small dataset K-Anonymity rules in tool descriptions and prompts ([2cd46d0](https://github.com/Nekzus/LIOP/commit/2cd46d08680ac39fdadf294ef8042932029dba4e))
+* **sdk:** enforce secure dependency resolutions for NPM consumers ([6b2fdba](https://github.com/Nekzus/LIOP/commit/6b2fdba4c68053e58af42440b5d35ae281eb3910))
+* **sdk:** include socket.yml in published npm package for supply chain triage ([205e6e2](https://github.com/Nekzus/LIOP/commit/205e6e20f8ec26ff81270dbb670964097fea0cf6))
+* **sdk:** initialize beta release channel for production hardening ([a90a70c](https://github.com/Nekzus/LIOP/commit/a90a70c5044d9000699d59513660bbc56146ddcf))
+* **sdk:** override dependency resolutions in root package.json ([292e4b9](https://github.com/Nekzus/LIOP/commit/292e4b9f68d3abefdd8d448611085f2d50d0086f))
+* **sdk:** override unstable ownership dependencies and clean packaging ([3daa5c2](https://github.com/Nekzus/LIOP/commit/3daa5c2461c2b7b59b9a13b77211304f57fa4727))
+* **sdk:** relax CSPRNG autocorrelation threshold to resolve flaky CI failures ([a488950](https://github.com/Nekzus/LIOP/commit/a488950be18b1831e7640e760e74dafd01558dbd))
+* **sdk:** remove redundant resolutions property in package.json to eliminate build warnings ([0c2550c](https://github.com/Nekzus/LIOP/commit/0c2550cb6d6d4658b39899aaf6593602a935dfa5))
+* **sdk:** resolve supply chain security issues by pruning deprecated transport dependencies ([772041f](https://github.com/Nekzus/LIOP/commit/772041ff6bedf139c55901148806567a6bbef3b4))
+* **sdk:** restore standard npm overrides to bypass socket.dev public registry alerts ([be8a3e6](https://github.com/Nekzus/LIOP/commit/be8a3e6ef72e0e6c1cb9cb9e43711344108fae00))
+* **sdk:** use float for primitive noise test to avoid 0.5% integer collision ([1215a63](https://github.com/Nekzus/LIOP/commit/1215a633fa1a860707d356ab40076397aed0ebe0))
+* **security:** redact PII from all error messages — zero data leakage in responses ([1cbce81](https://github.com/Nekzus/LIOP/commit/1cbce81dd9f402410817a42eb4e41cad3ca31632))
+* **security:** remove quasi-identifier arrays from output schemas ([217e255](https://github.com/Nekzus/LIOP/commit/217e255bb56875a01d3471b63880a93e224c08f7))
+* **security:** resolve false-positive blocks on legitimate aggregation queries ([451c6d1](https://github.com/Nekzus/LIOP/commit/451c6d148994472babb608512d7c80d55ba1d1ab))
+
+
+### Features
+
+* **infra:** jump to v1.4.0 to resolve persistent release loop ([f751963](https://github.com/Nekzus/LIOP/commit/f75196395ae3abd1d664f19b7117311223c2fbcb))
+* **infra:** jump to v2.0.0-alpha to resolve persistent release loop ([79b4590](https://github.com/Nekzus/LIOP/commit/79b4590a14c4100766f5c2c00aa62562af072ba5))
+* **sdk-ts:** fix gRPC executeLogic egress validation, resolving output schema mismatch for proxied calls and PII false positives from crypto signatures ([1f1d23c](https://github.com/Nekzus/LIOP/commit/1f1d23c31a07c0e63b24ea58c8638723c83a3ebe))
+* **sdk:** auto-detect and enable Docker address mapping in production mode ([ed4fb84](https://github.com/Nekzus/LIOP/commit/ed4fb841c4eaa8924705735d4630a54ca3158ab0))
+* **sdk:** implement AST-based taint tracking to mitigate PII exfiltration side-channels ([9f00d6e](https://github.com/Nekzus/LIOP/commit/9f00d6ec1735de895ac97aa61c64471917f173a6))
+* **sdk:** implement k-anonymity egress protection and security hardening ([bd7c725](https://github.com/Nekzus/LIOP/commit/bd7c725661d92ba091a95f269540d60dd7efc61f))
+* **sdk:** native TLS auto-relaunch with --use-system-ca ([7c1f9e4](https://github.com/Nekzus/LIOP/commit/7c1f9e4724b5a773c7a17fbd868dde51f72769b6))
+* **sdk:** rename bin liop-agent to liop for industry-standard npx auto-resolution ([4c3a707](https://github.com/Nekzus/LIOP/commit/4c3a707808c6fc9a62eed5d01764ed41561e50be))
+* **security:** implement conditional egress error opacity and timing attack defense ([a64c5ba](https://github.com/Nekzus/LIOP/commit/a64c5ba8a4e78a7a92f4181466b0fa5d69c3d2d4))
+* **security:** Implement Deterministic Differential Privacy (DDP) mode ([8ba1aab](https://github.com/Nekzus/LIOP/commit/8ba1aab45c73d9f1e96a09ad3d50302c877b3922))
+* **security:** Phase 112 industrial security hardening of the TS SDK ([0c54a28](https://github.com/Nekzus/LIOP/commit/0c54a28a502d46a4e8ff8107254ac2eab81fe22f))
+* **security:** PII Egress Shield v3 — defense-in-depth with NER, fuzzy matching & strict schemas ([37c5a60](https://github.com/Nekzus/LIOP/commit/37c5a60881cd2c174676d47b200d49a38f1903a1))
+
+
+### Performance Improvements
+
+* **sdk:** optimize package score by purging unused deps and bundling pure libraries ([332d639](https://github.com/Nekzus/LIOP/commit/332d639de9d6b83dd06aaf7b9078c8ef255a9253))
+
+
+### BREAKING CHANGES
+
+* **infra:** Forced major version bump to stabilize infrastructure and bypass NPM registry conflicts.
+
 # [2.0.0-alpha.20](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.19...v2.0.0-alpha.20) (2026-05-22)
 
 
