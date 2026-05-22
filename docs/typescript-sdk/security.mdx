@@ -109,6 +109,20 @@ This prevents injected logic from adding or overriding methods on built-in types
 | **Fuel limit** | 1,000,000 units |
 | **Working directory** | Ephemeral (deleted on teardown) |
 
+### Microtask Escape Defense
+
+In V8 context execution, microtasks (like resolved Promises) scheduled during evaluation can sometimes outlive the script execution boundary or bypass simple synchronous limits. To prevent this, the SDK enforces:
+
+```typescript
+const context = vm.createContext(sandboxEnv, {
+  name: "LIOP Isolate",
+  origin: "liop://sandbox",
+  microtaskMode: "afterEvaluate",
+});
+```
+
+The `microtaskMode: 'afterEvaluate'` option instructs Node.js to immediately run all microtasks queued by the script before returning. This guarantees that no async logic survives outside the 5,000 ms sandbox execution limit, neutralizing potential asynchronous logic-bomb bypasses.
+
 ### Post-Execution Cleanup
 
 The sandbox destroys all temporary artifacts after every execution cycle:
@@ -242,6 +256,14 @@ The SDK uses the `mlkem` package (FIPS 203 compliant) for key encapsulation:
 ### Nonce Isolation
 
 Each encrypted payload uses a **fresh 12-byte random nonce** (`crypto.randomBytes(12)`) prepended to the ciphertext. This prevents AES-GCM nonce reuse when multiple payloads are encrypted under the same session key.
+
+### Production TLS Hardening
+
+While LIOP's PQC layer encrypts all application-level payloads end-to-end, transport-level encryption (TLS/mTLS) is critical for preventing metadata eavesdropping and ensuring node identity. 
+
+To prevent silent failures in production, the SDK implements a strict fail-safe check:
+- In development/testing environments, missing or misconfigured certificate files trigger a warning and gracefully fall back to insecure gRPC channels.
+- In production (`process.env.NODE_ENV === 'production'`), any failure to resolve or load configured TLS certificates (`rootCert`, `certChain`, or `privateKey`) throws a fatal error, forcing the process to crash immediately instead of silently degrading to an unencrypted channel.
 
 ### Zero-Trust Bridge Authentication
 

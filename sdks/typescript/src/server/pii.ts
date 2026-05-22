@@ -297,10 +297,22 @@ export class PiiScanner {
 				this.shortTokenBoundaryPatterns.set(
 					token,
 					new RegExp(
-						`(?:^|[_-])${token}(?:$|[_-])|` + // snake/kebab boundary
-							`(?:^|[a-z])${token.charAt(0).toUpperCase()}${token.slice(1)}|` + // camelCase boundary (e.g., patientId)
-							`^${token}$`, // exact match
-						"i",
+						(() => {
+							// Build a case-insensitive character class pattern for each letter
+							// e.g. "id" -> "[iI][dD]" — used for snake/kebab/exact matches only
+							const ciPattern = token
+								.split("")
+								.map((c) => `[${c.toLowerCase()}${c.toUpperCase()}]`)
+								.join("");
+							// camelCase: strictly requires uppercase first letter preceded by lowercase
+							// e.g. "patientId" matches, "valid_ages" does NOT
+							const camelPattern = `[a-z]${token.charAt(0).toUpperCase()}${token.slice(1)}`;
+							return (
+								`(?:^|[_-])${ciPattern}(?:$|[_-])|` + // snake/kebab boundary
+								`${camelPattern}(?:$|[A-Z_-])|` + // camelCase boundary (strict uppercase start)
+								`^${ciPattern}$` // exact match
+							);
+						})(),
 					),
 				);
 			} else {

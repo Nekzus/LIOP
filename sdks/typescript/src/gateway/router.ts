@@ -1277,26 +1277,35 @@ export class LiopMcpRouter {
 					call.on("end", async () => {
 						try {
 							if (lastResponse) {
-								const isValid = await this.verifier.verifyZkReceipt(
-									Buffer.from(proxyLogic),
-									Buffer.from(lastResponse.cryptographic_proof).toString("hex"),
-									Buffer.from(lastResponse.zk_receipt),
-								);
+								// Only verify ZK-Receipt if the remote execution succeeded.
+								// If the remote execution failed due to a policy error (e.g. Egress Shield),
+								// the ZK proof is empty and we should bypass validation to propagate the original error.
+								if (!lastResponse.is_error) {
+									const proofHex = Buffer.from(
+										lastResponse.cryptographic_proof,
+									).toString("hex");
+									const isValid = await this.verifier.verifyZkReceipt(
+										Buffer.from(proxyLogic),
+										proofHex,
+										Buffer.from(lastResponse.zk_receipt),
+										Buffer.from(sharedSecret),
+									);
 
-								if (!isValid) {
-									return resolve({
-										jsonrpc: "2.0",
-										id,
-										result: {
-											content: [
-												{
-													type: "text",
-													text: "SECURITY ALERT: Remote response failed cryptographic integrity audit.",
-												},
-											],
-											isError: true,
-										},
-									});
+									if (!isValid) {
+										return resolve({
+											jsonrpc: "2.0",
+											id,
+											result: {
+												content: [
+													{
+														type: "text",
+														text: "SECURITY ALERT: Remote response failed cryptographic integrity audit.",
+													},
+												],
+												isError: true,
+											},
+										});
+									}
 								}
 							}
 

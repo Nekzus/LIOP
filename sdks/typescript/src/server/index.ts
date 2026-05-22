@@ -351,6 +351,12 @@ export class LiopServer {
 		}
 
 		const rec = input as Record<string, unknown>;
+
+		// Extract inner business computation result if encapsulated inside a LIOP envelope
+		if (rec.computation_result !== undefined) {
+			return this.unwrapForAggregationPolicyScan(rec.computation_result);
+		}
+
 		if (!Array.isArray(rec.content) || rec.content.length === 0) {
 			return input;
 		}
@@ -377,6 +383,10 @@ export class LiopServer {
 		policyObj?: boolean | AggregationPolicy,
 		recordsCount?: number,
 	): boolean {
+		if (!policyObj) {
+			return false;
+		}
+
 		const maxRows =
 			typeof policyObj === "object" &&
 			typeof policyObj.maxOutputRows === "number"
@@ -1388,6 +1398,20 @@ Protocol Adherence is mandatory for successful execution.`,
 				}
 
 				try {
+					// [SECURITY] Resolve the negotiated tool to enforce its policies
+					const toolName = session.capability_hash;
+					const toolDef = toolName ? this.tools.get(toolName) : undefined;
+					const toolPolicy = toolDef?.policy;
+
+					// [DP] Prepare Differential Privacy configuration from tool policy
+					const dpConfig = toolPolicy
+						? {
+								epsilon: toolPolicy.dpEpsilon ?? 1.0,
+								sensitivity: toolPolicy.dpSensitivity ?? 1.0,
+								smallDatasetThreshold: 50,
+							}
+						: undefined;
+
 					// Pass to Worker Pool for PQC Decryption and WASI/V8 execution
 					const workerResponse = await this.workerPool.run({
 						ciphertext: request.pqc_ciphertext,
@@ -1398,9 +1422,11 @@ Protocol Adherence is mandatory for successful execution.`,
 						records: this.sandboxRecords,
 						sessionToken: request.session_token,
 						isEncrypted: true,
+						dpConfig, // Apply DP noise inside worker before ZK-Receipt commitment
 					});
 
 					let finalOutput: string;
+					let validationOutput: unknown = workerResponse.output;
 					try {
 						finalOutput =
 							typeof workerResponse.output === "string"
@@ -1418,9 +1444,44 @@ Protocol Adherence is mandatory for successful execution.`,
 								arguments: decoded.__liop_proxy_args || {},
 							});
 							finalOutput = JSON.stringify(toolResult);
+							validationOutput =
+								this.unwrapForAggregationPolicyScan(toolResult);
 						}
 					} catch {
 						finalOutput = String(workerResponse.output);
+					}
+
+					// [SECURITY] Output Schema & Policy validation for gRPC Egress
+					const policyViolation = this.validateOutputPolicy(
+						toolName || "unknown_tool",
+						validationOutput,
+						toolPolicy,
+					);
+					if (policyViolation) {
+						log.info(
+							`[LIOP-RPC] Output policy blocked for ${toolName || "unknown_tool"}: ${policyViolation}`,
+						);
+
+						const isDev =
+							process.env.NODE_ENV === "development" ||
+							process.env.NODE_ENV === "test" ||
+							process.env.LIOP_SEC_VERBOSE === "1";
+
+						const errorMessage = isDev
+							? policyViolation
+							: "[LIOP] Egress Security Violation. Output blocked due to policy enforcement.";
+
+						const errorResponse: LogicResponse = {
+							semantic_evidence: errorMessage,
+							cryptographic_proof: Buffer.from(""),
+							zk_receipt: Buffer.from(""),
+							is_error: true,
+						};
+
+						call.write(errorResponse, () => {
+							call.end();
+						});
+						return;
 					}
 
 					const response: LogicResponse = {
@@ -1436,11 +1497,17 @@ Protocol Adherence is mandatory for successful execution.`,
 					};
 
 					// Final PII check for gRPC egress
+					const piiText =
+						typeof validationOutput === "string"
+							? validationOutput
+							: JSON.stringify(validationOutput ?? "");
 					const violation = await this.piiScanner.scan([
-						{ type: "text", text: finalOutput },
+						{ type: "text", text: piiText },
 					]);
 					const aggregationViolation = this.violatesAggregationFirstPolicy(
-						this.unwrapForAggregationPolicyScan(finalOutput),
+						this.unwrapForAggregationPolicyScan(validationOutput),
+						toolPolicy?.enforceAggregationFirst,
+						this.sandboxRecords?.length,
 					);
 					if (violation || aggregationViolation) {
 						// SEC-CRITICAL: Log details server-side, never expose to caller
@@ -1580,9 +1647,17 @@ Protocol Adherence is mandatory for successful execution.`,
 			}
 
 			// Professional PII Protection Guard
-			const violation = await this.piiScanner.scan(content);
+			const violation = await this.piiScanner.scan([
+				{
+					type: "text",
+					text:
+						typeof dpOutput === "string" ? dpOutput : JSON.stringify(dpOutput),
+				},
+			]);
 			const aggregationViolation = this.violatesAggregationFirstPolicy(
 				dpOutput, // Phase 109: Validate NOISY output
+				toolPolicy?.enforceAggregationFirst,
+				this.sandboxRecords?.length,
 			);
 			if (violation || aggregationViolation) {
 				// SEC-CRITICAL: Log the specific violation reason server-side only.

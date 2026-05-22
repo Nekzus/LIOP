@@ -109,6 +109,20 @@ Esto previene que la lógica inyectada añada o sobreescriba métodos en tipos n
 | **Límite de combustible** | 1.000.000 unidades |
 | **Directorio de trabajo** | Efímero (eliminado al finalizar) |
 
+### Defensa contra Evasión de Microtareas
+
+En la ejecución del contexto de V8, las microtareas (como las Promesas resueltas) planificadas durante la evaluación a veces pueden sobrevivir al límite de ejecución del script o eludir las restricciones síncronas simples. Para prevenir esto, el SDK impone:
+
+```typescript
+const context = vm.createContext(sandboxEnv, {
+  name: "LIOP Isolate",
+  origin: "liop://sandbox",
+  microtaskMode: "afterEvaluate",
+});
+```
+
+La opción `microtaskMode: 'afterEvaluate'` le indica a Node.js que ejecute inmediatamente todas las microtareas encoladas por el script antes de retornar. Esto garantiza que ninguna lógica asíncrona sobreviva fuera del límite de ejecución del sandbox de 5.000 ms, neutralizando potenciales evasiones del sandbox mediante bombas lógicas asíncronas.
+
 ### Limpieza Post-Ejecución
 
 El sandbox destruye todos los artefactos temporales después de cada ciclo de ejecución:
@@ -242,6 +256,14 @@ El SDK utiliza el paquete `mlkem` (compatible con FIPS 203) para la encapsulaci�
 ### Aislamiento de Nonce
 
 Cada payload cifrado utiliza un **nonce aleatorio fresco de 12 bytes** (`crypto.randomBytes(12)`), antepuesto al texto cifrado. Esto previene la reutilización de nonce en AES-GCM cuando múltiples payloads se cifran bajo la misma clave de sesión.
+
+### Endurecimiento de TLS en Producción
+
+Si bien la capa PQC de LIOP cifra todos los payloads a nivel de aplicación de extremo a extremo, el cifrado a nivel de transporte (TLS/mTLS) es crítico para prevenir la escucha de metadatos y garantizar la identidad de los nodos.
+
+Para evitar fallos silenciosos en producción, el SDK implementa una verificación estricta a prueba de fallos:
+- En entornos de desarrollo/pruebas, la falta o mala configuración de los archivos de certificado genera una advertencia y realiza un fallback elegante a canales gRPC inseguros.
+- En producción (`process.env.NODE_ENV === 'production'`), cualquier fallo al resolver o cargar los certificados TLS configurados (`rootCert`, `certChain` o `privateKey`) lanza un error fatal, forzando al proceso a detenerse inmediatamente en lugar de degradarse silenciosamente a un canal no cifrado.
 
 ### Autenticación Zero-Trust del Bridge
 

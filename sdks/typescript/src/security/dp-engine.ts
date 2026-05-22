@@ -159,14 +159,16 @@ function deriveFieldSensitivity(
 	// "total" is ambiguous ("totalRevenue" = SUM, "total" or "total_records" = COUNT).
 	// Only treat "total" as count when it IS the key or ends with a count suffix.
 	const isCountWord =
-		/count|length|size|num|nan_|negative_|positive_|null_|empty_|finite_|non_finite_/i.test(
+		/count|length|size|num|gainer|loser|positive|negative|nan_|null_|empty_|finite_|non_finite_/i.test(
 			lk,
 		);
 	const isTotalCount =
 		lk === "total" ||
 		lk === "n" ||
 		lk === "total_records" ||
-		/total.*(count|items|entries|rows|records)/i.test(lk);
+		lk.startsWith("total_") || // Catch total_tickers, total_users
+		lk.startsWith("num_") || // Catch num_records, num_ticks
+		/total.*(count|items|entries|rows|records|tickers)/i.test(lk);
 	if (isCountWord || isTotalCount) return 1;
 
 	// AVERAGE queries: sensitivity = globalSensitivity / n

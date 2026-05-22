@@ -268,20 +268,25 @@ export class LiopClient {
 				log.info("[LiopClient] Logic Executed. Verification in progress...");
 
 				try {
-					const isValid = await this.verifier.verifyZkReceipt(
-						_safePayload,
-						Buffer.from(response.cryptographic_proof).toString("hex"),
-						Buffer.from(response.zk_receipt),
-						Buffer.from(sharedSecret),
-					);
-
-					if (!isValid) {
-						reject(
-							new Error(
-								"PROTOCOL INTEGRITY VIOLATION: ZK-Receipt verification failed.",
-							),
+					// Only verify ZK-Receipt if the remote execution succeeded.
+					// If the remote execution failed due to a policy error (e.g. Egress Shield),
+					// the ZK proof is empty and we should bypass validation to propagate the original error.
+					if (!response.is_error) {
+						const isValid = await this.verifier.verifyZkReceipt(
+							_safePayload,
+							Buffer.from(response.cryptographic_proof).toString("hex"),
+							Buffer.from(response.zk_receipt),
+							Buffer.from(sharedSecret),
 						);
-						return;
+
+						if (!isValid) {
+							reject(
+								new Error(
+									"PROTOCOL INTEGRITY VIOLATION: ZK-Receipt verification failed.",
+								),
+							);
+							return;
+						}
 					}
 
 					resultFulfilled = true;

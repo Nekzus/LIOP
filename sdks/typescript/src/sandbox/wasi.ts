@@ -248,9 +248,13 @@ export class WasiSandbox {
 					filename: `liop-sandbox-${this.sandboxId.slice(0, 8)}.js`,
 				});
 
+				// microtaskMode: Ensures Promises created inside the sandbox are
+				// resolved within the timeout/breakOnSigint scope (Node.js ≥14.6).
+				// Without this, async microtasks could escape the 5s CPU limit.
 				const context = vm.createContext(sandboxEnv, {
 					name: "LIOP Isolate",
 					origin: "liop://sandbox",
+					microtaskMode: "afterEvaluate",
 				});
 
 				// Execution with hard CPU and Memory limits (Fuel)

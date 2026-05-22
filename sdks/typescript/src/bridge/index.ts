@@ -144,7 +144,11 @@ export class LiopMcpBridge {
 
 			try {
 				const result: CallToolResult = await this.liopServer.callTool(request);
-				const isVerified = await this.verifyZkReceipt(request, result);
+				// If the tool execution returned an error (e.g. policy violation), we bypass
+				// ZK-Receipt verification because no cryptographic proof is generated for errors.
+				const isVerified = result.isError
+					? true
+					: await this.verifyZkReceipt(request, result);
 
 				if (!isVerified) {
 					return this.successResponse(id, {
