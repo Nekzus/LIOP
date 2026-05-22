@@ -3,6 +3,19 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.0.0-alpha.16](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.15...v2.0.0-alpha.16) (2026-05-22)
+
+
+### Bug Fixes
+
+* **ci/sdk-ts:** resolve CodeQL Node 20 deprecation and fix libp2p PeerId type drift ([db1cece](https://github.com/Nekzus/LIOP/commit/db1cecefe3afd5929e790dec63f0cc78af055bf2))
+* **sdk-ts:** upgrade @libp2p/kad-dht to 16.3.0 and align libp2p dependencies to fix typescript build ([1ea3540](https://github.com/Nekzus/LIOP/commit/1ea3540bd2a3e0e3a7eadc2d804d4f6a0888c332))
+
+
+### Features
+
+* **sdk-ts:** fix gRPC executeLogic egress validation, resolving output schema mismatch for proxied calls and PII false positives from crypto signatures ([1f1d23c](https://github.com/Nekzus/LIOP/commit/1f1d23c31a07c0e63b24ea58c8638723c83a3ebe))
+
 # [2.0.0-alpha.15](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.14...v2.0.0-alpha.15) (2026-05-19)
 
 
