@@ -140,10 +140,10 @@ jobs:
       - name: Run Build
         run: pnpm --filter @nekzus/liop build
 
-      - name: Semantic Release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-        run: npx semantic-release
+#      - name: Semantic Release
+#        env:
+#          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+#        run: npx semantic-release
 
       - name: Publish Package to NPM (OIDC Trusted Publishing)
         run: |
