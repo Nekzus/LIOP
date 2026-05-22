@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.0.0-alpha.19](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.18...v2.0.0-alpha.19) (2026-05-22)
+
+
+### Bug Fixes
+
+* **ci:** remove invalid --no-interactive flag from pnpm publish ([d648759](https://github.com/Nekzus/LIOP/commit/d64875979eef90a560b50b22b9811d72ff132f9e))
+
 # [2.0.0-alpha.18](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.17...v2.0.0-alpha.18) (2026-05-22)
 
 
