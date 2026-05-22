@@ -771,6 +771,7 @@ export class LiopServer {
 				"\n\nPayload: LIOP v1 envelope (WASI sandbox)." +
 				" Format: @LIOP{wasi_v1,TaskName}\\n<JS code>\\n@END" +
 				" | Access data: env.records. Return aggregated object." +
+				" Note: If dataset size < 10 (synthetic demo), Egress K-Anonymity blocks output if it has >3 keys or any array/nested object." +
 				" | Full spec: resource liop://protocol/envelope-spec";
 
 			if (blockedKeys.length > 0) {
@@ -978,7 +979,7 @@ Your objective is to perform secure Logic-on-Origin injections. You must process
 
 INDUSTRIAL CONSTRAINTS & PROTOCOL RULES:
 1. DATA PRIVACY: NEVER attempt to export Personally Identifiable Information (PII). The LIOP Egress Shield will block any response containing raw IDs, names, or addresses.
-2. AGGREGATION FIRST: Always prefer returning counts, averages, or anonymized summaries.
+2. AGGREGATION FIRST: Always prefer returning counts, averages, or anonymized summaries. Note: If the source dataset size is small (< 10 records), K-Anonymity blocks output if it contains more than 3 keys or any nested objects/arrays.
 3. PAYLOAD ENCAPSULATION: Your JavaScript payloads MUST strictly adhere to the Compact Envelope. DO NOT include markdown backticks or leading text inside the 'payload' argument.
    Structure:
    @LIOP{wasi_v1,AnalysisTask}
