@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.0.0-alpha.18](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.17...v2.0.0-alpha.18) (2026-05-22)
+
+
+### Bug Fixes
+
+* **ci:** bypass semantic-release ENONPMTOKEN validation by using manual OIDC publish step ([8ca4161](https://github.com/Nekzus/LIOP/commit/8ca416117557dfa05646fdd3dc98b7e9e8420374))
+* **ci:** remove NPM_TOKEN env variable to enable OIDC Trusted Publishing ([d3e4e9c](https://github.com/Nekzus/LIOP/commit/d3e4e9c7ac677b9f1d10b87ea470515019e19992))
+
 # [2.0.0-alpha.17](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.16...v2.0.0-alpha.17) (2026-05-22)
 
 
