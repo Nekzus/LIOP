@@ -636,10 +636,26 @@ export class LiopServer {
 			"- Zero-Trust WASI Sandbox (Node.js Worker Pool)",
 			"- Return aggregated objects, NOT raw row-level arrays",
 			"",
+			"SANDBOX RUNTIME RESTRICTIONS & WORKAROUNDS:",
+			"- Date is poisoned: The 'Date' class/constructor is undefined (Date.now(), Date.parse(), etc. will throw).",
+			"  Workaround: Use lexicographical string comparison on ISO 8601 date strings (e.g., record.date >= '2024-01-01').",
+			"- Poisoned globals: eval, Function, setTimeout, setInterval, Buffer, ArrayBuffer, and TypedArrays are undefined.",
+			"- Frozen prototypes: Any modifications to Object.prototype, Array.prototype, etc., are blocked.",
+			"",
 			"SECURITY CONSTRAINTS:",
 			"- PII Egress Shield blocks raw identifiers in output",
 			"- Aggregation-First policy: prefer counts, averages, summaries",
 			"- AST Guardian: static analysis before execution",
+			"",
+			"DIFFERENTIAL PRIVACY (DP) MECHANISM (Laplace Mechanism):",
+			"- Default field noise scale is derived from node global sensitivity.",
+			"- COUNT / LENGTH Optimization: To obtain EXACT counts without noise (sensitivity=1),",
+			"  the return keys MUST contain 'count', 'length', 'size', 'num', 'positive', 'negative',",
+			"  or start with 'total_' or 'num_' (e.g. 'total_tx', 'credits_count').",
+			"- AVERAGE Optimization: Keys containing 'avg', 'mean' or 'average' scale noise",
+			"  down automatically by dividing sensitivity by dataset size (sensitivity / n).",
+			"- SUM / OTHER queries: Receive full Laplace noise based on global node sensitivity",
+			"  (e.g., Sensitivity=100,000 in Bank to protect balances).",
 		];
 
 		if (this.config?.security?.forbiddenKeys?.length) {
@@ -656,9 +672,9 @@ export class LiopServer {
 			"- Boolean inference (field.charCodeAt(0) < N ? 1 : 0) is blocked",
 			"- Allowed: aggregations on non-PII fields (balance, amount, date)",
 			"",
-			"K-ANONYMITY:",
-			"- Datasets < 10 records: max 3 scalar output fields, no nesting",
-			"- Datasets >= 10 records: max 10 output fields",
+			"K-ANONYMITY THRESHOLDS:",
+			"- Small Datasets (< 10 records): Maximum of 3 scalar output fields. Nesting or arrays in output are strictly forbidden.",
+			"- Large Datasets (>= 10 records): Maximum of 10 output fields.",
 			"",
 			"RATE LIMITS (OWASP A01):",
 			"- Per-tool: 15 calls/min (configurable via LIOP_RATE_LIMIT_MAX)",
@@ -979,19 +995,28 @@ Your objective is to perform secure Logic-on-Origin injections. You must process
 
 INDUSTRIAL CONSTRAINTS & PROTOCOL RULES:
 1. DATA PRIVACY: NEVER attempt to export Personally Identifiable Information (PII). The LIOP Egress Shield will block any response containing raw IDs, names, or addresses.
-2. AGGREGATION FIRST: Always prefer returning counts, averages, or anonymized summaries. Note: If the source dataset size is small (< 10 records), K-Anonymity blocks output if it contains more than 3 keys or any nested objects/arrays.
-3. PAYLOAD ENCAPSULATION: Your JavaScript payloads MUST strictly adhere to the Compact Envelope. DO NOT include markdown backticks or leading text inside the 'payload' argument.
+2. AGGREGATION FIRST & K-ANONYMITY THRESHOLDS: Always prefer returning counts, averages, or anonymized summaries.
+   - Dataset < 10 records: Maximum of 3 scalar output fields. Nesting or arrays in output are strictly forbidden.
+   - Dataset >= 10 records: Maximum of 10 output fields.
+3. LAPLACE DIFFERENTIAL PRIVACY (DP) COMPLIANCE:
+   - Legitimate COUNT queries: To obtain EXACT, un-noised counts, you MUST name your return keys containing 'count', 'length', 'size', 'num', 'positive', 'negative', or starting with 'total_' or 'num_' (e.g. 'total_tx', 'credits_count'). This forces sensitivity=1.0, rounds values, and clamps to non-negative values.
+   - Legitimate AVERAGE queries: Use 'avg_', '_average' or 'mean_' keys to automatically scale down Laplace noise by dividing sensitivity by the dataset size (sensitivity / n).
+   - Legitimate SUM queries: Return keys without count/average suffixes will receive full Laplacian noise scaled by the node's global sensitivity (which can be up to 100,000 in Bank nodes to protect raw balances). Do NOT attempt to bypass this by renaming sum fields to count fields, as it violates protocol integrity.
+4. PAYLOAD ENCAPSULATION: Your JavaScript payloads MUST strictly adhere to the Compact Envelope. DO NOT include markdown backticks or leading text inside the 'payload' argument.
    Structure:
    @LIOP{wasi_v1,AnalysisTask}
    // Your JS Code Here
    @END
-4. RUNTIME SCOPE: The execution environment provides a global 'env' object. Use 'env.records' to access the target dataset.
-5. LOCALIZATION: Format all JSON response keys in the language used by the user in their query (e.g., use Spanish keys if the query is in Spanish).
-6. SCHEMA RIGIDITY: Only use fields defined in the 'Data Dictionary'. Usage of non-existent fields will trigger a sandbox runtime exception.${
-									this.activeSchema
-										? `\n\nCURRENT DATA DICTIONARY (STRICT):\n${JSON.stringify(this.activeSchema, null, 2)}`
-										: ""
-								}
+5. RUNTIME SCOPE: The execution environment provides a global 'env' object. Use 'env.records' to access the target dataset.
+6. LOCALIZATION: Format all JSON response keys in the language used by the user in their query (e.g., use Spanish keys if the query is in Spanish).
+7. SCHEMA RIGIDITY: Only use fields defined in the 'Data Dictionary'. Usage of non-existent fields will trigger a sandbox runtime exception.
+8. SANDBOX RUNTIME: The 'Date' class/constructor is poisoned and set to undefined. Calling 'new Date()', 'Date.now()', or 'Date.parse()' will throw exceptions.
+   Workaround: Perform chronological operations and filtering using lexicographical string comparisons on ISO 8601 date strings (e.g., 'record.date >= "2024-01-01"').
+   Additionally, standard globals like 'eval', 'Function', 'setTimeout', 'setInterval', 'Buffer', ArrayBuffer, and TypedArrays are also undefined.${
+			this.activeSchema
+				? `\n\nCURRENT DATA DICTIONARY (STRICT):\n${JSON.stringify(this.activeSchema, null, 2)}`
+				: ""
+		}
 
 Protocol Adherence is mandatory for successful execution.`,
 							},
@@ -1019,6 +1044,35 @@ Protocol Adherence is mandatory for successful execution.`,
 	}
 
 	/**
+	 * Builds execution guidelines served as a resource to guide LLM code generation.
+	 */
+	private buildExecutionGuidelines(): string {
+		return [
+			"LIOP Sandbox Execution Guidelines",
+			"=================================",
+			"",
+			"1. DATE POISONING & FILTERING WORKAROUND:",
+			"   The global 'Date' class is set to undefined inside the sandbox. Calling 'new Date()', 'Date.now()', or 'Date.parse()' will throw a ReferenceError.",
+			"   - Workaround: Perform chronological filtering using lexicographical string comparisons on ISO 8601 strings.",
+			"     Example: const filtered = env.records.filter(r => r.date >= '2024-01-01' && r.date <= '2024-12-31');",
+			"",
+			"2. K-ANONYMITY CONSTRAINTS:",
+			"   - Datasets with LESS than 10 records: The returned object must contain at most 3 scalar fields, and must NOT contain any arrays or nested objects.",
+			"   - Datasets with 10 or MORE records: The returned object can contain up to 10 fields.",
+			"",
+			"3. DIFFERENTIAL PRIVACY SUFFIXES:",
+			"   To avoid Laplacian noise adding random perturbations to your counts or averages, you must name your object keys using specific terms:",
+			"   - Counts (Exact, no noise): Key names must contain 'count', 'length', 'size', 'num', 'positive', 'negative', or start with 'total_' or 'num_'.",
+			"   - Averages (Reduced noise): Key names must contain 'avg', 'mean', or 'average'.",
+			"   - Sums/Other: Will receive full Laplace noise.",
+			"",
+			"4. GENERAL RESTRICTIONS:",
+			"   - Do not use 'eval', 'Function', 'setTimeout', 'setInterval', 'Buffer', 'ArrayBuffer', or TypedArrays.",
+			"   - Do not attempt to modify prototypes (Object.prototype, Array.prototype).",
+		].join("\n");
+	}
+
+	/**
 	 * Broadcasts the Data Dictionary to the LLM prior to code injection.
 	 */
 	public dataDictionary(
@@ -1027,6 +1081,10 @@ Protocol Adherence is mandatory for successful execution.`,
 		uri: string = "liop://schema/global",
 		description: string = "Exposes the internal database schema for Zero-Shot Autonomy planning",
 	): void {
+		// Inject $comment directive to assist LLMs directly inside the JSON Schema representation
+		schema.$comment =
+			"LIOP DIRECTIVES: 1. Date is undefined (Date.now(), new Date() throw). Workaround: use lexicographical string comparison on ISO 8601 string dates (e.g. record.date >= '2024-01-01'). 2. Small datasets (<10 records) limit outputs to max 3 scalar keys with NO nesting. 3. DP counts must contain count/length/size/num/total_ prefix/suffix.";
+
 		this.activeSchema = schema;
 
 		// [Token Economy] Retroactively update tool descriptions with schema field references.
@@ -1039,9 +1097,19 @@ Protocol Adherence is mandatory for successful execution.`,
 				entry.tool.description &&
 				!entry.tool.description.includes("Data structure:")
 			) {
-				entry.tool.description += `\nData structure: ${schemaDigest}. Full schema: resource ${uri}`;
+				entry.tool.description += `\nData structure: ${schemaDigest}. Full schema: resource ${uri}. Guidelines: resource liop://schema/guidelines`;
 				this.tools.set(toolName, entry);
 			}
+		}
+
+		if (!this.resources.has("liop://schema/guidelines")) {
+			this.resource(
+				"LIOP Execution Guidelines",
+				"liop://schema/guidelines",
+				"Directives for generating compliant JavaScript code for the LIOP Sandbox runtime",
+				"text/plain",
+				() => Promise.resolve(this.buildExecutionGuidelines()),
+			);
 		}
 
 		this.resource(

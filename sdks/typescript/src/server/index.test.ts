@@ -111,11 +111,14 @@ describe("LiopServer", () => {
 		);
 
 		const resources = server.listResources();
-		// 2 resources: auto-registered envelope-spec + user dataDictionary
-		expect(resources.length).toBe(2);
+		// 3 resources: auto-registered envelope-spec + guidelines + user dataDictionary
+		expect(resources.length).toBe(3);
 		expect(
 			resources.some((r) => r.uri === "liop://protocol/envelope-spec"),
 		).toBe(true);
+		expect(resources.some((r) => r.uri === "liop://schema/guidelines")).toBe(
+			true,
+		);
 		expect(resources.some((r) => r.uri === "liop://schema/app")).toBe(true);
 
 		const content = await server.readResource("liop://schema/app");
