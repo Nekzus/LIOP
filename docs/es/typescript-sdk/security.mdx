@@ -344,10 +344,18 @@ El SDK implementa **reporte de errores consciente del entorno** para violaciones
 | `production` | Devuelve un mensaje genérico `[LIOP] Egress Security Violation` sin filtrar ningún detalle interno |
 
 Esto se controla automáticamente mediante `process.env.NODE_ENV`. En despliegues de producción, asegúrese siempre de que `NODE_ENV=production` esté configurado para activar la opacidad total de errores.
-
 <Warning>
   Los mensajes de error detallados en modo desarrollo pueden incluir nombres de campos, estructuras de esquemas y extractos de valores rechazados. Nunca exponga la salida de errores en modo desarrollo a clientes no confiables.
 </Warning>
+
+---
+
+### Canales de Directivas Nativos del Protocolo
+
+Para garantizar que los LLM clientes generen código JavaScript compatible que respete los límites del sandbox sin latencia de prueba y error, el SDK difunde instrucciones estructuradas y nativas del protocolo en tres niveles:
+1. **Metadatos de JSON Schema (`$comment`)**: El diccionario de datos inyecta automáticamente un campo `$comment` que contiene directivas del sandbox directamente en la representación del esquema JSON activo.
+2. **Recurso de Directivas de Ejecución**: Un recurso dinámico (`liop://schema/guidelines`) detalla los workarounds específicos (como el filtrado de fechas mediante cadenas ISO 8601) y restricciones (reglas de K-Anonymity, sufijos de Laplace) requeridos por el nodo.
+3. **Prompts de Sistema Multi-IA**: El sistema de adaptadores de prompts normaliza las restricciones para diferentes modelos (Claude, OpenAI, Gemini) con el fin de prevenir llamadas a APIs alucinadas.
 
 ---
 

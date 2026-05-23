@@ -344,10 +344,18 @@ The SDK implements **environment-aware error reporting** for policy violations:
 | `production` | Returns a generic `[LIOP] Egress Security Violation` message with zero internal details leaked |
 
 This is controlled automatically via `process.env.NODE_ENV`. In production deployments, always ensure `NODE_ENV=production` is set to activate full error opacity.
-
 <Warning>
   Detailed error messages in development mode may include field names, schema structures, and rejected value excerpts. Never expose development-mode error output to untrusted clients.
 </Warning>
+
+---
+
+### Protocol-Native Directive Channels
+
+To ensure that LLM clients generate compliant JavaScript code that respects sandbox limits without trial-and-error latency, the SDK broadcasts structured, protocol-native instructions at three levels:
+1. **JSON Schema Metadata (`$comment`)**: The data dictionary automatically injects a `$comment` field containing sandbox directives directly into the active JSON schema representation.
+2. **Execution Guidelines Resource**: A dynamic resource (`liop://schema/guidelines`) details the exact workarounds (e.g., date filtering via ISO 8601 strings) and constraints (K-Anonymity rules, Laplace suffixes) required by the node.
+3. **Cross-AI System Prompts**: The prompt adapter system normalizes constraints across models (Claude, OpenAI, Gemini) to prevent hallucinated API calls.
 
 ---
 
