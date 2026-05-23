@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.0.0-alpha.22](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.21...v2.0.0-alpha.22) (2026-05-23)
+
+
+### Features
+
+* **sdk:** implement protocol-native directives and remove client-side preflight ([4eea0bb](https://github.com/Nekzus/LIOP/commit/4eea0bbcf3aefa8fa58cfc72669ff67c4c1c9738))
+
 # [2.0.0-alpha.21](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.20...v2.0.0-alpha.21) (2026-05-22)
 
 
