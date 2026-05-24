@@ -24,9 +24,21 @@ import type {
 } from "../types.js";
 import { log } from "../utils/logger.js";
 import { NerScanner } from "./ner-scanner.js";
+import {
+	type OutputSanitizerConfig,
+	sanitizeOutput,
+} from "./output-sanitizer.js";
 import { PII_PATTERNS, PII_PRESETS, type PiiRule, PiiScanner } from "./pii.js";
 
-export { NerScanner, PII_PATTERNS, PII_PRESETS, type PiiRule, PiiScanner };
+export {
+	NerScanner,
+	type OutputSanitizerConfig,
+	PII_PATTERNS,
+	PII_PRESETS,
+	type PiiRule,
+	PiiScanner,
+	sanitizeOutput,
+};
 
 export type ToolHandler<T extends z.ZodRawShape = z.ZodRawShape> = (
 	args: z.infer<z.ZodObject<T>>,
@@ -1498,13 +1510,15 @@ Protocol Adherence is mandatory for successful execution.`,
 						dpConfig, // Apply DP noise inside worker before ZK-Receipt commitment
 					});
 
+					const sanitizedWorkerOutput = sanitizeOutput(workerResponse.output);
+
 					let finalOutput: string;
-					let validationOutput: unknown = workerResponse.output;
+					let validationOutput: unknown = sanitizedWorkerOutput;
 					try {
 						finalOutput =
-							typeof workerResponse.output === "string"
-								? workerResponse.output
-								: JSON.stringify(workerResponse.output);
+							typeof sanitizedWorkerOutput === "string"
+								? sanitizedWorkerOutput
+								: JSON.stringify(sanitizedWorkerOutput);
 
 						// [PROTOCOL TRANSFORMER] Support for Proxied Tool Calls
 						const decoded = JSON.parse(finalOutput);
@@ -1516,12 +1530,13 @@ Protocol Adherence is mandatory for successful execution.`,
 								name: decoded.__liop_proxy_tool,
 								arguments: decoded.__liop_proxy_args || {},
 							});
-							finalOutput = JSON.stringify(toolResult);
+							const sanitizedToolResult = sanitizeOutput(toolResult);
+							finalOutput = JSON.stringify(sanitizedToolResult);
 							validationOutput =
-								this.unwrapForAggregationPolicyScan(toolResult);
+								this.unwrapForAggregationPolicyScan(sanitizedToolResult);
 						}
 					} catch {
-						finalOutput = String(workerResponse.output);
+						finalOutput = String(sanitizedWorkerOutput);
 					}
 
 					// [SECURITY] Output Schema & Policy validation for gRPC Egress
@@ -1570,13 +1585,7 @@ Protocol Adherence is mandatory for successful execution.`,
 					};
 
 					// Final PII check for gRPC egress
-					const piiText =
-						typeof validationOutput === "string"
-							? validationOutput
-							: JSON.stringify(validationOutput ?? "");
-					const violation = await this.piiScanner.scan([
-						{ type: "text", text: piiText },
-					]);
+					const violation = await this.piiScanner.scan(validationOutput);
 					const aggregationViolation = this.violatesAggregationFirstPolicy(
 						this.unwrapForAggregationPolicyScan(validationOutput),
 						toolPolicy?.enforceAggregationFirst,
@@ -1669,10 +1678,11 @@ Protocol Adherence is mandatory for successful execution.`,
 
 			// DP is now applied directly inside the worker to ensure ZK-Receipt integrity
 			const dpOutput = workerResponse.output;
+			const sanitizedOutput = sanitizeOutput(dpOutput);
 
 			// Standard MCP Content Array
 			const textOutput = JSON.stringify({
-				computation_result: dpOutput,
+				computation_result: sanitizedOutput,
 				image_id: workerResponse.image_id,
 				zk_receipt: workerResponse.zk_receipt,
 				status: "Worker Pool Execution Success",
@@ -1690,7 +1700,7 @@ Protocol Adherence is mandatory for successful execution.`,
 				: undefined;
 			const policyViolation = this.validateOutputPolicy(
 				toolName || "unknown_tool",
-				dpOutput, // Phase 109: Validate NOISY output to ensure invariants
+				sanitizedOutput, // Phase 109: Validate NOISY output to ensure invariants
 				toolPolicy,
 			);
 			if (policyViolation) {
@@ -1720,15 +1730,9 @@ Protocol Adherence is mandatory for successful execution.`,
 			}
 
 			// Professional PII Protection Guard
-			const violation = await this.piiScanner.scan([
-				{
-					type: "text",
-					text:
-						typeof dpOutput === "string" ? dpOutput : JSON.stringify(dpOutput),
-				},
-			]);
+			const violation = await this.piiScanner.scan(sanitizedOutput);
 			const aggregationViolation = this.violatesAggregationFirstPolicy(
-				dpOutput, // Phase 109: Validate NOISY output
+				sanitizedOutput, // Phase 109: Validate NOISY output
 				toolPolicy?.enforceAggregationFirst,
 				this.sandboxRecords?.length,
 			);
