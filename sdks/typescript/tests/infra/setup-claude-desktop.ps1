@@ -71,15 +71,15 @@ $jsonString = $finalObj | ConvertTo-Json -Depth 10
 [IO.File]::WriteAllText($claudeConfig, $jsonString)
 
 Write-Host ""
-Write-Host "═══════════════════════════════════════════" -ForegroundColor Cyan
-Write-Host "  🧠 Claude Desktop → LIOP Mesh" -ForegroundColor Green
-Write-Host "═══════════════════════════════════════════" -ForegroundColor Cyan
+Write-Host "===========================================" -ForegroundColor Cyan
+Write-Host "  Claude Desktop -> LIOP Mesh" -ForegroundColor Green
+Write-Host "===========================================" -ForegroundColor Cyan
 Write-Host "  Config: $claudeConfig" -ForegroundColor DarkGray
 Write-Host "  LIOP_NEXUS_URL: $nexusUrl" -ForegroundColor DarkGray
-Write-Host "───────────────────────────────────────────" -ForegroundColor DarkGray
-Write-Host "  ✅ liop-mesh      (local SDK, dev mode)" -ForegroundColor Green
-Write-Host "  ✅ liop-mesh-npm  (NPM package, prod mode)" -ForegroundColor Green
-Write-Host "───────────────────────────────────────────" -ForegroundColor DarkGray
+Write-Host "-------------------------------------------" -ForegroundColor DarkGray
+Write-Host "  [OK] liop-mesh      (local SDK, dev mode)" -ForegroundColor Green
+Write-Host "  [OK] liop-mesh-npm  (NPM package, prod mode)" -ForegroundColor Green
+Write-Host "-------------------------------------------" -ForegroundColor DarkGray
 Write-Host "  Reinicia Claude Desktop para activar." -ForegroundColor Yellow
-Write-Host "═══════════════════════════════════════════" -ForegroundColor Cyan
+Write-Host "===========================================" -ForegroundColor Cyan
 
