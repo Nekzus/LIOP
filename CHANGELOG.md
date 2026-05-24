@@ -3,6 +3,19 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.0.0-alpha.23](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.22...v2.0.0-alpha.23) (2026-05-24)
+
+
+### Bug Fixes
+
+* **infra:** normalize Unicode chars in PS1 setup script & add .env.example for dataset scale ([f6a316a](https://github.com/Nekzus/LIOP/commit/f6a316a52bfd8bc98ef065483988e3b7e642aa09))
+
+
+### Features
+
+* **sdk:** implement context-aware PII scan and output sanitizer (Phase 135) ([7da3a09](https://github.com/Nekzus/LIOP/commit/7da3a09da9bf7a0aa1f720ce6e4bcb47364754d5))
+* **sdk:** implement procedural data generators and scale testing ([891bc28](https://github.com/Nekzus/LIOP/commit/891bc288f743adb917936c5fecc634416d1da19c))
+
 # [2.0.0-alpha.22](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.21...v2.0.0-alpha.22) (2026-05-23)
 
 
