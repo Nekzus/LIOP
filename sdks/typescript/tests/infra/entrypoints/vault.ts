@@ -15,6 +15,7 @@ import { z } from "zod";
 import { LiopServer } from "../../../src/server/index.js";
 import { LiopHybridGateway } from "../../../src/gateway/hybrid.js";
 import { log } from "../../../src/utils/logger.js";
+import { generateMedicalDataset } from "../utils/datasetGenerator.js";
 
 async function main() {
 	const dataDir = "/app/data";
@@ -33,14 +34,11 @@ async function main() {
 		},
 	});
 
-	// Industrial Healthcare Dataset + Elena Rodriguez
-	const patients = [
-		{ id: "PAT-7721", name: "Evelyn Reed", age: 42, bloodType: "O+", diagnosis: "Hypertension", lastVisit: "2026-01-15", medications: ["Lisinopril", "Amlodipine"] },
-		{ id: "PAT-1092", name: "Marcus Thorne", age: 58, bloodType: "A-", diagnosis: "Type 2 Diabetes", lastVisit: "2026-02-20", medications: ["Metformin", "Glipizide"] },
-		{ id: "PAT-4432", name: "Sarah Chen", age: 29, bloodType: "B+", diagnosis: "Acute Bronchitis", lastVisit: "2026-03-05", medications: ["Albuterol", "Amoxicillin"] },
-		{ id: "PAT-8819", name: "Julian Vane", age: 65, bloodType: "AB+", diagnosis: "Osteoarthritis", lastVisit: "2025-12-10", medications: ["Celecoxib", "Glucosamine"] },
-		{ id: "PAT-9901", name: "Elena Rodriguez", age: 35, bloodType: "O-", diagnosis: "Hypertension", lastVisit: "2026-03-25", medications: ["Metoprolol"] }
-	];
+	// Industrial Healthcare Dataset (Scale-Aware Generator)
+	const scaleEnv = process.env.LIOP_DATASET_SCALE;
+	const scale = scaleEnv ? Number.parseInt(scaleEnv, 10) : 1;
+	const patients = generateMedicalDataset(Number.isNaN(scale) ? 1 : scale);
+
 
 	// Expose data dictionary for Zero-Trust LLM guidance
 	liopServer.dataDictionary(

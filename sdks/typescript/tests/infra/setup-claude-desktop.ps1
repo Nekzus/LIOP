@@ -10,6 +10,9 @@ $nexusHost = if ($env:LIOP_NEXUS_HOST) { $env:LIOP_NEXUS_HOST } else { "127.0.0.
 $nexusPort = if ($env:LIOP_NEXUS_PORT) { $env:LIOP_NEXUS_PORT } else { "13000" }
 $nexusUrl = "http://${nexusHost}:${nexusPort}"
 
+# ─── Scale Factor Resolution ──────────────────────────────────────────────────
+$datasetScale = if ($env:LIOP_DATASET_SCALE) { $env:LIOP_DATASET_SCALE } else { "1" }
+
 # ─── liop-mesh (Local SDK — Development Mode) ──────────────────────────────
 # NODE_ENV=development enables Docker address mapping and port remapping.
 $liopLocal = @{
@@ -20,6 +23,7 @@ $liopLocal = @{
         LIOP_NEXUS_URL = $nexusUrl
         LIOP_LOG_LEVEL = "info"
         LIOP_USE_PUBLISHED_GRPC_PORTS = "1"
+        LIOP_DATASET_SCALE = $datasetScale
     }
 }
 
@@ -33,6 +37,7 @@ $liopNpm = @{
         LIOP_LOG_LEVEL = "info"
         NODE_OPTIONS = "--use-system-ca"
         LIOP_DOCKER_MAP = "true"
+        LIOP_DATASET_SCALE = $datasetScale
     }
 }
 

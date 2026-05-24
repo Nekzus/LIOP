@@ -53,6 +53,7 @@ services:
     environment:
       LIOP_NODE_ROLE: vault
       LIOP_LOG_LEVEL: info
+      LIOP_DATASET_SCALE: ${LIOP_DATASET_SCALE:-1}
     volumes:
       - ./nexus-data:/app/data
     networks:
@@ -74,6 +75,7 @@ services:
     environment:
       LIOP_NODE_ROLE: bank
       LIOP_LOG_LEVEL: info
+      LIOP_DATASET_SCALE: ${LIOP_DATASET_SCALE:-1}
     volumes:
       - ./nexus-data:/app/data
     networks:
@@ -95,6 +97,7 @@ services:
     environment:
       LIOP_NODE_ROLE: oracle
       LIOP_LOG_LEVEL: info
+      LIOP_DATASET_SCALE: ${LIOP_DATASET_SCALE:-1}
     volumes:
       - ./nexus-data:/app/data
     networks:

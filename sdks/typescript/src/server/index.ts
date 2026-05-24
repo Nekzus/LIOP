@@ -101,6 +101,10 @@ export interface LogicExecutionPolicy {
 	 */
 	dpSensitivity?: number;
 	/**
+	 * Dataset size threshold below which Differential Privacy is active (default: 50).
+	 */
+	dpSmallDatasetThreshold?: number;
+	/**
 	 * Max queries per numeric field per PQC session (default: 5).
 	 * Prevents multi-query differencing attacks.
 	 */
@@ -1477,7 +1481,7 @@ Protocol Adherence is mandatory for successful execution.`,
 						? {
 								epsilon: toolPolicy.dpEpsilon ?? 1.0,
 								sensitivity: toolPolicy.dpSensitivity ?? 1.0,
-								smallDatasetThreshold: 50,
+								smallDatasetThreshold: toolPolicy.dpSmallDatasetThreshold ?? 50,
 							}
 						: undefined;
 
@@ -1646,7 +1650,7 @@ Protocol Adherence is mandatory for successful execution.`,
 				? {
 						epsilon: dpPolicy.dpEpsilon ?? 1.0,
 						sensitivity: dpPolicy.dpSensitivity ?? 1.0,
-						smallDatasetThreshold: 50,
+						smallDatasetThreshold: dpPolicy.dpSmallDatasetThreshold ?? 50,
 					}
 				: undefined;
 

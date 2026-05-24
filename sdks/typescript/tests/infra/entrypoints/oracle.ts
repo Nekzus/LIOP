@@ -13,6 +13,7 @@ import { z } from "zod";
 import { LiopServer } from "../../../src/server/index.js";
 import { LiopHybridGateway } from "../../../src/gateway/hybrid.js";
 import { log } from "../../../src/utils/logger.js";
+import { generateMarketDataset } from "../utils/datasetGenerator.js";
 
 async function main() {
 	const dataDir = "/app/data";
@@ -35,12 +36,11 @@ async function main() {
 		},
 	);
 
-	// Industrial Market Dataset (Synthetic Ticks)
-	const marketTicks = [
-		{ ticker: "NXS", companyName: "Nekzus Digital", price: 442.10, change: "+1.2%", volume: "1.2M", peRatio: 28.5, marketCap: "$42B" },
-		{ ticker: "LIOP", companyName: "Protocol Foundries", price: 89.45, change: "+5.7%", volume: "850K", peRatio: null, marketCap: "$8.9B" },
-		{ ticker: "WASM", companyName: "Sandbox Systems", price: 156.20, change: "-0.4%", volume: "2.1M", peRatio: 12.3, marketCap: "$15B" }
-	];
+	// Industrial Market Dataset (Scale-Aware Generator)
+	const scaleEnv = process.env.LIOP_DATASET_SCALE;
+	const scale = scaleEnv ? Number.parseInt(scaleEnv, 10) : 1;
+	const marketTicks = generateMarketDataset(Number.isNaN(scale) ? 1 : scale);
+
 
 	// Expose data dictionary for Zero-Trust LLM guidance
 	server.dataDictionary(
