@@ -1133,17 +1133,18 @@ export class LiopMcpRouter {
 			}
 		}
 
-		// Development-only convenience (opt-in):
+		// Docker Demo convenience (opt-in):
 		// Docker Desktop setups publish gRPC ports on the host as 13011/13021/13031.
-		// This mapping is DISABLED in production (NODE_ENV=production) to enforce
-		// dynamic port negotiation via the manifest protocol.
-		const isDevMode =
-			process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test";
-		if (
-			isDevMode &&
-			manifestEntry &&
-			process.env.LIOP_USE_PUBLISHED_GRPC_PORTS === "1"
-		) {
+		// Container-internal gRPC ports (50051) are unreachable from the host.
+		// Activated by any Docker-mapping flag: LIOP_DOCKER_MAP, LIOP_DEV_MODE,
+		// LIOP_USE_PUBLISHED_GRPC_PORTS, or NODE_ENV=development/test.
+		const shouldRemapGrpcPorts =
+			process.env.LIOP_USE_PUBLISHED_GRPC_PORTS === "1" ||
+			process.env.LIOP_DOCKER_MAP === "true" ||
+			process.env.LIOP_DEV_MODE === "true" ||
+			process.env.NODE_ENV === "development" ||
+			process.env.NODE_ENV === "test";
+		if (shouldRemapGrpcPorts && manifestEntry) {
 			const providerName =
 				manifestEntry.manifest.serverInfo?.name?.toLowerCase() || "";
 			if (providerName.includes("vault")) grpcPort = 13011;

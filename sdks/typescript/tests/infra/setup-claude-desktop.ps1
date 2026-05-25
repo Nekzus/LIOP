@@ -14,7 +14,7 @@ $nexusUrl = "http://${nexusHost}:${nexusPort}"
 $datasetScale = if ($env:LIOP_DATASET_SCALE) { $env:LIOP_DATASET_SCALE } else { "1" }
 
 # ─── liop-mesh (Local SDK — Development Mode) ──────────────────────────────
-# NODE_ENV=development enables Docker address mapping and port remapping.
+# NODE_ENV=development enables Docker address mapping and gRPC port remapping.
 $liopLocal = @{
     command = "node"
     args = @($sdkDist)
@@ -22,7 +22,6 @@ $liopLocal = @{
         NODE_ENV = "development"
         LIOP_NEXUS_URL = $nexusUrl
         LIOP_LOG_LEVEL = "info"
-        LIOP_USE_PUBLISHED_GRPC_PORTS = "1"
         LIOP_DATASET_SCALE = $datasetScale
     }
 }
