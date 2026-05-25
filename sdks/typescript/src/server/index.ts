@@ -5,6 +5,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import * as grpc from "@grpc/grpc-js";
+import { createMlKem768 } from "mlkem";
 import { FixedQueue, Piscina } from "piscina";
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
@@ -60,6 +61,7 @@ export interface LiopServerOptions {
 	security?: {
 		piiPatterns?: PiiRule[];
 		forbiddenKeys?: string[];
+		sensitiveKeys?: string[];
 		/** Enable NLP-based Named Entity Recognition scanning on output values. */
 		enableNerScanning?: boolean;
 		/** Rate limiting configuration for tool calls (OWASP A01). */
@@ -121,6 +123,10 @@ export interface LogicExecutionPolicy {
 	 * Prevents multi-query differencing attacks.
 	 */
 	queryBudgetPerField?: number;
+	/**
+	 * Domain-specific sensitive keys that fall under the "sensitive" query budget tier.
+	 */
+	sensitiveKeys?: string[];
 }
 
 export class LiopServer {
@@ -144,7 +150,9 @@ export class LiopServer {
 	private readonly globalCallMaxPerWindow: number;
 
 	// [DP] Query Budget — tracks per-field query counts to prevent multi-query differencing
-	private fieldQueryBudget: Map<string, Map<string, number>> = new Map();
+	// Structure: clientId -> toolName -> field -> count
+	private fieldQueryBudget: Map<string, Map<string, Map<string, number>>> =
+		new Map();
 
 	// [SEC] AST-level taint tracker for PII side-channel prevention
 	private readonly taintAnalyzer: TaintAnalyzer;
@@ -183,7 +191,7 @@ export class LiopServer {
 	private boundPort: number | null = null;
 	private sessions: Map<
 		string,
-		{ capability_hash: string; kyber_sk: Uint8Array }
+		{ capability_hash: string; kyber_sk: Uint8Array; agent_did?: string }
 	> = new Map();
 
 	// Compact envelope: @LIOP{target,name}\n<code>\n@END
@@ -215,6 +223,7 @@ export class LiopServer {
 		_toolName: string,
 		logic: string,
 		policy?: LogicExecutionPolicy,
+		clientId = "local-client",
 	): string | null {
 		// Phase 1: Regex-based row-level export detection (fast path)
 		if (policy) {
@@ -254,21 +263,45 @@ export class LiopServer {
 		}
 
 		// Phase 3: Query Budget Enforcement (prevents multi-query differencing)
-		const queryLimit = policy?.queryBudgetPerField ?? 5;
 		const extractedFields = this.taintAnalyzer.extractQueriedFields(logic);
 
 		if (extractedFields.length > 0) {
-			let toolBudget = this.fieldQueryBudget.get(_toolName);
+			let clientBudget = this.fieldQueryBudget.get(clientId);
+			if (!clientBudget) {
+				clientBudget = new Map<string, Map<string, number>>();
+				this.fieldQueryBudget.set(clientId, clientBudget);
+			}
+
+			let toolBudget = clientBudget.get(_toolName);
 			if (!toolBudget) {
 				toolBudget = new Map<string, number>();
-				this.fieldQueryBudget.set(_toolName, toolBudget);
+				clientBudget.set(_toolName, toolBudget);
 			}
 
 			// Check budget before incrementing to avoid partial updates on failure
 			for (const field of extractedFields) {
+				const sensitivity = this.taintAnalyzer.classifyField(
+					field,
+					policy?.sensitiveKeys,
+				);
+
+				let queryLimit = 25; // default public
+				let sensLabel = "public";
+
+				if (policy?.queryBudgetPerField !== undefined) {
+					queryLimit = policy.queryBudgetPerField;
+					sensLabel = "override";
+				} else if (sensitivity === "forbidden") {
+					queryLimit = 3;
+					sensLabel = "forbidden";
+				} else if (sensitivity === "sensitive") {
+					queryLimit = 8;
+					sensLabel = "sensitive";
+				}
+
 				const count = toolBudget.get(field) ?? 0;
 				if (count >= queryLimit) {
-					return `Preflight policy rejected: Query budget exceeded for field '${field}' (max ${queryLimit} per session). Rotate PQC session to reset budget.`;
+					return `Preflight policy rejected: Query budget exceeded for field '${field}' (max ${queryLimit} per session for ${sensLabel} fields). Rotate PQC session to reset budget.`;
 				}
 			}
 
@@ -289,6 +322,15 @@ export class LiopServer {
 	): string | null {
 		if (!policy) return null;
 		const parsed = this.parseUnknownJson(output);
+
+		// If it's a system execution error result, skip schema validation
+		if (
+			parsed &&
+			typeof parsed === "object" &&
+			(parsed as Record<string, unknown>).isError === true
+		) {
+			return null;
+		}
 
 		if (policy.outputSchema) {
 			// SEC-HARDENING: Force strict mode on ZodObject schemas to prevent
@@ -561,7 +603,8 @@ export class LiopServer {
 			"secret",
 			"privateKey",
 		];
-		this.taintAnalyzer = new TaintAnalyzer(forbiddenKeys);
+		const sensitiveKeys = this.config?.security?.sensitiveKeys ?? [];
+		this.taintAnalyzer = new TaintAnalyzer(forbiddenKeys, sensitiveKeys);
 
 		// Initialize Zero-Blocking Worker Pool for Heavy Cryptography & Sandboxing
 		const isTS = import.meta.url.endsWith(".ts");
@@ -867,6 +910,7 @@ export class LiopServer {
 							name,
 							logic,
 							policy,
+							"mcp-client",
 						);
 						if (preflightReason) {
 							return {
@@ -903,7 +947,12 @@ export class LiopServer {
 					(args as Record<string, unknown>).payload = logic;
 
 					// DELEGATE TO WORKER POOL: Parallel PQC & Sandboxing (Includes PII Shield)
-					const preflightReason = this.runPreflightPolicy(name, logic, policy);
+					const preflightReason = this.runPreflightPolicy(
+						name,
+						logic,
+						policy,
+						"mcp-client",
+					);
 					if (preflightReason) {
 						stats.failures++;
 						stats.lastAttempt = now;
@@ -1220,7 +1269,10 @@ Protocol Adherence is mandatory for successful execution.`,
 	/**
 	 * Emulates calling a tool (used locally or via LIOPMcpBridge)
 	 */
-	public async callTool(request: CallToolRequest): Promise<CallToolResult> {
+	public async callTool(
+		request: CallToolRequest,
+		clientId = "local-client",
+	): Promise<CallToolResult> {
 		const entry = this.tools.get(request.name);
 		if (!entry) {
 			throw new Error(`Tool not found: ${request.name}`);
@@ -1257,6 +1309,7 @@ Protocol Adherence is mandatory for successful execution.`,
 						request.name,
 						logic,
 						entry.policy,
+						clientId,
 					);
 					if (preflightReason) {
 						return {
@@ -1449,12 +1502,10 @@ Protocol Adherence is mandatory for successful execution.`,
 
 					const sessionToken = crypto.randomUUID();
 
-					// [SECURITY] Reset session-bound state
-					this.fieldQueryBudget.clear();
-
 					this.sessions.set(sessionToken, {
 						capability_hash: request.capability_hash,
 						kyber_sk: secretKey,
+						agent_did: request.agent_did,
 					});
 
 					callback(null, {
@@ -1482,12 +1533,72 @@ Protocol Adherence is mandatory for successful execution.`,
 					return;
 				}
 
-				try {
-					// [SECURITY] Resolve the negotiated tool to enforce its policies
-					const toolName = session.capability_hash;
-					const toolDef = toolName ? this.tools.get(toolName) : undefined;
-					const toolPolicy = toolDef?.policy;
+				// [SECURITY] Resolve the negotiated tool to enforce its policies
+				const toolName = session.capability_hash;
+				const toolDef = toolName ? this.tools.get(toolName) : undefined;
+				const toolPolicy = toolDef?.policy;
 
+				// [SECURITY] Preflight check on gRPC execution path (decrypt Logic-on-Origin)
+				try {
+					const kem = await createMlKem768();
+					const sharedSecret = kem.decap(
+						new Uint8Array(request.pqc_ciphertext),
+						session.kyber_sk,
+					);
+					const aesKey = Buffer.from(sharedSecret);
+
+					const wasmBuffer = Buffer.from(request.wasm_binary);
+					const authTag = wasmBuffer.subarray(-16);
+					const encryptedData = wasmBuffer.subarray(0, -16);
+
+					const decipher = crypto.createDecipheriv(
+						"aes-256-gcm",
+						aesKey,
+						Buffer.from(request.aes_nonce || new Uint8Array(12)),
+					);
+					decipher.setAuthTag(authTag);
+					let decrypted = decipher.update(encryptedData);
+					decrypted = Buffer.concat([decrypted, decipher.final()]);
+
+					const decryptedPayload = decrypted.toString("utf-8");
+					const logic =
+						this.extractLogic(decryptedPayload) || decryptedPayload.trim();
+
+					const clientId = session.agent_did || "unknown-client";
+					const preflightReason = this.runPreflightPolicy(
+						toolName || "unknown_tool",
+						logic,
+						toolPolicy,
+						clientId,
+					);
+
+					if (preflightReason) {
+						log.info(`[LIOP-RPC] Preflight blocked: ${preflightReason}`);
+						const errorResponse: LogicResponse = {
+							semantic_evidence: preflightReason,
+							cryptographic_proof: Buffer.from(""),
+							zk_receipt: Buffer.from(""),
+							is_error: true,
+						};
+						call.write(errorResponse, () => {
+							call.end();
+						});
+						return;
+					}
+				} catch (decryptionError: unknown) {
+					const errorMsg =
+						decryptionError instanceof Error
+							? decryptionError.message
+							: String(decryptionError);
+					log.error(`[LIOP-RPC] Preflight decryption failed: ${errorMsg}`);
+					call.emit("error", {
+						code: grpc.status.INTERNAL,
+						details: `Preflight logic analysis failed: ${errorMsg}`,
+					});
+					return;
+				}
+
+				try {
 					// [DP] Prepare Differential Privacy configuration from tool policy
 					const dpConfig = toolPolicy
 						? {
@@ -1526,10 +1637,32 @@ Protocol Adherence is mandatory for successful execution.`,
 							log.info(
 								`[LIOP-RPC] Executing Proxied Tool: ${decoded.__liop_proxy_tool}`,
 							);
-							const toolResult = await this.callTool({
-								name: decoded.__liop_proxy_tool,
-								arguments: decoded.__liop_proxy_args || {},
-							});
+							const clientId = session.agent_did || "unknown-client";
+							const toolResult = await this.callTool(
+								{
+									name: decoded.__liop_proxy_tool,
+									arguments: decoded.__liop_proxy_args || {},
+								},
+								clientId,
+							);
+
+							if (toolResult.isError) {
+								log.info(
+									`[LIOP-RPC] Proxy tool execution failed: ${toolResult.content[0].text}`,
+								);
+								const errorResponse: LogicResponse = {
+									semantic_evidence:
+										toolResult.content[0].text || "Unknown error",
+									cryptographic_proof: Buffer.from(""),
+									zk_receipt: Buffer.from(""),
+									is_error: true,
+								};
+								call.write(errorResponse, () => {
+									call.end();
+								});
+								return;
+							}
+
 							const sanitizedToolResult = sanitizeOutput(toolResult);
 							finalOutput = JSON.stringify(sanitizedToolResult);
 							validationOutput =

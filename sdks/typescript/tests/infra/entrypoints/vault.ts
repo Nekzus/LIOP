@@ -105,7 +105,7 @@ async function main() {
 			// (count→1, avg→sensitivity/n, sum→configured value).
 			dpEpsilon: 2.0,
 			dpSensitivity: 1.0, 
-			queryBudgetPerField: 3, // HIPAA: highly restricted
+			sensitiveKeys: ["diagnosis", "bloodType"],
 		},
 	);
 

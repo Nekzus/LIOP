@@ -278,4 +278,32 @@ describe("TaintAnalyzer — Side-Channel Prevention", () => {
 			expect(result).not.toBeNull();
 		});
 	});
+
+	describe("Generator / Iterator side-channel (MUST BLOCK)", () => {
+		it("should block generator yielding PII field", () => {
+			const code = `
+				const gen = function*() {
+					for (const r of env.records) {
+						yield r.name;
+					}
+				};
+				const it = gen();
+				return { v0: it.next().value, v1: it.next().value };
+			`;
+			const result = analyzer.analyze(code);
+			expect(result).not.toBeNull();
+		});
+
+		it("should extract queried fields from generator loops", () => {
+			const code = `
+				const gen = function*() {
+					for (const r of env.records) {
+						yield r.balance;
+					}
+				};
+			`;
+			const fields = analyzer.extractQueriedFields(code);
+			expect(fields).toContain("balance");
+		});
+	});
 });

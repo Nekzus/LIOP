@@ -112,6 +112,7 @@ async function main() {
 			// Global sensitivity covers SUM fields (max plausible single balance).
 			dpEpsilon: 2.0,
 			dpSensitivity: 100000.0,
+			sensitiveKeys: ["accountType"],
 			queryBudgetPerField: 5,
 		},
 	);

@@ -108,7 +108,7 @@ async function main() {
 			// Engine auto-derives count sensitivity=1.
 			dpEpsilon: 4.0,
 			dpSensitivity: 500.0,
-			queryBudgetPerField: 10,
+			sensitiveKeys: ["ticker", "companyName"],
 		},
 	);
 
