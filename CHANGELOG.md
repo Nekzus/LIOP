@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.0.0-alpha.25](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.24...v2.0.0-alpha.25) (2026-05-25)
+
+
+### Bug Fixes
+
+* **gateway:** unify gRPC port remapping for npm package Docker compatibility ([3929e2f](https://github.com/Nekzus/LIOP/commit/3929e2f783e45b2784b2cbb62ced49e32159a050))
+
 # [2.0.0-alpha.24](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.23...v2.0.0-alpha.24) (2026-05-25)
 
 
