@@ -15,18 +15,26 @@ LIOP utiliza el **Noise Protocol Framework** (usado por aplicaciones de mensajer
 - **Autenticación Mutua**: Las conexiones se autentican de forma bilateral instantánea. Ambos extremos saben exactamente con quién están transaccionando mediante pruebas de posesión de clave.
 - **Criptografía Post-Cuántica (PQC)**: LIOP emplea **Kyber (ML-KEM-768)** para el intercambio de claves y **AES-256-GCM** para el cifrado del payload. Esto protege la transmisión contra ataques futuros de computación cuántica ("Harvest Now, Decrypt Later").
 
-## 2. Inspección de Carga (Guardian AST Sentinel)
+## 2. Inspección de Carga (Guardian AST Sentinel & Taint Analyzer)
 
-Antes de que el servidor ejecute el archivo `.wasm` inyectado, este se somete a un análisis estático profundo.
+Antes de que el Nodo de Datos permita la ejecución del código inyectado, este se somete a un análisis estático profundo del Árbol de Sintaxis Abstracta (AST), tanto a nivel binario como de script.
 
 <Frame>
   <img className="block dark:hidden w-full" src="/images/zero-trust-ast-light.svg" alt="Inspección Guardian AST en LIOP" />
   <img className="hidden dark:block w-full" src="/images/zero-trust-ast-dark.svg" alt="Inspección Guardian AST en LIOP" />
 </Frame>
 
-El **Módulo Guardián** inspecciona el Árbol de Sintaxis Abstracta (AST) del WebAssembly. Como WebAssembly es verificable sin ejecución, el servidor valida que el binario no contenga instrucciones malformadas, recursividad infinita no autorizada o intentos de importar funciones del sistema prohibidas. 
+El **Módulo Guardián** inspecciona el Árbol de Sintaxis Abstracta (AST) de WebAssembly. Como WebAssembly es verificable sin ejecución, el servidor valida que el binario no contenga instrucciones malformadas, recursividad infinita no autorizada o intentos de importar funciones del sistema prohibidas.
 
-Esto neutraliza código malicioso y ataques de escape en tiempo cero, antes de que comience la ejecución.
+Para scripts interpretados (como payloads en JavaScript), el **Taint Analyzer** ejecuta una inspección estática de **Control de Flujo de Información (IFC)**. Este módulo analiza el AST para asegurar que las variables que contienen datos PII no se filtren hacia salidas escalares.
+
+**Protección contra Evasión por Generadores e Iteradores**:
+Para prevenir intentos sofisticados de bypass que utilicen generadores o iteradores (`function*` / `yield`) para extraer registros evadiendo los escaneos estándar de propiedades, el Taint Analyzer realiza un análisis estático profundo de los ámbitos de función:
+- **Rastreo de `YieldExpression`**: El motor evalúa recursivamente los argumentos de `yield`, garantizando que los valores derivados de PII sean marcados incluso si se encapsulan en yields de generadores.
+- **Contaminación (Tainting) del Scope de Funciones**: Las funciones locales (`FunctionDeclaration`, `FunctionExpression`, `ArrowFunctionExpression`) que retornan o hacen `yield` de campos con taint son marcadas permanentemente como *tainted*.
+- **Cadenas de Métodos de Iteración**: Al invocar una función contaminada (`gen()`), el iterador resultante y sus llamadas subsiguientes (como `.next().value`) heredan el taint, propagando la restricción a través del árbol de expresiones y neutralizando la exfiltración por generadores.
+
+Esto neutraliza código malicioso, lógica evasiva y ataques de escape en tiempo cero, antes de que comience la ejecución.
 
 ## 3. Filtro Anti-Exfiltración (Egress Filter)
 
@@ -107,4 +115,27 @@ Siguiendo el **Algoritmo TopDown del Censo de EE.UU. 2020**, el motor impone dos
 
 1. **Enteros no-negativos**: Todos los campos de conteo se redondean y restringen a `≥ 0`.
 2. **Preservación de tipo**: Las entradas enteras producen salidas enteras; las entradas no-negativas permanecen no-negativas.
+
+## 8. Presupuesto de Consultas Estratificado (NIST SP 800-226)
+
+Incluso con la adición de Privacidad Diferencial, un atacante podría teóricamente evadir las protecciones del ruido Laplace ejecutando la misma consulta miles de veces a través de la malla y computando el promedio estadístico para reconstruir los datos originales.
+
+Para evitar esta reconstrucción diferencial, LIOP implementa un **Motor de Presupuesto de Consultas Estratificado (Query Budget)** alineado con las directrices de **NIST SP 800-226**.
+
+### Presupuestos Aislados por Cliente y Persistentes por Sesión
+
+- **Aislamiento de Sesión**: Los presupuestos se rastrean *por cliente* utilizando la identidad criptográfica (`agentDid` o `clientId`) verificada durante el handshake PQC (`negotiateIntent`). Los contadores no se pueden reiniciar al reconectarse o al iniciar un nuevo intent gRPC dentro de la misma sesión.
+- **Validación en Pre-Vuelo (Preflight)**: El `TaintAnalyzer` decodifica y escanea el AST de la lógica inyectada *antes* de instanciar el sandbox. Extrae todos los campos consultados, incluyendo aquellos dentro de bucles de generadores o indexaciones directas. Si el conteo acumulado de consultas de un campo supera el límite de su tier, la petición se aborta inmediatamente en el preflight, devolviendo un error limpio a la IA.
+
+### Tiers de Sensibilidad
+
+LIOP clasifica los campos en tres tiers de sensibilidad, aplicando límites de consulta específicos por sesión:
+
+| Tier de Sensibilidad | Campos Objetivo | Límite de Consultas / Sesión | Descripción y Rationale |
+|:---|:---|:---|:---|
+| **FORBIDDEN (Tier 3)** | SSN, contraseña, nombre completo, email, credenciales | **3 consultas** | Identificadores directos. Altamente restringidos; se bloquean tras 3 peticiones. |
+| **SENSITIVE (Tier 2)** | Balance bancario, tipo de cuenta, diagnóstico médico | **8 consultas** | Propiedades críticas del dominio. Semi-restringidos para prevenir inferencia estadística. |
+| **PUBLIC (Tier 1)** | Edad, divisa de transacción, precio, metadatos | **25 consultas** | Campos de baja sensibilidad. Límite estándar. |
+
+*Nota: Para compatibilidad con sistemas heredados, se puede configurar un límite uniforme mediante `queryBudgetPerField`, el cual sobrescribe los tiers y aplica un límite único para todos los campos.*
 

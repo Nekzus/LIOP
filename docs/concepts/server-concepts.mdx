@@ -142,6 +142,60 @@ const server = new LiopServer({
 
 The **O(1) Egress Filter** will use a high-performance memory `Set` to scan every return object and block any key matching these terms, even if they are nested deep within a JSON structure.
 
+### Sensitive Keys & Tiered Budget (NIST SP 800-226)
+
+To protect domain-critical fields (like bank account balances or medical diagnoses) without outright blocking them at egress like forbidden keys, you can classify them as **Sensitive Keys**. 
+
+LIOP automatically enforces a **3-Tier Query Budget** session limit per client:
+- **Forbidden Tier (3 queries/session)**: Applies to all fields declared in `forbiddenKeys`.
+- **Sensitive Tier (8 queries/session)**: Applies to all fields declared in `sensitiveKeys`.
+- **Public Tier (25 queries/session)**: Applies to any other field accessed.
+
+You can declare sensitive keys globally at the server level, or locally at the tool registration level:
+
+#### Global Server Configuration
+```typescript
+const server = new LiopServer(
+  { name: "financial-vault", version: "1.0.0" },
+  {
+    security: {
+      forbiddenKeys: ["ssn"],
+      sensitiveKeys: ["balance"] // Global sensitive keys
+    }
+  }
+);
+```
+
+#### Tool-Level Configuration
+You can add extra sensitive keys for a specific tool. The server will dynamically merge these with the global list:
+```typescript
+server.tool(
+  "analyze_transactions",
+  "Analyzes account transactions",
+  { payload: z.string() },
+  async (args) => { ... },
+  {
+    enforceAggregationFirst: true,
+    sensitiveKeys: ["accountType"] // Merged with global 'balance' key
+  }
+);
+```
+
+#### Legacy Uniform Budget
+If you need a backward-compatible uniform limit across all fields instead of tiered budgets, define `queryBudgetPerField` on the tool options:
+```typescript
+server.tool(
+  "legacy_analyzer",
+  "Analyzes legacy records",
+  { payload: z.string() },
+  async (args) => { ... },
+  {
+    enforceAggregationFirst: true,
+    queryBudgetPerField: 5 // Uniform limit: exactly 5 queries for any field
+  }
+);
+```
+
 ### Differential Privacy Policy
 For datasets below the `smallDatasetThreshold` (default: 50 records), the server automatically applies calibrated Laplace noise to all numeric outputs. Configure the privacy profile in the server constructor:
 
