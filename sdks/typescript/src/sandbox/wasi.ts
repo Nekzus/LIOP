@@ -224,12 +224,19 @@ export class WasiSandbox {
 
 			const scriptCode = `
 				(function() {
+					"use strict";
 					try {
+						// Pre-execution prototype freezing (PCI-DSS Compliance)
 						Object.freeze(Object.prototype);
 						Object.freeze(Array.prototype);
 						Object.freeze(String.prototype);
 						Object.freeze(Number.prototype);
 						Object.freeze(Boolean.prototype);
+						Object.freeze(RegExp.prototype);
+						Object.freeze(Map.prototype);
+						Object.freeze(Set.prototype);
+						Object.freeze(Promise.prototype);
+						Object.freeze(Error.prototype);
 						Object.freeze(Object.getPrototypeOf(function(){}));
 
 						${processedLogic}

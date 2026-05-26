@@ -68,4 +68,20 @@ describe("WasiSandbox (Industrial Tier-0)", () => {
         const result = await sandbox.execute(arrayBufferLogic, [], {});
         expect(result.output).toBe("undefined");
     });
+
+    it("should prevent prototype pollution and capture TypeError immediately (strict mode)", async () => {
+        const maliciousLogic = `
+            function liop_main(env) {
+                // Attempt prototype pollution inside the sandbox
+                Object.prototype.poisoned = "leak";
+                return "polluted";
+            }
+        `;
+
+        const result = await sandbox.execute(maliciousLogic, [], {});
+        expect(result.output).toContain("LogicError: Cannot add property poisoned, object is not extensible");
+
+        // Verify that the host environment's prototype remains clean
+        expect((Object.prototype as any).poisoned).toBeUndefined();
+    });
 });
