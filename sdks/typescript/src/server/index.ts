@@ -661,6 +661,18 @@ export class LiopServer {
 			},
 		});
 
+		// Pre-warm the worker thread pool asynchronously during initialization
+		const minThreads = this.config?.workerPool?.minThreads ?? (isTest ? 0 : 2);
+		if (this.workerPool && minThreads > 0) {
+			for (let i = 0; i < minThreads; i++) {
+				this.workerPool.run({ isWarmup: true }).catch((err) => {
+					log.debug(
+						`[LiopServer] Worker pool warm-up ping failed: ${err.message}`,
+					);
+				});
+			}
+		}
+
 		// [Token Economy] Auto-register LIOP protocol spec as a single Resource.
 		// This centralizes the envelope documentation that was previously
 		// duplicated in every tool description, reducing token overhead.

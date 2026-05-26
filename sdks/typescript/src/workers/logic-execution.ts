@@ -10,13 +10,14 @@ import { WasiSandbox } from "../sandbox/wasi.js";
 import { applyDpToOutput } from "../security/dp-engine.js";
 
 export interface WorkerData {
-	ciphertext: Uint8Array;
-	secretKeyObj: ArrayLike<number>;
-	kyberPublicKey: Uint8Array;
-	wasmBinary: Uint8Array; // Can also be JS code in non-encrypted mode
-	inputs: Record<string, Uint8Array>;
+	isWarmup?: boolean;
+	ciphertext?: Uint8Array;
+	secretKeyObj?: ArrayLike<number>;
+	kyberPublicKey?: Uint8Array;
+	wasmBinary?: Uint8Array; // Can also be JS code in non-encrypted mode
+	inputs?: Record<string, Uint8Array>;
 	records?: Record<string, unknown>[];
-	sessionToken: string;
+	sessionToken?: string;
 	isEncrypted?: boolean;
 	aesNonce?: Uint8Array;
 	dpConfig?: {
@@ -32,6 +33,14 @@ export default async function processLogicExecution(data: WorkerData): Promise<{
 	fuel_consumed: number;
 	zk_receipt?: string;
 }> {
+	if (data.isWarmup) {
+		return {
+			image_id: "",
+			output: "warm",
+			fuel_consumed: 0,
+		};
+	}
+
 	const {
 		ciphertext,
 		secretKeyObj,
@@ -41,7 +50,7 @@ export default async function processLogicExecution(data: WorkerData): Promise<{
 		records,
 		isEncrypted = true,
 		dpConfig,
-	} = data;
+	} = data as Required<WorkerData>;
 
 	let decryptedPayload: Buffer | string;
 	const decryptedInputs: Record<string, unknown> = {};
