@@ -300,7 +300,7 @@ await bridge.connect();
 │  Layer 2: WASI Sandbox (V8 Isolate)                       │
 │  25 poisoned globals (incl. Date, TypedArrays) •          │
 │  CPU Fuel limits • 5s timeout • maxHeapMb (64MB default)  │
-│  Object.freeze() on 6 core prototypes                     │
+│  Object.freeze() on 11 core prototypes (strict mode)      │
 ├───────────────────────────────────────────────────────────┤
 │  Layer 3: Taint Analyzer (IFC — Static)                   │
 │  Acorn AST 3-pass analysis blocks PII side-channels:      │
@@ -398,7 +398,7 @@ server.enableZeroShotAutonomy(); // Registers the "Blind Analyst" prompt
 
 Node.js is single-threaded. Heavy operations like Kyber768 decryption, AES-GCM authentication, AST validation, and V8 sandbox instantiation would block the event loop in a standard setup.
 
-This SDK dispatches all heavy computation to OS-level threads via [`piscina`](https://github.com/piscinajs/piscina), achieving Rust-like concurrency:
+This SDK dispatches all heavy computation to OS-level threads via [`piscina`](https://github.com/piscinajs/piscina), achieving Rust-like concurrency. On server or verifier initialization, background warmup tasks are automatically dispatched to pre-warm the pool workers, eliminating V8/WASI cold-start overhead (~820k fuel units) for subsequent calls:
 
 ```typescript
 // Automatic — no configuration needed

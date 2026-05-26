@@ -22,7 +22,7 @@ The LIOP TypeScript SDK enforces a **defense-in-depth** security model composed 
 |:------|:--------|:-------|
 | **Guardian AST** | Blocks unauthorized WASM imports before execution | Pre-compile |
 | **WASI Sandbox** | Isolates runtime with 25 poisoned globals and CPU fuel limits | Execution |
-| **Prototype Defense** | Freezes 6 core prototypes to prevent pollution attacks | Execution |
+| **Prototype Defense** | Freezes 11 core prototypes in strict mode to prevent pollution attacks | Execution |
 | **PII Shield** | Prevents data leakage with algorithmic validators | Post-execution |
 | **Aggregation Policy** | Enforces output cardinality limits on row-level data | Post-execution |
 | **ZK-Receipt** | Provides HMAC-SHA256 proof of honest computation | Post-execution |
@@ -88,7 +88,7 @@ After assignment, the entire sandbox context is recursively frozen via `Object.f
 
 ### Prototype Pollution Defense
 
-Inside the sandbox IIFE, six core JavaScript prototypes are frozen before user code executes:
+Inside the sandbox IIFE, eleven core JavaScript prototypes are frozen before user code executes to satisfy strict PCI-DSS and HIPAA logical isolation requirements:
 
 ```typescript
 Object.freeze(Object.prototype);
@@ -96,10 +96,17 @@ Object.freeze(Array.prototype);
 Object.freeze(String.prototype);
 Object.freeze(Number.prototype);
 Object.freeze(Boolean.prototype);
-Object.freeze(Function.prototype);
+Object.freeze(RegExp.prototype);
+Object.freeze(Map.prototype);
+Object.freeze(Set.prototype);
+Object.freeze(Promise.prototype);
+Object.freeze(Object.getPrototypeOf(function(){})); // Resolves and freezes Function.prototype
+Object.freeze(Error.prototype);
 ```
 
-This prevents injected logic from adding or overriding methods on built-in types (e.g., overwriting `Array.prototype.map` to exfiltrate data). The freeze is applied within the IIFE wrapper, ensuring it cannot be bypassed by the injected code.
+Because `Function` and other global namespaces are explicitly poisoned (set to `undefined`) in the global scope to eliminate execution escapes, `Function.prototype` cannot be frozen directly. The SDK resolves it dynamically via `Object.getPrototypeOf(function(){})` to apply the freeze.
+
+The entire guest execution is wrapped inside a block containing `"use strict";`. Consequently, any attempt by the injected code to write or assign properties to these frozen prototypes (e.g., `Object.prototype.polluted = "leak"`) will immediately throw a hard `TypeError`, halting execution and preventing prototype pollution vulnerabilities.
 
 ### CPU Fuel Limits
 
@@ -303,6 +310,10 @@ Default configuration: 2–8 threads (production), 0–1 threads (test), `FixedQ
 ### Heap Bomb Defense
 
 Each worker thread is constrained via V8's `resourceLimits.maxOldGenerationSizeMb` (default: **64 MB**, configurable via `workerPool.maxHeapMb` or the `LIOP_WORKER_MAX_HEAP_MB` environment variable). If injected logic attempts to allocate memory beyond this limit, the worker is terminated immediately with a `WorkerPoolError`, preventing denial-of-service attacks that target Node.js heap exhaustion.
+
+### Worker Pool Async Warmup
+
+To avoid initial CPU latency spikes and mitigate V8/WASI cold-starts (~820k fuel units), the SDK features an asynchronous thread-pool warmup strategy. On server initialization (or verifier creation), background "warmup" tasks (`isWarmup: true` or `action: "warmup"`) are dispatched to pre-warm the `Piscina` worker instances. This ensures worker threads are initialized, V8 isolate contexts are allocated, and WASI handles are pre-cached before processing real client payloads.
 
 ---
 

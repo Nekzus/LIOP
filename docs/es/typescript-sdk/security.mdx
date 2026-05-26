@@ -22,7 +22,7 @@ El SDK TypeScript de LIOP aplica un modelo de seguridad basado en **defensa en p
 |:-----|:----------|:--------|
 | **Guardian AST** | Bloquea importaciones WASM no autorizadas antes de la ejecución | Pre-compilación |
 | **WASI Sandbox** | Aísla el entorno de ejecución con 25 globales envenenados y límites de CPU | Ejecución |
-| **Prototype Defense** | Congela 6 prototipos core para prevenir ataques de contaminación | Ejecución |
+| **Prototype Defense** | Congela 11 prototipos core en modo estricto para prevenir ataques de contaminación | Ejecución |
 | **PII Shield** | Previene la fuga de datos mediante validadores algorítmicos | Post-ejecución |
 | **Aggregation Policy** | Impone límites de cardinalidad en la salida de datos a nivel de fila | Post-ejecución |
 | **ZK-Receipt** | Proporciona prueba HMAC-SHA256 de computación honesta | Post-ejecución |
@@ -88,7 +88,7 @@ Tras la asignación, el contexto completo del sandbox se congela recursivamente 
 
 ### Defensa contra Contaminación de Prototipos
 
-Dentro del IIFE del sandbox, seis prototipos core de JavaScript se congelan antes de que el código de usuario se ejecute:
+Dentro del IIFE del sandbox, once prototipos core de JavaScript se congelan antes de que el código de usuario se ejecute para cumplir con las estrictas normativas de aislamiento lógico PCI-DSS e HIPAA:
 
 ```typescript
 Object.freeze(Object.prototype);
@@ -96,10 +96,17 @@ Object.freeze(Array.prototype);
 Object.freeze(String.prototype);
 Object.freeze(Number.prototype);
 Object.freeze(Boolean.prototype);
-Object.freeze(Function.prototype);
+Object.freeze(RegExp.prototype);
+Object.freeze(Map.prototype);
+Object.freeze(Set.prototype);
+Object.freeze(Promise.prototype);
+Object.freeze(Object.getPrototypeOf(function(){})); // Resuelve y congela Function.prototype
+Object.freeze(Error.prototype);
 ```
 
-Esto previene que la lógica inyectada añada o sobreescriba métodos en tipos nativos (ej., sobreescribir `Array.prototype.map` para exfiltrar datos). El congelamiento se aplica dentro del wrapper IIFE, garantizando que no pueda ser eludido por el código inyectado.
+Debido a que `Function` y otros espacios de nombres globales están explícitamente envenenados (establecidos como `undefined`) en el ámbito global para eliminar vías de escape de ejecución, no es posible congelar `Function.prototype` directamente. El SDK lo resuelve dinámicamente mediante `Object.getPrototypeOf(function(){})` para aplicar el congelamiento.
+
+Toda la ejecución del huésped se envuelve en un bloque que contiene `"use strict";`. Por consiguiente, cualquier intento por parte del código inyectado de escribir o asignar propiedades a estos prototipos congelados (ej., `Object.prototype.polluted = "leak"`) arrojará inmediatamente un error duro `TypeError`, deteniendo la ejecución y previniendo vulnerabilidades de contaminación de prototipos.
 
 ### Límites de Consumo de CPU
 
@@ -303,6 +310,10 @@ Configuración por defecto: 2–8 threads (producción), 0–1 threads (test), p
 ### Defensa contra Heap Bomb
 
 Cada thread worker está restringido mediante `resourceLimits.maxOldGenerationSizeMb` de V8 (por defecto: **64 MB**, configurable vía `workerPool.maxHeapMb` o la variable de entorno `LIOP_WORKER_MAX_HEAP_MB`). Si la lógica inyectada intenta alojar memoria más allá de este límite, el worker se termina inmediatamente con un `WorkerPoolError`, previniendo ataques de denegación de servicio que buscan agotar el heap de Node.js.
+
+### Precalentamiento Asíncrono del Pool de Workers
+
+Para evitar picos iniciales de latencia de CPU y mitigar los arranques en frío (cold-starts) de V8/WASI (~820k unidades de combustible), el SDK incluye una estrategia de precalentamiento asíncrono para el pool de hilos. Durante la inicialización del servidor (o la creación del verificador), se despachan tareas de "precalentamiento" en segundo plano (`isWarmup: true` o `action: "warmup"`) para precalentar las instancias de workers de `Piscina`. Esto garantiza que los hilos worker estén inicializados, los contextos de isolate de V8 estén reservados y los handles de WASI estén pre-cacheados antes de procesar payloads reales de clientes.
 
 ---
 
