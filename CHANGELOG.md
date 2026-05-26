@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.0.0-alpha.26](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.25...v2.0.0-alpha.26) (2026-05-26)
+
+
+### Features
+
+* **piscina:** implement worker pool asynchronous warmup ([ff70970](https://github.com/Nekzus/LIOP/commit/ff709704b3488a81d433956d792a20f59410f965))
+
 # [2.0.0-alpha.25](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.24...v2.0.0-alpha.25) (2026-05-25)
 
 
