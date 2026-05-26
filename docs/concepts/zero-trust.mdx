@@ -109,7 +109,7 @@ This mirrors Google's Differential Privacy library architecture, which uses sepa
 
 ### Epsilon Floor
 
-For datasets with fewer than 10 records, the engine enforces a minimum epsilon of `1.0`, regardless of the operator's configuration. This prevents catastrophic utility destruction where noise completely overwhelms the signal. Apple's most sensitive category (Health Data) uses ε=2.0 on millions of records; using ε<1.0 on tiny datasets produces mathematically meaningless results.
+For datasets with fewer than 10 records, the engine enforces a minimum epsilon of `1.0`, regardless of the operator's configuration. This prevents catastrophic utility destruction where noise completely overwhelms the signal. Apple's most sensitive category (Health Data) uses ε=2.0 on millions of records; using ε &lt; 1.0 on tiny datasets produces mathematically meaningless results.
 
 ### Post-Processing Invariants
 

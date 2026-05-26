@@ -107,7 +107,7 @@ Esto refleja la arquitectura de la librería de Privacidad Diferencial de Google
 
 ### Piso de Epsilon
 
-Para datasets con menos de 10 registros, el motor impone un epsilon mínimo de `1.0`, independientemente de la configuración del operador. Esto previene la destrucción catastrófica de utilidad donde el ruido sobrepasa completamente la señal. La categoría más sensible de Apple (Datos de Salud) utiliza ε=2.0 sobre millones de registros; usar ε<1.0 en datasets diminutos produce resultados matemáticamente absurdos.
+Para datasets con menos de 10 registros, el motor impone un epsilon mínimo de `1.0`, independientemente de la configuración del operador. Esto previene la destrucción catastrófica de utilidad donde el ruido sobrepasa completamente la señal. La categoría más sensible de Apple (Datos de Salud) utiliza ε=2.0 sobre millones de registros; usar ε &lt; 1.0 en datasets diminutos produce resultados matemáticamente absurdos.
 
 ### Invariantes de Post-Procesamiento
 
