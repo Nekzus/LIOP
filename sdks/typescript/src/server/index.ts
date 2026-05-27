@@ -13,6 +13,7 @@ import { type LiopManifest, MeshNode } from "../mesh/node.js";
 import { LiopRpcServer } from "../rpc/server.js";
 import type { LogicRequest, LogicResponse } from "../rpc/types.js";
 import { JwtValidator } from "../security/jwt-validator.js";
+import { createOAuthServer } from "../security/oauth-server.js";
 import { TaintAnalyzer } from "../security/taint-analyzer.js";
 import type {
 	CallToolRequest,
@@ -689,8 +690,31 @@ export class LiopServer {
 			}
 		}
 
-		// [SEC] Initialize JWT Validator if auth is enabled
-		if (this.config?.auth?.role === "node") {
+		// [SEC] Initialize JWT Validator and OAuth Server if auth is enabled
+		if (this.config?.auth?.role === "nexus") {
+			const issuer = this.config.auth.issuer || "http://localhost:3000";
+			const audience = this.config.auth.audience || "liop-mesh-api";
+
+			// Auto-detect or default clients for the Nexus
+			const clients = this.config.auth.clients || [
+				{
+					client_id: process.env.LIOP_OAUTH_CLIENT_ID || "liop-mesh-agent",
+					client_secret:
+						process.env.LIOP_OAUTH_CLIENT_SECRET || "dev-secret-change-me",
+					grant_types: ["client_credentials"],
+					scope:
+						"liop:tools:call liop:tools:list liop:resources:read liop:schema:read liop:mesh:query",
+				},
+			];
+
+			const { provider, jwks } = createOAuthServer({
+				issuer,
+				clients,
+			});
+
+			this.oauthProvider = provider;
+			this.jwtValidator = new JwtValidator(issuer, audience, jwks);
+		} else if (this.config?.auth?.role === "node") {
 			const nexusUrl =
 				this.config.auth.nexusUrl ||
 				process.env.LIOP_NEXUS_URL ||

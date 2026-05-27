@@ -108,6 +108,7 @@
     "@opentelemetry/api": "^1.9.1",
     "@opentelemetry/sdk-metrics": "^2.7.0",
     "@types/node": "^25.3.1",
+    "@types/oidc-provider": "^9.5.0",
     "@vitest/coverage-v8": "^4.0.18",
     "acorn": "^8.16.0",
     "acorn-walk": "^8.3.5",
@@ -139,6 +140,7 @@
     "libp2p": "^3.3.1",
     "mlkem": "^2.7.0",
     "multiformats": "^13.4.2",
+    "oidc-provider": "^9.8.3",
     "piscina": "^5.1.4",
     "uint8arrays": "^3.1.1"
   },

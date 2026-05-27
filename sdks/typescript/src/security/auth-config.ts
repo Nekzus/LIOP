@@ -77,7 +77,7 @@ export interface LiopAuthConfig {
  */
 export const AUTH_DEFAULTS = {
 	/** JWT audience claim for the LIOP mesh API. */
-	audience: "liop-mesh-api",
+	audience: "urn:liop:mesh:api",
 	/** M2M token time-to-live in seconds (1 hour). */
 	tokenTtlSeconds: 3600,
 	/** JWKS cache TTL in milliseconds (10 min — jose default). */
