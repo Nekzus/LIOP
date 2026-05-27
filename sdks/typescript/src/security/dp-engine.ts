@@ -171,8 +171,13 @@ function deriveFieldSensitivity(
 		/total.*(count|items|entries|rows|records|tickers)/i.test(lk);
 	if (isCountWord || isTotalCount) return 1;
 
-	// AVERAGE queries: sensitivity = globalSensitivity / n
-	if (/avg|mean|average/.test(lk) && recordCount > 0) {
+	// AVERAGE/RATIO/VARIANCE queries: sensitivity = globalSensitivity / n
+	if (
+		/avg|mean|average|var|variance|std|stddev|ratio|bps|drift|pct|percent/i.test(
+			lk,
+		) &&
+		recordCount > 0
+	) {
 		return globalSensitivity / recordCount;
 	}
 

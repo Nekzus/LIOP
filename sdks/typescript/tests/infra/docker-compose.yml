@@ -98,6 +98,8 @@ services:
       LIOP_NODE_ROLE: oracle
       LIOP_LOG_LEVEL: info
       LIOP_DATASET_SCALE: ${LIOP_DATASET_SCALE:-1}
+      LIOP_HFT_TICK_INTERVAL_MS: ${LIOP_HFT_TICK_INTERVAL_MS:-50}
+      LIOP_HFT_INSTRUMENTS: ${LIOP_HFT_INSTRUMENTS:-8}
     volumes:
       - ./nexus-data:/app/data
     networks:

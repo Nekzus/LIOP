@@ -141,3 +141,26 @@ LIOP classifies fields into three distinct sensitivity tiers, applying different
 
 *Note: For legacy compatibility, a uniform limit can be configured via `queryBudgetPerField`, which overrides the tiers and enforces a single limit for all fields.*
 
+## 9. Privacy Threat Modeling Alignment (LINDDUN & PLOT4ai)
+
+To guarantee industrial and regulatory compliance (e.g., GDPR, HIPAA, EU AI Act), the Logic-Injection-on-Origin Protocol's security controls are systematically aligned with standard privacy threat modeling frameworks.
+
+### LINDDUN Mapping
+
+LIOP mathematically and structurally mitigates all seven threat categories of the **LINDDUN** framework:
+
+- **Linkability (L) & Identifiability (I)**: Neutralized by the calibrated **Laplace Differential Privacy Engine** that perturbs numeric outputs, an AST-level **Taint Analyzer** that flags character-level exfiltration, and a hard **K-Anonymity threshold** ($n < 10$) that blocks outputs in tiny datasets.
+- **Non-repudiation (N)**: Solved through **ZK-Receipts** (HMAC-SHA256 commitments and cryptographic execution receipts) coupled with sovereign **Ed25519 node identity signatures**, ensuring verifiable computational proof.
+- **Detectability (D)**: Defeated by normalizing CPU/fuel consumption metrics into discrete buckets of 100 and utilizing a CSPRNG (`crypto.randomBytes()`) for Laplace noise, preventing timing and state-reconstruction side-channel attacks.
+- **Data Disclosure (D)**: Structurally prevented by the core **Logic-on-Origin** paradigm (pushing math instead of pulling data), backed by the multi-layered **Egress PII Shield** and the **Aggregation-First Policy** that blocks raw row exports.
+- **Unawareness (U) & Non-compliance (N)**: Addressed via dynamic schema instructions (`liop://schema/guidelines`) that inform AI agents of active constraints, built natively to comply with **NIST SP 800-226** and **OWASP DLP 2025** guidelines.
+
+### PLOT4ai Alignment
+
+For AI-centric risks, LIOP maps directly to the core domains of **PLOT4ai** (Privacy Library Of Threats for AI):
+
+- **Data & Data Governance**: Enforced by sovereign Kademlia DHT peer routing; data remains local, secure, and under the origin's sole administrative domain.
+- **Cybersecurity & Safety**: Guaranteed by the **WASI Sandbox** running with pre-execution frozen prototypes (PCI-DSS compliant) and transport-layer **Post-Quantum Cryptography** (ML-KEM-768 handshakes).
+- **Accountability & Transparency**: Provided by deterministic audit modes (DDP) and cryptographic verification of WASM image hashes inside Trusted Execution Environments (TEEs).
+
+

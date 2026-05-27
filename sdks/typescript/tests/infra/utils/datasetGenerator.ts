@@ -5,6 +5,9 @@
  * to support scale testing of Sandbox and Differential Privacy engines.
  */
 
+// HFT Module re-exports (Phase 138)
+export { generateHftSnapshot, generateStaticHftDataset } from "../hft/hft-dataset-generator.js";
+
 export function generateBankDataset(scale: number): any[] {
 	const holders = [
 		"Elena Rodriguez",
