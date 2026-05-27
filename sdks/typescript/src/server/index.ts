@@ -12,6 +12,7 @@ import { zodToJsonSchema } from "zod-to-json-schema";
 import { type LiopManifest, MeshNode } from "../mesh/node.js";
 import { LiopRpcServer } from "../rpc/server.js";
 import type { LogicRequest, LogicResponse } from "../rpc/types.js";
+import { JwtValidator } from "../security/jwt-validator.js";
 import { TaintAnalyzer } from "../security/taint-analyzer.js";
 import type {
 	CallToolRequest,
@@ -79,6 +80,18 @@ export interface LiopServerOptions {
 		clearanceTier?: number;
 		executionTypes?: string[];
 	};
+	/**
+	 * OAuth 2.1 Hybrid Auth configuration.
+	 *
+	 * Minimal usage:
+	 *   - Nexus (Authorization Server): `{ role: "nexus" }`
+	 *   - Data Node (Resource Server): `{ role: "node" }`
+	 *   - Disabled (dev/stdio): omit or `{ role: "none" }`
+	 *
+	 * All other values (issuer, JWKS, audience) auto-resolve from
+	 * env vars, DHT discovery, or secure defaults.
+	 */
+	auth?: import("../security/auth-config.js").LiopAuthConfig;
 }
 
 export interface AggregationPolicy {
@@ -189,6 +202,9 @@ export class LiopServer {
 	private meshNode: MeshNode | null = null;
 	private rpcServer: LiopRpcServer | null = null;
 	private boundPort: number | null = null;
+	public jwtValidator?: JwtValidator;
+	// biome-ignore lint/suspicious/noExplicitAny: Loaded dynamically in Phase C
+	public oauthProvider?: any;
 	private sessions: Map<
 		string,
 		{ capability_hash: string; kyber_sk: Uint8Array; agent_did?: string }
@@ -671,6 +687,17 @@ export class LiopServer {
 					);
 				});
 			}
+		}
+
+		// [SEC] Initialize JWT Validator if auth is enabled
+		if (this.config?.auth?.role === "node") {
+			const nexusUrl =
+				this.config.auth.nexusUrl ||
+				process.env.LIOP_NEXUS_URL ||
+				"http://localhost:3000";
+			const audience = this.config.auth.audience || "liop-mesh-api";
+			const jwksUri = new URL(`${nexusUrl}/oidc/jwks`);
+			this.jwtValidator = new JwtValidator(nexusUrl, audience, jwksUri);
 		}
 
 		// [Token Economy] Auto-register LIOP protocol spec as a single Resource.

@@ -8,5 +8,14 @@ export * from "./prompts/adapters.js";
 export * from "./rpc/client.js";
 export * from "./rpc/server.js";
 export * from "./sandbox/wasi.js";
+// OAuth 2.1 Hybrid Auth (Fase 142)
+export * from "./security/auth-config.js";
+export * from "./security/jwt-validator.js";
+export { buildProtectedResourceMetadata } from "./security/prm.js";
+export {
+	authorizeRequest,
+	LIOP_SCOPES,
+	type LiopScope,
+} from "./security/rbac.js";
 export * from "./server/index.js";
 export * from "./types.js";

@@ -6,6 +6,8 @@ import { Kyber768Wrapper } from "../rpc/crypto/kyber.js";
 import { liopV1 } from "../rpc/proto.js";
 import { createChannelCredentials } from "../rpc/tls.js";
 import type { IntentResponse, LogicResponse } from "../rpc/types.js";
+import type { AuthInfo } from "../security/jwt-validator.js";
+import { authorizeRequest } from "../security/rbac.js";
 import type { LiopServer } from "../server/index.js";
 import type { McpRequest, McpResponse } from "../types.js";
 import { log } from "../utils/logger.js";
@@ -145,9 +147,30 @@ export class LiopMcpRouter {
 		});
 	}
 
-	public async dispatch(request: McpRequest): Promise<McpResponse | null> {
+	public async dispatch(
+		request: McpRequest,
+		authInfo?: AuthInfo | null,
+	): Promise<McpResponse | null> {
 		const { method, params, id } = request;
 		log.info(`[LIOP-Router] Processing: ${method}`);
+
+		// [SEC] Enforce RBAC scope validation (Least Privilege) only if JWT validation is active
+		if (this.liopServer.jwtValidator) {
+			const authResult = authorizeRequest(method, authInfo ?? null);
+			if (!authResult.allowed) {
+				log.info(
+					`[LIOP-Router] RBAC Access Denied for method '${method}': ${authResult.reason}`,
+				);
+				return {
+					jsonrpc: "2.0",
+					id,
+					error: {
+						code: -32099, // Custom authentication/authorization failure code
+						message: authResult.reason || "Access Denied",
+					},
+				};
+			}
+		}
 
 		switch (method) {
 			case "initialize":

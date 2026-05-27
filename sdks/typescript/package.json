@@ -135,6 +135,7 @@
     "@multiformats/multiaddr": "^13.0.1",
     "hono": "^4.12.5",
     "it-pipe": "^3.0.1",
+    "jose": "^6.2.3",
     "libp2p": "^3.3.1",
     "mlkem": "^2.7.0",
     "multiformats": "^13.4.2",
