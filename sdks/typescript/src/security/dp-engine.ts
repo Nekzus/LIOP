@@ -159,7 +159,7 @@ function deriveFieldSensitivity(
 	// "total" is ambiguous ("totalRevenue" = SUM, "total" or "total_records" = COUNT).
 	// Only treat "total" as count when it IS the key or ends with a count suffix.
 	const isCountWord =
-		/count|length|size|num|gainer|loser|positive|negative|nan_|null_|empty_|finite_|non_finite_/i.test(
+		/count|length|size|num|gainer|loser|positive|negative|nan_|null_|empty_|finite_|non_finite_|instruments|tickers|users|records/i.test(
 			lk,
 		);
 	const isTotalCount =
@@ -173,7 +173,7 @@ function deriveFieldSensitivity(
 
 	// AVERAGE/RATIO/VARIANCE queries: sensitivity = globalSensitivity / n
 	if (
-		/avg|mean|average|var|variance|std|stddev|ratio|bps|drift|pct|percent/i.test(
+		/avg|mean|average|var|variance|std|stddev|ratio|bps|drift|pct|percent|imbalance/i.test(
 			lk,
 		) &&
 		recordCount > 0

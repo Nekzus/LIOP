@@ -209,6 +209,13 @@ export class OrderBook {
 	}
 
 	/**
+	 * Looks up an order by its unique ID.
+	 */
+	public getOrder(orderId: string): Order | undefined {
+		return this.orders.get(orderId);
+	}
+
+	/**
 	 * Calculates the dynamic market updates per second (TPS) using a log-normal distribution.
 	 * Re-calculated at most once every 500ms using process.hrtime.bigint() and Box-Muller CSPRNG.
 	 * 

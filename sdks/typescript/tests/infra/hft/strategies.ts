@@ -72,8 +72,16 @@ export class MarketMakerStrategy implements TradingStrategy {
 	public onTick(state: PricingState, book: OrderBook): void {
 		if (book.isHalted()) return;
 
-		// Cancel previous quotes
+		// Calculate filled quantity of previous quotes to update inventory before cancelling
 		for (const id of this.activeOrderIds) {
+			const order = book.getOrder(id);
+			if (order && order.filledQty > 0) {
+				if (order.side === "BUY") {
+					this.inventory += order.filledQty;
+				} else {
+					this.inventory -= order.filledQty;
+				}
+			}
 			book.cancelOrder(id);
 		}
 		this.activeOrderIds = [];
@@ -112,17 +120,11 @@ export class MarketMakerStrategy implements TradingStrategy {
 			if (bidPrice >= 0.01 && Math.abs(this.inventory) < this.config.maxInventory) {
 				const bidOrder = book.addLimitOrder("BUY", bidPrice, bidSize, this.name);
 				this.activeOrderIds.push(bidOrder.id);
-				if (bidOrder.filledQty > 0) {
-					this.inventory += bidOrder.filledQty;
-				}
 			}
 
 			if (askPrice > bidPrice) {
 				const askOrder = book.addLimitOrder("SELL", askPrice, askSize, this.name);
 				this.activeOrderIds.push(askOrder.id);
-				if (askOrder.filledQty > 0) {
-					this.inventory -= askOrder.filledQty;
-				}
 			}
 		}
 	}
