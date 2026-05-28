@@ -69,6 +69,16 @@ export interface LiopAuthConfig {
 	 * Fallback: auto-detected from env.LIOP_OAUTH_CLIENT_ID + env.LIOP_OAUTH_CLIENT_SECRET.
 	 */
 	clients?: OAuthClientConfig[];
+	/**
+	 * Path to local token revocation JSON list (Resource Token Revocation List).
+	 * Saved as an array of SHA-256 hashes of revoked access tokens.
+	 */
+	revocationPath?: string;
+	/**
+	 * Pre-shared local test token for isolated testing in non-production environments.
+	 * A token matching this will bypass remote JWKS check only on this specific node.
+	 */
+	localTestToken?: string;
 }
 
 /**

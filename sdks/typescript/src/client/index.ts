@@ -96,6 +96,7 @@ export class LiopClient {
 				nexusUrl?: string;
 				audience?: string;
 				scope?: string;
+				token?: string;
 			};
 		},
 	): Promise<void> {
@@ -120,6 +121,11 @@ export class LiopClient {
 			options?.auth?.scope ||
 			process.env.LIOP_OAUTH_SCOPE ||
 			"liop:tools:call liop:tools:list liop:resources:read liop:schema:read liop:mesh:query";
+
+		this.oauthToken =
+			options?.auth?.token ||
+			process.env.LIOP_OAUTH_TOKEN ||
+			process.env.LIOP_TOKEN;
 
 		if (clientId && clientSecret) {
 			try {

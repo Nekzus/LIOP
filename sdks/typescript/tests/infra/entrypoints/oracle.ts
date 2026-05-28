@@ -33,7 +33,7 @@ async function main() {
 		},
 		{
 			auth: {
-				role: "node",
+				role: "none",
 			},
 			taxonomy: {
 				domain: "📈 HFT Market Data (INDUSTRIAL DEMO)",

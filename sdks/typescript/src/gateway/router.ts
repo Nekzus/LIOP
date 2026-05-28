@@ -1258,6 +1258,13 @@ export class LiopMcpRouter {
 	private async getOrAcquireMeshAgentToken(): Promise<string | undefined> {
 		if (this.meshAgentToken) return this.meshAgentToken;
 
+		// Support static pre-generated Access Tokens from environment
+		const staticToken = process.env.LIOP_OAUTH_TOKEN || process.env.LIOP_TOKEN;
+		if (staticToken) {
+			this.meshAgentToken = staticToken;
+			return this.meshAgentToken;
+		}
+
 		const nexusUrl = process.env.LIOP_NEXUS_URL;
 		if (!nexusUrl) return undefined;
 
