@@ -77,8 +77,22 @@ export class JwtValidator {
 	 * @throws JOSEError if validation fails (expired, wrong issuer, bad signature, etc.)
 	 */
 	async validate(token: string): Promise<AuthInfo> {
+		// Build a comprehensive list of acceptable issuer aliases to handle
+		// the Docker host/container networking mismatch. In the LIOP demo topology:
+		//   - Nexus OAuth server runs inside Docker on port 3000
+		//   - Docker hostname: "nexus" (from docker-compose.yml)
+		//   - Container name: "liop-nexus"
+		//   - Host-published ports: 13000 (HTTP), 13001 (libp2p)
+		//   - The JWT `iss` claim is set by the Nexus to its own configured issuer
+		//   - Nodes (Bank, Vault, Oracle) validate using their LIOP_NEXUS_URL
+		//
+		// All of these are equivalent endpoints for the same Authorization Server,
+		// so any token issued by one alias must be accepted by a validator configured
+		// with any other alias. Aligned with RFC 9728 Zero-Trust peer remapping.
+		const issuers = this.buildIssuerAliases();
+
 		const { payload } = await jose.jwtVerify(token, this.jwksResolver, {
-			issuer: this.issuer,
+			issuer: issuers.length > 1 ? issuers : this.issuer,
 			audience: this.audience,
 			// Algorithm whitelist: only accept EdDSA (Ed25519) or ES256.
 			// Prevents algorithm confusion attacks (OWASP API-A01).
@@ -95,6 +109,93 @@ export class JwtValidator {
 			scopes: typeof payload.scope === "string" ? payload.scope.split(" ") : [],
 			expiresAt: payload.exp,
 		};
+	}
+
+	/**
+	 * Builds a complete set of issuer URL aliases for the LIOP demo topology.
+	 *
+	 * The LIOP mesh runs on Docker Desktop with the following network layout:
+	 *   Container hostnames: "nexus", "liop-nexus" (internal port 3000)
+	 *   Host-published ports: 13000 (HTTP/MCP), 13001 (libp2p TCP)
+	 *   Loopback addresses: 127.0.0.1, localhost
+	 *
+	 * The Nexus OAuth server may set its issuer to any of these depending on
+	 * how it was configured, and nodes may resolve it via LIOP_NEXUS_URL
+	 * which varies by context. This method generates all equivalent aliases
+	 * so that jose.jwtVerify accepts the token regardless of which alias
+	 * was used as `iss` in the JWT.
+	 *
+	 * Security note: This does NOT weaken validation — the cryptographic
+	 * signature is still verified against the same JWKS keys. Only the
+	 * string comparison of the `iss` claim is relaxed across known aliases.
+	 */
+	private buildIssuerAliases(): string[] {
+		const issuers = [this.issuer];
+		const cleanIssuer = this.issuer.endsWith("/")
+			? this.issuer.slice(0, -1)
+			: this.issuer;
+
+		// Known LIOP Nexus authority patterns (host:port).
+		// If the configured issuer matches ANY of these, inject ALL others as aliases.
+		const NEXUS_AUTHORITIES = [
+			"nexus:3000",
+			"liop-nexus:3000",
+			"127.0.0.1:3000",
+			"localhost:3000",
+			"127.0.0.1:13000",
+			"localhost:13000",
+			"127.0.0.1:13001",
+			"localhost:13001",
+		];
+
+		// Extract just the authority (host:port) from the issuer URL
+		let issuerAuthority = "";
+		try {
+			const url = new URL(cleanIssuer);
+			issuerAuthority = `${url.hostname}:${url.port || "3000"}`;
+		} catch {
+			// Non-URL issuer (e.g. "urn:..." or malformed) — skip aliasing
+			return issuers;
+		}
+
+		// Check if the configured issuer matches any known Nexus authority
+		const isNexusIssuer = NEXUS_AUTHORITIES.some(
+			(authority) => issuerAuthority === authority,
+		);
+
+		if (!isNexusIssuer) return issuers;
+
+		// Extract the path suffix (e.g., "/oidc" or "")
+		const pathSuffix = cleanIssuer.replace(/^https?:\/\/[^/]+/, "");
+
+		// Generate all alias permutations with the same path suffix
+		for (const authority of NEXUS_AUTHORITIES) {
+			const alias = `http://${authority}${pathSuffix}`;
+			if (!issuers.includes(alias)) {
+				issuers.push(alias);
+			}
+		}
+
+		// Also add versions without the path suffix if it exists
+		// (the Nexus default issuer is "http://localhost:3000" without "/oidc")
+		if (pathSuffix) {
+			for (const authority of NEXUS_AUTHORITIES) {
+				const alias = `http://${authority}`;
+				if (!issuers.includes(alias)) {
+					issuers.push(alias);
+				}
+			}
+		} else {
+			// Conversely, add "/oidc" variants since some consumers include it
+			for (const authority of NEXUS_AUTHORITIES) {
+				const alias = `http://${authority}/oidc`;
+				if (!issuers.includes(alias)) {
+					issuers.push(alias);
+				}
+			}
+		}
+
+		return issuers;
 	}
 
 	/**

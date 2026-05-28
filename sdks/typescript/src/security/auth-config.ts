@@ -51,7 +51,7 @@ export interface LiopAuthConfig {
 	issuer?: string;
 	/**
 	 * JWT audience claim.
-	 * Default: "liop-mesh-api"
+	 * Default: "urn:liop:mesh:api"
 	 */
 	audience?: string;
 	/**

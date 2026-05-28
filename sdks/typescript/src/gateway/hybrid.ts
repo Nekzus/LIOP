@@ -96,7 +96,7 @@ export class LiopHybridGateway {
 						: this.oauthProvider;
 				// Rewrite req.url to strip the '/oidc' prefix before delegating to oidc-provider
 				const originalUrl = req.url;
-				req.url = req.url.slice(5) || "/";
+				req.url = (originalUrl || "").slice(5) || "/";
 				try {
 					return callback(req, res);
 				} finally {
@@ -136,19 +136,24 @@ export class LiopHybridGateway {
 									.map((m) => m.toString()),
 							}
 						: null;
-					const issuer = this.jwtValidator.getIssuer();
-					const baseUrl = issuer.endsWith("/oidc") ? issuer : `${issuer}/oidc`;
-					const authInfoResponse = this.jwtValidator
-						? {
-								issuer,
-								jwks_uri: `${baseUrl}/jwks`,
-								...(this.oauthProvider
-									? {
-											token_endpoint: `${baseUrl}/token`,
-										}
-									: {}),
-							}
-						: undefined;
+					const issuer = this.jwtValidator?.getIssuer();
+					const baseUrl = issuer
+						? issuer.endsWith("/oidc")
+							? issuer
+							: `${issuer}/oidc`
+						: "";
+					const authInfoResponse =
+						this.jwtValidator && issuer
+							? {
+									issuer,
+									jwks_uri: `${baseUrl}/jwks`,
+									...(this.oauthProvider
+										? {
+												token_endpoint: `${baseUrl}/token`,
+											}
+										: {}),
+								}
+							: undefined;
 
 					res.writeHead(200, { "Content-Type": "application/json" });
 					res.end(

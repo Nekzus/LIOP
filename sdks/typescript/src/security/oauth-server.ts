@@ -102,7 +102,7 @@ export function createOAuthServer(
 				useGrantedResource: () => true,
 				getResourceServerInfo: (_ctx, _resource, client) => {
 					return {
-						scope: client.scope,
+						scope: client.scope || "",
 						accessTokenFormat: "jwt",
 						jwt: {
 							sign: { alg: "EdDSA" },
@@ -116,7 +116,8 @@ export function createOAuthServer(
 		// This enables high-performance local validation at resource servers (NIST SP 800-207)
 		formats: {
 			AccessToken: "jwt",
-		},
+			// biome-ignore lint/suspicious/noExplicitAny: library typings mismatch in oidc-provider
+		} as any,
 
 		// [SEC] Lockout: Throw immediate error on any interactive login flow attempt
 		interactions: {

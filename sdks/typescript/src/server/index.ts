@@ -12,6 +12,7 @@ import { zodToJsonSchema } from "zod-to-json-schema";
 import { type LiopManifest, MeshNode } from "../mesh/node.js";
 import { LiopRpcServer } from "../rpc/server.js";
 import type { LogicRequest, LogicResponse } from "../rpc/types.js";
+import { AUTH_DEFAULTS } from "../security/auth-config.js";
 import { JwtValidator } from "../security/jwt-validator.js";
 import { createOAuthServer } from "../security/oauth-server.js";
 import { authorizeRequest } from "../security/rbac.js";
@@ -694,7 +695,7 @@ export class LiopServer {
 		// [SEC] Initialize JWT Validator and OAuth Server if auth is enabled
 		if (this.config?.auth?.role === "nexus") {
 			const issuer = this.config.auth.issuer || "http://localhost:3000";
-			const audience = this.config.auth.audience || "liop-mesh-api";
+			const audience = this.config.auth.audience || AUTH_DEFAULTS.audience;
 
 			// Auto-detect or default clients for the Nexus
 			const clients = this.config.auth.clients || [
@@ -720,7 +721,7 @@ export class LiopServer {
 				this.config.auth.nexusUrl ||
 				process.env.LIOP_NEXUS_URL ||
 				"http://localhost:3000";
-			const audience = this.config.auth.audience || "liop-mesh-api";
+			const audience = this.config.auth.audience || AUTH_DEFAULTS.audience;
 			const baseUrl = nexusUrl.endsWith("/oidc")
 				? nexusUrl
 				: `${nexusUrl}/oidc`;

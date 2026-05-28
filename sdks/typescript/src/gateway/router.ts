@@ -251,7 +251,7 @@ export class LiopMcpRouter {
 			case "tools/call":
 				return this.transcodeMcpToLiop(
 					id,
-					params as Record<string, unknown>,
+					params as { name: string; arguments?: Record<string, unknown> },
 					authInfo?.token,
 				);
 			case "resources/list": {
@@ -933,10 +933,10 @@ export class LiopMcpRouter {
 	}
 
 	private async transcodeMcpToLiop(
-		id: string | number | null,
+		id: string | number | null | undefined,
 		params: { name: string; arguments?: Record<string, unknown> },
 		token?: string,
-	): Promise<unknown> {
+	): Promise<McpResponse | null> {
 		const toolName = params.name;
 
 		// Intercept the static diagnostic tool
@@ -1249,6 +1249,83 @@ export class LiopMcpRouter {
 		);
 	}
 
+	/** Cached M2M token for dynamic gateway-to-node routing */
+	private meshAgentToken?: string;
+
+	/**
+	 * Dynamically acquires an M2M access token from the Nexus Authorization Server.
+	 */
+	private async getOrAcquireMeshAgentToken(): Promise<string | undefined> {
+		if (this.meshAgentToken) return this.meshAgentToken;
+
+		const nexusUrl = process.env.LIOP_NEXUS_URL;
+		if (!nexusUrl) return undefined;
+
+		const clientId =
+			process.env.LIOP_OAUTH_CLIENT_ID ||
+			process.env.LIOP_CLIENT_ID ||
+			"liop-mesh-agent";
+		const clientSecret =
+			process.env.LIOP_OAUTH_CLIENT_SECRET ||
+			process.env.LIOP_CLIENT_SECRET ||
+			"dev-secret-change-me";
+		const audience =
+			process.env.LIOP_OAUTH_AUDIENCE ||
+			process.env.LIOP_AUDIENCE ||
+			"urn:liop:mesh:api";
+
+		try {
+			const baseUrl = nexusUrl.endsWith("/oidc")
+				? nexusUrl
+				: `${nexusUrl}/oidc`;
+			const tokenUrl = `${baseUrl}/token`;
+			log.info(
+				`[LIOP-Router] Proactively acquiring M2M token from Nexus: ${tokenUrl}`,
+			);
+
+			const params = new URLSearchParams({
+				grant_type: "client_credentials",
+				scope:
+					"liop:tools:call liop:tools:list liop:resources:read liop:schema:read liop:mesh:query",
+				resource: audience,
+				client_id: clientId,
+				client_secret: clientSecret,
+			});
+
+			const response = await fetch(tokenUrl, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/x-www-form-urlencoded",
+				},
+				body: params.toString(),
+			});
+
+			if (!response.ok) {
+				const text = await response.text();
+				log.warn(
+					`[LIOP-Router] M2M Token acquisition failed: ${response.status} ${text}`,
+				);
+				return undefined;
+			}
+
+			const data = (await response.json()) as { access_token: string };
+			if (data.access_token) {
+				this.meshAgentToken = data.access_token;
+				log.info(
+					"[LIOP-Router] M2M Token acquired successfully for router routing.",
+				);
+				return this.meshAgentToken;
+			}
+		} catch (err: unknown) {
+			log.warn(
+				`[LIOP-Router] Failed to acquire M2M token: ${
+					err instanceof Error ? err.message : String(err)
+				}`,
+			);
+		}
+		return undefined;
+	}
+
 	private async performTranscoding(
 		// biome-ignore lint/suspicious/noExplicitAny: MCP polymorphic
 		id: any,
@@ -1268,10 +1345,16 @@ export class LiopMcpRouter {
 
 		const transcodingStartTime = Date.now();
 
+		// Auto-acquire self-identity M2M token if client did not supply one but a Nexus AS is configured
+		let activeToken = token;
+		if (!activeToken) {
+			activeToken = await this.getOrAcquireMeshAgentToken();
+		}
+
 		return new Promise((resolve) => {
 			const metadata = new grpc.Metadata();
-			if (token) {
-				metadata.add("authorization", `Bearer ${token}`);
+			if (activeToken) {
+				metadata.add("authorization", `Bearer ${activeToken}`);
 			}
 
 			client.negotiateIntent(
@@ -1315,8 +1398,8 @@ export class LiopMcpRouter {
 					);
 
 					const metadataCall = new grpc.Metadata();
-					if (token) {
-						metadataCall.add("authorization", `Bearer ${token}`);
+					if (activeToken) {
+						metadataCall.add("authorization", `Bearer ${activeToken}`);
 					}
 
 					const call = client.executeLogic(
