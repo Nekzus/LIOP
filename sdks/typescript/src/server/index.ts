@@ -14,6 +14,7 @@ import { LiopRpcServer } from "../rpc/server.js";
 import type { LogicRequest, LogicResponse } from "../rpc/types.js";
 import { JwtValidator } from "../security/jwt-validator.js";
 import { createOAuthServer } from "../security/oauth-server.js";
+import { authorizeRequest } from "../security/rbac.js";
 import { TaintAnalyzer } from "../security/taint-analyzer.js";
 import type {
 	CallToolRequest,
@@ -720,7 +721,10 @@ export class LiopServer {
 				process.env.LIOP_NEXUS_URL ||
 				"http://localhost:3000";
 			const audience = this.config.auth.audience || "liop-mesh-api";
-			const jwksUri = new URL(`${nexusUrl}/oidc/jwks`);
+			const baseUrl = nexusUrl.endsWith("/oidc")
+				? nexusUrl
+				: `${nexusUrl}/oidc`;
+			const jwksUri = new URL(`${baseUrl}/jwks`);
 			this.jwtValidator = new JwtValidator(nexusUrl, audience, jwksUri);
 		}
 
@@ -1558,26 +1562,63 @@ Protocol Adherence is mandatory for successful execution.`,
 					`[LIOP-RPC] Negotiating intent for capability: ${request.capability_hash}`,
 				);
 
-				// Standard dynamic import to avoid potential circularity
-				import("../rpc/crypto/kyber.js").then(async ({ Kyber768Wrapper }) => {
-					const { publicKey, secretKey } =
-						await Kyber768Wrapper.generateKeyPair();
+				const proceed = () => {
+					// Standard dynamic import to avoid potential circularity
+					import("../rpc/crypto/kyber.js").then(async ({ Kyber768Wrapper }) => {
+						const { publicKey, secretKey } =
+							await Kyber768Wrapper.generateKeyPair();
 
-					const sessionToken = crypto.randomUUID();
+						const sessionToken = crypto.randomUUID();
 
-					this.sessions.set(sessionToken, {
-						capability_hash: request.capability_hash,
-						kyber_sk: secretKey,
-						agent_did: request.agent_did,
+						this.sessions.set(sessionToken, {
+							capability_hash: request.capability_hash,
+							kyber_sk: secretKey,
+							agent_did: request.agent_did,
+						});
+
+						callback(null, {
+							accepted: true,
+							session_token: sessionToken,
+							error_message: "",
+							kyber_public_key: publicKey,
+						});
 					});
+				};
 
-					callback(null, {
-						accepted: true,
-						session_token: sessionToken,
-						error_message: "",
-						kyber_public_key: publicKey,
-					});
-				});
+				if (this.jwtValidator) {
+					const authHeader = call.metadata.get("authorization")[0] as
+						| string
+						| undefined;
+					if (!authHeader?.startsWith("Bearer ")) {
+						callback({
+							code: grpc.status.UNAUTHENTICATED,
+							details:
+								"Missing or malformed Authorization header in gRPC metadata",
+						});
+						return;
+					}
+					this.jwtValidator
+						.validate(authHeader.slice(7))
+						.then((authInfo) => {
+							const authResult = authorizeRequest("tools/call", authInfo);
+							if (!authResult.allowed) {
+								callback({
+									code: grpc.status.PERMISSION_DENIED,
+									details: authResult.reason || "Access Denied",
+								});
+								return;
+							}
+							proceed();
+						})
+						.catch((err) => {
+							callback({
+								code: grpc.status.UNAUTHENTICATED,
+								details: `Invalid JWT token: ${err.message}`,
+							});
+						});
+				} else {
+					proceed();
+				}
 			},
 			executeLogic: async (
 				call: grpc.ServerWritableStream<LogicRequest, LogicResponse>,
@@ -1587,174 +1628,237 @@ Protocol Adherence is mandatory for successful execution.`,
 					`[LIOP-RPC] Executing Logic-on-Origin for session: ${request.session_token}`,
 				);
 
-				const session = this.sessions.get(request.session_token);
-				if (!session) {
-					call.emit("error", {
-						code: grpc.status.UNAUTHENTICATED,
-						details: "Invalid session token",
-					});
-					return;
-				}
-
-				// [SECURITY] Resolve the negotiated tool to enforce its policies
-				const toolName = session.capability_hash;
-				const toolDef = toolName ? this.tools.get(toolName) : undefined;
-				const toolPolicy = toolDef?.policy;
-
-				// [SECURITY] Preflight check on gRPC execution path (decrypt Logic-on-Origin)
-				try {
-					const kem = await createMlKem768();
-					const sharedSecret = kem.decap(
-						new Uint8Array(request.pqc_ciphertext),
-						session.kyber_sk,
-					);
-					const aesKey = Buffer.from(sharedSecret);
-
-					const wasmBuffer = Buffer.from(request.wasm_binary);
-					const authTag = wasmBuffer.subarray(-16);
-					const encryptedData = wasmBuffer.subarray(0, -16);
-
-					const decipher = crypto.createDecipheriv(
-						"aes-256-gcm",
-						aesKey,
-						Buffer.from(request.aes_nonce || new Uint8Array(12)),
-					);
-					decipher.setAuthTag(authTag);
-					let decrypted = decipher.update(encryptedData);
-					decrypted = Buffer.concat([decrypted, decipher.final()]);
-
-					const decryptedPayload = decrypted.toString("utf-8");
-					const logic =
-						this.extractLogic(decryptedPayload) || decryptedPayload.trim();
-
-					const clientId = session.agent_did || "unknown-client";
-					const preflightReason = this.runPreflightPolicy(
-						toolName || "unknown_tool",
-						logic,
-						toolPolicy,
-						clientId,
-					);
-
-					if (preflightReason) {
-						log.info(`[LIOP-RPC] Preflight blocked: ${preflightReason}`);
-						const errorResponse: LogicResponse = {
-							semantic_evidence: preflightReason,
-							cryptographic_proof: Buffer.from(""),
-							zk_receipt: Buffer.from(""),
-							is_error: true,
-						};
-						call.write(errorResponse, () => {
-							call.end();
+				const proceed = async () => {
+					const session = this.sessions.get(request.session_token);
+					if (!session) {
+						call.emit("error", {
+							code: grpc.status.UNAUTHENTICATED,
+							details: "Invalid session token",
 						});
 						return;
 					}
-				} catch (decryptionError: unknown) {
-					const errorMsg =
-						decryptionError instanceof Error
-							? decryptionError.message
-							: String(decryptionError);
-					log.error(`[LIOP-RPC] Preflight decryption failed: ${errorMsg}`);
-					call.emit("error", {
-						code: grpc.status.INTERNAL,
-						details: `Preflight logic analysis failed: ${errorMsg}`,
-					});
-					return;
-				}
 
-				try {
-					// [DP] Prepare Differential Privacy configuration from tool policy
-					const dpConfig = toolPolicy
-						? {
-								epsilon: toolPolicy.dpEpsilon ?? 1.0,
-								sensitivity: toolPolicy.dpSensitivity ?? 1.0,
-								smallDatasetThreshold: toolPolicy.dpSmallDatasetThreshold ?? 50,
-							}
-						: undefined;
+					// [SECURITY] Resolve the negotiated tool to enforce its policies
+					const toolName = session.capability_hash;
+					const toolDef = toolName ? this.tools.get(toolName) : undefined;
+					const toolPolicy = toolDef?.policy;
 
-					// Pass to Worker Pool for PQC Decryption and WASI/V8 execution
-					const workerResponse = await this.workerPool.run({
-						ciphertext: request.pqc_ciphertext,
-						secretKeyObj: Array.from(session.kyber_sk),
-						wasmBinary: request.wasm_binary,
-						inputs: request.inputs,
-						aesNonce: request.aes_nonce,
-						records: this.sandboxRecords,
-						sessionToken: request.session_token,
-						isEncrypted: true,
-						dpConfig, // Apply DP noise inside worker before ZK-Receipt commitment
-					});
-
-					const sanitizedWorkerOutput = sanitizeOutput(workerResponse.output);
-
-					let finalOutput: string;
-					let validationOutput: unknown = sanitizedWorkerOutput;
+					// [SECURITY] Preflight check on gRPC execution path (decrypt Logic-on-Origin)
 					try {
-						finalOutput =
-							typeof sanitizedWorkerOutput === "string"
-								? sanitizedWorkerOutput
-								: JSON.stringify(sanitizedWorkerOutput);
+						const kem = await createMlKem768();
+						const sharedSecret = kem.decap(
+							new Uint8Array(request.pqc_ciphertext),
+							session.kyber_sk,
+						);
+						const aesKey = Buffer.from(sharedSecret);
 
-						// [PROTOCOL TRANSFORMER] Support for Proxied Tool Calls
-						const decoded = JSON.parse(finalOutput);
-						if (decoded.__liop_proxy_tool) {
-							log.info(
-								`[LIOP-RPC] Executing Proxied Tool: ${decoded.__liop_proxy_tool}`,
-							);
-							const clientId = session.agent_did || "unknown-client";
-							const toolResult = await this.callTool(
-								{
-									name: decoded.__liop_proxy_tool,
-									arguments: decoded.__liop_proxy_args || {},
-								},
-								clientId,
-							);
+						const wasmBuffer = Buffer.from(request.wasm_binary);
+						const authTag = wasmBuffer.subarray(-16);
+						const encryptedData = wasmBuffer.subarray(0, -16);
 
-							if (toolResult.isError) {
-								log.info(
-									`[LIOP-RPC] Proxy tool execution failed: ${toolResult.content[0].text}`,
-								);
-								const errorResponse: LogicResponse = {
-									semantic_evidence:
-										toolResult.content[0].text || "Unknown error",
-									cryptographic_proof: Buffer.from(""),
-									zk_receipt: Buffer.from(""),
-									is_error: true,
-								};
-								call.write(errorResponse, () => {
-									call.end();
-								});
-								return;
-							}
+						const decipher = crypto.createDecipheriv(
+							"aes-256-gcm",
+							aesKey,
+							Buffer.from(request.aes_nonce || new Uint8Array(12)),
+						);
+						decipher.setAuthTag(authTag);
+						let decrypted = decipher.update(encryptedData);
+						decrypted = Buffer.concat([decrypted, decipher.final()]);
 
-							const sanitizedToolResult = sanitizeOutput(toolResult);
-							finalOutput = JSON.stringify(sanitizedToolResult);
-							validationOutput =
-								this.unwrapForAggregationPolicyScan(sanitizedToolResult);
-						}
-					} catch {
-						finalOutput = String(sanitizedWorkerOutput);
-					}
+						const decryptedPayload = decrypted.toString("utf-8");
+						const logic =
+							this.extractLogic(decryptedPayload) || decryptedPayload.trim();
 
-					// [SECURITY] Output Schema & Policy validation for gRPC Egress
-					const policyViolation = this.validateOutputPolicy(
-						toolName || "unknown_tool",
-						validationOutput,
-						toolPolicy,
-					);
-					if (policyViolation) {
-						log.info(
-							`[LIOP-RPC] Output policy blocked for ${toolName || "unknown_tool"}: ${policyViolation}`,
+						const clientId = session.agent_did || "unknown-client";
+						const preflightReason = this.runPreflightPolicy(
+							toolName || "unknown_tool",
+							logic,
+							toolPolicy,
+							clientId,
 						);
 
+						if (preflightReason) {
+							log.info(`[LIOP-RPC] Preflight blocked: ${preflightReason}`);
+							const errorResponse: LogicResponse = {
+								semantic_evidence: preflightReason,
+								cryptographic_proof: Buffer.from(""),
+								zk_receipt: Buffer.from(""),
+								is_error: true,
+							};
+							call.write(errorResponse, () => {
+								call.end();
+							});
+							return;
+						}
+					} catch (decryptionError: unknown) {
+						const errorMsg =
+							decryptionError instanceof Error
+								? decryptionError.message
+								: String(decryptionError);
+						log.error(`[LIOP-RPC] Preflight decryption failed: ${errorMsg}`);
+						call.emit("error", {
+							code: grpc.status.INTERNAL,
+							details: `Preflight logic analysis failed: ${errorMsg}`,
+						});
+						return;
+					}
+
+					try {
+						// [DP] Prepare Differential Privacy configuration from tool policy
+						const dpConfig = toolPolicy
+							? {
+									epsilon: toolPolicy.dpEpsilon ?? 1.0,
+									sensitivity: toolPolicy.dpSensitivity ?? 1.0,
+									smallDatasetThreshold:
+										toolPolicy.dpSmallDatasetThreshold ?? 50,
+								}
+							: undefined;
+
+						// Pass to Worker Pool for PQC Decryption and WASI/V8 execution
+						const workerResponse = await this.workerPool.run({
+							ciphertext: request.pqc_ciphertext,
+							secretKeyObj: Array.from(session.kyber_sk),
+							wasmBinary: request.wasm_binary,
+							inputs: request.inputs,
+							aesNonce: request.aes_nonce,
+							records: this.sandboxRecords,
+							sessionToken: request.session_token,
+							isEncrypted: true,
+							dpConfig, // Apply DP noise inside worker before ZK-Receipt commitment
+						});
+
+						const sanitizedWorkerOutput = sanitizeOutput(workerResponse.output);
+
+						let finalOutput: string;
+						let validationOutput: unknown = sanitizedWorkerOutput;
+						try {
+							finalOutput =
+								typeof sanitizedWorkerOutput === "string"
+									? sanitizedWorkerOutput
+									: JSON.stringify(sanitizedWorkerOutput);
+
+							// [PROTOCOL TRANSFORMER] Support for Proxied Tool Calls
+							const decoded = JSON.parse(finalOutput);
+							if (decoded.__liop_proxy_tool) {
+								log.info(
+									`[LIOP-RPC] Executing Proxied Tool: ${decoded.__liop_proxy_tool}`,
+								);
+								const clientId = session.agent_did || "unknown-client";
+								const toolResult = await this.callTool(
+									{
+										name: decoded.__liop_proxy_tool,
+										arguments: decoded.__liop_proxy_args || {},
+									},
+									clientId,
+								);
+
+								if (toolResult.isError) {
+									log.info(
+										`[LIOP-RPC] Proxy tool execution failed: ${toolResult.content[0].text}`,
+									);
+									const errorResponse: LogicResponse = {
+										semantic_evidence:
+											toolResult.content[0].text || "Unknown error",
+										cryptographic_proof: Buffer.from(""),
+										zk_receipt: Buffer.from(""),
+										is_error: true,
+									};
+									call.write(errorResponse, () => {
+										call.end();
+									});
+									return;
+								}
+
+								const sanitizedToolResult = sanitizeOutput(toolResult);
+								finalOutput = JSON.stringify(sanitizedToolResult);
+								validationOutput =
+									this.unwrapForAggregationPolicyScan(sanitizedToolResult);
+							}
+						} catch {
+							finalOutput = String(sanitizedWorkerOutput);
+						}
+
+						// [SECURITY] Output Schema & Policy validation for gRPC Egress
+						const policyViolation = this.validateOutputPolicy(
+							toolName || "unknown_tool",
+							validationOutput,
+							toolPolicy,
+						);
+						if (policyViolation) {
+							log.info(
+								`[LIOP-RPC] Output policy blocked for ${toolName || "unknown_tool"}: ${policyViolation}`,
+							);
+
+							const isDev =
+								process.env.NODE_ENV === "development" ||
+								process.env.NODE_ENV === "test" ||
+								process.env.LIOP_SEC_VERBOSE === "1";
+
+							const errorMessage = isDev
+								? policyViolation
+								: "[LIOP] Egress Security Violation. Output blocked due to policy enforcement.";
+
+							const errorResponse: LogicResponse = {
+								semantic_evidence: errorMessage,
+								cryptographic_proof: Buffer.from(""),
+								zk_receipt: Buffer.from(""),
+								is_error: true,
+							};
+
+							call.write(errorResponse, () => {
+								call.end();
+							});
+							return;
+						}
+
+						const response: LogicResponse = {
+							semantic_evidence: finalOutput,
+							cryptographic_proof: Buffer.from(
+								workerResponse.image_id || "",
+								"hex",
+							),
+							zk_receipt: workerResponse.zk_receipt
+								? Buffer.from(workerResponse.zk_receipt, "base64")
+								: Buffer.from(""),
+							is_error: false,
+						};
+
+						// Final PII check for gRPC egress
+						const violation = await this.piiScanner.scan(validationOutput);
+						const aggregationViolation = this.violatesAggregationFirstPolicy(
+							this.unwrapForAggregationPolicyScan(validationOutput),
+							toolPolicy?.enforceAggregationFirst,
+							this.sandboxRecords?.length,
+						);
+						if (violation || aggregationViolation) {
+							// SEC-CRITICAL: Log details server-side, never expose to caller
+							const internalReason =
+								violation || "Aggregation-First Policy Violation";
+							log.info(
+								`[LIOP-RPC] Secure egress blocked in gRPC stream: ${internalReason}`,
+							);
+							response.semantic_evidence =
+								"[LIOP] Egress Security Violation. Output blocked due to policy enforcement.";
+							response.is_error = true;
+						}
+
+						call.write(response, () => {
+							call.end();
+						});
+					} catch (error: unknown) {
+						const e = error as Error;
 						const isDev =
 							process.env.NODE_ENV === "development" ||
-							process.env.NODE_ENV === "test" ||
-							process.env.LIOP_SEC_VERBOSE === "1";
+							process.env.NODE_ENV === "test";
+
+						const detail = e.message || String(error);
+						log.error(`[LIOP-RPC] Execution Error: ${detail}`);
 
 						const errorMessage = isDev
-							? policyViolation
-							: "[LIOP] Egress Security Violation. Output blocked due to policy enforcement.";
+							? `Execution Error: ${detail}`
+							: "[LIOP] Execution Failed. The injected logic violated runtime constraints or encountered a fatal error.";
 
+						// Send error response before closing, avoiding "stream closed without results"
 						const errorResponse: LogicResponse = {
 							semantic_evidence: errorMessage,
 							cryptographic_proof: Buffer.from(""),
@@ -1762,74 +1866,51 @@ Protocol Adherence is mandatory for successful execution.`,
 							is_error: true,
 						};
 
-						call.write(errorResponse, () => {
+						try {
+							call.write(errorResponse, () => {
+								call.end();
+							});
+						} catch (_writeErr) {
 							call.end();
+						}
+					}
+				};
+
+				if (this.jwtValidator) {
+					const authHeader = call.metadata.get("authorization")[0] as
+						| string
+						| undefined;
+					if (!authHeader?.startsWith("Bearer ")) {
+						call.emit("error", {
+							code: grpc.status.UNAUTHENTICATED,
+							details:
+								"Missing or malformed Authorization header in gRPC metadata",
 						});
 						return;
 					}
-
-					const response: LogicResponse = {
-						semantic_evidence: finalOutput,
-						cryptographic_proof: Buffer.from(
-							workerResponse.image_id || "",
-							"hex",
-						),
-						zk_receipt: workerResponse.zk_receipt
-							? Buffer.from(workerResponse.zk_receipt, "base64")
-							: Buffer.from(""),
-						is_error: false,
-					};
-
-					// Final PII check for gRPC egress
-					const violation = await this.piiScanner.scan(validationOutput);
-					const aggregationViolation = this.violatesAggregationFirstPolicy(
-						this.unwrapForAggregationPolicyScan(validationOutput),
-						toolPolicy?.enforceAggregationFirst,
-						this.sandboxRecords?.length,
-					);
-					if (violation || aggregationViolation) {
-						// SEC-CRITICAL: Log details server-side, never expose to caller
-						const internalReason =
-							violation || "Aggregation-First Policy Violation";
-						log.info(
-							`[LIOP-RPC] Secure egress blocked in gRPC stream: ${internalReason}`,
-						);
-						response.semantic_evidence =
-							"[LIOP] Egress Security Violation. Output blocked due to policy enforcement.";
-						response.is_error = true;
-					}
-
-					call.write(response, () => {
-						call.end();
-					});
-				} catch (error: unknown) {
-					const e = error as Error;
-					const isDev =
-						process.env.NODE_ENV === "development" ||
-						process.env.NODE_ENV === "test";
-
-					const detail = e.message || String(error);
-					log.error(`[LIOP-RPC] Execution Error: ${detail}`);
-
-					const errorMessage = isDev
-						? `Execution Error: ${detail}`
-						: "[LIOP] Execution Failed. The injected logic violated runtime constraints or encountered a fatal error.";
-
-					// Send error response before closing, avoiding "stream closed without results"
-					const errorResponse: LogicResponse = {
-						semantic_evidence: errorMessage,
-						cryptographic_proof: Buffer.from(""),
-						zk_receipt: Buffer.from(""),
-						is_error: true,
-					};
-
 					try {
-						call.write(errorResponse, () => {
-							call.end();
+						const authInfo = await this.jwtValidator.validate(
+							authHeader.slice(7),
+						);
+						const authResult = authorizeRequest("tools/call", authInfo);
+						if (!authResult.allowed) {
+							call.emit("error", {
+								code: grpc.status.PERMISSION_DENIED,
+								details: authResult.reason || "Access Denied",
+							});
+							return;
+						}
+						await proceed();
+					} catch (err: unknown) {
+						call.emit("error", {
+							code: grpc.status.UNAUTHENTICATED,
+							details: `Invalid JWT token: ${
+								err instanceof Error ? err.message : String(err)
+							}`,
 						});
-					} catch (_writeErr) {
-						call.end();
 					}
+				} else {
+					await proceed();
 				}
 			},
 		});

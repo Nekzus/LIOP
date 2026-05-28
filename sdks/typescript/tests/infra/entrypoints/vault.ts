@@ -23,16 +23,22 @@ async function main() {
 		fs.mkdirSync(dataDir, { recursive: true });
 	}
 
-	const liopServer = new LiopServer({
-		name: "SIMULATION-the-vault",
-		version: "1.0.0"
-	}, {
-		taxonomy: {
-			domain: "🏥 Healthcare (INDUSTRIAL DEMO)",
-			clearanceTier: 5,
-			executionTypes: ["Blind AST Logic", "Zero-Trust Worker Pool"],
+	const liopServer = new LiopServer(
+		{
+			name: "SIMULATION-the-vault",
+			version: "1.0.0",
 		},
-	});
+		{
+			auth: {
+				role: "node",
+			},
+			taxonomy: {
+				domain: "🏥 Healthcare (INDUSTRIAL DEMO)",
+				clearanceTier: 5,
+				executionTypes: ["Blind AST Logic", "Zero-Trust Worker Pool"],
+			},
+		},
+	);
 
 	// Industrial Healthcare Dataset (Scale-Aware Generator)
 	const scaleEnv = process.env.LIOP_DATASET_SCALE;

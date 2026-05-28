@@ -90,7 +90,18 @@ export class LiopHybridGateway {
 
 			// [SEC] M2M OAuth 2.1 OIDC Authorization Server Router (Phase C proxy)
 			if (url.startsWith("/oidc") && this.oauthProvider) {
-				return this.oauthProvider(req, res);
+				const callback =
+					typeof this.oauthProvider.callback === "function"
+						? this.oauthProvider.callback()
+						: this.oauthProvider;
+				// Rewrite req.url to strip the '/oidc' prefix before delegating to oidc-provider
+				const originalUrl = req.url;
+				req.url = req.url.slice(5) || "/";
+				try {
+					return callback(req, res);
+				} finally {
+					req.url = originalUrl;
+				}
 			}
 
 			// [SEC] RFC 9728 Protected Resource Metadata (PRM) Endpoint
@@ -125,13 +136,15 @@ export class LiopHybridGateway {
 									.map((m) => m.toString()),
 							}
 						: null;
+					const issuer = this.jwtValidator.getIssuer();
+					const baseUrl = issuer.endsWith("/oidc") ? issuer : `${issuer}/oidc`;
 					const authInfoResponse = this.jwtValidator
 						? {
-								issuer: this.jwtValidator.getIssuer(),
-								jwks_uri: `${this.jwtValidator.getIssuer()}/oidc/jwks`,
+								issuer,
+								jwks_uri: `${baseUrl}/jwks`,
 								...(this.oauthProvider
 									? {
-											token_endpoint: `${this.jwtValidator.getIssuer()}/oidc/token`,
+											token_endpoint: `${baseUrl}/token`,
 										}
 									: {}),
 							}

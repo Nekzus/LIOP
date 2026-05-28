@@ -21,16 +21,22 @@ async function main() {
 		fs.mkdirSync(dataDir, { recursive: true });
 	}
 
-	const liopServer = new LiopServer({
-		name: "SIMULATION-the-bank",
-		version: "1.0.0"
-	}, {
-		taxonomy: {
-			domain: "🏦 Banking & Finance (INDUSTRIAL DEMO)",
-			clearanceTier: 3,
-			executionTypes: ["Read-Only Queries", "Transactional Verification"],
+	const liopServer = new LiopServer(
+		{
+			name: "SIMULATION-the-bank",
+			version: "1.0.0",
 		},
-	});
+		{
+			auth: {
+				role: "node",
+			},
+			taxonomy: {
+				domain: "🏦 Banking & Finance (INDUSTRIAL DEMO)",
+				clearanceTier: 3,
+				executionTypes: ["Read-Only Queries", "Transactional Verification"],
+			},
+		},
+	);
 
 	// Industrial Financial Dataset (Scale-Aware Generator)
 	const scaleEnv = process.env.LIOP_DATASET_SCALE;

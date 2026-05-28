@@ -1,4 +1,5 @@
 import * as crypto from "node:crypto";
+import * as grpc from "@grpc/grpc-js";
 import { LiopVerifier } from "../crypto/verifier.js";
 import { TokenTelemetryEngine } from "../economy/telemetry.js";
 import type { LiopManifest, MeshNode } from "../mesh/index.js";
@@ -248,7 +249,11 @@ export class LiopMcpRouter {
 				};
 			}
 			case "tools/call":
-				return this.transcodeMcpToLiop(id, params as Record<string, unknown>);
+				return this.transcodeMcpToLiop(
+					id,
+					params as Record<string, unknown>,
+					authInfo?.token,
+				);
 			case "resources/list": {
 				const localResources = this.liopServer.listResources();
 				const remoteResources = await this.getRemoteResources();
@@ -927,8 +932,11 @@ export class LiopMcpRouter {
 		return `***${peerId.slice(-8)}`;
 	}
 
-	// biome-ignore lint/suspicious/noExplicitAny: MCP JSON-RPC params/id are polymorphic
-	private async transcodeMcpToLiop(id: any, params: any): Promise<any> {
+	private async transcodeMcpToLiop(
+		id: string | number | null,
+		params: { name: string; arguments?: Record<string, unknown> },
+		token?: string,
+	): Promise<unknown> {
 		const toolName = params.name;
 
 		// Intercept the static diagnostic tool
@@ -1060,6 +1068,7 @@ export class LiopMcpRouter {
 					target.originalToolName,
 					target.peerId,
 					params,
+					token,
 				);
 			}
 
@@ -1072,7 +1081,13 @@ export class LiopMcpRouter {
 			}
 
 			if (providers.length > 0) {
-				return this.routeToRemoteProvider(id, toolName, providers[0], params);
+				return this.routeToRemoteProvider(
+					id,
+					toolName,
+					providers[0],
+					params,
+					token,
+				);
 			}
 		}
 
@@ -1128,6 +1143,7 @@ export class LiopMcpRouter {
 		peerId: string,
 		// biome-ignore lint/suspicious/noExplicitAny: MCP polymorphic
 		params: any,
+		token?: string,
 		// biome-ignore lint/suspicious/noExplicitAny: MCP polymorphic
 	): Promise<any> {
 		if (!this.meshNode)
@@ -1223,7 +1239,14 @@ export class LiopMcpRouter {
 			targetAddr,
 			createChannelCredentials(),
 		);
-		return this.performTranscoding(id, remoteClient, toolName, params, peerId);
+		return this.performTranscoding(
+			id,
+			remoteClient,
+			toolName,
+			params,
+			peerId,
+			token,
+		);
 	}
 
 	private async performTranscoding(
@@ -1235,6 +1258,7 @@ export class LiopMcpRouter {
 		// biome-ignore lint/suspicious/noExplicitAny: MCP polymorphic
 		params: any,
 		peerId?: string,
+		token?: string,
 		// biome-ignore lint/suspicious/noExplicitAny: MCP polymorphic
 	): Promise<any> {
 		const capabilityHash = toolName;
@@ -1245,12 +1269,18 @@ export class LiopMcpRouter {
 		const transcodingStartTime = Date.now();
 
 		return new Promise((resolve) => {
+			const metadata = new grpc.Metadata();
+			if (token) {
+				metadata.add("authorization", `Bearer ${token}`);
+			}
+
 			client.negotiateIntent(
 				{
 					agent_did: `did:liop:${this.meshNode?.getPeerId() || "mcp-proxy"}`,
 					capability_hash: capabilityHash,
 					proof_of_intent: proofOfIntent,
 				},
+				metadata,
 				async (err: Error | null, response: IntentResponse) => {
 					if (err || !response.accepted) {
 						return resolve({
@@ -1284,13 +1314,21 @@ export class LiopMcpRouter {
 						nonce,
 					);
 
-					const call = client.executeLogic({
-						session_token: response.session_token,
-						wasm_binary: new Uint8Array(sealedLogic),
-						inputs: {},
-						pqc_ciphertext: ciphertext,
-						aes_nonce: nonce,
-					});
+					const metadataCall = new grpc.Metadata();
+					if (token) {
+						metadataCall.add("authorization", `Bearer ${token}`);
+					}
+
+					const call = client.executeLogic(
+						{
+							session_token: response.session_token,
+							wasm_binary: new Uint8Array(sealedLogic),
+							inputs: {},
+							pqc_ciphertext: ciphertext,
+							aes_nonce: nonce,
+						},
+						metadataCall,
+					);
 
 					let resultBody = "";
 					let lastResponse: LogicResponse | null = null;

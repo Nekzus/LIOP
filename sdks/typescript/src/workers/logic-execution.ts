@@ -188,7 +188,9 @@ export default async function processLogicExecution(data: WorkerData): Promise<{
 					.update(
 						typeof finalOutput === "string"
 							? finalOutput
-							: JSON.stringify(finalOutput),
+							: finalOutput === undefined
+								? "undefined"
+								: JSON.stringify(finalOutput),
 					)
 					.digest("hex"),
 				fuel: result.fuelConsumed,

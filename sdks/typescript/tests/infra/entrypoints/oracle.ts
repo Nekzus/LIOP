@@ -32,6 +32,9 @@ async function main() {
 			capabilities: { tools: {} },
 		},
 		{
+			auth: {
+				role: "node",
+			},
 			taxonomy: {
 				domain: "📈 HFT Market Data (INDUSTRIAL DEMO)",
 				clearanceTier: 1,

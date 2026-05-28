@@ -22,7 +22,7 @@ export type AuthRole = "nexus" | "node" | "none";
 export interface OAuthClientConfig {
 	/** Unique identifier for the OAuth client. */
 	client_id: string;
-	/** Client secret for authentication (client_secret_basic). */
+	/** Client secret for authentication (client_secret_post). */
 	client_secret: string;
 	/** OAuth grant types allowed for this client (e.g., ["client_credentials"]). */
 	grant_types: string[];
