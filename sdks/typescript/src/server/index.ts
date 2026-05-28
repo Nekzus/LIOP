@@ -1776,12 +1776,11 @@ Protocol Adherence is mandatory for successful execution.`,
 						const logic =
 							this.extractLogic(decryptedPayload) || decryptedPayload.trim();
 
-						const clientId = session.agent_did || "unknown-client";
 						const preflightReason = this.runPreflightPolicy(
 							toolName || "unknown_tool",
 							logic,
 							toolPolicy,
-							clientId,
+							request.session_token,
 						);
 
 						if (preflightReason) {
