@@ -25,6 +25,7 @@ auditConfig:
     - GHSA-xjpj-3mr7-gcpf
     - GHSA-q3j6-qgpj-74h6
     - GHSA-v39h-62p7-jpjc
+    - GHSA-ph9p-34f9-6g65
 
 minimumReleaseAgeExclude:
   - '@libp2p/kad-dht@16.3.0'
