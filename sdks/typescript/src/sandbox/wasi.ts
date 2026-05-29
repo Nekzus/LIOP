@@ -217,12 +217,28 @@ export class WasiSandbox {
 			sandboxEnv.BigUint64Array = undefined;
 			sandboxEnv.DataView = undefined;
 
+			// Recurse and strip prototype chain from host-passed objects to prevent escaping via constructor
+			// biome-ignore lint/suspicious/noExplicitAny: Required for recursive null prototype mapping
+			const toNullPrototype = (obj: any): any => {
+				if (!obj || typeof obj !== "object") {
+					return obj;
+				}
+				if (Array.isArray(obj)) {
+					return obj.map(toNullPrototype);
+				}
+				const clone = Object.create(null);
+				for (const [key, val] of Object.entries(obj)) {
+					clone[key] = toNullPrototype(val);
+				}
+				return clone;
+			};
+
 			// Inject strictly monitored globals
-			sandboxEnv.records = JSON.parse(JSON.stringify(records)); // Deep copy safety
-			sandboxEnv.env = JSON.parse(JSON.stringify(env));
+			sandboxEnv.records = toNullPrototype(JSON.parse(JSON.stringify(records))); // Deep copy safety + null prototype
+			sandboxEnv.env = toNullPrototype(JSON.parse(JSON.stringify(env)));
 
 			for (const [key, value] of Object.entries(inputs)) {
-				sandboxEnv[key] = JSON.parse(JSON.stringify(value));
+				sandboxEnv[key] = toNullPrototype(JSON.parse(JSON.stringify(value)));
 			}
 
 			// Freeze the sandbox context to prevent mutation (SEC-GAP-1)
@@ -292,6 +308,24 @@ export class WasiSandbox {
 				const script = new vm.Script(scriptCode, {
 					filename: `liop-sandbox-${this.sandboxId.slice(0, 8)}.js`,
 				});
+
+				// Freeze Host prototypes in production (non-test environments) to completely block Prototype Pollution
+				if (
+					!process.env.VITEST &&
+					typeof Object.prototype === "object" &&
+					!Object.isFrozen(Object.prototype)
+				) {
+					Object.freeze(Object.prototype);
+					Object.freeze(Array.prototype);
+					Object.freeze(String.prototype);
+					Object.freeze(Number.prototype);
+					Object.freeze(Boolean.prototype);
+					Object.freeze(RegExp.prototype);
+					Object.freeze(Map.prototype);
+					Object.freeze(Set.prototype);
+					Object.freeze(Promise.prototype);
+					Object.freeze(Error.prototype);
+				}
 
 				// microtaskMode: Ensures Promises created inside the sandbox are
 				// resolved within the timeout/breakOnSigint scope (Node.js ≥14.6).

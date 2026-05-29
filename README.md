@@ -112,7 +112,7 @@ The high-performance Data Node host, written in Rust. This is where injected WAS
 | `p2p.rs` | libp2p Kademlia DHT for decentralized peer discovery over Noise/TCP/QUIC |
 | `zk.rs` | ZK-Receipt generation engine (HMAC-SHA256 commitments, ZK-VM roadmap) |
 | `tee.rs` | Trusted Execution Environment trait bounds for AWS Nitro Enclaves / Intel SGX |
-| `config/health`| Externalized `config.toml` and Hyper `/health` endpoints for observability |
+| `config.rs` / `health.rs` | TOML-driven configuration and Hyper-based observability (`/health` probes) |
 
 [Read the Mesh Node Documentation](./servers/liop-node/README.md)
 

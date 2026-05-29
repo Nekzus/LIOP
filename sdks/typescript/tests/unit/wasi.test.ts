@@ -85,6 +85,45 @@ describe("WasiSandbox (Industrial Tier-0)", () => {
         expect((Object.prototype as any).poisoned).toBeUndefined();
     });
 
+    it("should prevent prototype pollution of the host via env objects", async () => {
+        const maliciousLogic = `
+            function liop_main(env) {
+                try {
+                    const hostProto = Object.getPrototypeOf(env);
+                    hostProto.poisoned = "leak";
+                    return "polluted";
+                } catch(e) {
+                    return "LogicError: " + e.message;
+                }
+            }
+        `;
+        const records = [{ id: 1 }];
+        await sandbox.execute(maliciousLogic, records, {});
+
+        // Verify that the host environment's prototype remains clean
+        expect((Object.prototype as any).poisoned).toBeUndefined();
+    });
+
+    it("should prevent escaping sandbox via host object constructors to access Date or process", async () => {
+        const maliciousLogic = `
+            function liop_main(env) {
+                try {
+                    const HostDate = env.constructor.constructor("return Date")();
+                    return { dateExists: typeof HostDate !== "undefined" };
+                } catch(e) {
+                    return { error: e.message };
+                }
+            }
+        `;
+        const records = [{ id: 1 }];
+        const result = await sandbox.execute(maliciousLogic, records, {});
+        // biome-ignore lint/suspicious/noExplicitAny: Dynamic execution output
+        const output = result.output as any;
+
+        // The constructor traversal must fail or result in an error
+        expect(output.dateExists).not.toBe(true);
+    });
+
     describe("Environment Isolation & getDefaultEnvironment", () => {
         it("should filter out non-allowlisted env variables", () => {
             const originalEnv = { ...process.env };

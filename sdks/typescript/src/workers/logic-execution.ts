@@ -33,6 +33,23 @@ export default async function processLogicExecution(data: WorkerData): Promise<{
 	fuel_consumed: number;
 	zk_receipt?: string;
 }> {
+	// Freeze Host prototypes in the Worker thread proactively to completely lock down the Isolate environment
+	if (
+		typeof Object.prototype === "object" &&
+		!Object.isFrozen(Object.prototype)
+	) {
+		Object.freeze(Object.prototype);
+		Object.freeze(Array.prototype);
+		Object.freeze(String.prototype);
+		Object.freeze(Number.prototype);
+		Object.freeze(Boolean.prototype);
+		Object.freeze(RegExp.prototype);
+		Object.freeze(Map.prototype);
+		Object.freeze(Set.prototype);
+		Object.freeze(Promise.prototype);
+		Object.freeze(Error.prototype);
+	}
+
 	if (data.isWarmup) {
 		return {
 			image_id: "",
