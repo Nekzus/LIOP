@@ -3,6 +3,26 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.0.0-alpha.28](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.27...v2.0.0-alpha.28) (2026-05-29)
+
+
+### Bug Fixes
+
+* **hft:** implement Market Maker inventory fill tracking and scale down Laplace sensitivity for imbalance metrics ([e286426](https://github.com/Nekzus/LIOP/commit/e286426726b541500afab197c1af9220c0009f46))
+* **sdk:** align default audience and resolve M2M token propagation in executeLogic ([6d8898b](https://github.com/Nekzus/LIOP/commit/6d8898bded49c3d3049a6f40eb75f84d20846738))
+* **security:** isolate query budget by session token to prevent cross-session budget leaks ([fe28590](https://github.com/Nekzus/LIOP/commit/fe28590cbaf6e313601e585d5fe66059c8945ef7))
+* **security:** patch tmp path traversal vulnerability (GHSA-ph9p-34f9-6g65) ([2166ff3](https://github.com/Nekzus/LIOP/commit/2166ff34d06793a22a797a8b0bd58a67423b82a3))
+
+
+### Features
+
+* **auth:** implement local token revocation list and pre-shared local test token bypass ([4214754](https://github.com/Nekzus/LIOP/commit/4214754fa520085a4a51b28e768371233e5f2caa))
+* **hft:** optimize HFT microstructural simulation and security hardening ([112d5d7](https://github.com/Nekzus/LIOP/commit/112d5d77fb7750c74437b7872ba3c87bfe17f0c8))
+* **sdk:** env var isolation, fix tokenSlug and manifest propagation ([0b1957a](https://github.com/Nekzus/LIOP/commit/0b1957a1de23ea974322e38e87da616b787c7d17))
+* **security:** implement embedded OAuth 2.1 authorization server in Nexus (Phase C) ([9a2b9eb](https://github.com/Nekzus/LIOP/commit/9a2b9ebc190286fbaa478307348a380955809720))
+* **security:** implement OAuth 2.1 hybrid auth foundation and gateway validation (Fases A y B) ([2e44a53](https://github.com/Nekzus/LIOP/commit/2e44a537c8274618d3d7635a1ac9b17c39614a4c))
+* **security:** stabilize M2M client_secret_post auth, prevent duplicate oidc paths and secure undefined outputs in worker ([49d81e8](https://github.com/Nekzus/LIOP/commit/49d81e8fa57cdf1ef10d7213d1ab2ad66195778f))
+
 # [2.0.0-alpha.27](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.26...v2.0.0-alpha.27) (2026-05-26)
 
 
