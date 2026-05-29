@@ -32,8 +32,9 @@ async function main() {
 			capabilities: { tools: {} },
 		},
 		{
+			tokenSlug: "ORACLE",
 			auth: {
-				role: "node",
+				role: "none",
 			},
 			taxonomy: {
 				domain: "📈 HFT Market Data (INDUSTRIAL DEMO)",

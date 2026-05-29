@@ -35,6 +35,8 @@ LIOP is designed to be a drop-in replacement for MCP servers. To add LIOP tools 
       "args": ["-y", "@nekzus/liop@latest"],
       "env": {
         "LIOP_NEXUS_URL": "http://your-nexus-host:3000",
+        "LIOP_TOKEN_BANK": "your-bank-token-here",
+        "LIOP_TOKEN_VAULT": "your-vault-token-here",
         "LIOP_LOG_LEVEL": "info",
         "NODE_OPTIONS": "--use-system-ca"
       }
@@ -50,6 +52,8 @@ LIOP is designed to be a drop-in replacement for MCP servers. To add LIOP tools 
       "args": ["-y", "@nekzus/liop@latest"],
       "env": {
         "LIOP_NEXUS_URL": "http://your-nexus-host:3000",
+        "LIOP_TOKEN_BANK": "your-bank-token-here",
+        "LIOP_TOKEN_VAULT": "your-vault-token-here",
         "LIOP_LOG_LEVEL": "info",
         "NODE_OPTIONS": "--use-system-ca"
       }
@@ -110,6 +114,7 @@ The agent behavior can be customized via the following environment variables:
 | `LIOP_WORKER_MAX_HEAP_MB` | `64` | Maximum V8 heap size per worker thread (Heap Bomb defense) |
 | `LIOP_DOCKER_MAP` | `false` | Force translation of Docker-internal container IPs (`172.x.x.x`) to the host loopback (`127.0.0.1`), mapping target gRPC services to host-published ports for running containerized mesh nodes in local environments |
 | `LIOP_DEV_MODE` | `false` | Enables development heuristics, which automatically activates Docker port mapping if the Nexus URL points to local demo ports (`13000`/`13001`) |
+| `LIOP_DATASET_SCALE` | `1` | Scaling factor used by test and demo nodes to dynamically scale synthetic record generation size (e.g., bank transactions, health records) |
 
 <Warning>
   `LIOP_BOOTSTRAP_FILE` is **deprecated** since v2.0.0-alpha. Use `LIOP_NEXUS_URL` instead. The agent will log a warning if this variable is detected.

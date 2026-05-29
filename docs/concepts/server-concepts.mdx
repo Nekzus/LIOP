@@ -197,19 +197,21 @@ server.tool(
 ```
 
 ### Differential Privacy Policy
-For datasets below the `smallDatasetThreshold` (default: 50 records), the server automatically applies calibrated Laplace noise to all numeric outputs. Configure the privacy profile in the server constructor:
+For datasets below the `dpSmallDatasetThreshold` (default: 50 records), the server automatically applies calibrated Laplace noise to all numeric outputs. Configure the privacy profile at the tool-level policy when registering a tool:
 
 ```typescript
-const server = new LiopServer(
-  { name: "secure-vault", version: "1.0.0" },
+server.tool(
+  "analyze_records",
+  "Analyzes database records securely",
+  { payload: z.string() },
+  async (args) => {
+    // handler implementation
+  },
   {
-    security: {
-      dpConfig: {
-        epsilon: 2.0,            // Privacy budget (higher = less noise, more utility)
-        sensitivity: 1000.0,     // Max change per record for SUM fields
-        smallDatasetThreshold: 50 // Skip noise for datasets above this size
-      }
-    }
+    enforceAggregationFirst: true,
+    dpEpsilon: 2.0,                  // Privacy budget (higher = less noise, more utility)
+    dpSensitivity: 1000.0,           // Max change per record for SUM fields
+    dpSmallDatasetThreshold: 50      // Apply noise only when dataset size < this threshold
   }
 );
 ```

@@ -95,6 +95,12 @@ export interface LiopServerOptions {
 	 * env vars, DHT discovery, or secure defaults.
 	 */
 	auth?: import("../security/auth-config.js").LiopAuthConfig;
+	/**
+	 * Canonical slug for deterministic token resolution.
+	 * Agents/clients resolve `LIOP_TOKEN_<tokenSlug>` from environment.
+	 * Must match SCREAMING_SNAKE_CASE: /^[A-Z][A-Z0-9_]*$/ (e.g., "BANK", "VAULT", "HFT_ORACLE").
+	 */
+	tokenSlug?: string;
 }
 
 export interface AggregationPolicy {
@@ -210,8 +216,15 @@ export class LiopServer {
 	public oauthProvider?: any;
 	private sessions: Map<
 		string,
-		{ capability_hash: string; kyber_sk: Uint8Array; agent_did?: string }
+		{
+			capability_hash: string;
+			kyber_sk: Uint8Array;
+			agent_did?: string;
+			tokenHash?: string;
+		}
 	> = new Map();
+	private revokedTokenHashes: Set<string> = new Set();
+	private lastRevocationLoadTime = 0;
 
 	// Compact envelope: @LIOP{target,name}\n<code>\n@END
 	private static readonly LIOP_COMPACT_REGEX =
@@ -739,6 +752,10 @@ export class LiopServer {
 			"text/plain",
 			() => Promise.resolve(this.buildEnvelopeSpec()),
 		);
+
+		if (this.config?.auth?.revocationPath) {
+			this.loadRevocationList();
+		}
 	}
 	/**
 	 * Builds the centralized LIOP envelope specification document.
@@ -809,6 +826,11 @@ export class LiopServer {
 			"",
 			"OPTIONAL PARAMETERS:",
 			"- __liop_bypass_ast_cache: boolean (force AST re-evaluation)",
+			"",
+			"AUTHENTICATION (tokenSlug Convention):",
+			"- Restricted nodes declare authRequired: true in their manifest.",
+			"- Token resolution: LIOP_TOKEN_<tokenSlug> (deterministic) > LIOP_TOKEN_<PeerID> > LIOP_TOKEN_<ProviderName>",
+			"- Format: tokenSlug must match SCREAMING_SNAKE_CASE /^[A-Z][A-Z0-9_]*$/ (e.g., BANK, VAULT, HFT_ORACLE).",
 		);
 
 		return lines.join("\n");
@@ -1514,6 +1536,17 @@ Protocol Adherence is mandatory for successful execution.`,
 			: undefined;
 		const port = options.port ?? envPort ?? 50051;
 
+		// [Fail-Fast] Validate tokenSlug format at startup to prevent silent mismatches
+		const TOKEN_SLUG_PATTERN = /^[A-Z][A-Z0-9_]*$/;
+		if (
+			this.config?.tokenSlug &&
+			!TOKEN_SLUG_PATTERN.test(this.config.tokenSlug)
+		) {
+			throw new Error(
+				`Invalid tokenSlug "${this.config.tokenSlug}". Must match SCREAMING_SNAKE_CASE: /^[A-Z][A-Z0-9_]*$/ (e.g., "BANK", "VAULT", "HFT_ORACLE").`,
+			);
+		}
+
 		// 1. Initialize Mesh Node (Discovery)
 		this.meshNode = new MeshNode(options.meshConfig);
 		await this.meshNode.start();
@@ -1542,6 +1575,15 @@ Protocol Adherence is mandatory for successful execution.`,
 				tools,
 				resources,
 				serverInfo: this.serverInfo,
+				authRequired: this.jwtValidator !== undefined,
+				tokenSlug: this.config?.tokenSlug,
+				taxonomy: this.config?.taxonomy
+					? {
+							domain: this.config.taxonomy.domain || "Unknown Domain",
+							clearanceTier: this.config.taxonomy.clearanceTier ?? 0,
+							executionTypes: this.config.taxonomy.executionTypes || [],
+						}
+					: undefined,
 			};
 		});
 
@@ -1563,8 +1605,126 @@ Protocol Adherence is mandatory for successful execution.`,
 					`[LIOP-RPC] Negotiating intent for capability: ${request.capability_hash}`,
 				);
 
-				const proceed = () => {
-					// Standard dynamic import to avoid potential circularity
+				if (this.jwtValidator) {
+					const authHeader = call.metadata.get("authorization")[0] as
+						| string
+						| undefined;
+					if (!authHeader) {
+						callback({
+							code: grpc.status.UNAUTHENTICATED,
+							details: "Missing Authorization header in gRPC metadata",
+						});
+						return;
+					}
+
+					const token = authHeader.startsWith("Bearer ")
+						? authHeader.slice(7)
+						: authHeader;
+
+					// Calculate SHA-256 hash of the incoming token
+					const tokenHash = crypto
+						.createHash("sha256")
+						.update(token)
+						.digest("hex")
+						.toLowerCase();
+
+					// 1. Check local revocation list
+					this.loadRevocationList();
+					if (this.revokedTokenHashes.has(tokenHash)) {
+						callback({
+							code: grpc.status.UNAUTHENTICATED,
+							details: "Token has been revoked by the resource owner",
+						});
+						return;
+					}
+
+					// 2. Validate Pre-Shared Local Access Token (Sovereign Node Auth)
+					const localTestToken = this.config?.auth?.localTestToken;
+					const isTestTokenPattern = /^[a-zA-Z0-9_-]+-local-test-token$/;
+
+					if (localTestToken) {
+						if (token === localTestToken) {
+							log.info(
+								`[LIOP-RPC] Bypass authentication for matching localTestToken: ${localTestToken}`,
+							);
+							import("../rpc/crypto/kyber.js").then(
+								async ({ Kyber768Wrapper }) => {
+									const { publicKey, secretKey } =
+										await Kyber768Wrapper.generateKeyPair();
+
+									const sessionToken = crypto.randomUUID();
+
+									this.sessions.set(sessionToken, {
+										capability_hash: request.capability_hash,
+										kyber_sk: secretKey,
+										agent_did: request.agent_did,
+										tokenHash,
+									});
+
+									callback(null, {
+										accepted: true,
+										session_token: sessionToken,
+										error_message: "",
+										kyber_public_key: publicKey,
+									});
+								},
+							);
+							return;
+						}
+
+						// Strictly require the specific static access token
+						callback({
+							code: grpc.status.PERMISSION_DENIED,
+							details:
+								token && isTestTokenPattern.test(token)
+									? "Pre-shared local test token is invalid for this resource domain (segregation violation)."
+									: "Access Denied: This restricted node requires its specific static access token.",
+						});
+						return;
+					}
+
+					this.jwtValidator
+						.validate(token)
+						.then((authInfo) => {
+							const authResult = authorizeRequest("tools/call", authInfo);
+							if (!authResult.allowed) {
+								callback({
+									code: grpc.status.PERMISSION_DENIED,
+									details: authResult.reason || "Access Denied",
+								});
+								return;
+							}
+
+							import("../rpc/crypto/kyber.js").then(
+								async ({ Kyber768Wrapper }) => {
+									const { publicKey, secretKey } =
+										await Kyber768Wrapper.generateKeyPair();
+
+									const sessionToken = crypto.randomUUID();
+
+									this.sessions.set(sessionToken, {
+										capability_hash: request.capability_hash,
+										kyber_sk: secretKey,
+										agent_did: request.agent_did,
+										tokenHash,
+									});
+
+									callback(null, {
+										accepted: true,
+										session_token: sessionToken,
+										error_message: "",
+										kyber_public_key: publicKey,
+									});
+								},
+							);
+						})
+						.catch((err) => {
+							callback({
+								code: grpc.status.UNAUTHENTICATED,
+								details: `Invalid JWT token: ${err.message}`,
+							});
+						});
+				} else {
 					import("../rpc/crypto/kyber.js").then(async ({ Kyber768Wrapper }) => {
 						const { publicKey, secretKey } =
 							await Kyber768Wrapper.generateKeyPair();
@@ -1584,41 +1744,6 @@ Protocol Adherence is mandatory for successful execution.`,
 							kyber_public_key: publicKey,
 						});
 					});
-				};
-
-				if (this.jwtValidator) {
-					const authHeader = call.metadata.get("authorization")[0] as
-						| string
-						| undefined;
-					if (!authHeader?.startsWith("Bearer ")) {
-						callback({
-							code: grpc.status.UNAUTHENTICATED,
-							details:
-								"Missing or malformed Authorization header in gRPC metadata",
-						});
-						return;
-					}
-					this.jwtValidator
-						.validate(authHeader.slice(7))
-						.then((authInfo) => {
-							const authResult = authorizeRequest("tools/call", authInfo);
-							if (!authResult.allowed) {
-								callback({
-									code: grpc.status.PERMISSION_DENIED,
-									details: authResult.reason || "Access Denied",
-								});
-								return;
-							}
-							proceed();
-						})
-						.catch((err) => {
-							callback({
-								code: grpc.status.UNAUTHENTICATED,
-								details: `Invalid JWT token: ${err.message}`,
-							});
-						});
-				} else {
-					proceed();
 				}
 			},
 			executeLogic: async (
@@ -1637,6 +1762,18 @@ Protocol Adherence is mandatory for successful execution.`,
 							details: "Invalid session token",
 						});
 						return;
+					}
+
+					// Verify if the token associated with this session has been revoked in the meantime
+					if (session.tokenHash) {
+						this.loadRevocationList();
+						if (this.revokedTokenHashes.has(session.tokenHash)) {
+							call.emit("error", {
+								code: grpc.status.UNAUTHENTICATED,
+								details: "Token has been revoked by the resource owner",
+							});
+							return;
+						}
 					}
 
 					// [SECURITY] Resolve the negotiated tool to enforce its policies
@@ -1670,12 +1807,11 @@ Protocol Adherence is mandatory for successful execution.`,
 						const logic =
 							this.extractLogic(decryptedPayload) || decryptedPayload.trim();
 
-						const clientId = session.agent_did || "unknown-client";
 						const preflightReason = this.runPreflightPolicy(
 							toolName || "unknown_tool",
 							logic,
 							toolPolicy,
-							clientId,
+							request.session_token,
 						);
 
 						if (preflightReason) {
@@ -1881,18 +2017,60 @@ Protocol Adherence is mandatory for successful execution.`,
 					const authHeader = call.metadata.get("authorization")[0] as
 						| string
 						| undefined;
-					if (!authHeader?.startsWith("Bearer ")) {
+					if (!authHeader) {
 						call.emit("error", {
 							code: grpc.status.UNAUTHENTICATED,
-							details:
-								"Missing or malformed Authorization header in gRPC metadata",
+							details: "Missing Authorization header in gRPC metadata",
 						});
 						return;
 					}
+
+					const token = authHeader.startsWith("Bearer ")
+						? authHeader.slice(7)
+						: authHeader;
+
+					const tokenHash = crypto
+						.createHash("sha256")
+						.update(token)
+						.digest("hex")
+						.toLowerCase();
+
+					// 1. Check local revocation list
+					this.loadRevocationList();
+					if (this.revokedTokenHashes.has(tokenHash)) {
+						call.emit("error", {
+							code: grpc.status.UNAUTHENTICATED,
+							details: "Token has been revoked by the resource owner",
+						});
+						return;
+					}
+
+					// 2. Validate Pre-Shared Local Access Token (Sovereign Node Auth)
+					const localTestToken = this.config?.auth?.localTestToken;
+					const isTestTokenPattern = /^[a-zA-Z0-9_-]+-local-test-token$/;
+
+					if (localTestToken) {
+						if (token === localTestToken) {
+							log.info(
+								`[LIOP-RPC] Bypass authentication in executeLogic for matching localTestToken: ${localTestToken}`,
+							);
+							await proceed();
+							return;
+						}
+
+						// Strictly require the specific static access token
+						call.emit("error", {
+							code: grpc.status.PERMISSION_DENIED,
+							details:
+								token && isTestTokenPattern.test(token)
+									? "Pre-shared local test token is invalid for this resource domain (segregation violation)."
+									: "Access Denied: This restricted node requires its specific static access token.",
+						});
+						return;
+					}
+
 					try {
-						const authInfo = await this.jwtValidator.validate(
-							authHeader.slice(7),
-						);
+						const authInfo = await this.jwtValidator.validate(token);
 						const authResult = authorizeRequest("tools/call", authInfo);
 						if (!authResult.allowed) {
 							call.emit("error", {
@@ -2093,6 +2271,96 @@ Protocol Adherence is mandatory for successful execution.`,
 		}
 		if (this.meshNode) {
 			await this.meshNode.stop();
+		}
+	}
+
+	private loadRevocationList(): void {
+		const rPath = this.config?.auth?.revocationPath;
+		if (!rPath) return;
+
+		try {
+			if (fs.existsSync(rPath)) {
+				const stats = fs.statSync(rPath);
+				// If file has not changed since last load, skip reading
+				if (stats.mtimeMs <= this.lastRevocationLoadTime) {
+					return;
+				}
+
+				const content = fs.readFileSync(rPath, "utf-8");
+				const list = JSON.parse(content);
+				if (Array.isArray(list)) {
+					this.revokedTokenHashes.clear();
+					for (const item of list) {
+						if (typeof item === "string") {
+							this.revokedTokenHashes.add(item.trim().toLowerCase());
+						}
+					}
+					this.lastRevocationLoadTime = stats.mtimeMs;
+					log.info(
+						`[LiopServer] Loaded ${this.revokedTokenHashes.size} revoked token hashes from ${rPath}`,
+					);
+				}
+			} else {
+				// Initialize an empty revocation list file
+				const dir = path.dirname(rPath);
+				if (!fs.existsSync(dir)) {
+					fs.mkdirSync(dir, { recursive: true });
+				}
+				fs.writeFileSync(rPath, JSON.stringify([], null, 2), "utf-8");
+				this.lastRevocationLoadTime = Date.now();
+				log.info(
+					`[LiopServer] Created empty local revocation list at ${rPath}`,
+				);
+			}
+		} catch (err: unknown) {
+			log.error(
+				`[LiopServer] Failed to load revocation list: ${
+					err instanceof Error ? err.message : String(err)
+				}`,
+			);
+		}
+	}
+
+	public revokeToken(token: string): void {
+		if (!token) return;
+		const hash = crypto
+			.createHash("sha256")
+			.update(token)
+			.digest("hex")
+			.toLowerCase();
+		this.revokeTokenHash(hash);
+	}
+
+	public revokeTokenHash(hash: string): void {
+		if (!hash) return;
+		const normalizedHash = hash.toLowerCase();
+
+		this.loadRevocationList();
+		this.revokedTokenHashes.add(normalizedHash);
+
+		const rPath = this.config?.auth?.revocationPath;
+		if (rPath) {
+			try {
+				const dir = path.dirname(rPath);
+				if (!fs.existsSync(dir)) {
+					fs.mkdirSync(dir, { recursive: true });
+				}
+				const hashes = Array.from(this.revokedTokenHashes);
+				fs.writeFileSync(rPath, JSON.stringify(hashes, null, 2), "utf-8");
+
+				const stats = fs.statSync(rPath);
+				this.lastRevocationLoadTime = stats.mtimeMs;
+
+				log.info(
+					`[LiopServer] Persisted revocation for hash ${normalizedHash} to ${rPath}`,
+				);
+			} catch (err: unknown) {
+				log.error(
+					`[LiopServer] Failed to persist revocation: ${
+						err instanceof Error ? err.message : String(err)
+					}`,
+				);
+			}
 		}
 	}
 }

@@ -20,6 +20,8 @@ const server = new LiopServer(
     version: "3.2.0",
   },
   {
+    // Canonical slug for deterministic token resolution
+    tokenSlug: "BANK",
     // Scales decryption & WASI sandboxing across all CPU cores instantly
     workerPool: { enabled: true, maxThreads: 16, maxHeapMb: 128 },
     // Strict security configuration and data leak prevention using flexible regional presets
@@ -35,7 +37,7 @@ const server = new LiopServer(
     // Data domain classification for Mesh taxonomy
     taxonomy: {
       domain: "healthcare",
-      clearanceTier: "tier-0",
+      clearanceTier: 3,
       executionTypes: ["aggregation", "analytics"]
     }
   }
@@ -46,12 +48,13 @@ const server = new LiopServer(
 
 When instantiating a `LiopServer`, the second parameter allows you to define advanced characteristics of the node:
 
+*   **`tokenSlug` (Deterministic Token Resolution):** A canonical string (e.g. `"BANK"`) that allows remote agents to securely resolve the PQC access token from their host environment (`LIOP_TOKEN_<tokenSlug>`). Must match the regex `/^[A-Z][A-Z0-9_]*$/`.
 *   **`workerPool.maxHeapMb` (Heap Defense):** Maximum V8 heap size in megabytes per worker thread (default: `64`). Can also be set via the `LIOP_WORKER_MAX_HEAP_MB` environment variable. Prevents Heap Bomb DoS attacks by terminating workers that exceed the memory limit.
 *   **`security.forbiddenKeys` (Egress Filter):** An array of strings. If the model attempts to return a JSON containing any of these keys (e.g., `"clinical_history"`), the Egress Filter will destroy the response before it leaves the server mapping through objects recursively. Defaults to blocking `"password"`, `"token"`, `"secret"`, and `"privateKey"`.
 *   **`security.piiPatterns` (Sanitization):** Arrays of `PiiRule` objects. You can use our out-of-the-box templates (`PII_PRESETS.GLOBAL_STRICT`, `EU_GDPR`, `US_COMPLIANT`) and merge them with custom raw strings or regexes. The engine will intercept any outgoing text that matches combinations of IBAN logic, credit card numbers, or internal tracking IDs. Defaults to `GLOBAL_STRICT` if omitted.
 *   **`security.enableNerScanning` (NLP Detection):** When set to `true`, activates Named Entity Recognition scanning via the `compromise` NLP library to detect person names, locations, and organizations in output values. Adds ~10ms latency for typical output sizes. Default: `false`.
 *   **`security.rateLimit` (Sliding Window):** Configures the per-tool rate limiter to prevent micro-query exfiltration attacks. `maxPerWindow` (default: `30`) and `windowMs` (default: `60000`) define the sliding window parameters.
-*   **`taxonomy` (Domain Classification):** Optional metadata that classifies the server's data domain (`domain`), security clearance tier (`clearanceTier`), and supported execution types (`executionTypes`). This metadata is announced on the DHT and used for intelligent routing.
+*   **`taxonomy` (Domain Classification):** Optional metadata that classifies the server's data domain (`domain`), security clearance tier as a `number` (`clearanceTier`), and supported execution types (`executionTypes`). This metadata is announced on the DHT and used for intelligent routing.
 *   **Dynamic Return Structure (Auto-i18n) [PLANNED]:** This feature is on the roadmap. When implemented, the `LiopServer` will automatically inject *Dynamic Return Structure* directives into payloads, forcing the AI to respect and return JSON keys exactly in the same native language the client used when making the request, eliminating the need for internationalization (i18n) libraries on your frontend.
 
 ## Creating Capabilities (Tools)

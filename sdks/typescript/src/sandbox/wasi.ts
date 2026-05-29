@@ -22,6 +22,44 @@ process.emit = (name, data, ...args) => {
 	return originalEmit.call(process, name, data, ...args);
 };
 
+/**
+ * Returns a filtered environment object containing only safe system variables,
+ * preventing exposure of sensitive credentials and shell function injection.
+ */
+export function getDefaultEnvironment(): Record<string, string> {
+	const isWindows = process.platform === "win32";
+	const safeKeys = isWindows
+		? [
+				"APPDATA",
+				"HOMEDRIVE",
+				"HOMEPATH",
+				"LOCALAPPDATA",
+				"PATH",
+				"PROCESSOR_ARCHITECTURE",
+				"SYSTEMDRIVE",
+				"SYSTEMROOT",
+				"TEMP",
+				"USERNAME",
+				"USERPROFILE",
+				"PROGRAMFILES",
+			]
+		: ["HOME", "LOGNAME", "PATH", "SHELL", "TERM", "USER"];
+
+	const env: Record<string, string> = {
+		NODE_ENV: "production",
+		LIOP_NODE: "true",
+	};
+
+	for (const key of safeKeys) {
+		const val = process.env[key];
+		if (val !== undefined && !val.startsWith("()")) {
+			env[key] = val;
+		}
+	}
+
+	return env;
+}
+
 export interface SandboxConfig {
 	allowEnv?: boolean;
 	allowedDirectories?: Record<string, string>; // guestPath -> hostPath
@@ -76,7 +114,7 @@ export class WasiSandbox {
 				version: "preview1",
 				args: ["liop_runtime"],
 				env: this.config.allowEnv
-					? process.env
+					? { ...getDefaultEnvironment(), RUNTIME_ID: this.sandboxId }
 					: {
 							NODE_ENV: "production",
 							LIOP_NODE: "true",

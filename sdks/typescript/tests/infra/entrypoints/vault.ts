@@ -29,8 +29,11 @@ async function main() {
 			version: "1.0.0",
 		},
 		{
+			tokenSlug: "VAULT",
 			auth: {
 				role: "node",
+				revocationPath: path.join(dataDir, "vault-revocations.json"),
+				localTestToken: "vault-local-test-token",
 			},
 			taxonomy: {
 				domain: "🏥 Healthcare (INDUSTRIAL DEMO)",
