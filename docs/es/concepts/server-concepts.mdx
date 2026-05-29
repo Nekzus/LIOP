@@ -193,19 +193,21 @@ server.tool(
 ```
 
 ### Política de Privacidad Diferencial
-Para datasets por debajo del `smallDatasetThreshold` (por defecto: 50 registros), el servidor aplica automáticamente ruido Laplace calibrado a todas las salidas numéricas. Configure el perfil de privacidad en el constructor del servidor:
+Para datasets por debajo del `dpSmallDatasetThreshold` (por defecto: 50 registros), el servidor aplica automáticamente ruido Laplace calibrado a todas las salidas numéricas. Configure el perfil de privacidad en la política a nivel de herramienta al registrarla:
 
 ```typescript
-const server = new LiopServer(
-  { name: "secure-vault", version: "1.0.0" },
+server.tool(
+  "analyze_records",
+  "Analiza registros de base de datos de forma segura",
+  { payload: z.string() },
+  async (args) => {
+    // implementación del manejador
+  },
   {
-    security: {
-      dpConfig: {
-        epsilon: 2.0,            // Presupuesto de privacidad (mayor = menos ruido)
-        sensitivity: 1000.0,     // Cambio máximo por registro para campos SUM
-        smallDatasetThreshold: 50 // Sin ruido para datasets sobre este tamaño
-      }
-    }
+    enforceAggregationFirst: true,
+    dpEpsilon: 2.0,                  // Presupuesto de privacidad (mayor = menos ruido)
+    dpSensitivity: 1000.0,           // Cambio máximo por registro para campos SUM
+    dpSmallDatasetThreshold: 50      // Aplica ruido solo cuando el dataset < este umbral
   }
 );
 ```

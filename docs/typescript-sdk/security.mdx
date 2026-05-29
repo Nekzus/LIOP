@@ -215,6 +215,32 @@ Presets can be merged with custom regex rules for organization-specific complian
 - **Aggregation-First Policy**: Blocks raw row-level data export — only aggregated results (counts, averages, summaries) pass through
 - **Output Schema Enforcement**: When a `Zod` output schema is defined, `.strict()` mode is automatically applied, rejecting any keys not explicitly allowed in the schema
 - **Cryptographic & Envelope Unwrapping**: Automatically isolates and extracts the raw business data payload from MCP/LIOP envelopes and gRPC proxied responses (via `unwrapForAggregationPolicyScan`) before scanning. This prevents false positives from binary metadata and cryptographic seals (like HMAC-SHA256 ZK-Receipt signatures).
+- **K-Anonymity on Small Datasets**: For micro-datasets or synthetic demos (dataset size < 10), the Egress Shield applies a strict K-Anonymity filter. Any output returned by the sandbox is rejected if it contains more than **3 scalar keys** (flat properties) or if it has any **arrays or nested objects**. This blocks attempts to rebuild datasets key-by-key or through nested structure side-channels.
+
+---
+
+## Differential Privacy & 3-Tier Query Budget (NIST SP 800-226)
+
+To prevent reconstruction and statistical differentiation attacks (where an agent performs multiple overlapping queries to isolate a single record's values), the SDK implements a tiered query budget system coupled with Laplace differential privacy.
+
+### 3-Tier Query Budget Session Limits
+
+During a secure PQC-negotiated session, the SDK tracks query access to data fields. In compliance with NIST SP 800-226 guidelines, fields are classified into three sensitivity tiers, each with its own strict query limit per session:
+
+1. **Forbidden Tier (Max 3 queries/session)**: Applies to fields declared in `forbiddenKeys` (e.g., `ssn`, `password`, `email`). Any attempt to query these fields beyond the limit triggers an immediate egress block.
+2. **Sensitive Tier (Max 8 queries/session)**: Applies to fields declared in global or tool-level `sensitiveKeys` (e.g., `balance`, `diagnosis`, `ticker`).
+3. **Public Tier (Max 25 queries/session)**: Applies to any public fields not registered as sensitive or forbidden.
+
+Limits are enforced dynamically based on taint analysis tracking. If any tier's budget is exhausted, further sandbox executions attempting to access fields in that tier are blocked.
+
+### Laplace Mechanism & Field Sensitivity
+
+When the dataset size falls below `dpSmallDatasetThreshold` (default: 50), the DP Engine applies calibrated Laplace noise ($Noise \sim \text{Laplace}(0, \frac{\Delta s}{\epsilon})$) to all numeric outputs.
+
+The engine automatically calibrates the sensitivity ($\Delta s$) based on field naming conventions:
+- **Count fields** (`count`, `length`, `size`, `num`): Sensitivity is locked to $1.0$.
+- **Average fields** (`avg`, `mean`): Sensitivity is dynamically calculated as $\frac{dpSensitivity}{recordCount}$.
+- **Sum & general fields**: Sensitivity is set to the tool's configured `dpSensitivity`.
 
 ---
 
