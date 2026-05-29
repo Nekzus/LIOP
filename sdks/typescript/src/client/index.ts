@@ -433,7 +433,60 @@ export class LiopClient {
 	private getOrCreateRpcClient(peerId: string, address: string): LiopRpcClient {
 		let client = this.rpcClients.get(peerId);
 		if (!client) {
-			client = new LiopRpcClient(address, this.tlsOptions, this.oauthToken);
+			let nodeToken = this.oauthToken;
+
+			let manifest = this.manifests.get(peerId);
+			let realPeerId = peerId;
+
+			// If peerId is actually a toolName (which happens when called from callTool),
+			// resolve the real PeerID and its manifest from the manifest cache.
+			if (!manifest) {
+				for (const [pId, m] of this.manifests.entries()) {
+					if (m.tools.some((t) => t.name === peerId)) {
+						manifest = m;
+						realPeerId = pId;
+						break;
+					}
+				}
+			}
+
+			const providerName = manifest?.serverInfo?.name?.toLowerCase() || "";
+			let envToken: string | undefined;
+
+			// 0. Deterministic tokenSlug resolution (highest priority, zero heuristic)
+			const slug = manifest?.tokenSlug;
+			if (slug) {
+				envToken =
+					process.env[`LIOP_TOKEN_${slug}`] ||
+					process.env[`LIOP_OAUTH_TOKEN_${slug}`];
+			}
+
+			// 1. PeerID-specific resolution: LIOP_TOKEN_<last 8 chars of PeerID in uppercase>
+			if (!envToken && realPeerId) {
+				const shortId = realPeerId.slice(-8).toUpperCase();
+				envToken =
+					process.env[`LIOP_TOKEN_${shortId}`] ||
+					process.env[`LIOP_OAUTH_TOKEN_${shortId}`];
+			}
+
+			// 2. Provider-name resolution: LIOP_TOKEN_<CLEAN_PROVIDER_NAME_UPPERCASE>
+			if (!envToken && providerName) {
+				const cleanName = providerName
+					.toUpperCase()
+					.replace(/[^A-Z0-9_]/g, "_");
+				envToken =
+					process.env[`LIOP_TOKEN_${cleanName}`] ||
+					process.env[`LIOP_OAUTH_TOKEN_${cleanName}`];
+			}
+
+			if (envToken) {
+				log.info(
+					`[LiopClient] Resolved node-specific token for peer ${realPeerId.slice(-8)} (${providerName || "unknown"})`,
+				);
+				nodeToken = envToken;
+			}
+
+			client = new LiopRpcClient(address, this.tlsOptions, nodeToken);
 			this.rpcClients.set(peerId, client);
 		}
 		return client;

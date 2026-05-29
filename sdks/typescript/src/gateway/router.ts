@@ -84,12 +84,24 @@ export class LiopMcpRouter {
 					mimeType: r.mimeType,
 				}));
 
+				// biome-ignore lint/suspicious/noExplicitAny: access private configuration properties
+				const serverConfig = (this.liopServer as any).config;
+
 				return {
 					peerId: this.meshNode?.getPeerId() || "unknown",
 					grpcPort: this.defaultRpcPort,
 					tools: [...remoteTools],
 					resources,
 					serverInfo: this.liopServer.getServerInfo(),
+					authRequired: this.liopServer.jwtValidator !== undefined,
+					tokenSlug: serverConfig?.tokenSlug,
+					taxonomy: serverConfig?.taxonomy
+						? {
+								domain: serverConfig.taxonomy.domain || "Unknown Domain",
+								clearanceTier: serverConfig.taxonomy.clearanceTier ?? 0,
+								executionTypes: serverConfig.taxonomy.executionTypes || [],
+							}
+						: undefined,
 				};
 			});
 
@@ -1063,12 +1075,47 @@ export class LiopMcpRouter {
 				log.info(
 					`[LIOP-Router] Resolved ${toolName} via manifest cache (Peer: ${target.peerId}, Original: ${target.originalToolName})`,
 				);
+
+				// Proactive auth check: block locally if the remote node requires authentication
+				// and no token can be resolved — avoids unnecessary network calls to resolvePeer/gRPC
+				const manifestEntry = this.manifestCache.get(target.peerId);
+				let effectiveToken = token;
+				if (manifestEntry?.manifest.authRequired) {
+					const resolvedToken =
+						token || (await this.getOrAcquireMeshAgentToken(target.peerId));
+					if (!resolvedToken) {
+						const providerName =
+							manifestEntry.manifest.serverInfo?.name?.toLowerCase() ||
+							"unknown";
+						const slug = manifestEntry.manifest.tokenSlug;
+						const shortId = target.peerId.slice(-8).toUpperCase();
+						const primaryVar = slug
+							? `LIOP_TOKEN_${slug}`
+							: `LIOP_TOKEN_${providerName.toUpperCase().replace(/[^A-Z0-9_]/g, "_")}`;
+						return {
+							jsonrpc: "2.0",
+							id,
+							result: {
+								content: [
+									{
+										type: "text",
+										text: `Authentication Required: The restricted node (${providerName}) requires an access token. Please define the ${primaryVar} or LIOP_TOKEN_${shortId} environment variable on your agent/client host.`,
+									},
+								],
+								isError: true,
+							},
+						};
+					}
+					// Forward the resolved token instead of the original (potentially undefined) caller token
+					effectiveToken = resolvedToken;
+				}
+
 				return this.routeToRemoteProvider(
 					id,
 					target.originalToolName,
 					target.peerId,
 					params,
-					token,
+					effectiveToken,
 				);
 			}
 
@@ -1254,8 +1301,60 @@ export class LiopMcpRouter {
 
 	/**
 	 * Dynamically acquires an M2M access token from the Nexus Authorization Server.
+	 * If peerId is provided, checks if there are node-specific environment tokens
+	 * before falling back to the global static token or Nexus acquisition.
 	 */
-	private async getOrAcquireMeshAgentToken(): Promise<string | undefined> {
+	private async getOrAcquireMeshAgentToken(
+		peerId?: string,
+	): Promise<string | undefined> {
+		if (peerId) {
+			const manifestEntry = this.manifestCache.get(peerId);
+			const providerName =
+				manifestEntry?.manifest.serverInfo?.name?.toLowerCase() || "";
+
+			let nodeToken: string | undefined;
+
+			// 0. Deterministic tokenSlug resolution (highest priority, zero heuristic)
+			const slug = manifestEntry?.manifest.tokenSlug;
+			if (slug) {
+				const envKey = `LIOP_TOKEN_${slug}`;
+				nodeToken =
+					process.env[envKey] || process.env[`LIOP_OAUTH_TOKEN_${slug}`];
+				log.info(
+					`[LIOP-Router] Step0 tokenSlug=${slug} envKey=${envKey} found=${!!nodeToken} peer=${peerId.slice(-8)}`,
+				);
+			} else {
+				log.info(
+					`[LIOP-Router] Step0 tokenSlug=MISSING (manifest has no tokenSlug) peer=${peerId.slice(-8)} provider=${providerName}`,
+				);
+			}
+
+			// 1. PeerID-specific resolution: LIOP_TOKEN_<last 8 chars of PeerID in uppercase>
+			if (!nodeToken) {
+				const shortId = peerId.slice(-8).toUpperCase();
+				nodeToken =
+					process.env[`LIOP_TOKEN_${shortId}`] ||
+					process.env[`LIOP_OAUTH_TOKEN_${shortId}`];
+			}
+
+			// 2. Provider-name resolution: LIOP_TOKEN_<CLEAN_PROVIDER_NAME_UPPERCASE>
+			if (!nodeToken && providerName) {
+				const cleanName = providerName
+					.toUpperCase()
+					.replace(/[^A-Z0-9_]/g, "_");
+				nodeToken =
+					process.env[`LIOP_TOKEN_${cleanName}`] ||
+					process.env[`LIOP_OAUTH_TOKEN_${cleanName}`];
+			}
+
+			if (nodeToken) {
+				log.info(
+					`[LIOP-Router] Resolved node-specific token for peer ${peerId.slice(-8)} (${providerName || "unknown"})`,
+				);
+				return nodeToken;
+			}
+		}
+
 		if (this.meshAgentToken) return this.meshAgentToken;
 
 		// Support static pre-generated Access Tokens from environment
@@ -1355,7 +1454,34 @@ export class LiopMcpRouter {
 		// Auto-acquire self-identity M2M token if client did not supply one but a Nexus AS is configured
 		let activeToken = token;
 		if (!activeToken) {
-			activeToken = await this.getOrAcquireMeshAgentToken();
+			activeToken = await this.getOrAcquireMeshAgentToken(peerId);
+		}
+
+		if (peerId) {
+			const manifestEntry = this.manifestCache.get(peerId);
+			if (manifestEntry?.manifest.authRequired && !activeToken) {
+				const providerName =
+					manifestEntry.manifest.serverInfo?.name?.toLowerCase() || "unknown";
+				const slug = manifestEntry.manifest.tokenSlug;
+				const shortId = peerId.slice(-8).toUpperCase();
+				const primaryVar = slug
+					? `LIOP_TOKEN_${slug}`
+					: `LIOP_TOKEN_${providerName.toUpperCase().replace(/[^A-Z0-9_]/g, "_")}`;
+
+				return {
+					jsonrpc: "2.0",
+					id,
+					result: {
+						content: [
+							{
+								type: "text",
+								text: `Authentication Required: The restricted node (${providerName}) requires an access token. Please define the ${primaryVar} or LIOP_TOKEN_${shortId} environment variable on your agent/client host.`,
+							},
+						],
+						isError: true,
+					},
+				};
+			}
 		}
 
 		return new Promise((resolve) => {

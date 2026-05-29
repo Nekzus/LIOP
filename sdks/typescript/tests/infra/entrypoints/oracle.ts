@@ -32,6 +32,7 @@ async function main() {
 			capabilities: { tools: {} },
 		},
 		{
+			tokenSlug: "ORACLE",
 			auth: {
 				role: "none",
 			},

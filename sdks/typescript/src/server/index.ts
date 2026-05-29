@@ -95,6 +95,12 @@ export interface LiopServerOptions {
 	 * env vars, DHT discovery, or secure defaults.
 	 */
 	auth?: import("../security/auth-config.js").LiopAuthConfig;
+	/**
+	 * Canonical slug for deterministic token resolution.
+	 * Agents/clients resolve `LIOP_TOKEN_<tokenSlug>` from environment.
+	 * Must match SCREAMING_SNAKE_CASE: /^[A-Z][A-Z0-9_]*$/ (e.g., "BANK", "VAULT", "HFT_ORACLE").
+	 */
+	tokenSlug?: string;
 }
 
 export interface AggregationPolicy {
@@ -820,6 +826,11 @@ export class LiopServer {
 			"",
 			"OPTIONAL PARAMETERS:",
 			"- __liop_bypass_ast_cache: boolean (force AST re-evaluation)",
+			"",
+			"AUTHENTICATION (tokenSlug Convention):",
+			"- Restricted nodes declare authRequired: true in their manifest.",
+			"- Token resolution: LIOP_TOKEN_<tokenSlug> (deterministic) > LIOP_TOKEN_<PeerID> > LIOP_TOKEN_<ProviderName>",
+			"- Format: tokenSlug must match SCREAMING_SNAKE_CASE /^[A-Z][A-Z0-9_]*$/ (e.g., BANK, VAULT, HFT_ORACLE).",
 		);
 
 		return lines.join("\n");
@@ -1525,6 +1536,17 @@ Protocol Adherence is mandatory for successful execution.`,
 			: undefined;
 		const port = options.port ?? envPort ?? 50051;
 
+		// [Fail-Fast] Validate tokenSlug format at startup to prevent silent mismatches
+		const TOKEN_SLUG_PATTERN = /^[A-Z][A-Z0-9_]*$/;
+		if (
+			this.config?.tokenSlug &&
+			!TOKEN_SLUG_PATTERN.test(this.config.tokenSlug)
+		) {
+			throw new Error(
+				`Invalid tokenSlug "${this.config.tokenSlug}". Must match SCREAMING_SNAKE_CASE: /^[A-Z][A-Z0-9_]*$/ (e.g., "BANK", "VAULT", "HFT_ORACLE").`,
+			);
+		}
+
 		// 1. Initialize Mesh Node (Discovery)
 		this.meshNode = new MeshNode(options.meshConfig);
 		await this.meshNode.start();
@@ -1553,6 +1575,15 @@ Protocol Adherence is mandatory for successful execution.`,
 				tools,
 				resources,
 				serverInfo: this.serverInfo,
+				authRequired: this.jwtValidator !== undefined,
+				tokenSlug: this.config?.tokenSlug,
+				taxonomy: this.config?.taxonomy
+					? {
+							domain: this.config.taxonomy.domain || "Unknown Domain",
+							clearanceTier: this.config.taxonomy.clearanceTier ?? 0,
+							executionTypes: this.config.taxonomy.executionTypes || [],
+						}
+					: undefined,
 			};
 		});
 
@@ -1607,12 +1638,11 @@ Protocol Adherence is mandatory for successful execution.`,
 						return;
 					}
 
-					// 2. Validate Pre-Shared Local Test Token for isolated testing in non-production
+					// 2. Validate Pre-Shared Local Access Token (Sovereign Node Auth)
 					const localTestToken = this.config?.auth?.localTestToken;
-					const isProduction = process.env.NODE_ENV === "production";
 					const isTestTokenPattern = /^[a-zA-Z0-9_-]+-local-test-token$/;
 
-					if (!isProduction && localTestToken) {
+					if (localTestToken) {
 						if (token === localTestToken) {
 							log.info(
 								`[LIOP-RPC] Bypass authentication for matching localTestToken: ${localTestToken}`,
@@ -1642,14 +1672,15 @@ Protocol Adherence is mandatory for successful execution.`,
 							return;
 						}
 
-						if (isTestTokenPattern.test(token)) {
-							callback({
-								code: grpc.status.PERMISSION_DENIED,
-								details:
-									"Pre-shared local test token is invalid for this resource domain (segregation violation).",
-							});
-							return;
-						}
+						// Strictly require the specific static access token
+						callback({
+							code: grpc.status.PERMISSION_DENIED,
+							details:
+								token && isTestTokenPattern.test(token)
+									? "Pre-shared local test token is invalid for this resource domain (segregation violation)."
+									: "Access Denied: This restricted node requires its specific static access token.",
+						});
+						return;
 					}
 
 					this.jwtValidator
@@ -2014,12 +2045,11 @@ Protocol Adherence is mandatory for successful execution.`,
 						return;
 					}
 
-					// 2. Validate Pre-Shared Local Test Token for isolated testing in non-production
+					// 2. Validate Pre-Shared Local Access Token (Sovereign Node Auth)
 					const localTestToken = this.config?.auth?.localTestToken;
-					const isProduction = process.env.NODE_ENV === "production";
 					const isTestTokenPattern = /^[a-zA-Z0-9_-]+-local-test-token$/;
 
-					if (!isProduction && localTestToken) {
+					if (localTestToken) {
 						if (token === localTestToken) {
 							log.info(
 								`[LIOP-RPC] Bypass authentication in executeLogic for matching localTestToken: ${localTestToken}`,
@@ -2028,14 +2058,15 @@ Protocol Adherence is mandatory for successful execution.`,
 							return;
 						}
 
-						if (isTestTokenPattern.test(token)) {
-							call.emit("error", {
-								code: grpc.status.PERMISSION_DENIED,
-								details:
-									"Pre-shared local test token is invalid for this resource domain (segregation violation).",
-							});
-							return;
-						}
+						// Strictly require the specific static access token
+						call.emit("error", {
+							code: grpc.status.PERMISSION_DENIED,
+							details:
+								token && isTestTokenPattern.test(token)
+									? "Pre-shared local test token is invalid for this resource domain (segregation violation)."
+									: "Access Denied: This restricted node requires its specific static access token.",
+						});
+						return;
 					}
 
 					try {

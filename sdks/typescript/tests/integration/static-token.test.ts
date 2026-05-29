@@ -30,6 +30,7 @@ describe("Static Token Coexistence and Local Revocation Integration", () => {
 		bankServer = new LiopServer(
 			{ name: "test-bank", version: "1.0.0" },
 			{
+				tokenSlug: "TEST_BANK",
 				auth: {
 					role: "node",
 					revocationPath: bankRevocationPath,
@@ -55,6 +56,7 @@ describe("Static Token Coexistence and Local Revocation Integration", () => {
 		vaultServer = new LiopServer(
 			{ name: "test-vault", version: "1.0.0" },
 			{
+				tokenSlug: "TEST_VAULT",
 				auth: {
 					role: "node",
 					revocationPath: vaultRevocationPath,
@@ -226,5 +228,81 @@ describe("Static Token Coexistence and Local Revocation Integration", () => {
 		expect(result3.content[0].text).toContain("Bank Success: authorized-run");
 
 		await client.close();
+	});
+
+	it("should dynamically resolve node-specific tokens from environment variables (Multi-Node Isolation Bypass)", async () => {
+		// Set node-specific environment tokens
+		process.env.LIOP_TOKEN_TEST_BANK = "bank-local-test-token";
+		process.env.LIOP_TOKEN_TEST_VAULT = "vault-local-test-token";
+
+		// Unset any global token to make sure resolution uses the specific ones
+		const originalGlobalToken = process.env.LIOP_TOKEN;
+		delete process.env.LIOP_TOKEN;
+
+		try {
+			const client = new LiopClient();
+			// Connect without explicit token option to force environment resolution
+			await client.connect();
+
+			// Mock resolveCapability to avoid slow and flaky Kademlia DHT discovery in tests
+			client.resolveCapability = async (toolName: string) => {
+				if (toolName === "bank_tool") return `localhost:${bankPort}`;
+				if (toolName === "vault_tool") return `localhost:${vaultPort}`;
+				throw new Error(`Mock resolver: unknown tool ${toolName}`);
+			};
+
+			// 1. Resolve Bank Node target and call its tool
+			const bankTarget = `localhost:${bankPort}`;
+			const bankPeerId = bankServer.getMeshNode()!.getPeerId();
+			// Inject to mock manifest cache in client
+			const bankManifest = (bankServer.getMeshNode() as any).manifestProvider();
+			client["manifests"].set(bankPeerId, bankManifest);
+
+			const bankClient = (client as any).getOrCreateRpcClient(bankPeerId, bankTarget);
+			expect(bankClient.token).toBe("bank-local-test-token");
+
+			const bankArgs = { data: "env-bank-test" };
+			const bankWasm = Buffer.from(
+				`return { "__liop_proxy_tool": "bank_tool", "__liop_proxy_args": ${JSON.stringify(bankArgs)} };`,
+				"utf-8",
+			);
+			const bankResult = await client.callTool(
+				{ name: "bank_tool", arguments: bankArgs },
+				bankWasm,
+			);
+			expect(bankResult.isError).toBe(false);
+			expect(bankResult.content[0].text).toContain("Bank Success: env-bank-test");
+
+			// 2. Resolve Vault Node target and call its tool
+			const vaultTarget = `localhost:${vaultPort}`;
+			const vaultPeerId = vaultServer.getMeshNode()!.getPeerId();
+			// Inject to mock manifest cache in client
+			const vaultManifest = (vaultServer.getMeshNode() as any).manifestProvider();
+			client["manifests"].set(vaultPeerId, vaultManifest);
+
+			const vaultClient = (client as any).getOrCreateRpcClient(vaultPeerId, vaultTarget);
+			expect(vaultClient.token).toBe("vault-local-test-token");
+
+			const vaultArgs = { data: "env-vault-test" };
+			const vaultWasm = Buffer.from(
+				`return { "__liop_proxy_tool": "vault_tool", "__liop_proxy_args": ${JSON.stringify(vaultArgs)} };`,
+				"utf-8",
+			);
+			const vaultResult = await client.callTool(
+				{ name: "vault_tool", arguments: vaultArgs },
+				vaultWasm,
+			);
+			expect(vaultResult.isError).toBe(false);
+			expect(vaultResult.content[0].text).toContain("Vault Success: env-vault-test");
+
+			await client.close();
+		} finally {
+			// Clean up environment variables
+			delete process.env.LIOP_TOKEN_TEST_BANK;
+			delete process.env.LIOP_TOKEN_TEST_VAULT;
+			if (originalGlobalToken) {
+				process.env.LIOP_TOKEN = originalGlobalToken;
+			}
+		}
 	});
 });

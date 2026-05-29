@@ -27,6 +27,7 @@ async function main() {
 			version: "1.0.0",
 		},
 		{
+			tokenSlug: "BANK",
 			auth: {
 				role: "node",
 				revocationPath: path.join(dataDir, "bank-revocations.json"),
