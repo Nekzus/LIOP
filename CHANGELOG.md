@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.0.0-alpha.29](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.28...v2.0.0-alpha.29) (2026-05-29)
+
+
+### Features
+
+* **sandbox:** implement recursive null prototype mapping and lock down Host prototypes ([b29cf31](https://github.com/Nekzus/LIOP/commit/b29cf311e3546318a249c0943ad77b427c2d772c))
+
 # [2.0.0-alpha.28](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.27...v2.0.0-alpha.28) (2026-05-29)
 
 
