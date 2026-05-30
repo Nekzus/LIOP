@@ -10,6 +10,13 @@ All notable changes to this project will be documented in this file. See
 
 * **security:** document float stabilization in differential privacy engine test ([a3f856e](https://github.com/Nekzus/LIOP/commit/a3f856ee1ae2963d5ca03cae53a382ccb3133c3b))
 
+# [2.0.0-alpha.30](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.29...v2.0.0-alpha.30) (2026-05-30)
+
+
+### Bug Fixes
+
+* **security:** document float stabilization in differential privacy engine test ([a3f856e](https://github.com/Nekzus/LIOP/commit/a3f856ee1ae2963d5ca03cae53a382ccb3133c3b))
+
 # [2.0.0-beta.1](https://github.com/Nekzus/LIOP/compare/v1.2.0...v2.0.0-beta.1) (2026-05-22)
 
 
