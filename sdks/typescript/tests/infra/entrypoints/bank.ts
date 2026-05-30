@@ -13,6 +13,7 @@ import { z } from "zod";
 import { LiopServer } from "../../../src/server/index.js";
 import { LiopHybridGateway } from "../../../src/gateway/hybrid.js";
 import { log } from "../../../src/utils/logger.js";
+import { generateBankDataset } from "../utils/datasetGenerator.js";
 
 async function main() {
 	const dataDir = "/app/data";
@@ -20,23 +21,31 @@ async function main() {
 		fs.mkdirSync(dataDir, { recursive: true });
 	}
 
-	const liopServer = new LiopServer({
-		name: "SIMULATION-the-bank",
-		version: "1.0.0"
-	}, {
-		taxonomy: {
-			domain: "🏦 Banking & Finance (INDUSTRIAL DEMO)",
-			clearanceTier: 3,
-			executionTypes: ["Read-Only Queries", "Transactional Verification"],
+	const liopServer = new LiopServer(
+		{
+			name: "SIMULATION-the-bank",
+			version: "1.0.0",
 		},
-	});
+		{
+			tokenSlug: "BANK",
+			auth: {
+				role: "node",
+				revocationPath: path.join(dataDir, "bank-revocations.json"),
+				localTestToken: "bank-local-test-token",
+			},
+			taxonomy: {
+				domain: "🏦 Banking & Finance (INDUSTRIAL DEMO)",
+				clearanceTier: 3,
+				executionTypes: ["Read-Only Queries", "Transactional Verification"],
+			},
+		},
+	);
 
-	// Industrial Financial Dataset (Official Demo Data)
-	const accounts = [
-		{ id: "ACC-9901", accountHolder: "Elena Rodriguez", accountType: "Checking", balance: 12450.75, currency: "USD", transactions: [{ date: "2026-03-10", amount: -150.00, description: "ATM Withdrawal" }, { date: "2026-03-15", amount: 2500.00, description: "Payroll Deposit" }] },
-		{ id: "ACC-2210", accountHolder: "Jameson Sterling", accountType: "Savings", balance: 85600.20, currency: "USD", transactions: [{ date: "2026-02-01", amount: 500.00, description: "Interest Credit" }] },
-		{ id: "ACC-5541", accountHolder: "Aiko Tanaka", accountType: "Investment", balance: 342100.00, currency: "JPY", transactions: [{ date: "2026-03-20", amount: -50000.00, description: "Stock Purchase - NVDA" }] }
-	];
+	// Industrial Financial Dataset (Scale-Aware Generator)
+	const scaleEnv = process.env.LIOP_DATASET_SCALE;
+	const scale = scaleEnv ? Number.parseInt(scaleEnv, 10) : 1;
+	const accounts = generateBankDataset(Number.isNaN(scale) ? 1 : scale);
+
 
 	// Expose data dictionary for Zero-Trust LLM guidance
 	liopServer.dataDictionary(
@@ -112,6 +121,7 @@ async function main() {
 			// Global sensitivity covers SUM fields (max plausible single balance).
 			dpEpsilon: 2.0,
 			dpSensitivity: 100000.0,
+			sensitiveKeys: ["accountType"],
 			queryBudgetPerField: 5,
 		},
 	);

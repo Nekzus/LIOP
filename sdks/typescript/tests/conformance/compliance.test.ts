@@ -205,12 +205,83 @@ describe("MCP Protocol Conformance", () => {
 	});
 
 	describe("Zero-Shot Autonomy", () => {
-		it("should register the liop_blind_analyst prompt", () => {
+		it("should register the liop_blind_analyst prompt", async () => {
 			server.enableZeroShotAutonomy();
 			const prompts = server.listPrompts();
 			const blind = prompts.find((p) => p.name === "liop_blind_analyst");
 			expect(blind).toBeDefined();
 			expect(blind?.description).toContain("Logic-Injection-on-Origin Protocol");
+
+			// Get the prompt content and verify it contains Laplace DP instructions
+			const result = await server.getPrompt({ name: "liop_blind_analyst" });
+			const userMsg = result.messages[0];
+			expect(userMsg).toBeDefined();
+			
+			const content = userMsg.content;
+			if (content.type !== "text") {
+				throw new Error("Expected prompt content to be of type 'text'");
+			}
+			
+			expect(content.text).toContain("LAPLACE DIFFERENTIAL PRIVACY (DP) COMPLIANCE");
+			expect(content.text).toContain("Legitimate COUNT queries");
+			expect(content.text).toContain("Legitimate AVERAGE queries");
+			expect(content.text).toContain("Legitimate SUM queries");
+		});
+	});
+
+	describe("LIOP Native Directives Configuration", () => {
+		it("should inject $comment and register guidelines resource when dataDictionary is called", async () => {
+			const schema: Record<string, unknown> = {
+				type: "object",
+				properties: {
+					id: { type: "string" },
+					amount: { type: "number" },
+					date: { type: "string" },
+				},
+			};
+			
+			server.dataDictionary(schema, "Test Schema", "liop://schema/test-dict");
+			
+			// Verify $comment exists in the schema
+			expect(schema).toHaveProperty("$comment");
+			expect((schema as any).$comment).toContain("Date is undefined");
+			
+			// Verify guidelines resource was registered
+			const resources = server.listResources();
+			const guidelines = resources.find((r) => r.uri === "liop://schema/guidelines");
+			expect(guidelines).toBeDefined();
+			expect(guidelines?.name).toBe("LIOP Execution Guidelines");
+			
+			// Read the guidelines resource content
+			const guidelinesContent = await server.readResource("liop://schema/guidelines");
+			expect(guidelinesContent.contents[0].text).toContain("DATE POISONING & FILTERING WORKAROUND");
+			expect(guidelinesContent.contents[0].text).toContain("K-ANONYMITY CONSTRAINTS");
+			expect(guidelinesContent.contents[0].text).toContain("DIFFERENTIAL PRIVACY SUFFIXES");
+		});
+
+		it("should serve updated liop_blind_analyst with Date poisoning and refined K-Anonymity rules", async () => {
+			const result = await server.getPrompt({ name: "liop_blind_analyst" });
+			const userMsg = result.messages[0];
+			
+			const content = userMsg.content;
+			if (content.type !== "text") {
+				throw new Error("Expected prompt content to be of type 'text'");
+			}
+			
+			expect(content.text).toContain("SANDBOX RUNTIME");
+			expect(content.text).toContain("The 'Date' class/constructor is poisoned");
+			expect(content.text).toContain("K-ANONYMITY THRESHOLDS");
+			expect(content.text).toContain("Dataset < 10 records: Maximum of 3 scalar output fields");
+		});
+
+		it("should serve updated liop://protocol/envelope-spec with runtime restrictions and k-anonymity", async () => {
+			const spec = await server.readResource("liop://protocol/envelope-spec");
+			const content = spec.contents[0].text;
+			expect(content).toBeDefined();
+			expect(content).toContain("SANDBOX RUNTIME RESTRICTIONS & WORKAROUNDS");
+			expect(content).toContain("Date is poisoned: The 'Date' class/constructor is undefined");
+			expect(content).toContain("K-ANONYMITY THRESHOLDS");
+			expect(content).toContain("Small Datasets (< 10 records): Maximum of 3 scalar output fields");
 		});
 	});
 });

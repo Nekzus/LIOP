@@ -22,7 +22,7 @@ The LIOP TypeScript SDK enforces a **defense-in-depth** security model composed 
 |:------|:--------|:-------|
 | **Guardian AST** | Blocks unauthorized WASM imports before execution | Pre-compile |
 | **WASI Sandbox** | Isolates runtime with 25 poisoned globals and CPU fuel limits | Execution |
-| **Prototype Defense** | Freezes 6 core prototypes to prevent pollution attacks | Execution |
+| **Prototype Defense** | Freezes 11 core prototypes in strict mode to prevent pollution attacks | Execution |
 | **PII Shield** | Prevents data leakage with algorithmic validators | Post-execution |
 | **Aggregation Policy** | Enforces output cardinality limits on row-level data | Post-execution |
 | **ZK-Receipt** | Provides HMAC-SHA256 proof of honest computation | Post-execution |
@@ -88,7 +88,7 @@ After assignment, the entire sandbox context is recursively frozen via `Object.f
 
 ### Prototype Pollution Defense
 
-Inside the sandbox IIFE, six core JavaScript prototypes are frozen before user code executes:
+Inside the sandbox IIFE, eleven core JavaScript prototypes are frozen before user code executes to satisfy strict PCI-DSS and HIPAA logical isolation requirements:
 
 ```typescript
 Object.freeze(Object.prototype);
@@ -96,10 +96,17 @@ Object.freeze(Array.prototype);
 Object.freeze(String.prototype);
 Object.freeze(Number.prototype);
 Object.freeze(Boolean.prototype);
-Object.freeze(Function.prototype);
+Object.freeze(RegExp.prototype);
+Object.freeze(Map.prototype);
+Object.freeze(Set.prototype);
+Object.freeze(Promise.prototype);
+Object.freeze(Object.getPrototypeOf(function(){})); // Resolves and freezes Function.prototype
+Object.freeze(Error.prototype);
 ```
 
-This prevents injected logic from adding or overriding methods on built-in types (e.g., overwriting `Array.prototype.map` to exfiltrate data). The freeze is applied within the IIFE wrapper, ensuring it cannot be bypassed by the injected code.
+Because `Function` and other global namespaces are explicitly poisoned (set to `undefined`) in the global scope to eliminate execution escapes, `Function.prototype` cannot be frozen directly. The SDK resolves it dynamically via `Object.getPrototypeOf(function(){})` to apply the freeze.
+
+The entire guest execution is wrapped inside a block containing `"use strict";`. Consequently, any attempt by the injected code to write or assign properties to these frozen prototypes (e.g., `Object.prototype.polluted = "leak"`) will immediately throw a hard `TypeError`, halting execution and preventing prototype pollution vulnerabilities.
 
 ### CPU Fuel Limits
 
@@ -208,6 +215,32 @@ Presets can be merged with custom regex rules for organization-specific complian
 - **Aggregation-First Policy**: Blocks raw row-level data export — only aggregated results (counts, averages, summaries) pass through
 - **Output Schema Enforcement**: When a `Zod` output schema is defined, `.strict()` mode is automatically applied, rejecting any keys not explicitly allowed in the schema
 - **Cryptographic & Envelope Unwrapping**: Automatically isolates and extracts the raw business data payload from MCP/LIOP envelopes and gRPC proxied responses (via `unwrapForAggregationPolicyScan`) before scanning. This prevents false positives from binary metadata and cryptographic seals (like HMAC-SHA256 ZK-Receipt signatures).
+- **K-Anonymity on Small Datasets**: For micro-datasets or synthetic demos (dataset size < 10), the Egress Shield applies a strict K-Anonymity filter. Any output returned by the sandbox is rejected if it contains more than **3 scalar keys** (flat properties) or if it has any **arrays or nested objects**. This blocks attempts to rebuild datasets key-by-key or through nested structure side-channels.
+
+---
+
+## Differential Privacy & 3-Tier Query Budget (NIST SP 800-226)
+
+To prevent reconstruction and statistical differentiation attacks (where an agent performs multiple overlapping queries to isolate a single record's values), the SDK implements a tiered query budget system coupled with Laplace differential privacy.
+
+### 3-Tier Query Budget Session Limits
+
+During a secure PQC-negotiated session, the SDK tracks query access to data fields. In compliance with NIST SP 800-226 guidelines, fields are classified into three sensitivity tiers, each with its own strict query limit per session:
+
+1. **Forbidden Tier (Max 3 queries/session)**: Applies to fields declared in `forbiddenKeys` (e.g., `ssn`, `password`, `email`). Any attempt to query these fields beyond the limit triggers an immediate egress block.
+2. **Sensitive Tier (Max 8 queries/session)**: Applies to fields declared in global or tool-level `sensitiveKeys` (e.g., `balance`, `diagnosis`, `ticker`).
+3. **Public Tier (Max 25 queries/session)**: Applies to any public fields not registered as sensitive or forbidden.
+
+Limits are enforced dynamically based on taint analysis tracking. If any tier's budget is exhausted, further sandbox executions attempting to access fields in that tier are blocked.
+
+### Laplace Mechanism & Field Sensitivity
+
+When the dataset size falls below `dpSmallDatasetThreshold` (default: 50), the DP Engine applies calibrated Laplace noise ($Noise \sim \text{Laplace}(0, \frac{\Delta s}{\epsilon})$) to all numeric outputs.
+
+The engine automatically calibrates the sensitivity ($\Delta s$) based on field naming conventions:
+- **Count fields** (`count`, `length`, `size`, `num`): Sensitivity is locked to $1.0$.
+- **Average fields** (`avg`, `mean`): Sensitivity is dynamically calculated as $\frac{dpSensitivity}{recordCount}$.
+- **Sum & general fields**: Sensitivity is set to the tool's configured `dpSensitivity`.
 
 ---
 
@@ -304,6 +337,10 @@ Default configuration: 2–8 threads (production), 0–1 threads (test), `FixedQ
 
 Each worker thread is constrained via V8's `resourceLimits.maxOldGenerationSizeMb` (default: **64 MB**, configurable via `workerPool.maxHeapMb` or the `LIOP_WORKER_MAX_HEAP_MB` environment variable). If injected logic attempts to allocate memory beyond this limit, the worker is terminated immediately with a `WorkerPoolError`, preventing denial-of-service attacks that target Node.js heap exhaustion.
 
+### Worker Pool Async Warmup
+
+To avoid initial CPU latency spikes and mitigate V8/WASI cold-starts (~820k fuel units), the SDK features an asynchronous thread-pool warmup strategy. On server initialization (or verifier creation), background "warmup" tasks (`isWarmup: true` or `action: "warmup"`) are dispatched to pre-warm the `Piscina` worker instances. This ensures worker threads are initialized, V8 isolate contexts are allocated, and WASI handles are pre-cached before processing real client payloads.
+
 ---
 
 ## Aggregation-First Policy
@@ -344,10 +381,18 @@ The SDK implements **environment-aware error reporting** for policy violations:
 | `production` | Returns a generic `[LIOP] Egress Security Violation` message with zero internal details leaked |
 
 This is controlled automatically via `process.env.NODE_ENV`. In production deployments, always ensure `NODE_ENV=production` is set to activate full error opacity.
-
 <Warning>
   Detailed error messages in development mode may include field names, schema structures, and rejected value excerpts. Never expose development-mode error output to untrusted clients.
 </Warning>
+
+---
+
+### Protocol-Native Directive Channels
+
+To ensure that LLM clients generate compliant JavaScript code that respects sandbox limits without trial-and-error latency, the SDK broadcasts structured, protocol-native instructions at three levels:
+1. **JSON Schema Metadata (`$comment`)**: The data dictionary automatically injects a `$comment` field containing sandbox directives directly into the active JSON schema representation.
+2. **Execution Guidelines Resource**: A dynamic resource (`liop://schema/guidelines`) details the exact workarounds (e.g., date filtering via ISO 8601 strings) and constraints (K-Anonymity rules, Laplace suffixes) required by the node.
+3. **Cross-AI System Prompts**: The prompt adapter system normalizes constraints across models (Claude, OpenAI, Gemini) to prevent hallucinated API calls.
 
 ---
 

@@ -1,4 +1,4 @@
-import type * as grpc from "@grpc/grpc-js";
+import * as grpc from "@grpc/grpc-js";
 import { liopV1 } from "./proto.js";
 import { createChannelCredentials, type LiopTlsOptions } from "./tls.js";
 import type {
@@ -15,10 +15,12 @@ import type {
 export class LiopRpcClient {
 	// biome-ignore lint/suspicious/noExplicitAny: internal gRPC client type
 	private client: any;
+	private token?: string;
 
-	constructor(address: string, tls?: LiopTlsOptions) {
+	constructor(address: string, tls?: LiopTlsOptions, token?: string) {
 		const credentials = createChannelCredentials(tls);
 		this.client = new liopV1.LogicMesh(address, credentials);
+		this.token = token;
 	}
 
 	/**
@@ -29,8 +31,13 @@ export class LiopRpcClient {
 		request: IntentRequest,
 	): Promise<IntentResponse> {
 		return new Promise((resolve, reject) => {
+			const metadata = new grpc.Metadata();
+			if (this.token) {
+				metadata.add("authorization", `Bearer ${this.token}`);
+			}
 			this.client.NegotiateIntent(
 				request,
+				metadata,
 				(error: grpc.ServiceError | null, response: IntentResponse) => {
 					if (error) {
 						reject(error);
@@ -49,7 +56,11 @@ export class LiopRpcClient {
 	public executeLogic(
 		request: LogicRequest,
 	): grpc.ClientReadableStream<LogicResponse> {
-		return this.client.ExecuteLogic(request);
+		const metadata = new grpc.Metadata();
+		if (this.token) {
+			metadata.add("authorization", `Bearer ${this.token}`);
+		}
+		return this.client.ExecuteLogic(request, metadata);
 	}
 
 	public close(): void {

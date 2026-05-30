@@ -32,6 +32,13 @@ describe("Cross-AI Prompt Adapters (Phase 92)", () => {
 			);
 			expect(result).toContain("CORE PARADIGM");
 			expect(result).toContain("EXECUTION RULES");
+			expect(result).toContain("DIFFERENTIAL PRIVACY (DP) MECHANISM");
+			expect(result).toContain("COUNT / LENGTH queries");
+			expect(result).toContain("AVERAGE queries");
+			expect(result).toContain("SUM / OTHER queries");
+			expect(result).toContain("SANDBOX RUNTIME RESTRICTIONS & WORKAROUNDS");
+			expect(result).toContain("Date is poisoned");
+			expect(result).toContain("K-Anonymity constraints");
 		}
 	});
 });

@@ -55,6 +55,13 @@ export class LiopVerifier {
 				idleTimeout: 30000,
 				execArgv,
 			});
+
+			// Pre-warm the verification worker
+			LiopVerifier.zkWorkerPool.run({ action: "warmup" }).catch((err) => {
+				log.debug(
+					`[LiopVerifier] Verification pool warm-up ping failed: ${err.message}`,
+				);
+			});
 		}
 		return LiopVerifier.zkWorkerPool;
 	}

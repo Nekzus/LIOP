@@ -42,6 +42,9 @@ export interface LiopManifest {
 		clearanceTier: number;
 		executionTypes: string[];
 	};
+	authRequired?: boolean;
+	/** Canonical slug for deterministic token resolution. Agents resolve LIOP_TOKEN_<tokenSlug>. Must match /^[A-Z][A-Z0-9_]*$/. */
+	tokenSlug?: string;
 }
 
 export interface MeshNodeConfig {

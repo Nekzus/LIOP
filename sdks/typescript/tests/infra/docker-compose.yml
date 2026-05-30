@@ -30,6 +30,8 @@ services:
     environment:
       LIOP_NODE_ROLE: nexus
       LIOP_LOG_LEVEL: info
+      LIOP_OAUTH_CLIENT_ID: ${LIOP_OAUTH_CLIENT_ID:-liop-mesh-agent}
+      LIOP_OAUTH_CLIENT_SECRET: ${LIOP_OAUTH_CLIENT_SECRET:-dev-secret-change-me}
     volumes:
       - ./nexus-data:/app/data
     networks:
@@ -53,6 +55,8 @@ services:
     environment:
       LIOP_NODE_ROLE: vault
       LIOP_LOG_LEVEL: info
+      LIOP_DATASET_SCALE: ${LIOP_DATASET_SCALE:-1}
+      LIOP_NEXUS_URL: http://nexus:3000
     volumes:
       - ./nexus-data:/app/data
     networks:
@@ -74,6 +78,8 @@ services:
     environment:
       LIOP_NODE_ROLE: bank
       LIOP_LOG_LEVEL: info
+      LIOP_DATASET_SCALE: ${LIOP_DATASET_SCALE:-1}
+      LIOP_NEXUS_URL: http://nexus:3000
     volumes:
       - ./nexus-data:/app/data
     networks:
@@ -95,6 +101,10 @@ services:
     environment:
       LIOP_NODE_ROLE: oracle
       LIOP_LOG_LEVEL: info
+      LIOP_DATASET_SCALE: ${LIOP_DATASET_SCALE:-1}
+      LIOP_HFT_TICK_INTERVAL_MS: ${LIOP_HFT_TICK_INTERVAL_MS:-50}
+      LIOP_HFT_INSTRUMENTS: ${LIOP_HFT_INSTRUMENTS:-8}
+      LIOP_NEXUS_URL: http://nexus:3000
     volumes:
       - ./nexus-data:/app/data
     networks:
@@ -118,6 +128,9 @@ services:
       VAULT_URL: http://vault:3000
       BANK_URL: http://bank:3000
       ORACLE_URL: http://oracle:3000
+      LIOP_CLIENT_ID: liop-mesh-agent
+      LIOP_CLIENT_SECRET: dev-secret-change-me
+      LIOP_NEXUS_URL: http://nexus:3000
     networks:
       liop-testnet:
         ipv4_address: 172.20.0.100

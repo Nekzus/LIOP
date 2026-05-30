@@ -180,22 +180,49 @@ export class LiopStreamBridge {
 		// ZTA (Zero-Trust Architecture) Security Middleware
 		this.app.use("/mcp", async (c, next) => {
 			const auth = c.req.header("Authorization");
-
-			const expectedToken = process.env.ZERO_TRUST_TOKEN;
-			if (
-				!auth?.startsWith("Bearer ") ||
-				auth.split(" ")[1] !== expectedToken
-			) {
-				log.info(
-					"[LIOP-StreamBridge] ALERT: Access denied - Invalid Zero-Trust token.",
-				);
+			if (!auth?.startsWith("Bearer ")) {
 				return c.json(
 					{ error: "Unauthorized: LIOP Zero-Trust Policy Enforced" },
 					401,
 				);
 			}
 
-			await next();
+			const token = auth.slice(7);
+			const expectedToken = process.env.ZERO_TRUST_TOKEN;
+
+			// Check static token fallback first (retrocompatibility)
+			if (expectedToken && token === expectedToken) {
+				await next();
+				return;
+			}
+
+			// Validate with JWT Validator if configured on the server
+			const jwtValidator = this.bridgeLogic.getServer()?.jwtValidator;
+			if (jwtValidator) {
+				try {
+					await jwtValidator.validate(token);
+					await next();
+					return;
+				} catch (e: unknown) {
+					log.info(
+						`[LIOP-StreamBridge] JWT Validation failed: ${(e as Error).message}`,
+					);
+					return c.json(
+						{
+							error: `Unauthorized: JWT Validation failed - ${(e as Error).message}`,
+						},
+						401,
+					);
+				}
+			}
+
+			log.info(
+				"[LIOP-StreamBridge] ALERT: Access denied - Invalid Zero-Trust token.",
+			);
+			return c.json(
+				{ error: "Unauthorized: LIOP Zero-Trust Policy Enforced" },
+				401,
+			);
 		});
 
 		// Multi-Session Streamable HTTP Handler

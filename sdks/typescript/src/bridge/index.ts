@@ -325,6 +325,10 @@ export class LiopMcpBridge {
 			}
 		});
 	}
+
+	public getServer(): LiopServer | null {
+		return this.liopServer;
+	}
 }
 
 export * from "./stream.js";

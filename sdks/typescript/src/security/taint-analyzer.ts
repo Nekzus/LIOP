@@ -21,6 +21,8 @@ import { type SimpleVisitors, simple } from "acorn-walk";
 
 // ── Public API ───────────────────────────────────────────────────────
 
+export type FieldSensitivity = "forbidden" | "sensitive" | "public";
+
 export interface TaintViolation {
 	/** Human-readable reason for the block */
 	reason: string;
@@ -39,6 +41,7 @@ export interface TaintViolation {
  */
 export class TaintAnalyzer {
 	private readonly piiFields: Set<string>;
+	private readonly sensitiveKeys: Set<string>;
 
 	/** String methods that extract character-level information from PII */
 	private static readonly TAINT_PROPAGATING_METHODS = new Set([
@@ -91,8 +94,31 @@ export class TaintAnalyzer {
 	/** Reduce-family methods where the record param is the SECOND callback arg */
 	private static readonly REDUCE_METHODS = new Set(["reduce", "reduceRight"]);
 
-	constructor(piiFields: string[]) {
+	constructor(piiFields: string[], sensitiveKeys: string[] = []) {
 		this.piiFields = new Set(piiFields.map((f) => f.toLowerCase()));
+		this.sensitiveKeys = new Set(sensitiveKeys.map((f) => f.toLowerCase()));
+	}
+
+	/**
+	 * Classifies a field into forbidden, sensitive, or public tiers (NIST SP 800-226).
+	 */
+	classifyField(
+		field: string,
+		policySensitiveKeys: string[] = [],
+	): FieldSensitivity {
+		const lowerField = field.toLowerCase();
+		if (this.piiFields.has(lowerField)) {
+			return "forbidden";
+		}
+
+		const lowerPolicyKeys = new Set(
+			policySensitiveKeys.map((k) => k.toLowerCase()),
+		);
+		if (this.sensitiveKeys.has(lowerField) || lowerPolicyKeys.has(lowerField)) {
+			return "sensitive";
+		}
+
+		return "public";
 	}
 
 	/**
@@ -190,40 +216,32 @@ export class TaintAnalyzer {
 			return [];
 		}
 
+		const recordBoundVars = new Set<string>();
+		this.identifyRecordBoundVars(ast, recordBoundVars);
+
 		const fields = new Set<string>();
 
 		const visitors: SimpleVisitors<void> = {
-			CallExpression: (node) => {
-				if (node.callee.type !== "MemberExpression") return;
-				const callee = node.callee as acorn.MemberExpression;
+			MemberExpression: (node) => {
+				const propName = this.getPropertyName(node);
+				if (!propName || propName === "length") return;
 
-				// Only track fields accessed within array methods (map, filter, reduce)
-				const methodName = this.getPropertyName(callee);
-				if (!methodName || !this.isEnvRecordsChain(callee.object)) return;
-
-				const callback = node.arguments[0];
+				// Case 1: r.field (direct property access on record-bound variable)
 				if (
-					!callback ||
-					(callback.type !== "ArrowFunctionExpression" &&
-						callback.type !== "FunctionExpression")
-				)
-					return;
-
-				const fn = callback as acorn.ArrowFunctionExpression;
-				let paramIndex = 0;
-				if (TaintAnalyzer.REDUCE_METHODS.has(methodName)) {
-					paramIndex = 1; // 2nd arg is the record in reduce
+					node.object.type === "Identifier" &&
+					recordBoundVars.has((node.object as acorn.Identifier).name)
+				) {
+					fields.add(propName);
 				}
 
-				if (fn.params.length > paramIndex) {
-					const recordParam = fn.params[paramIndex];
-					if (recordParam.type === "Identifier") {
-						const paramName = (recordParam as acorn.Identifier).name;
-						const extracted = this.extractFieldsFromBody(
-							fn.body as acorn.Node,
-							paramName,
-						);
-						for (const f of extracted) fields.add(f);
+				// Case 2: env.records[N].field (direct index member access)
+				if (node.object.type === "MemberExpression") {
+					const parentMember = node.object as acorn.MemberExpression;
+					if (
+						parentMember.computed &&
+						this.isEnvRecordsAccess(parentMember.object)
+					) {
+						fields.add(propName);
 					}
 				}
 			},
@@ -554,6 +572,21 @@ export class TaintAnalyzer {
 					}
 				},
 
+				FunctionDeclaration: (node) => {
+					if (node.id && node.id.type === "Identifier") {
+						if (
+							this.doesCallbackProduceTaint(
+								node,
+								null,
+								recordBoundVars,
+								taintedVars,
+							)
+						) {
+							taintedVars.add(node.id.name);
+						}
+					}
+				},
+
 				// Imperative taint: array.push(taintedValue) contaminates the array
 				// Covers for-of and forEach patterns that push PII-derived values
 				CallExpression: (node) => {
@@ -652,6 +685,30 @@ export class TaintAnalyzer {
 					recordBoundVars,
 					taintedVars,
 				);
+
+			case "YieldExpression": {
+				const yieldNode = node as acorn.YieldExpression;
+				return yieldNode.argument
+					? this.isExpressionTainted(
+							yieldNode.argument,
+							recordBoundVars,
+							taintedVars,
+						)
+					: false;
+			}
+
+			case "FunctionExpression":
+			case "ArrowFunctionExpression": {
+				const fn = node as
+					| acorn.FunctionExpression
+					| acorn.ArrowFunctionExpression;
+				return this.doesCallbackProduceTaint(
+					fn,
+					null,
+					recordBoundVars,
+					taintedVars,
+				);
+			}
 
 			case "BinaryExpression":
 			case "LogicalExpression": {
@@ -872,6 +929,9 @@ export class TaintAnalyzer {
 		// This catches: someHelper(r.name), parseInt(taintedVar), etc.
 		if (call.callee.type === "Identifier") {
 			const fnName = (call.callee as acorn.Identifier).name;
+			if (taintedVars.has(fnName)) {
+				return true;
+			}
 			// Allow safe math/utility functions that don't propagate PII
 			const SAFE_GLOBALS = new Set([
 				"Math",
@@ -896,7 +956,10 @@ export class TaintAnalyzer {
 	 * e.g., env.records.map(r => r.name.charCodeAt(0)) → tainted result
 	 */
 	private doesCallbackProduceTaint(
-		callback: acorn.ArrowFunctionExpression | acorn.FunctionExpression,
+		callback:
+			| acorn.ArrowFunctionExpression
+			| acorn.FunctionExpression
+			| acorn.FunctionDeclaration,
 		methodName: string | null,
 		recordBoundVars: Set<string>,
 		taintedVars: Set<string>,
@@ -932,8 +995,8 @@ export class TaintAnalyzer {
 			);
 		}
 
-		// For block bodies, check return statements within the callback
-		let hasTaintedReturn = false;
+		// For block bodies, check return statements or yield expressions within the callback
+		let hasTaintedReturnOrYield = false;
 		const returnVisitors: SimpleVisitors<void> = {
 			ReturnStatement: (node) => {
 				if (
@@ -944,14 +1007,27 @@ export class TaintAnalyzer {
 						scopedTaintedVars,
 					)
 				) {
-					hasTaintedReturn = true;
+					hasTaintedReturnOrYield = true;
+				}
+			},
+			YieldExpression: (node) => {
+				const yieldNode = node as acorn.YieldExpression;
+				if (
+					yieldNode.argument &&
+					this.isExpressionTainted(
+						yieldNode.argument,
+						scopedRecordVars,
+						scopedTaintedVars,
+					)
+				) {
+					hasTaintedReturnOrYield = true;
 				}
 			},
 		};
 
 		simple(callback.body as acorn.Node, returnVisitors);
 
-		return hasTaintedReturn;
+		return hasTaintedReturnOrYield;
 	}
 
 	// ── Utility Methods ───────────────────────────────────────────────

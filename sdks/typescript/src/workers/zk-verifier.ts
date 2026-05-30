@@ -12,13 +12,13 @@ if (!parentPort) {
  * Modeled after RISC Zero & SP1 Receipt formats.
  */
 export interface ZkVerificationPayload {
-	action: "verify_receipt";
+	action: "verify_receipt" | "warmup";
 	/** Original logic payload (JS/WASM) sent by client */
-	logicPayload: Uint8Array;
+	logicPayload?: Uint8Array;
 	/** Expected ImageID (SHA-256) of the execution state */
-	remoteImageIdHex: string;
+	remoteImageIdHex?: string;
 	/** Cbor-encoded or raw buffer containing the execution Receipt (Journal + Seal) */
-	zkReceipt: Uint8Array;
+	zkReceipt?: Uint8Array;
 	/** Kyber-derived session secret to verify HMAC signature */
 	sessionSecret?: Uint8Array;
 }
@@ -34,7 +34,8 @@ function deriveImageId(logicPayload: Uint8Array): Buffer {
 async function verifyZkReceipt(
 	payload: ZkVerificationPayload,
 ): Promise<{ verified: boolean; message: string }> {
-	const { logicPayload, remoteImageIdHex, zkReceipt, sessionSecret } = payload;
+	const { logicPayload, remoteImageIdHex, zkReceipt, sessionSecret } =
+		payload as Required<ZkVerificationPayload>;
 
 	// 1. Calculate local ImageID (Integrity Check)
 	const localImageId = deriveImageId(logicPayload);
@@ -116,6 +117,12 @@ export default async function workerHandler(
 	task: ZkVerificationPayload,
 ): Promise<{ verified: boolean; message: string }> {
 	try {
+		if (task.action === "warmup") {
+			return {
+				verified: true,
+				message: "warm",
+			};
+		}
 		if (task.action === "verify_receipt") {
 			return await verifyZkReceipt(task);
 		}

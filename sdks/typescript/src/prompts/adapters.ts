@@ -37,6 +37,19 @@ The node will execute your logic securely on the raw secure data, and return onl
 1. Provide a self-contained JavaScript syntax block that we will compile to WASM-Sandboxed logic.
 2. Rely only on standard ECMA script features (No Node.js polyfills).
 3. The logic must end by returning the calculated insights, not the raw data.
+
+### DIFFERENTIAL PRIVACY (DP) MECHANISM (Laplace Mechanism)
+To prevent database reconstruction and inference attacks, numeric query outputs are processed by a Laplace DP engine:
+- COUNT / LENGTH queries: To get EXACT integer values without noise, you MUST name return keys containing 'count', 'length', 'size', 'num', 'positive', 'negative', or starting with 'total_' or 'num_' (e.g. 'total_tx', 'credits_count'). This forces sensitivity=1.0, rounds values, and clamps to non-negative values.
+- AVERAGE queries: Return keys containing 'avg', 'mean', or 'average' scale down noise automatically by dividing global sensitivity by the dataset size (sensitivity / n).
+- SUM / OTHER queries: Return keys without these semantic names receive full Laplace noise based on the global node sensitivity (which can be up to 100,000 in Bank nodes to protect raw balances). Do NOT attempt to bypass this by renaming sum fields to count fields, as it violates protocol integrity.
+
+### SANDBOX RUNTIME RESTRICTIONS & WORKAROUNDS
+- Date is poisoned: The 'Date' class/constructor is undefined (calling 'new Date()', 'Date.now()', or 'Date.parse()' will crash the execution).
+  - Workaround: Perform chronological sorting and comparisons lexicographically on ISO 8601 string dates (e.g. record.date >= '2024-01-01').
+- Poisoned globals: eval, Function, setTimeout, setInterval, Buffer, ArrayBuffer, and TypedArrays are undefined.
+- Frozen prototypes: Modifications to Object.prototype, Array.prototype, etc., are blocked.
+- K-Anonymity constraints: Small datasets (< 10 records) limit outputs to max 3 scalar keys with NO nesting. Datasets with >= 10 records limit outputs to max 10 fields.
 `;
 
 	if (config.xmlStandard) {

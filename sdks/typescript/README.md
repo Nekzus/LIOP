@@ -111,6 +111,8 @@ To integrate LIOP into Claude Desktop, update your `claude_desktop_config.json` 
       "env": {
         "LIOP_NEXUS_URL": "http://your-nexus-host:3000",
         "LIOP_LOG_LEVEL": "info",
+        "LIOP_TOKEN_BANK": "your-secure-bank-token",
+        "LIOP_TOKEN_VAULT": "your-secure-vault-token",
         "NODE_OPTIONS": "--use-system-ca"
       }
     }
@@ -220,27 +222,29 @@ new LiopServer(
     capabilities?: Record<string, unknown>;
     workerPool?: {
       enabled?: boolean;           // Enable OS-thread sandboxing (default: true)
+      minThreads?: number;         // Min worker threads (default: CPU count based)
       maxThreads?: number;         // Max worker threads (default: CPU count)
+      idleTimeout?: number;        // Idle timeout in milliseconds for workers
       maxHeapMb?: number;          // V8 heap limit per worker (default: 64, env: LIOP_WORKER_MAX_HEAP_MB)
     };
     security?: {
       piiPatterns?: PiiRule[];     // Regex/validator rules for PII detection
       forbiddenKeys?: string[];    // Keys stripped from outgoing responses
+      sensitiveKeys?: string[];    // Keys that trigger sensitive query budget
       enableNerScanning?: boolean; // NLP entity detection via compromise (default: false)
-      rateLimit?: {                // Sliding window rate limiter per tool
-        maxPerWindow?: number;     // Max calls per window (default: 15)
-        windowMs?: number;         // Window duration in ms (default: 60000)
-      };
-      globalRateLimit?: {           // Cross-tool aggregate rate limiter
-        maxPerWindow?: number;     // Max total calls per window (default: 40)
+      rateLimit?: {                // Sliding window rate limiter configuration
+        maxPerWindow?: number;     // Max calls per window per tool (default: 15)
+        globalMaxPerWindow?: number; // Max total calls across all tools (default: 40)
         windowMs?: number;         // Window duration in ms (default: 60000)
       };
     };
     taxonomy?: {                   // Data domain classification
       domain?: string;             // e.g., "finance", "healthcare"
-      clearanceTier?: string;      // e.g., "tier-0", "tier-1"
+      clearanceTier?: number;      // e.g., 3, 5 (strictly numeric)
       executionTypes?: string[];   // e.g., ["aggregation", "analytics"]
     };
+    auth?: LiopAuthConfig;         // OAuth 2.1 Hybrid authentication config
+    tokenSlug?: string;            // Deterministic token resolution slug (e.g., "BANK", "VAULT")
   }
 )
 ```
@@ -300,7 +304,7 @@ await bridge.connect();
 │  Layer 2: WASI Sandbox (V8 Isolate)                       │
 │  25 poisoned globals (incl. Date, TypedArrays) •          │
 │  CPU Fuel limits • 5s timeout • maxHeapMb (64MB default)  │
-│  Object.freeze() on 6 core prototypes                     │
+│  Object.freeze() on 11 core prototypes (strict mode)      │
 ├───────────────────────────────────────────────────────────┤
 │  Layer 3: Taint Analyzer (IFC — Static)                   │
 │  Acorn AST 3-pass analysis blocks PII side-channels:      │
@@ -359,6 +363,29 @@ const server = new LiopServer(info, {
 
 To avoid false positive triggers caused by HMAC-SHA256 ZK-Receipt signatures or transport wrapper frames (such as `{ content: [{ type: "text", text: "..." }] }`), the PII Shield and Aggregation-First engines scan only the unwrapped business data (via `unwrapForAggregationPolicyScan`). Cryptographic seals and protocol routing structures are isolated and excluded from compliance scans.
 
+### 📊 3-Tier Query Budget (NIST SP 800-226)
+
+To prevent advanced statistical differentiation or database reconstruction attacks, the SDK implements a tiered, session-based budget engine:
+
+- **Forbidden Tier** (Limit: `3` queries/session): Applied to highly restricted variables like user IDs, passwords, emails, SSNs (configured via `forbiddenKeys`).
+- **Sensitive Tier** (Limit: `8` queries/session): Applied to moderately sensitive variables like account types, medical diagnoses, blood types, financial tickers (configured via `sensitiveKeys`).
+- **Public Tier** (Limit: `25` queries/session): Default budget for non-sensitive public metadata.
+
+If an injected payload queries a field beyond its budget limit, the preflight static analysis immediately blocks execution.
+
+### 🛡️ K-Anonymity on Small Datasets
+
+When operating on high-privacy datasets, if the source records count is **less than 10**, the SDK forces a strict K-Anonymity restriction:
+- Rejects any output that contains nested objects or arrays.
+- Restricts the returned structure to a maximum of **3 scalar keys** (e.g., simple aggregate counts or statistics).
+- Prevents structural data leakage in low-entropy datasets.
+
+### ❄️ Sandbox Poisoned Globals & Date Workaround
+
+For maximum host security, the WASI sandbox enforces a poisoned environment that strips dangerous globals and prevents timing side-channels:
+- **Poisoned/Disabled**: `Date` (Date.now, parse, etc. throw an exception to prevent timing analysis), `eval`, `Function`, `setTimeout`, `setInterval`, `Buffer`, `ArrayBuffer`, and all `TypedArrays`.
+- **Date Workaround**: To perform date checks, use lexicographical string comparison on ISO 8601 strings (e.g., `record.date >= "2026-01-01"`).
+
 ---
 
 ## Logic-Injection-on-Origin Flow
@@ -398,7 +425,7 @@ server.enableZeroShotAutonomy(); // Registers the "Blind Analyst" prompt
 
 Node.js is single-threaded. Heavy operations like Kyber768 decryption, AES-GCM authentication, AST validation, and V8 sandbox instantiation would block the event loop in a standard setup.
 
-This SDK dispatches all heavy computation to OS-level threads via [`piscina`](https://github.com/piscinajs/piscina), achieving Rust-like concurrency:
+This SDK dispatches all heavy computation to OS-level threads via [`piscina`](https://github.com/piscinajs/piscina), achieving Rust-like concurrency. On server or verifier initialization, background warmup tasks are automatically dispatched to pre-warm the pool workers, eliminating V8/WASI cold-start overhead (~820k fuel units) for subsequent calls:
 
 ```typescript
 // Automatic — no configuration needed

@@ -48,7 +48,7 @@ Logic-Injection-on-Origin Protocol (LIOP) is the high-performance successor to t
 ## 🛡️ Security Guardrails (The Shield)
 Agents must enforce these six layers of defense:
 1. **Layer 1: Guardian AST**: Static inspection of injected WASM imports against a strict 14-function allowlist.
-2. **Layer 2: WASI Sandbox**: V8 Isolate with 25 poisoned globals, prototype freeze, and CPU fuel limits.
+2. **Layer 2: WASI Sandbox**: V8 Isolate with 25 poisoned globals, strict mode, 11-prototype pre-execution freezing (to satisfy PCI-DSS limits), and CPU fuel limits.
 3. **Layer 3: Taint Analyzer (IFC)**: Acorn-based static taint tracking to block PII side-channel derivation (`charCodeAt`, boolean inference).
 4. **Layer 4: Egress PII Shield**: Four-stage pipeline (key match, fuzzy, pattern validators, NER) scanning all outgoing data.
 5. **Layer 5: Aggregation-First Policy**: Blocks raw row-level data export — only aggregated results pass through.

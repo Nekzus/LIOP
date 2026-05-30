@@ -90,7 +90,7 @@ function main(): void {
 	const mcpServers = cfg.mcpServers as JsonObject;
 
 	// ─── liop-mesh (Local SDK — Development Mode) ───────────────────────────
-	// Uses NODE_ENV=development to enable Docker address mapping and port remapping.
+	// Uses NODE_ENV=development to enable Docker address mapping and gRPC port remapping.
 	mcpServers["liop-mesh"] = {
 		command: "node",
 		args: [sdkDist],
@@ -98,9 +98,6 @@ function main(): void {
 			NODE_ENV: "development",
 			LIOP_NEXUS_URL: nexusUrl,
 			LIOP_LOG_LEVEL: "info",
-			// Host runs agent against Docker demo: gRPC in manifests is 50051 (container);
-			// published host ports are 13011/13021/13031 (see tests/infra/docker-compose.yml).
-			LIOP_USE_PUBLISHED_GRPC_PORTS: "1",
 		},
 	};
 

@@ -138,20 +138,76 @@ const server = new LiopServer({
 
 El **Filtro de Egreso** escaneará cada objeto devuelto y bloqueará cualquier clave que coincida con estos términos prohibidos.
 
-### Política de Privacidad Diferencial
-Para datasets por debajo del `smallDatasetThreshold` (por defecto: 50 registros), el servidor aplica automáticamente ruido Laplace calibrado a todas las salidas numéricas. Configure el perfil de privacidad en el constructor del servidor:
+### Claves Sensibles y Presupuesto Estratificado (NIST SP 800-226)
 
+Para proteger campos críticos del dominio (como saldos bancarios o diagnósticos médicos) sin bloquear su salida de forma absoluta como ocurre con las claves prohibidas, puedes clasificarlos como **Claves Sensibles (Sensitive Keys)**.
+
+LIOP impone automáticamente un **Presupuesto de Consultas de 3 Tiers** por cliente en cada sesión:
+- **Tier Prohibido (3 consultas/sesión)**: Se aplica a todos los campos declarados en `forbiddenKeys`.
+- **Tier Sensible (8 consultas/sesión)**: Se aplica a todos los campos declarados en `sensitiveKeys`.
+- **Tier Público (25 consultas/sesión)**: Se aplica a cualquier otro campo no clasificado que sea consultado.
+
+Puedes declarar claves sensibles de manera global a nivel de servidor, o localmente en el registro de cada herramienta:
+
+#### Configuración Global del Servidor
 ```typescript
 const server = new LiopServer(
-  { name: "secure-vault", version: "1.0.0" },
+  { name: "financial-vault", version: "1.0.0" },
   {
     security: {
-      dpConfig: {
-        epsilon: 2.0,            // Presupuesto de privacidad (mayor = menos ruido)
-        sensitivity: 1000.0,     // Cambio máximo por registro para campos SUM
-        smallDatasetThreshold: 50 // Sin ruido para datasets sobre este tamaño
-      }
+      forbiddenKeys: ["ssn"],
+      sensitiveKeys: ["balance"] // Claves sensibles globales
     }
+  }
+);
+```
+
+#### Configuración a Nivel de Herramienta (Tool-Level)
+Puedes añadir claves sensibles adicionales al registrar una herramienta específica. El servidor fusionará estas claves dinámicamente con la lista global:
+```typescript
+server.tool(
+  "analyze_transactions",
+  "Analiza transacciones de cuentas",
+  { payload: z.string() },
+  async (args) => { ... },
+  {
+    enforceAggregationFirst: true,
+    sensitiveKeys: ["accountType"] // Fusionado con la clave global 'balance'
+  }
+);
+```
+
+#### Presupuesto Uniforme Heredado (Legacy)
+Si necesitas mantener límites uniformes para todos los campos por compatibilidad con sistemas anteriores en lugar del presupuesto estratificado, define `queryBudgetPerField` en las opciones de la herramienta:
+```typescript
+server.tool(
+  "legacy_analyzer",
+  "Analiza registros heredados",
+  { payload: z.string() },
+  async (args) => { ... },
+  {
+    enforceAggregationFirst: true,
+    queryBudgetPerField: 5 // Límite uniforme: exactamente 5 consultas para cualquier campo
+  }
+);
+```
+
+### Política de Privacidad Diferencial
+Para datasets por debajo del `dpSmallDatasetThreshold` (por defecto: 50 registros), el servidor aplica automáticamente ruido Laplace calibrado a todas las salidas numéricas. Configure el perfil de privacidad en la política a nivel de herramienta al registrarla:
+
+```typescript
+server.tool(
+  "analyze_records",
+  "Analiza registros de base de datos de forma segura",
+  { payload: z.string() },
+  async (args) => {
+    // implementación del manejador
+  },
+  {
+    enforceAggregationFirst: true,
+    dpEpsilon: 2.0,                  // Presupuesto de privacidad (mayor = menos ruido)
+    dpSensitivity: 1000.0,           // Cambio máximo por registro para campos SUM
+    dpSmallDatasetThreshold: 50      // Aplica ruido solo cuando el dataset < este umbral
   }
 );
 ```

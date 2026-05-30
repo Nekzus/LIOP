@@ -22,7 +22,7 @@ El SDK TypeScript de LIOP aplica un modelo de seguridad basado en **defensa en p
 |:-----|:----------|:--------|
 | **Guardian AST** | Bloquea importaciones WASM no autorizadas antes de la ejecución | Pre-compilación |
 | **WASI Sandbox** | Aísla el entorno de ejecución con 25 globales envenenados y límites de CPU | Ejecución |
-| **Prototype Defense** | Congela 6 prototipos core para prevenir ataques de contaminación | Ejecución |
+| **Prototype Defense** | Congela 11 prototipos core en modo estricto para prevenir ataques de contaminación | Ejecución |
 | **PII Shield** | Previene la fuga de datos mediante validadores algorítmicos | Post-ejecución |
 | **Aggregation Policy** | Impone límites de cardinalidad en la salida de datos a nivel de fila | Post-ejecución |
 | **ZK-Receipt** | Proporciona prueba HMAC-SHA256 de computación honesta | Post-ejecución |
@@ -88,7 +88,7 @@ Tras la asignación, el contexto completo del sandbox se congela recursivamente 
 
 ### Defensa contra Contaminación de Prototipos
 
-Dentro del IIFE del sandbox, seis prototipos core de JavaScript se congelan antes de que el código de usuario se ejecute:
+Dentro del IIFE del sandbox, once prototipos core de JavaScript se congelan antes de que el código de usuario se ejecute para cumplir con las estrictas normativas de aislamiento lógico PCI-DSS e HIPAA:
 
 ```typescript
 Object.freeze(Object.prototype);
@@ -96,10 +96,17 @@ Object.freeze(Array.prototype);
 Object.freeze(String.prototype);
 Object.freeze(Number.prototype);
 Object.freeze(Boolean.prototype);
-Object.freeze(Function.prototype);
+Object.freeze(RegExp.prototype);
+Object.freeze(Map.prototype);
+Object.freeze(Set.prototype);
+Object.freeze(Promise.prototype);
+Object.freeze(Object.getPrototypeOf(function(){})); // Resuelve y congela Function.prototype
+Object.freeze(Error.prototype);
 ```
 
-Esto previene que la lógica inyectada añada o sobreescriba métodos en tipos nativos (ej., sobreescribir `Array.prototype.map` para exfiltrar datos). El congelamiento se aplica dentro del wrapper IIFE, garantizando que no pueda ser eludido por el código inyectado.
+Debido a que `Function` y otros espacios de nombres globales están explícitamente envenenados (establecidos como `undefined`) en el ámbito global para eliminar vías de escape de ejecución, no es posible congelar `Function.prototype` directamente. El SDK lo resuelve dinámicamente mediante `Object.getPrototypeOf(function(){})` para aplicar el congelamiento.
+
+Toda la ejecución del huésped se envuelve en un bloque que contiene `"use strict";`. Por consiguiente, cualquier intento por parte del código inyectado de escribir o asignar propiedades a estos prototipos congelados (ej., `Object.prototype.polluted = "leak"`) arrojará inmediatamente un error duro `TypeError`, deteniendo la ejecución y previniendo vulnerabilidades de contaminación de prototipos.
 
 ### Límites de Consumo de CPU
 
@@ -208,6 +215,32 @@ Los presets pueden combinarse con reglas regex personalizadas para cumplir con r
 - **Política Aggregation-First**: Bloquea la exportación de datos crudos a nivel de fila — solo pasan resultados agregados (conteos, promedios, resúmenes)
 - **Aplicación de Output Schema**: Cuando se define un esquema de salida `Zod`, el modo `.strict()` se aplica automáticamente, rechazando cualquier clave no permitida explícitamente en el esquema
 - **Desempaquetado Criptográfico y de Envoltura**: Aísla y extrae automáticamente el payload de datos de negocio real de las envolturas de transporte MCP/LIOP y de las respuestas proxied de gRPC (mediante `unwrapForAggregationPolicyScan`) antes de realizar el escaneo. Esto evita falsos positivos procedentes de metadatos binarios y sellos criptográficos (como las firmas HMAC-SHA256 de los recibos ZK).
+- **K-Anonymity en Datasets Pequeños**: Para micro-datasets o demos sintéticas (tamaño del dataset < 10), el Escudo de Egreso aplica un filtro estricto de K-Anonymity. Cualquier salida devuelta por el sandbox es rechazada si contiene más de **3 claves escalares** (propiedades planas) o si incluye algún **array u objeto anidado**. Esto bloquea intentos de reconstruir bases de datos registro a registro mediante consultas superpuestas o canales de estructura anidada.
+
+---
+
+## Privacidad Diferencial y Presupuesto de Consultas de 3 Tiers (NIST SP 800-226)
+
+Para prevenir ataques de reconstrucción y diferenciación estadística (donde un agente realiza múltiples consultas superpuestas para aislar los valores de un único registro), el SDK implementa un sistema de presupuesto de consultas estratificado junto con privacidad diferencial de Laplace.
+
+### Límites de Sesión del Presupuesto de Consultas de 3 Tiers
+
+Durante una sesión segura negociada por PQC, el SDK rastrea el acceso a los campos de datos. Cumpliendo con las directrices NIST SP 800-226, los campos se clasifican en tres tiers de sensibilidad, cada uno con su propio límite de consultas estricto por sesión:
+
+1. **Tier Prohibido (Máx 3 consultas/sesión)**: Se aplica a campos declarados en `forbiddenKeys` (ej., `ssn`, `password`, `email`). Cualquier intento de consultar estos campos superando el límite dispara un bloqueo de egreso inmediato.
+2. **Tier Sensible (Máx 8 consultas/sesión)**: Se aplica a campos declarados en `sensitiveKeys` globales o a nivel de herramienta (ej., `balance`, `diagnosis`, `ticker`).
+3. **Tier Público (Máx 25 consultas/sesión)**: Se aplica a cualquier campo público no registrado como sensible o prohibido.
+
+Los límites se imponen dinámicamente basándose en el análisis de flujo de información (taint tracking). Si el presupuesto de algún tier se agota, las ejecuciones subsiguientes en el sandbox que intenten acceder a esos campos son bloqueadas.
+
+### Mecanismo de Laplace y Sensibilidad por Campo
+
+Cuando el tamaño del dataset es menor que `dpSmallDatasetThreshold` (por defecto: 50), el motor de DP aplica ruido Laplace calibrado ($Ruido \sim \text{Laplace}(0, \frac{\Delta s}{\epsilon})$) a todas las salidas numéricas.
+
+El motor calibra la sensibilidad ($\Delta s$) automáticamente basándose en la nomenclatura de los campos:
+- **Campos de Conteo** (`count`, `length`, `size`, `num`): La sensibilidad se fija en $1.0$.
+- **Campos de Promedio** (`avg`, `mean`): La sensibilidad se calcula dinámicamente como $\frac{dpSensitivity}{recordCount}$.
+- **Campos de Suma y Generales**: La sensibilidad se establece según el parámetro `dpSensitivity` configurado en la herramienta.
 
 ---
 
@@ -304,6 +337,10 @@ Configuración por defecto: 2–8 threads (producción), 0–1 threads (test), p
 
 Cada thread worker está restringido mediante `resourceLimits.maxOldGenerationSizeMb` de V8 (por defecto: **64 MB**, configurable vía `workerPool.maxHeapMb` o la variable de entorno `LIOP_WORKER_MAX_HEAP_MB`). Si la lógica inyectada intenta alojar memoria más allá de este límite, el worker se termina inmediatamente con un `WorkerPoolError`, previniendo ataques de denegación de servicio que buscan agotar el heap de Node.js.
 
+### Precalentamiento Asíncrono del Pool de Workers
+
+Para evitar picos iniciales de latencia de CPU y mitigar los arranques en frío (cold-starts) de V8/WASI (~820k unidades de combustible), el SDK incluye una estrategia de precalentamiento asíncrono para el pool de hilos. Durante la inicialización del servidor (o la creación del verificador), se despachan tareas de "precalentamiento" en segundo plano (`isWarmup: true` o `action: "warmup"`) para precalentar las instancias de workers de `Piscina`. Esto garantiza que los hilos worker estén inicializados, los contextos de isolate de V8 estén reservados y los handles de WASI estén pre-cacheados antes de procesar payloads reales de clientes.
+
 ---
 
 ## Política de Agregación Primero
@@ -344,10 +381,18 @@ El SDK implementa **reporte de errores consciente del entorno** para violaciones
 | `production` | Devuelve un mensaje genérico `[LIOP] Egress Security Violation` sin filtrar ningún detalle interno |
 
 Esto se controla automáticamente mediante `process.env.NODE_ENV`. En despliegues de producción, asegúrese siempre de que `NODE_ENV=production` esté configurado para activar la opacidad total de errores.
-
 <Warning>
   Los mensajes de error detallados en modo desarrollo pueden incluir nombres de campos, estructuras de esquemas y extractos de valores rechazados. Nunca exponga la salida de errores en modo desarrollo a clientes no confiables.
 </Warning>
+
+---
+
+### Canales de Directivas Nativos del Protocolo
+
+Para garantizar que los LLM clientes generen código JavaScript compatible que respete los límites del sandbox sin latencia de prueba y error, el SDK difunde instrucciones estructuradas y nativas del protocolo en tres niveles:
+1. **Metadatos de JSON Schema (`$comment`)**: El diccionario de datos inyecta automáticamente un campo `$comment` que contiene directivas del sandbox directamente en la representación del esquema JSON activo.
+2. **Recurso de Directivas de Ejecución**: Un recurso dinámico (`liop://schema/guidelines`) detalla los workarounds específicos (como el filtrado de fechas mediante cadenas ISO 8601) y restricciones (reglas de K-Anonymity, sufijos de Laplace) requeridos por el nodo.
+3. **Prompts de Sistema Multi-IA**: El sistema de adaptadores de prompts normaliza las restricciones para diferentes modelos (Claude, OpenAI, Gemini) con el fin de prevenir llamadas a APIs alucinadas.
 
 ---
 

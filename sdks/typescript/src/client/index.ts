@@ -23,9 +23,63 @@ export class LiopClient {
 	private tlsOptions?: LiopTlsOptions;
 	private serverInfo?: { name: string; version: string };
 	public verifier: LiopVerifier = new LiopVerifier();
+	private oauthToken?: string;
 
 	constructor(tls?: LiopTlsOptions) {
 		this.tlsOptions = tls;
+	}
+
+	/**
+	 * Requests an M2M access token from the Nexus Authorization Server using Client Credentials.
+	 */
+	private async acquireM2MToken(authOpts: {
+		clientId: string;
+		clientSecret: string;
+		nexusUrl: string;
+		audience: string;
+		scope?: string;
+	}): Promise<string> {
+		const baseUrl = authOpts.nexusUrl.endsWith("/oidc")
+			? authOpts.nexusUrl
+			: `${authOpts.nexusUrl}/oidc`;
+		const tokenUrl = `${baseUrl}/token`;
+		log.info(`[LiopClient] Requesting M2M Token from Nexus AS: ${tokenUrl}`);
+
+		const params = new URLSearchParams({
+			grant_type: "client_credentials",
+			scope:
+				authOpts.scope ||
+				"liop:tools:call liop:tools:list liop:resources:read liop:schema:read liop:mesh:query",
+			resource: authOpts.audience,
+			client_id: authOpts.clientId,
+			client_secret: authOpts.clientSecret,
+		});
+
+		const response = await fetch(tokenUrl, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/x-www-form-urlencoded",
+			},
+			body: params.toString(),
+		});
+
+		if (!response.ok) {
+			const text = await response.text();
+			throw new Error(
+				`OAuth token request failed with status ${response.status}: ${text}`,
+			);
+		}
+
+		const data = (await response.json()) as {
+			access_token: string;
+			expires_in?: number;
+		};
+		if (!data.access_token) {
+			throw new Error("OAuth token response did not contain an access_token.");
+		}
+
+		log.info("[LiopClient] M2M Token acquired successfully.");
+		return data.access_token;
 	}
 
 	/**
@@ -34,8 +88,64 @@ export class LiopClient {
 	 */
 	public async connect(
 		address?: string,
-		options?: { meshConfig?: MeshNodeConfig },
+		options?: {
+			meshConfig?: MeshNodeConfig;
+			auth?: {
+				clientId?: string;
+				clientSecret?: string;
+				nexusUrl?: string;
+				audience?: string;
+				scope?: string;
+				token?: string;
+			};
+		},
 	): Promise<void> {
+		// Attempt to acquire OAuth M2M access token if credentials are provided
+		const clientId =
+			options?.auth?.clientId ||
+			process.env.LIOP_OAUTH_CLIENT_ID ||
+			process.env.LIOP_CLIENT_ID;
+		const clientSecret =
+			options?.auth?.clientSecret ||
+			process.env.LIOP_OAUTH_CLIENT_SECRET ||
+			process.env.LIOP_CLIENT_SECRET;
+		const nexusUrl =
+			options?.auth?.nexusUrl ||
+			process.env.LIOP_NEXUS_URL ||
+			"http://localhost:3000";
+		const audience =
+			options?.auth?.audience ||
+			process.env.LIOP_OAUTH_AUDIENCE ||
+			"urn:liop:mesh:api";
+		const scope =
+			options?.auth?.scope ||
+			process.env.LIOP_OAUTH_SCOPE ||
+			"liop:tools:call liop:tools:list liop:resources:read liop:schema:read liop:mesh:query";
+
+		this.oauthToken =
+			options?.auth?.token ||
+			process.env.LIOP_OAUTH_TOKEN ||
+			process.env.LIOP_TOKEN;
+
+		if (clientId && clientSecret) {
+			try {
+				this.oauthToken = await this.acquireM2MToken({
+					clientId,
+					clientSecret,
+					nexusUrl,
+					audience,
+					scope,
+				});
+			} catch (err: unknown) {
+				log.error(
+					`[LiopClient] Failed to acquire OAuth M2M Token: ${
+						err instanceof Error ? err.message : String(err)
+					}`,
+				);
+				// In development or when using static local token, allow connection to proceed
+			}
+		}
+
 		this.meshNode = new MeshNode(options?.meshConfig);
 		await this.meshNode.start();
 		log.info(
@@ -45,7 +155,7 @@ export class LiopClient {
 		if (address) {
 			this.rpcClients.set(
 				"static",
-				new LiopRpcClient(address, this.tlsOptions),
+				new LiopRpcClient(address, this.tlsOptions, this.oauthToken),
 			);
 			this.serverInfo = { name: `LiopServer (${address})`, version: "1.0.0" };
 			log.info(`[LiopClient] Static gRPC configured for: ${address}`);
@@ -323,7 +433,60 @@ export class LiopClient {
 	private getOrCreateRpcClient(peerId: string, address: string): LiopRpcClient {
 		let client = this.rpcClients.get(peerId);
 		if (!client) {
-			client = new LiopRpcClient(address, this.tlsOptions);
+			let nodeToken = this.oauthToken;
+
+			let manifest = this.manifests.get(peerId);
+			let realPeerId = peerId;
+
+			// If peerId is actually a toolName (which happens when called from callTool),
+			// resolve the real PeerID and its manifest from the manifest cache.
+			if (!manifest) {
+				for (const [pId, m] of this.manifests.entries()) {
+					if (m.tools.some((t) => t.name === peerId)) {
+						manifest = m;
+						realPeerId = pId;
+						break;
+					}
+				}
+			}
+
+			const providerName = manifest?.serverInfo?.name?.toLowerCase() || "";
+			let envToken: string | undefined;
+
+			// 0. Deterministic tokenSlug resolution (highest priority, zero heuristic)
+			const slug = manifest?.tokenSlug;
+			if (slug) {
+				envToken =
+					process.env[`LIOP_TOKEN_${slug}`] ||
+					process.env[`LIOP_OAUTH_TOKEN_${slug}`];
+			}
+
+			// 1. PeerID-specific resolution: LIOP_TOKEN_<last 8 chars of PeerID in uppercase>
+			if (!envToken && realPeerId) {
+				const shortId = realPeerId.slice(-8).toUpperCase();
+				envToken =
+					process.env[`LIOP_TOKEN_${shortId}`] ||
+					process.env[`LIOP_OAUTH_TOKEN_${shortId}`];
+			}
+
+			// 2. Provider-name resolution: LIOP_TOKEN_<CLEAN_PROVIDER_NAME_UPPERCASE>
+			if (!envToken && providerName) {
+				const cleanName = providerName
+					.toUpperCase()
+					.replace(/[^A-Z0-9_]/g, "_");
+				envToken =
+					process.env[`LIOP_TOKEN_${cleanName}`] ||
+					process.env[`LIOP_OAUTH_TOKEN_${cleanName}`];
+			}
+
+			if (envToken) {
+				log.info(
+					`[LiopClient] Resolved node-specific token for peer ${realPeerId.slice(-8)} (${providerName || "unknown"})`,
+				);
+				nodeToken = envToken;
+			}
+
+			client = new LiopRpcClient(address, this.tlsOptions, nodeToken);
 			this.rpcClients.set(peerId, client);
 		}
 		return client;

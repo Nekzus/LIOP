@@ -10,8 +10,11 @@ $nexusHost = if ($env:LIOP_NEXUS_HOST) { $env:LIOP_NEXUS_HOST } else { "127.0.0.
 $nexusPort = if ($env:LIOP_NEXUS_PORT) { $env:LIOP_NEXUS_PORT } else { "13000" }
 $nexusUrl = "http://${nexusHost}:${nexusPort}"
 
+# ─── Scale Factor Resolution ──────────────────────────────────────────────────
+$datasetScale = if ($env:LIOP_DATASET_SCALE) { $env:LIOP_DATASET_SCALE } else { "1" }
+
 # ─── liop-mesh (Local SDK — Development Mode) ──────────────────────────────
-# NODE_ENV=development enables Docker address mapping and port remapping.
+# NODE_ENV=development enables Docker address mapping and gRPC port remapping.
 $liopLocal = @{
     command = "node"
     args = @($sdkDist)
@@ -19,7 +22,7 @@ $liopLocal = @{
         NODE_ENV = "development"
         LIOP_NEXUS_URL = $nexusUrl
         LIOP_LOG_LEVEL = "info"
-        LIOP_USE_PUBLISHED_GRPC_PORTS = "1"
+        LIOP_DATASET_SCALE = $datasetScale
     }
 }
 
@@ -33,6 +36,7 @@ $liopNpm = @{
         LIOP_LOG_LEVEL = "info"
         NODE_OPTIONS = "--use-system-ca"
         LIOP_DOCKER_MAP = "true"
+        LIOP_DATASET_SCALE = $datasetScale
     }
 }
 
@@ -66,15 +70,15 @@ $jsonString = $finalObj | ConvertTo-Json -Depth 10
 [IO.File]::WriteAllText($claudeConfig, $jsonString)
 
 Write-Host ""
-Write-Host "═══════════════════════════════════════════" -ForegroundColor Cyan
-Write-Host "  🧠 Claude Desktop → LIOP Mesh" -ForegroundColor Green
-Write-Host "═══════════════════════════════════════════" -ForegroundColor Cyan
+Write-Host "===========================================" -ForegroundColor Cyan
+Write-Host "  Claude Desktop -> LIOP Mesh" -ForegroundColor Green
+Write-Host "===========================================" -ForegroundColor Cyan
 Write-Host "  Config: $claudeConfig" -ForegroundColor DarkGray
 Write-Host "  LIOP_NEXUS_URL: $nexusUrl" -ForegroundColor DarkGray
-Write-Host "───────────────────────────────────────────" -ForegroundColor DarkGray
-Write-Host "  ✅ liop-mesh      (local SDK, dev mode)" -ForegroundColor Green
-Write-Host "  ✅ liop-mesh-npm  (NPM package, prod mode)" -ForegroundColor Green
-Write-Host "───────────────────────────────────────────" -ForegroundColor DarkGray
+Write-Host "-------------------------------------------" -ForegroundColor DarkGray
+Write-Host "  [OK] liop-mesh      (local SDK, dev mode)" -ForegroundColor Green
+Write-Host "  [OK] liop-mesh-npm  (NPM package, prod mode)" -ForegroundColor Green
+Write-Host "-------------------------------------------" -ForegroundColor DarkGray
 Write-Host "  Reinicia Claude Desktop para activar." -ForegroundColor Yellow
-Write-Host "═══════════════════════════════════════════" -ForegroundColor Cyan
+Write-Host "===========================================" -ForegroundColor Cyan
 

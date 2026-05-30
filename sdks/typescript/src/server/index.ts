@@ -5,12 +5,17 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import * as grpc from "@grpc/grpc-js";
+import { createMlKem768 } from "mlkem";
 import { FixedQueue, Piscina } from "piscina";
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { type LiopManifest, MeshNode } from "../mesh/node.js";
 import { LiopRpcServer } from "../rpc/server.js";
 import type { LogicRequest, LogicResponse } from "../rpc/types.js";
+import { AUTH_DEFAULTS } from "../security/auth-config.js";
+import { JwtValidator } from "../security/jwt-validator.js";
+import { createOAuthServer } from "../security/oauth-server.js";
+import { authorizeRequest } from "../security/rbac.js";
 import { TaintAnalyzer } from "../security/taint-analyzer.js";
 import type {
 	CallToolRequest,
@@ -24,9 +29,21 @@ import type {
 } from "../types.js";
 import { log } from "../utils/logger.js";
 import { NerScanner } from "./ner-scanner.js";
+import {
+	type OutputSanitizerConfig,
+	sanitizeOutput,
+} from "./output-sanitizer.js";
 import { PII_PATTERNS, PII_PRESETS, type PiiRule, PiiScanner } from "./pii.js";
 
-export { NerScanner, PII_PATTERNS, PII_PRESETS, type PiiRule, PiiScanner };
+export {
+	NerScanner,
+	type OutputSanitizerConfig,
+	PII_PATTERNS,
+	PII_PRESETS,
+	type PiiRule,
+	PiiScanner,
+	sanitizeOutput,
+};
 
 export type ToolHandler<T extends z.ZodRawShape = z.ZodRawShape> = (
 	args: z.infer<z.ZodObject<T>>,
@@ -48,6 +65,7 @@ export interface LiopServerOptions {
 	security?: {
 		piiPatterns?: PiiRule[];
 		forbiddenKeys?: string[];
+		sensitiveKeys?: string[];
 		/** Enable NLP-based Named Entity Recognition scanning on output values. */
 		enableNerScanning?: boolean;
 		/** Rate limiting configuration for tool calls (OWASP A01). */
@@ -65,6 +83,24 @@ export interface LiopServerOptions {
 		clearanceTier?: number;
 		executionTypes?: string[];
 	};
+	/**
+	 * OAuth 2.1 Hybrid Auth configuration.
+	 *
+	 * Minimal usage:
+	 *   - Nexus (Authorization Server): `{ role: "nexus" }`
+	 *   - Data Node (Resource Server): `{ role: "node" }`
+	 *   - Disabled (dev/stdio): omit or `{ role: "none" }`
+	 *
+	 * All other values (issuer, JWKS, audience) auto-resolve from
+	 * env vars, DHT discovery, or secure defaults.
+	 */
+	auth?: import("../security/auth-config.js").LiopAuthConfig;
+	/**
+	 * Canonical slug for deterministic token resolution.
+	 * Agents/clients resolve `LIOP_TOKEN_<tokenSlug>` from environment.
+	 * Must match SCREAMING_SNAKE_CASE: /^[A-Z][A-Z0-9_]*$/ (e.g., "BANK", "VAULT", "HFT_ORACLE").
+	 */
+	tokenSlug?: string;
 }
 
 export interface AggregationPolicy {
@@ -101,10 +137,18 @@ export interface LogicExecutionPolicy {
 	 */
 	dpSensitivity?: number;
 	/**
+	 * Dataset size threshold below which Differential Privacy is active (default: 50).
+	 */
+	dpSmallDatasetThreshold?: number;
+	/**
 	 * Max queries per numeric field per PQC session (default: 5).
 	 * Prevents multi-query differencing attacks.
 	 */
 	queryBudgetPerField?: number;
+	/**
+	 * Domain-specific sensitive keys that fall under the "sensitive" query budget tier.
+	 */
+	sensitiveKeys?: string[];
 }
 
 export class LiopServer {
@@ -128,7 +172,9 @@ export class LiopServer {
 	private readonly globalCallMaxPerWindow: number;
 
 	// [DP] Query Budget — tracks per-field query counts to prevent multi-query differencing
-	private fieldQueryBudget: Map<string, Map<string, number>> = new Map();
+	// Structure: clientId -> toolName -> field -> count
+	private fieldQueryBudget: Map<string, Map<string, Map<string, number>>> =
+		new Map();
 
 	// [SEC] AST-level taint tracker for PII side-channel prevention
 	private readonly taintAnalyzer: TaintAnalyzer;
@@ -165,10 +211,20 @@ export class LiopServer {
 	private meshNode: MeshNode | null = null;
 	private rpcServer: LiopRpcServer | null = null;
 	private boundPort: number | null = null;
+	public jwtValidator?: JwtValidator;
+	// biome-ignore lint/suspicious/noExplicitAny: Loaded dynamically in Phase C
+	public oauthProvider?: any;
 	private sessions: Map<
 		string,
-		{ capability_hash: string; kyber_sk: Uint8Array }
+		{
+			capability_hash: string;
+			kyber_sk: Uint8Array;
+			agent_did?: string;
+			tokenHash?: string;
+		}
 	> = new Map();
+	private revokedTokenHashes: Set<string> = new Set();
+	private lastRevocationLoadTime = 0;
 
 	// Compact envelope: @LIOP{target,name}\n<code>\n@END
 	private static readonly LIOP_COMPACT_REGEX =
@@ -199,6 +255,7 @@ export class LiopServer {
 		_toolName: string,
 		logic: string,
 		policy?: LogicExecutionPolicy,
+		clientId = "local-client",
 	): string | null {
 		// Phase 1: Regex-based row-level export detection (fast path)
 		if (policy) {
@@ -238,21 +295,45 @@ export class LiopServer {
 		}
 
 		// Phase 3: Query Budget Enforcement (prevents multi-query differencing)
-		const queryLimit = policy?.queryBudgetPerField ?? 5;
 		const extractedFields = this.taintAnalyzer.extractQueriedFields(logic);
 
 		if (extractedFields.length > 0) {
-			let toolBudget = this.fieldQueryBudget.get(_toolName);
+			let clientBudget = this.fieldQueryBudget.get(clientId);
+			if (!clientBudget) {
+				clientBudget = new Map<string, Map<string, number>>();
+				this.fieldQueryBudget.set(clientId, clientBudget);
+			}
+
+			let toolBudget = clientBudget.get(_toolName);
 			if (!toolBudget) {
 				toolBudget = new Map<string, number>();
-				this.fieldQueryBudget.set(_toolName, toolBudget);
+				clientBudget.set(_toolName, toolBudget);
 			}
 
 			// Check budget before incrementing to avoid partial updates on failure
 			for (const field of extractedFields) {
+				const sensitivity = this.taintAnalyzer.classifyField(
+					field,
+					policy?.sensitiveKeys,
+				);
+
+				let queryLimit = 25; // default public
+				let sensLabel = "public";
+
+				if (policy?.queryBudgetPerField !== undefined) {
+					queryLimit = policy.queryBudgetPerField;
+					sensLabel = "override";
+				} else if (sensitivity === "forbidden") {
+					queryLimit = 3;
+					sensLabel = "forbidden";
+				} else if (sensitivity === "sensitive") {
+					queryLimit = 8;
+					sensLabel = "sensitive";
+				}
+
 				const count = toolBudget.get(field) ?? 0;
 				if (count >= queryLimit) {
-					return `Preflight policy rejected: Query budget exceeded for field '${field}' (max ${queryLimit} per session). Rotate PQC session to reset budget.`;
+					return `Preflight policy rejected: Query budget exceeded for field '${field}' (max ${queryLimit} per session for ${sensLabel} fields). Rotate PQC session to reset budget.`;
 				}
 			}
 
@@ -273,6 +354,15 @@ export class LiopServer {
 	): string | null {
 		if (!policy) return null;
 		const parsed = this.parseUnknownJson(output);
+
+		// If it's a system execution error result, skip schema validation
+		if (
+			parsed &&
+			typeof parsed === "object" &&
+			(parsed as Record<string, unknown>).isError === true
+		) {
+			return null;
+		}
 
 		if (policy.outputSchema) {
 			// SEC-HARDENING: Force strict mode on ZodObject schemas to prevent
@@ -545,7 +635,8 @@ export class LiopServer {
 			"secret",
 			"privateKey",
 		];
-		this.taintAnalyzer = new TaintAnalyzer(forbiddenKeys);
+		const sensitiveKeys = this.config?.security?.sensitiveKeys ?? [];
+		this.taintAnalyzer = new TaintAnalyzer(forbiddenKeys, sensitiveKeys);
 
 		// Initialize Zero-Blocking Worker Pool for Heavy Cryptography & Sandboxing
 		const isTS = import.meta.url.endsWith(".ts");
@@ -602,6 +693,55 @@ export class LiopServer {
 			},
 		});
 
+		// Pre-warm the worker thread pool asynchronously during initialization
+		const minThreads = this.config?.workerPool?.minThreads ?? (isTest ? 0 : 2);
+		if (this.workerPool && minThreads > 0) {
+			for (let i = 0; i < minThreads; i++) {
+				this.workerPool.run({ isWarmup: true }).catch((err) => {
+					log.debug(
+						`[LiopServer] Worker pool warm-up ping failed: ${err.message}`,
+					);
+				});
+			}
+		}
+
+		// [SEC] Initialize JWT Validator and OAuth Server if auth is enabled
+		if (this.config?.auth?.role === "nexus") {
+			const issuer = this.config.auth.issuer || "http://localhost:3000";
+			const audience = this.config.auth.audience || AUTH_DEFAULTS.audience;
+
+			// Auto-detect or default clients for the Nexus
+			const clients = this.config.auth.clients || [
+				{
+					client_id: process.env.LIOP_OAUTH_CLIENT_ID || "liop-mesh-agent",
+					client_secret:
+						process.env.LIOP_OAUTH_CLIENT_SECRET || "dev-secret-change-me",
+					grant_types: ["client_credentials"],
+					scope:
+						"liop:tools:call liop:tools:list liop:resources:read liop:schema:read liop:mesh:query",
+				},
+			];
+
+			const { provider, jwks } = createOAuthServer({
+				issuer,
+				clients,
+			});
+
+			this.oauthProvider = provider;
+			this.jwtValidator = new JwtValidator(issuer, audience, jwks);
+		} else if (this.config?.auth?.role === "node") {
+			const nexusUrl =
+				this.config.auth.nexusUrl ||
+				process.env.LIOP_NEXUS_URL ||
+				"http://localhost:3000";
+			const audience = this.config.auth.audience || AUTH_DEFAULTS.audience;
+			const baseUrl = nexusUrl.endsWith("/oidc")
+				? nexusUrl
+				: `${nexusUrl}/oidc`;
+			const jwksUri = new URL(`${baseUrl}/jwks`);
+			this.jwtValidator = new JwtValidator(nexusUrl, audience, jwksUri);
+		}
+
 		// [Token Economy] Auto-register LIOP protocol spec as a single Resource.
 		// This centralizes the envelope documentation that was previously
 		// duplicated in every tool description, reducing token overhead.
@@ -612,6 +752,10 @@ export class LiopServer {
 			"text/plain",
 			() => Promise.resolve(this.buildEnvelopeSpec()),
 		);
+
+		if (this.config?.auth?.revocationPath) {
+			this.loadRevocationList();
+		}
 	}
 	/**
 	 * Builds the centralized LIOP envelope specification document.
@@ -636,10 +780,26 @@ export class LiopServer {
 			"- Zero-Trust WASI Sandbox (Node.js Worker Pool)",
 			"- Return aggregated objects, NOT raw row-level arrays",
 			"",
+			"SANDBOX RUNTIME RESTRICTIONS & WORKAROUNDS:",
+			"- Date is poisoned: The 'Date' class/constructor is undefined (Date.now(), Date.parse(), etc. will throw).",
+			"  Workaround: Use lexicographical string comparison on ISO 8601 date strings (e.g., record.date >= '2024-01-01').",
+			"- Poisoned globals: eval, Function, setTimeout, setInterval, Buffer, ArrayBuffer, and TypedArrays are undefined.",
+			"- Frozen prototypes: Any modifications to Object.prototype, Array.prototype, etc., are blocked.",
+			"",
 			"SECURITY CONSTRAINTS:",
 			"- PII Egress Shield blocks raw identifiers in output",
 			"- Aggregation-First policy: prefer counts, averages, summaries",
 			"- AST Guardian: static analysis before execution",
+			"",
+			"DIFFERENTIAL PRIVACY (DP) MECHANISM (Laplace Mechanism):",
+			"- Default field noise scale is derived from node global sensitivity.",
+			"- COUNT / LENGTH Optimization: To obtain EXACT counts without noise (sensitivity=1),",
+			"  the return keys MUST contain 'count', 'length', 'size', 'num', 'positive', 'negative',",
+			"  or start with 'total_' or 'num_' (e.g. 'total_tx', 'credits_count').",
+			"- AVERAGE Optimization: Keys containing 'avg', 'mean' or 'average' scale noise",
+			"  down automatically by dividing sensitivity by dataset size (sensitivity / n).",
+			"- SUM / OTHER queries: Receive full Laplace noise based on global node sensitivity",
+			"  (e.g., Sensitivity=100,000 in Bank to protect balances).",
 		];
 
 		if (this.config?.security?.forbiddenKeys?.length) {
@@ -656,9 +816,9 @@ export class LiopServer {
 			"- Boolean inference (field.charCodeAt(0) < N ? 1 : 0) is blocked",
 			"- Allowed: aggregations on non-PII fields (balance, amount, date)",
 			"",
-			"K-ANONYMITY:",
-			"- Datasets < 10 records: max 3 scalar output fields, no nesting",
-			"- Datasets >= 10 records: max 10 output fields",
+			"K-ANONYMITY THRESHOLDS:",
+			"- Small Datasets (< 10 records): Maximum of 3 scalar output fields. Nesting or arrays in output are strictly forbidden.",
+			"- Large Datasets (>= 10 records): Maximum of 10 output fields.",
 			"",
 			"RATE LIMITS (OWASP A01):",
 			"- Per-tool: 15 calls/min (configurable via LIOP_RATE_LIMIT_MAX)",
@@ -666,6 +826,11 @@ export class LiopServer {
 			"",
 			"OPTIONAL PARAMETERS:",
 			"- __liop_bypass_ast_cache: boolean (force AST re-evaluation)",
+			"",
+			"AUTHENTICATION (tokenSlug Convention):",
+			"- Restricted nodes declare authRequired: true in their manifest.",
+			"- Token resolution: LIOP_TOKEN_<tokenSlug> (deterministic) > LIOP_TOKEN_<PeerID> > LIOP_TOKEN_<ProviderName>",
+			"- Format: tokenSlug must match SCREAMING_SNAKE_CASE /^[A-Z][A-Z0-9_]*$/ (e.g., BANK, VAULT, HFT_ORACLE).",
 		);
 
 		return lines.join("\n");
@@ -835,6 +1000,7 @@ export class LiopServer {
 							name,
 							logic,
 							policy,
+							"mcp-client",
 						);
 						if (preflightReason) {
 							return {
@@ -871,7 +1037,12 @@ export class LiopServer {
 					(args as Record<string, unknown>).payload = logic;
 
 					// DELEGATE TO WORKER POOL: Parallel PQC & Sandboxing (Includes PII Shield)
-					const preflightReason = this.runPreflightPolicy(name, logic, policy);
+					const preflightReason = this.runPreflightPolicy(
+						name,
+						logic,
+						policy,
+						"mcp-client",
+					);
 					if (preflightReason) {
 						stats.failures++;
 						stats.lastAttempt = now;
@@ -979,19 +1150,28 @@ Your objective is to perform secure Logic-on-Origin injections. You must process
 
 INDUSTRIAL CONSTRAINTS & PROTOCOL RULES:
 1. DATA PRIVACY: NEVER attempt to export Personally Identifiable Information (PII). The LIOP Egress Shield will block any response containing raw IDs, names, or addresses.
-2. AGGREGATION FIRST: Always prefer returning counts, averages, or anonymized summaries. Note: If the source dataset size is small (< 10 records), K-Anonymity blocks output if it contains more than 3 keys or any nested objects/arrays.
-3. PAYLOAD ENCAPSULATION: Your JavaScript payloads MUST strictly adhere to the Compact Envelope. DO NOT include markdown backticks or leading text inside the 'payload' argument.
+2. AGGREGATION FIRST & K-ANONYMITY THRESHOLDS: Always prefer returning counts, averages, or anonymized summaries.
+   - Dataset < 10 records: Maximum of 3 scalar output fields. Nesting or arrays in output are strictly forbidden.
+   - Dataset >= 10 records: Maximum of 10 output fields.
+3. LAPLACE DIFFERENTIAL PRIVACY (DP) COMPLIANCE:
+   - Legitimate COUNT queries: To obtain EXACT, un-noised counts, you MUST name your return keys containing 'count', 'length', 'size', 'num', 'positive', 'negative', or starting with 'total_' or 'num_' (e.g. 'total_tx', 'credits_count'). This forces sensitivity=1.0, rounds values, and clamps to non-negative values.
+   - Legitimate AVERAGE queries: Use 'avg_', '_average' or 'mean_' keys to automatically scale down Laplace noise by dividing sensitivity by the dataset size (sensitivity / n).
+   - Legitimate SUM queries: Return keys without count/average suffixes will receive full Laplacian noise scaled by the node's global sensitivity (which can be up to 100,000 in Bank nodes to protect raw balances). Do NOT attempt to bypass this by renaming sum fields to count fields, as it violates protocol integrity.
+4. PAYLOAD ENCAPSULATION: Your JavaScript payloads MUST strictly adhere to the Compact Envelope. DO NOT include markdown backticks or leading text inside the 'payload' argument.
    Structure:
    @LIOP{wasi_v1,AnalysisTask}
    // Your JS Code Here
    @END
-4. RUNTIME SCOPE: The execution environment provides a global 'env' object. Use 'env.records' to access the target dataset.
-5. LOCALIZATION: Format all JSON response keys in the language used by the user in their query (e.g., use Spanish keys if the query is in Spanish).
-6. SCHEMA RIGIDITY: Only use fields defined in the 'Data Dictionary'. Usage of non-existent fields will trigger a sandbox runtime exception.${
-									this.activeSchema
-										? `\n\nCURRENT DATA DICTIONARY (STRICT):\n${JSON.stringify(this.activeSchema, null, 2)}`
-										: ""
-								}
+5. RUNTIME SCOPE: The execution environment provides a global 'env' object. Use 'env.records' to access the target dataset.
+6. LOCALIZATION: Format all JSON response keys in the language used by the user in their query (e.g., use Spanish keys if the query is in Spanish).
+7. SCHEMA RIGIDITY: Only use fields defined in the 'Data Dictionary'. Usage of non-existent fields will trigger a sandbox runtime exception.
+8. SANDBOX RUNTIME: The 'Date' class/constructor is poisoned and set to undefined. Calling 'new Date()', 'Date.now()', or 'Date.parse()' will throw exceptions.
+   Workaround: Perform chronological operations and filtering using lexicographical string comparisons on ISO 8601 date strings (e.g., 'record.date >= "2024-01-01"').
+   Additionally, standard globals like 'eval', 'Function', 'setTimeout', 'setInterval', 'Buffer', ArrayBuffer, and TypedArrays are also undefined.${
+			this.activeSchema
+				? `\n\nCURRENT DATA DICTIONARY (STRICT):\n${JSON.stringify(this.activeSchema, null, 2)}`
+				: ""
+		}
 
 Protocol Adherence is mandatory for successful execution.`,
 							},
@@ -1019,6 +1199,35 @@ Protocol Adherence is mandatory for successful execution.`,
 	}
 
 	/**
+	 * Builds execution guidelines served as a resource to guide LLM code generation.
+	 */
+	private buildExecutionGuidelines(): string {
+		return [
+			"LIOP Sandbox Execution Guidelines",
+			"=================================",
+			"",
+			"1. DATE POISONING & FILTERING WORKAROUND:",
+			"   The global 'Date' class is set to undefined inside the sandbox. Calling 'new Date()', 'Date.now()', or 'Date.parse()' will throw a ReferenceError.",
+			"   - Workaround: Perform chronological filtering using lexicographical string comparisons on ISO 8601 strings.",
+			"     Example: const filtered = env.records.filter(r => r.date >= '2024-01-01' && r.date <= '2024-12-31');",
+			"",
+			"2. K-ANONYMITY CONSTRAINTS:",
+			"   - Datasets with LESS than 10 records: The returned object must contain at most 3 scalar fields, and must NOT contain any arrays or nested objects.",
+			"   - Datasets with 10 or MORE records: The returned object can contain up to 10 fields.",
+			"",
+			"3. DIFFERENTIAL PRIVACY SUFFIXES:",
+			"   To avoid Laplacian noise adding random perturbations to your counts or averages, you must name your object keys using specific terms:",
+			"   - Counts (Exact, no noise): Key names must contain 'count', 'length', 'size', 'num', 'positive', 'negative', or start with 'total_' or 'num_'.",
+			"   - Averages (Reduced noise): Key names must contain 'avg', 'mean', or 'average'.",
+			"   - Sums/Other: Will receive full Laplace noise.",
+			"",
+			"4. GENERAL RESTRICTIONS:",
+			"   - Do not use 'eval', 'Function', 'setTimeout', 'setInterval', 'Buffer', 'ArrayBuffer', or TypedArrays.",
+			"   - Do not attempt to modify prototypes (Object.prototype, Array.prototype).",
+		].join("\n");
+	}
+
+	/**
 	 * Broadcasts the Data Dictionary to the LLM prior to code injection.
 	 */
 	public dataDictionary(
@@ -1027,6 +1236,10 @@ Protocol Adherence is mandatory for successful execution.`,
 		uri: string = "liop://schema/global",
 		description: string = "Exposes the internal database schema for Zero-Shot Autonomy planning",
 	): void {
+		// Inject $comment directive to assist LLMs directly inside the JSON Schema representation
+		schema.$comment =
+			"LIOP DIRECTIVES: 1. Date is undefined (Date.now(), new Date() throw). Workaround: use lexicographical string comparison on ISO 8601 string dates (e.g. record.date >= '2024-01-01'). 2. Small datasets (<10 records) limit outputs to max 3 scalar keys with NO nesting. 3. DP counts must contain count/length/size/num/total_ prefix/suffix.";
+
 		this.activeSchema = schema;
 
 		// [Token Economy] Retroactively update tool descriptions with schema field references.
@@ -1039,9 +1252,19 @@ Protocol Adherence is mandatory for successful execution.`,
 				entry.tool.description &&
 				!entry.tool.description.includes("Data structure:")
 			) {
-				entry.tool.description += `\nData structure: ${schemaDigest}. Full schema: resource ${uri}`;
+				entry.tool.description += `\nData structure: ${schemaDigest}. Full schema: resource ${uri}. Guidelines: resource liop://schema/guidelines`;
 				this.tools.set(toolName, entry);
 			}
+		}
+
+		if (!this.resources.has("liop://schema/guidelines")) {
+			this.resource(
+				"LIOP Execution Guidelines",
+				"liop://schema/guidelines",
+				"Directives for generating compliant JavaScript code for the LIOP Sandbox runtime",
+				"text/plain",
+				() => Promise.resolve(this.buildExecutionGuidelines()),
+			);
 		}
 
 		this.resource(
@@ -1136,7 +1359,10 @@ Protocol Adherence is mandatory for successful execution.`,
 	/**
 	 * Emulates calling a tool (used locally or via LIOPMcpBridge)
 	 */
-	public async callTool(request: CallToolRequest): Promise<CallToolResult> {
+	public async callTool(
+		request: CallToolRequest,
+		clientId = "local-client",
+	): Promise<CallToolResult> {
 		const entry = this.tools.get(request.name);
 		if (!entry) {
 			throw new Error(`Tool not found: ${request.name}`);
@@ -1173,6 +1399,7 @@ Protocol Adherence is mandatory for successful execution.`,
 						request.name,
 						logic,
 						entry.policy,
+						clientId,
 					);
 					if (preflightReason) {
 						return {
@@ -1309,6 +1536,17 @@ Protocol Adherence is mandatory for successful execution.`,
 			: undefined;
 		const port = options.port ?? envPort ?? 50051;
 
+		// [Fail-Fast] Validate tokenSlug format at startup to prevent silent mismatches
+		const TOKEN_SLUG_PATTERN = /^[A-Z][A-Z0-9_]*$/;
+		if (
+			this.config?.tokenSlug &&
+			!TOKEN_SLUG_PATTERN.test(this.config.tokenSlug)
+		) {
+			throw new Error(
+				`Invalid tokenSlug "${this.config.tokenSlug}". Must match SCREAMING_SNAKE_CASE: /^[A-Z][A-Z0-9_]*$/ (e.g., "BANK", "VAULT", "HFT_ORACLE").`,
+			);
+		}
+
 		// 1. Initialize Mesh Node (Discovery)
 		this.meshNode = new MeshNode(options.meshConfig);
 		await this.meshNode.start();
@@ -1337,6 +1575,15 @@ Protocol Adherence is mandatory for successful execution.`,
 				tools,
 				resources,
 				serverInfo: this.serverInfo,
+				authRequired: this.jwtValidator !== undefined,
+				tokenSlug: this.config?.tokenSlug,
+				taxonomy: this.config?.taxonomy
+					? {
+							domain: this.config.taxonomy.domain || "Unknown Domain",
+							clearanceTier: this.config.taxonomy.clearanceTier ?? 0,
+							executionTypes: this.config.taxonomy.executionTypes || [],
+						}
+					: undefined,
 			};
 		});
 
@@ -1358,28 +1605,146 @@ Protocol Adherence is mandatory for successful execution.`,
 					`[LIOP-RPC] Negotiating intent for capability: ${request.capability_hash}`,
 				);
 
-				// Standard dynamic import to avoid potential circularity
-				import("../rpc/crypto/kyber.js").then(async ({ Kyber768Wrapper }) => {
-					const { publicKey, secretKey } =
-						await Kyber768Wrapper.generateKeyPair();
+				if (this.jwtValidator) {
+					const authHeader = call.metadata.get("authorization")[0] as
+						| string
+						| undefined;
+					if (!authHeader) {
+						callback({
+							code: grpc.status.UNAUTHENTICATED,
+							details: "Missing Authorization header in gRPC metadata",
+						});
+						return;
+					}
 
-					const sessionToken = crypto.randomUUID();
+					const token = authHeader.startsWith("Bearer ")
+						? authHeader.slice(7)
+						: authHeader;
 
-					// [SECURITY] Reset session-bound state
-					this.fieldQueryBudget.clear();
+					// Calculate SHA-256 hash of the incoming token
+					const tokenHash = crypto
+						.createHash("sha256")
+						.update(token)
+						.digest("hex")
+						.toLowerCase();
 
-					this.sessions.set(sessionToken, {
-						capability_hash: request.capability_hash,
-						kyber_sk: secretKey,
+					// 1. Check local revocation list
+					this.loadRevocationList();
+					if (this.revokedTokenHashes.has(tokenHash)) {
+						callback({
+							code: grpc.status.UNAUTHENTICATED,
+							details: "Token has been revoked by the resource owner",
+						});
+						return;
+					}
+
+					// 2. Validate Pre-Shared Local Access Token (Sovereign Node Auth)
+					const localTestToken = this.config?.auth?.localTestToken;
+					const isTestTokenPattern = /^[a-zA-Z0-9_-]+-local-test-token$/;
+
+					if (localTestToken) {
+						if (token === localTestToken) {
+							log.info(
+								`[LIOP-RPC] Bypass authentication for matching localTestToken: ${localTestToken}`,
+							);
+							import("../rpc/crypto/kyber.js").then(
+								async ({ Kyber768Wrapper }) => {
+									const { publicKey, secretKey } =
+										await Kyber768Wrapper.generateKeyPair();
+
+									const sessionToken = crypto.randomUUID();
+
+									this.sessions.set(sessionToken, {
+										capability_hash: request.capability_hash,
+										kyber_sk: secretKey,
+										agent_did: request.agent_did,
+										tokenHash,
+									});
+
+									callback(null, {
+										accepted: true,
+										session_token: sessionToken,
+										error_message: "",
+										kyber_public_key: publicKey,
+									});
+								},
+							);
+							return;
+						}
+
+						// Strictly require the specific static access token
+						callback({
+							code: grpc.status.PERMISSION_DENIED,
+							details:
+								token && isTestTokenPattern.test(token)
+									? "Pre-shared local test token is invalid for this resource domain (segregation violation)."
+									: "Access Denied: This restricted node requires its specific static access token.",
+						});
+						return;
+					}
+
+					this.jwtValidator
+						.validate(token)
+						.then((authInfo) => {
+							const authResult = authorizeRequest("tools/call", authInfo);
+							if (!authResult.allowed) {
+								callback({
+									code: grpc.status.PERMISSION_DENIED,
+									details: authResult.reason || "Access Denied",
+								});
+								return;
+							}
+
+							import("../rpc/crypto/kyber.js").then(
+								async ({ Kyber768Wrapper }) => {
+									const { publicKey, secretKey } =
+										await Kyber768Wrapper.generateKeyPair();
+
+									const sessionToken = crypto.randomUUID();
+
+									this.sessions.set(sessionToken, {
+										capability_hash: request.capability_hash,
+										kyber_sk: secretKey,
+										agent_did: request.agent_did,
+										tokenHash,
+									});
+
+									callback(null, {
+										accepted: true,
+										session_token: sessionToken,
+										error_message: "",
+										kyber_public_key: publicKey,
+									});
+								},
+							);
+						})
+						.catch((err) => {
+							callback({
+								code: grpc.status.UNAUTHENTICATED,
+								details: `Invalid JWT token: ${err.message}`,
+							});
+						});
+				} else {
+					import("../rpc/crypto/kyber.js").then(async ({ Kyber768Wrapper }) => {
+						const { publicKey, secretKey } =
+							await Kyber768Wrapper.generateKeyPair();
+
+						const sessionToken = crypto.randomUUID();
+
+						this.sessions.set(sessionToken, {
+							capability_hash: request.capability_hash,
+							kyber_sk: secretKey,
+							agent_did: request.agent_did,
+						});
+
+						callback(null, {
+							accepted: true,
+							session_token: sessionToken,
+							error_message: "",
+							kyber_public_key: publicKey,
+						});
 					});
-
-					callback(null, {
-						accepted: true,
-						session_token: sessionToken,
-						error_message: "",
-						kyber_public_key: publicKey,
-					});
-				});
+				}
 			},
 			executeLogic: async (
 				call: grpc.ServerWritableStream<LogicRequest, LogicResponse>,
@@ -1389,89 +1754,248 @@ Protocol Adherence is mandatory for successful execution.`,
 					`[LIOP-RPC] Executing Logic-on-Origin for session: ${request.session_token}`,
 				);
 
-				const session = this.sessions.get(request.session_token);
-				if (!session) {
-					call.emit("error", {
-						code: grpc.status.UNAUTHENTICATED,
-						details: "Invalid session token",
-					});
-					return;
-				}
+				const proceed = async () => {
+					const session = this.sessions.get(request.session_token);
+					if (!session) {
+						call.emit("error", {
+							code: grpc.status.UNAUTHENTICATED,
+							details: "Invalid session token",
+						});
+						return;
+					}
 
-				try {
+					// Verify if the token associated with this session has been revoked in the meantime
+					if (session.tokenHash) {
+						this.loadRevocationList();
+						if (this.revokedTokenHashes.has(session.tokenHash)) {
+							call.emit("error", {
+								code: grpc.status.UNAUTHENTICATED,
+								details: "Token has been revoked by the resource owner",
+							});
+							return;
+						}
+					}
+
 					// [SECURITY] Resolve the negotiated tool to enforce its policies
 					const toolName = session.capability_hash;
 					const toolDef = toolName ? this.tools.get(toolName) : undefined;
 					const toolPolicy = toolDef?.policy;
 
-					// [DP] Prepare Differential Privacy configuration from tool policy
-					const dpConfig = toolPolicy
-						? {
-								epsilon: toolPolicy.dpEpsilon ?? 1.0,
-								sensitivity: toolPolicy.dpSensitivity ?? 1.0,
-								smallDatasetThreshold: 50,
-							}
-						: undefined;
-
-					// Pass to Worker Pool for PQC Decryption and WASI/V8 execution
-					const workerResponse = await this.workerPool.run({
-						ciphertext: request.pqc_ciphertext,
-						secretKeyObj: Array.from(session.kyber_sk),
-						wasmBinary: request.wasm_binary,
-						inputs: request.inputs,
-						aesNonce: request.aes_nonce,
-						records: this.sandboxRecords,
-						sessionToken: request.session_token,
-						isEncrypted: true,
-						dpConfig, // Apply DP noise inside worker before ZK-Receipt commitment
-					});
-
-					let finalOutput: string;
-					let validationOutput: unknown = workerResponse.output;
+					// [SECURITY] Preflight check on gRPC execution path (decrypt Logic-on-Origin)
 					try {
-						finalOutput =
-							typeof workerResponse.output === "string"
-								? workerResponse.output
-								: JSON.stringify(workerResponse.output);
+						const kem = await createMlKem768();
+						const sharedSecret = kem.decap(
+							new Uint8Array(request.pqc_ciphertext),
+							session.kyber_sk,
+						);
+						const aesKey = Buffer.from(sharedSecret);
 
-						// [PROTOCOL TRANSFORMER] Support for Proxied Tool Calls
-						const decoded = JSON.parse(finalOutput);
-						if (decoded.__liop_proxy_tool) {
-							log.info(
-								`[LIOP-RPC] Executing Proxied Tool: ${decoded.__liop_proxy_tool}`,
-							);
-							const toolResult = await this.callTool({
-								name: decoded.__liop_proxy_tool,
-								arguments: decoded.__liop_proxy_args || {},
-							});
-							finalOutput = JSON.stringify(toolResult);
-							validationOutput =
-								this.unwrapForAggregationPolicyScan(toolResult);
-						}
-					} catch {
-						finalOutput = String(workerResponse.output);
-					}
+						const wasmBuffer = Buffer.from(request.wasm_binary);
+						const authTag = wasmBuffer.subarray(-16);
+						const encryptedData = wasmBuffer.subarray(0, -16);
 
-					// [SECURITY] Output Schema & Policy validation for gRPC Egress
-					const policyViolation = this.validateOutputPolicy(
-						toolName || "unknown_tool",
-						validationOutput,
-						toolPolicy,
-					);
-					if (policyViolation) {
-						log.info(
-							`[LIOP-RPC] Output policy blocked for ${toolName || "unknown_tool"}: ${policyViolation}`,
+						const decipher = crypto.createDecipheriv(
+							"aes-256-gcm",
+							aesKey,
+							Buffer.from(request.aes_nonce || new Uint8Array(12)),
+						);
+						decipher.setAuthTag(authTag);
+						let decrypted = decipher.update(encryptedData);
+						decrypted = Buffer.concat([decrypted, decipher.final()]);
+
+						const decryptedPayload = decrypted.toString("utf-8");
+						const logic =
+							this.extractLogic(decryptedPayload) || decryptedPayload.trim();
+
+						const preflightReason = this.runPreflightPolicy(
+							toolName || "unknown_tool",
+							logic,
+							toolPolicy,
+							request.session_token,
 						);
 
+						if (preflightReason) {
+							log.info(`[LIOP-RPC] Preflight blocked: ${preflightReason}`);
+							const errorResponse: LogicResponse = {
+								semantic_evidence: preflightReason,
+								cryptographic_proof: Buffer.from(""),
+								zk_receipt: Buffer.from(""),
+								is_error: true,
+							};
+							call.write(errorResponse, () => {
+								call.end();
+							});
+							return;
+						}
+					} catch (decryptionError: unknown) {
+						const errorMsg =
+							decryptionError instanceof Error
+								? decryptionError.message
+								: String(decryptionError);
+						log.error(`[LIOP-RPC] Preflight decryption failed: ${errorMsg}`);
+						call.emit("error", {
+							code: grpc.status.INTERNAL,
+							details: `Preflight logic analysis failed: ${errorMsg}`,
+						});
+						return;
+					}
+
+					try {
+						// [DP] Prepare Differential Privacy configuration from tool policy
+						const dpConfig = toolPolicy
+							? {
+									epsilon: toolPolicy.dpEpsilon ?? 1.0,
+									sensitivity: toolPolicy.dpSensitivity ?? 1.0,
+									smallDatasetThreshold:
+										toolPolicy.dpSmallDatasetThreshold ?? 50,
+								}
+							: undefined;
+
+						// Pass to Worker Pool for PQC Decryption and WASI/V8 execution
+						const workerResponse = await this.workerPool.run({
+							ciphertext: request.pqc_ciphertext,
+							secretKeyObj: Array.from(session.kyber_sk),
+							wasmBinary: request.wasm_binary,
+							inputs: request.inputs,
+							aesNonce: request.aes_nonce,
+							records: this.sandboxRecords,
+							sessionToken: request.session_token,
+							isEncrypted: true,
+							dpConfig, // Apply DP noise inside worker before ZK-Receipt commitment
+						});
+
+						const sanitizedWorkerOutput = sanitizeOutput(workerResponse.output);
+
+						let finalOutput: string;
+						let validationOutput: unknown = sanitizedWorkerOutput;
+						try {
+							finalOutput =
+								typeof sanitizedWorkerOutput === "string"
+									? sanitizedWorkerOutput
+									: JSON.stringify(sanitizedWorkerOutput);
+
+							// [PROTOCOL TRANSFORMER] Support for Proxied Tool Calls
+							const decoded = JSON.parse(finalOutput);
+							if (decoded.__liop_proxy_tool) {
+								log.info(
+									`[LIOP-RPC] Executing Proxied Tool: ${decoded.__liop_proxy_tool}`,
+								);
+								const clientId = session.agent_did || "unknown-client";
+								const toolResult = await this.callTool(
+									{
+										name: decoded.__liop_proxy_tool,
+										arguments: decoded.__liop_proxy_args || {},
+									},
+									clientId,
+								);
+
+								if (toolResult.isError) {
+									log.info(
+										`[LIOP-RPC] Proxy tool execution failed: ${toolResult.content[0].text}`,
+									);
+									const errorResponse: LogicResponse = {
+										semantic_evidence:
+											toolResult.content[0].text || "Unknown error",
+										cryptographic_proof: Buffer.from(""),
+										zk_receipt: Buffer.from(""),
+										is_error: true,
+									};
+									call.write(errorResponse, () => {
+										call.end();
+									});
+									return;
+								}
+
+								const sanitizedToolResult = sanitizeOutput(toolResult);
+								finalOutput = JSON.stringify(sanitizedToolResult);
+								validationOutput =
+									this.unwrapForAggregationPolicyScan(sanitizedToolResult);
+							}
+						} catch {
+							finalOutput = String(sanitizedWorkerOutput);
+						}
+
+						// [SECURITY] Output Schema & Policy validation for gRPC Egress
+						const policyViolation = this.validateOutputPolicy(
+							toolName || "unknown_tool",
+							validationOutput,
+							toolPolicy,
+						);
+						if (policyViolation) {
+							log.info(
+								`[LIOP-RPC] Output policy blocked for ${toolName || "unknown_tool"}: ${policyViolation}`,
+							);
+
+							const isDev =
+								process.env.NODE_ENV === "development" ||
+								process.env.NODE_ENV === "test" ||
+								process.env.LIOP_SEC_VERBOSE === "1";
+
+							const errorMessage = isDev
+								? policyViolation
+								: "[LIOP] Egress Security Violation. Output blocked due to policy enforcement.";
+
+							const errorResponse: LogicResponse = {
+								semantic_evidence: errorMessage,
+								cryptographic_proof: Buffer.from(""),
+								zk_receipt: Buffer.from(""),
+								is_error: true,
+							};
+
+							call.write(errorResponse, () => {
+								call.end();
+							});
+							return;
+						}
+
+						const response: LogicResponse = {
+							semantic_evidence: finalOutput,
+							cryptographic_proof: Buffer.from(
+								workerResponse.image_id || "",
+								"hex",
+							),
+							zk_receipt: workerResponse.zk_receipt
+								? Buffer.from(workerResponse.zk_receipt, "base64")
+								: Buffer.from(""),
+							is_error: false,
+						};
+
+						// Final PII check for gRPC egress
+						const violation = await this.piiScanner.scan(validationOutput);
+						const aggregationViolation = this.violatesAggregationFirstPolicy(
+							this.unwrapForAggregationPolicyScan(validationOutput),
+							toolPolicy?.enforceAggregationFirst,
+							this.sandboxRecords?.length,
+						);
+						if (violation || aggregationViolation) {
+							// SEC-CRITICAL: Log details server-side, never expose to caller
+							const internalReason =
+								violation || "Aggregation-First Policy Violation";
+							log.info(
+								`[LIOP-RPC] Secure egress blocked in gRPC stream: ${internalReason}`,
+							);
+							response.semantic_evidence =
+								"[LIOP] Egress Security Violation. Output blocked due to policy enforcement.";
+							response.is_error = true;
+						}
+
+						call.write(response, () => {
+							call.end();
+						});
+					} catch (error: unknown) {
+						const e = error as Error;
 						const isDev =
 							process.env.NODE_ENV === "development" ||
-							process.env.NODE_ENV === "test" ||
-							process.env.LIOP_SEC_VERBOSE === "1";
+							process.env.NODE_ENV === "test";
+
+						const detail = e.message || String(error);
+						log.error(`[LIOP-RPC] Execution Error: ${detail}`);
 
 						const errorMessage = isDev
-							? policyViolation
-							: "[LIOP] Egress Security Violation. Output blocked due to policy enforcement.";
+							? `Execution Error: ${detail}`
+							: "[LIOP] Execution Failed. The injected logic violated runtime constraints or encountered a fatal error.";
 
+						// Send error response before closing, avoiding "stream closed without results"
 						const errorResponse: LogicResponse = {
 							semantic_evidence: errorMessage,
 							cryptographic_proof: Buffer.from(""),
@@ -1479,80 +2003,93 @@ Protocol Adherence is mandatory for successful execution.`,
 							is_error: true,
 						};
 
-						call.write(errorResponse, () => {
+						try {
+							call.write(errorResponse, () => {
+								call.end();
+							});
+						} catch (_writeErr) {
 							call.end();
+						}
+					}
+				};
+
+				if (this.jwtValidator) {
+					const authHeader = call.metadata.get("authorization")[0] as
+						| string
+						| undefined;
+					if (!authHeader) {
+						call.emit("error", {
+							code: grpc.status.UNAUTHENTICATED,
+							details: "Missing Authorization header in gRPC metadata",
 						});
 						return;
 					}
 
-					const response: LogicResponse = {
-						semantic_evidence: finalOutput,
-						cryptographic_proof: Buffer.from(
-							workerResponse.image_id || "",
-							"hex",
-						),
-						zk_receipt: workerResponse.zk_receipt
-							? Buffer.from(workerResponse.zk_receipt, "base64")
-							: Buffer.from(""),
-						is_error: false,
-					};
+					const token = authHeader.startsWith("Bearer ")
+						? authHeader.slice(7)
+						: authHeader;
 
-					// Final PII check for gRPC egress
-					const piiText =
-						typeof validationOutput === "string"
-							? validationOutput
-							: JSON.stringify(validationOutput ?? "");
-					const violation = await this.piiScanner.scan([
-						{ type: "text", text: piiText },
-					]);
-					const aggregationViolation = this.violatesAggregationFirstPolicy(
-						this.unwrapForAggregationPolicyScan(validationOutput),
-						toolPolicy?.enforceAggregationFirst,
-						this.sandboxRecords?.length,
-					);
-					if (violation || aggregationViolation) {
-						// SEC-CRITICAL: Log details server-side, never expose to caller
-						const internalReason =
-							violation || "Aggregation-First Policy Violation";
-						log.info(
-							`[LIOP-RPC] Secure egress blocked in gRPC stream: ${internalReason}`,
-						);
-						response.semantic_evidence =
-							"[LIOP] Egress Security Violation. Output blocked due to policy enforcement.";
-						response.is_error = true;
+					const tokenHash = crypto
+						.createHash("sha256")
+						.update(token)
+						.digest("hex")
+						.toLowerCase();
+
+					// 1. Check local revocation list
+					this.loadRevocationList();
+					if (this.revokedTokenHashes.has(tokenHash)) {
+						call.emit("error", {
+							code: grpc.status.UNAUTHENTICATED,
+							details: "Token has been revoked by the resource owner",
+						});
+						return;
 					}
 
-					call.write(response, () => {
-						call.end();
-					});
-				} catch (error: unknown) {
-					const e = error as Error;
-					const isDev =
-						process.env.NODE_ENV === "development" ||
-						process.env.NODE_ENV === "test";
+					// 2. Validate Pre-Shared Local Access Token (Sovereign Node Auth)
+					const localTestToken = this.config?.auth?.localTestToken;
+					const isTestTokenPattern = /^[a-zA-Z0-9_-]+-local-test-token$/;
 
-					const detail = e.message || String(error);
-					log.error(`[LIOP-RPC] Execution Error: ${detail}`);
+					if (localTestToken) {
+						if (token === localTestToken) {
+							log.info(
+								`[LIOP-RPC] Bypass authentication in executeLogic for matching localTestToken: ${localTestToken}`,
+							);
+							await proceed();
+							return;
+						}
 
-					const errorMessage = isDev
-						? `Execution Error: ${detail}`
-						: "[LIOP] Execution Failed. The injected logic violated runtime constraints or encountered a fatal error.";
-
-					// Send error response before closing, avoiding "stream closed without results"
-					const errorResponse: LogicResponse = {
-						semantic_evidence: errorMessage,
-						cryptographic_proof: Buffer.from(""),
-						zk_receipt: Buffer.from(""),
-						is_error: true,
-					};
+						// Strictly require the specific static access token
+						call.emit("error", {
+							code: grpc.status.PERMISSION_DENIED,
+							details:
+								token && isTestTokenPattern.test(token)
+									? "Pre-shared local test token is invalid for this resource domain (segregation violation)."
+									: "Access Denied: This restricted node requires its specific static access token.",
+						});
+						return;
+					}
 
 					try {
-						call.write(errorResponse, () => {
-							call.end();
+						const authInfo = await this.jwtValidator.validate(token);
+						const authResult = authorizeRequest("tools/call", authInfo);
+						if (!authResult.allowed) {
+							call.emit("error", {
+								code: grpc.status.PERMISSION_DENIED,
+								details: authResult.reason || "Access Denied",
+							});
+							return;
+						}
+						await proceed();
+					} catch (err: unknown) {
+						call.emit("error", {
+							code: grpc.status.UNAUTHENTICATED,
+							details: `Invalid JWT token: ${
+								err instanceof Error ? err.message : String(err)
+							}`,
 						});
-					} catch (_writeErr) {
-						call.end();
 					}
+				} else {
+					await proceed();
 				}
 			},
 		});
@@ -1578,7 +2115,7 @@ Protocol Adherence is mandatory for successful execution.`,
 				? {
 						epsilon: dpPolicy.dpEpsilon ?? 1.0,
 						sensitivity: dpPolicy.dpSensitivity ?? 1.0,
-						smallDatasetThreshold: 50,
+						smallDatasetThreshold: dpPolicy.dpSmallDatasetThreshold ?? 50,
 					}
 				: undefined;
 
@@ -1597,10 +2134,11 @@ Protocol Adherence is mandatory for successful execution.`,
 
 			// DP is now applied directly inside the worker to ensure ZK-Receipt integrity
 			const dpOutput = workerResponse.output;
+			const sanitizedOutput = sanitizeOutput(dpOutput);
 
 			// Standard MCP Content Array
 			const textOutput = JSON.stringify({
-				computation_result: dpOutput,
+				computation_result: sanitizedOutput,
 				image_id: workerResponse.image_id,
 				zk_receipt: workerResponse.zk_receipt,
 				status: "Worker Pool Execution Success",
@@ -1618,7 +2156,7 @@ Protocol Adherence is mandatory for successful execution.`,
 				: undefined;
 			const policyViolation = this.validateOutputPolicy(
 				toolName || "unknown_tool",
-				dpOutput, // Phase 109: Validate NOISY output to ensure invariants
+				sanitizedOutput, // Phase 109: Validate NOISY output to ensure invariants
 				toolPolicy,
 			);
 			if (policyViolation) {
@@ -1648,15 +2186,9 @@ Protocol Adherence is mandatory for successful execution.`,
 			}
 
 			// Professional PII Protection Guard
-			const violation = await this.piiScanner.scan([
-				{
-					type: "text",
-					text:
-						typeof dpOutput === "string" ? dpOutput : JSON.stringify(dpOutput),
-				},
-			]);
+			const violation = await this.piiScanner.scan(sanitizedOutput);
 			const aggregationViolation = this.violatesAggregationFirstPolicy(
-				dpOutput, // Phase 109: Validate NOISY output
+				sanitizedOutput, // Phase 109: Validate NOISY output
 				toolPolicy?.enforceAggregationFirst,
 				this.sandboxRecords?.length,
 			);
@@ -1739,6 +2271,96 @@ Protocol Adherence is mandatory for successful execution.`,
 		}
 		if (this.meshNode) {
 			await this.meshNode.stop();
+		}
+	}
+
+	private loadRevocationList(): void {
+		const rPath = this.config?.auth?.revocationPath;
+		if (!rPath) return;
+
+		try {
+			if (fs.existsSync(rPath)) {
+				const stats = fs.statSync(rPath);
+				// If file has not changed since last load, skip reading
+				if (stats.mtimeMs <= this.lastRevocationLoadTime) {
+					return;
+				}
+
+				const content = fs.readFileSync(rPath, "utf-8");
+				const list = JSON.parse(content);
+				if (Array.isArray(list)) {
+					this.revokedTokenHashes.clear();
+					for (const item of list) {
+						if (typeof item === "string") {
+							this.revokedTokenHashes.add(item.trim().toLowerCase());
+						}
+					}
+					this.lastRevocationLoadTime = stats.mtimeMs;
+					log.info(
+						`[LiopServer] Loaded ${this.revokedTokenHashes.size} revoked token hashes from ${rPath}`,
+					);
+				}
+			} else {
+				// Initialize an empty revocation list file
+				const dir = path.dirname(rPath);
+				if (!fs.existsSync(dir)) {
+					fs.mkdirSync(dir, { recursive: true });
+				}
+				fs.writeFileSync(rPath, JSON.stringify([], null, 2), "utf-8");
+				this.lastRevocationLoadTime = Date.now();
+				log.info(
+					`[LiopServer] Created empty local revocation list at ${rPath}`,
+				);
+			}
+		} catch (err: unknown) {
+			log.error(
+				`[LiopServer] Failed to load revocation list: ${
+					err instanceof Error ? err.message : String(err)
+				}`,
+			);
+		}
+	}
+
+	public revokeToken(token: string): void {
+		if (!token) return;
+		const hash = crypto
+			.createHash("sha256")
+			.update(token)
+			.digest("hex")
+			.toLowerCase();
+		this.revokeTokenHash(hash);
+	}
+
+	public revokeTokenHash(hash: string): void {
+		if (!hash) return;
+		const normalizedHash = hash.toLowerCase();
+
+		this.loadRevocationList();
+		this.revokedTokenHashes.add(normalizedHash);
+
+		const rPath = this.config?.auth?.revocationPath;
+		if (rPath) {
+			try {
+				const dir = path.dirname(rPath);
+				if (!fs.existsSync(dir)) {
+					fs.mkdirSync(dir, { recursive: true });
+				}
+				const hashes = Array.from(this.revokedTokenHashes);
+				fs.writeFileSync(rPath, JSON.stringify(hashes, null, 2), "utf-8");
+
+				const stats = fs.statSync(rPath);
+				this.lastRevocationLoadTime = stats.mtimeMs;
+
+				log.info(
+					`[LiopServer] Persisted revocation for hash ${normalizedHash} to ${rPath}`,
+				);
+			} catch (err: unknown) {
+				log.error(
+					`[LiopServer] Failed to persist revocation: ${
+						err instanceof Error ? err.message : String(err)
+					}`,
+				);
+			}
 		}
 	}
 }

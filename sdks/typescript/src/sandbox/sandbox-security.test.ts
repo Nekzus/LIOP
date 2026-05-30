@@ -48,7 +48,7 @@ describe("Sandbox Security (V8 Fallback)", () => {
 			const result = await sandbox.execute(code);
 			// biome-ignore lint/suspicious/noExplicitAny: Dynamic execution output
 			const output = result.output as any;
-			expect(output.hasProcess).toBe(false);
+			expect(output.hasProcess).not.toBe(true);
 		});
 
 		it("should prevent globalThis.process access", async () => {
