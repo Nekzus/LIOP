@@ -135,7 +135,7 @@ describe("Differential Privacy Engine", () => {
 		});
 
 		it("should preserve booleans and null", () => {
-			const output = { flag: true, empty: null, val: 42 };
+			const output = { flag: true, empty: null, val: 42.5 };
 			const noisy = applyDpToOutput(
 				output,
 				{ epsilon: 1.0, sensitivity: 100 },
@@ -145,7 +145,7 @@ describe("Differential Privacy Engine", () => {
 			const n = noisy as Record<string, unknown>;
 			expect(n.flag).toBe(true);
 			expect(n.empty).toBeNull();
-			expect(n.val).not.toBe(42); // Numeric should be noisy
+			expect(n.val).not.toBe(42.5); // Numeric should be noisy
 		});
 
 		it("should return primitive numbers with noise when output is just a number", () => {
