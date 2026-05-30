@@ -145,7 +145,7 @@ describe("Differential Privacy Engine", () => {
 			const n = noisy as Record<string, unknown>;
 			expect(n.flag).toBe(true);
 			expect(n.empty).toBeNull();
-			expect(n.val).not.toBe(42.5); // Numeric should be noisy
+			expect(n.val).not.toBe(42.5); // Numeric should be noisy (stabilized with float to avoid round-to-zero flakiness)
 		});
 
 		it("should return primitive numbers with noise when output is just a number", () => {
