@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file. See
 
 * **security:** document float stabilization in differential privacy engine test ([a3f856e](https://github.com/Nekzus/LIOP/commit/a3f856ee1ae2963d5ca03cae53a382ccb3133c3b))
 
+
 # [2.0.0-beta.1](https://github.com/Nekzus/LIOP/compare/v1.2.0...v2.0.0-beta.1) (2026-05-30)
 
 
@@ -92,18 +93,24 @@ All notable changes to this project will be documented in this file. See
 ### BREAKING CHANGES
 
 * **infra:** Forced major version bump to stabilize infrastructure and bypass NPM registry conflicts.
+
+
 # [2.0.0-alpha.20](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.19...v2.0.0-alpha.20) (2026-05-22)
 
 
 ### Bug Fixes
 
 * **sdk:** document small dataset K-Anonymity rules in tool descriptions and prompts ([2cd46d0](https://github.com/Nekzus/LIOP/commit/2cd46d08680ac39fdadf294ef8042932029dba4e))
+
+
 # [2.0.0-alpha.19](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.18...v2.0.0-alpha.19) (2026-05-22)
 
 
 ### Bug Fixes
 
 * **ci:** remove invalid --no-interactive flag from pnpm publish ([d648759](https://github.com/Nekzus/LIOP/commit/d64875979eef90a560b50b22b9811d72ff132f9e))
+
+
 # [2.0.0-alpha.18](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.17...v2.0.0-alpha.18) (2026-05-22)
 
 
@@ -111,12 +118,16 @@ All notable changes to this project will be documented in this file. See
 
 * **ci:** bypass semantic-release ENONPMTOKEN validation by using manual OIDC publish step ([8ca4161](https://github.com/Nekzus/LIOP/commit/8ca416117557dfa05646fdd3dc98b7e9e8420374))
 * **ci:** remove NPM_TOKEN env variable to enable OIDC Trusted Publishing ([d3e4e9c](https://github.com/Nekzus/LIOP/commit/d3e4e9c7ac677b9f1d10b87ea470515019e19992))
+
+
 # [2.0.0-alpha.17](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.16...v2.0.0-alpha.17) (2026-05-22)
 
 
 ### Features
 
 * **sdk:** auto-detect and enable Docker address mapping in production mode ([ed4fb84](https://github.com/Nekzus/LIOP/commit/ed4fb841c4eaa8924705735d4630a54ca3158ab0))
+
+
 # [2.0.0-alpha.16](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.15...v2.0.0-alpha.16) (2026-05-22)
 
 
@@ -129,18 +140,24 @@ All notable changes to this project will be documented in this file. See
 ### Features
 
 * **sdk-ts:** fix gRPC executeLogic egress validation, resolving output schema mismatch for proxied calls and PII false positives from crypto signatures ([1f1d23c](https://github.com/Nekzus/LIOP/commit/1f1d23c31a07c0e63b24ea58c8638723c83a3ebe))
+
+
 # [2.0.0-alpha.15](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.14...v2.0.0-alpha.15) (2026-05-19)
 
 
 ### Bug Fixes
 
 * **sdk:** bundle @opentelemetry/api as noExternal to avoid peer dep load errors ([35ff566](https://github.com/Nekzus/LIOP/commit/35ff566b79d8314f3c819773a266c6f4f8e00c07))
+
+
 # [2.0.0-alpha.14](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.13...v2.0.0-alpha.14) (2026-05-19)
 
 
 ### Performance Improvements
 
 * **sdk:** optimize package score by purging unused deps and bundling pure libraries ([332d639](https://github.com/Nekzus/LIOP/commit/332d639de9d6b83dd06aaf7b9078c8ef255a9253))
+
+
 # [2.0.0-alpha.13](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.12...v2.0.0-alpha.13) (2026-05-19)
 
 
@@ -149,48 +166,64 @@ All notable changes to this project will be documented in this file. See
 * **sdk:** initialize beta release channel for production hardening ([a90a70c](https://github.com/Nekzus/LIOP/commit/a90a70c5044d9000699d59513660bbc56146ddcf))
 * **sdk:** relax CSPRNG autocorrelation threshold to resolve flaky CI failures ([a488950](https://github.com/Nekzus/LIOP/commit/a488950be18b1831e7640e760e74dafd01558dbd))
 * **sdk:** use float for primitive noise test to avoid 0.5% integer collision ([1215a63](https://github.com/Nekzus/LIOP/commit/1215a633fa1a860707d356ab40076397aed0ebe0))
+
+
 # [2.0.0-alpha.12](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.11...v2.0.0-alpha.12) (2026-05-19)
 
 
 ### Bug Fixes
 
 * **sdk:** restore standard npm overrides to bypass socket.dev public registry alerts ([be8a3e6](https://github.com/Nekzus/LIOP/commit/be8a3e6ef72e0e6c1cb9cb9e43711344108fae00))
+
+
 # [2.0.0-alpha.11](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.10...v2.0.0-alpha.11) (2026-05-19)
 
 
 ### Bug Fixes
 
 * **sdk:** enforce secure dependency resolutions for NPM consumers ([6b2fdba](https://github.com/Nekzus/LIOP/commit/6b2fdba4c68053e58af42440b5d35ae281eb3910))
+
+
 # [2.0.0-alpha.10](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.9...v2.0.0-alpha.10) (2026-05-18)
 
 
 ### Bug Fixes
 
 * **sdk:** override dependency resolutions in root package.json ([292e4b9](https://github.com/Nekzus/LIOP/commit/292e4b9f68d3abefdd8d448611085f2d50d0086f))
+
+
 # [2.0.0-alpha.9](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.8...v2.0.0-alpha.9) (2026-05-18)
 
 
 ### Bug Fixes
 
 * **sdk:** remove redundant resolutions property in package.json to eliminate build warnings ([0c2550c](https://github.com/Nekzus/LIOP/commit/0c2550cb6d6d4658b39899aaf6593602a935dfa5))
+
+
 # [2.0.0-alpha.8](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.7...v2.0.0-alpha.8) (2026-05-18)
 
 
 ### Bug Fixes
 
 * **sdk:** override unstable ownership dependencies and clean packaging ([3daa5c2](https://github.com/Nekzus/LIOP/commit/3daa5c2461c2b7b59b9a13b77211304f57fa4727))
+
+
 # [2.0.0-alpha.7](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.6...v2.0.0-alpha.7) (2026-05-18)
 
 
 ### Bug Fixes
 
 * **sdk:** include socket.yml in published npm package for supply chain triage ([205e6e2](https://github.com/Nekzus/LIOP/commit/205e6e20f8ec26ff81270dbb670964097fea0cf6))
+
+
 # [2.0.0-alpha.6](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.5...v2.0.0-alpha.6) (2026-05-18)
 
 
 ### Bug Fixes
 
 * **sdk:** resolve supply chain security issues by pruning deprecated transport dependencies ([772041f](https://github.com/Nekzus/LIOP/commit/772041ff6bedf139c55901148806567a6bbef3b4))
+
+
 # [2.0.0-alpha.5](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.4...v2.0.0-alpha.5) (2026-05-18)
 
 
@@ -199,6 +232,8 @@ All notable changes to this project will be documented in this file. See
 * **release:** release alpha.5 with synchronized git notes ([41924cc](https://github.com/Nekzus/LIOP/commit/41924cc3061b6053232ba84f8a9143fc76719f48))
 * **release:** retry alpha.5 release with annotated tag ([7d6cb2c](https://github.com/Nekzus/LIOP/commit/7d6cb2cf843378cdb073a9630cdfeb808716334f))
 * **release:** trigger alpha.5 release for DDP integration ([4eebe8d](https://github.com/Nekzus/LIOP/commit/4eebe8d509d00de8ed91cb9756d6ddf7382ebc63))
+
+
 # [2.0.0-alpha.4](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.3...v2.0.0-alpha.4) (2026-05-18)
 
 
@@ -212,12 +247,16 @@ All notable changes to this project will be documented in this file. See
 
 * **sdk:** native TLS auto-relaunch with --use-system-ca ([7c1f9e4](https://github.com/Nekzus/LIOP/commit/7c1f9e4724b5a773c7a17fbd868dde51f72769b6))
 * **security:** Implement Deterministic Differential Privacy (DDP) mode ([8ba1aab](https://github.com/Nekzus/LIOP/commit/8ba1aab45c73d9f1e96a09ad3d50302c877b3922))
+
+
 # [2.0.0-alpha.3](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.2...v2.0.0-alpha.3) (2026-05-16)
 
 
 ### Features
 
 * **sdk:** rename bin liop-agent to liop for industry-standard npx auto-resolution ([4c3a707](https://github.com/Nekzus/LIOP/commit/4c3a707808c6fc9a62eed5d01764ed41561e50be))
+
+
 # [2.0.0-alpha.2](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.1...v2.0.0-alpha.2) (2026-05-15)
 
 
@@ -225,6 +264,8 @@ All notable changes to this project will be documented in this file. See
 
 * **sdk:** implement AST-based taint tracking to mitigate PII exfiltration side-channels ([9f00d6e](https://github.com/Nekzus/LIOP/commit/9f00d6ec1735de895ac97aa61c64471917f173a6))
 * **sdk:** implement k-anonymity egress protection and security hardening ([bd7c725](https://github.com/Nekzus/LIOP/commit/bd7c725661d92ba091a95f269540d60dd7efc61f))
+
+
 # [2.0.0-alpha.1](https://github.com/Nekzus/LIOP/compare/v1.2.0...v2.0.0-alpha.1) (2026-05-10)
 
 
@@ -254,6 +295,8 @@ All notable changes to this project will be documented in this file. See
 ### BREAKING CHANGES
 
 * **infra:** Forced major version bump to stabilize infrastructure and bypass NPM registry conflicts.
+
+
 # [1.3.0-alpha.1](https://github.com/Nekzus/LIOP/compare/v1.2.0...v1.3.0-alpha.1) (2026-05-10)
 
 
@@ -277,6 +320,8 @@ All notable changes to this project will be documented in this file. See
 * **security:** implement conditional egress error opacity and timing attack defense ([a64c5ba](https://github.com/Nekzus/LIOP/commit/a64c5ba8a4e78a7a92f4181466b0fa5d69c3d2d4))
 * **security:** Phase 112 industrial security hardening of the TS SDK ([0c54a28](https://github.com/Nekzus/LIOP/commit/0c54a28a502d46a4e8ff8107254ac2eab81fe22f))
 * **security:** PII Egress Shield v3 — defense-in-depth with NER, fuzzy matching & strict schemas ([37c5a60](https://github.com/Nekzus/LIOP/commit/37c5a60881cd2c174676d47b200d49a38f1903a1))
+
+
 # [1.2.0](https://github.com/Nekzus/Neural-Mesh-Protocol/compare/v1.1.2...v1.2.0) (2026-04-28)
 
 
@@ -355,6 +400,8 @@ All notable changes to this project will be documented in this file. See
 ### Performance Improvements
 
 * **sdk:** cache-first tool routing, TTL 300s, early-exit refresh, actionable HINT (Phase 107) ([279dced](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/279dceddd78f869cb113ba845e3ac9aa9e2e7310))
+
+
 # [1.2.0-alpha.10](https://github.com/Nekzus/Neural-Mesh-Protocol/compare/v1.2.0-alpha.9...v1.2.0-alpha.10) (2026-04-28)
 
 
@@ -392,6 +439,8 @@ All notable changes to this project will be documented in this file. See
 ### Performance Improvements
 
 * **sdk:** cache-first tool routing, TTL 300s, early-exit refresh, actionable HINT (Phase 107) ([279dced](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/279dceddd78f869cb113ba845e3ac9aa9e2e7310))
+
+
 # [1.2.0-alpha.9](https://github.com/Nekzus/Neural-Mesh-Protocol/compare/v1.2.0-alpha.8...v1.2.0-alpha.9) (2026-03-29)
 
 
@@ -414,6 +463,8 @@ All notable changes to this project will be documented in this file. See
 * **sdk:** modernize to McpServer API, silence console & industrialize Tier-0 stability ([c600c27](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/c600c27ae2ac330fa10dc2571f99d2bb311b3166))
 * **sdk:** stabilize hybrid gateway and enable health check endpoint ([07f6b34](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/07f6b3473526e74c296ed138d5cc4b563084ef2d))
 * **typescript:** finalize Tier-0 industrial parity & worker pool resiliency ([fa97150](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/fa97150af6448772149d6111b0f9708716dad170))
+
+
 # [1.2.0-alpha.8](https://github.com/Nekzus/Neural-Mesh-Protocol/compare/v1.2.0-alpha.7...v1.2.0-alpha.8) (2026-03-23)
 
 
@@ -422,24 +473,32 @@ All notable changes to this project will be documented in this file. See
 * implement global remote resource attachment via manifest caching ([9d7c81f](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/9d7c81fdebbd4ad1b3551a0103f47d74039ce3cf))
 * Neural Mesh Protocol - Full Industrial LOO Migration & Safety Alignment 🛡️🤖 ([1100dbe](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/1100dbe8a14341c777a2463ecd6d9b99e49d47c5))
 * NMP Industrial High-Fidelity - Precision Logic Extraction & Spec Compliance ([6fd2152](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/6fd2152e57e17a408f9bfd14e06459a124a9d661)), closes [Hi#Fidelity](https://github.com/Hi/issues/Fidelity)
+
+
 # [1.2.0-alpha.7](https://github.com/Nekzus/Neural-Mesh-Protocol/compare/v1.2.0-alpha.6...v1.2.0-alpha.7) (2026-03-23)
 
 
 ### Bug Fixes
 
 * **router:** Mitigación de Firewall en Windows con ruteo a Localhost Inteligente + Manejo de errores gRPC mejorado ([78b40c1](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/78b40c15da614a26c0db580b105e68474d82889c))
+
+
 # [1.2.0-alpha.6](https://github.com/Nekzus/Neural-Mesh-Protocol/compare/v1.2.0-alpha.5...v1.2.0-alpha.6) (2026-03-22)
 
 
 ### Bug Fixes
 
 * **router:** Optimizada indexación semántica de NmpMeshStatus para descubrimientos de LLMs y corregido linter residual ([18ab90a](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/18ab90a074b4c4a307efb36d755e414cec38363e))
+
+
 # [1.2.0-alpha.5](https://github.com/Nekzus/Neural-Mesh-Protocol/compare/v1.2.0-alpha.4...v1.2.0-alpha.5) (2026-03-22)
 
 
 ### Features
 
 * **router:** Inyectada topología Zero-Trust (NmpMeshStatus Expandido + Visibilidad de Origen en MCP Tools) ([873ca0e](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/873ca0edb4f34b41221afc5aef76e630a5710171))
+
+
 # [1.2.0-alpha.4](https://github.com/Nekzus/Neural-Mesh-Protocol/compare/v1.2.0-alpha.3...v1.2.0-alpha.4) (2026-03-22)
 
 
@@ -461,6 +520,8 @@ All notable changes to this project will be documented in this file. See
 * **sdk:** fully synchronized discovery fix and updated project bitacora ([ec86481](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/ec86481b42b17d78ab95e450fee45ba57ad82ec5))
 * **sdk:** implement dynamic tool discovery with LAN-DHT and Yamux native fallback ([84787d4](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/84787d4c22312be0ec350743f6ff5601894f539b))
 * **sdk:** improve mesh stability, non-blocking discovery and stream handling ([5905961](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/5905961838cc9b21394ba0e07a2b30b501e2af18))
+
+
 # [1.2.0-alpha.3](https://github.com/Nekzus/Neural-Mesh-Protocol/compare/v1.2.0-alpha.2...v1.2.0-alpha.3) (2026-03-20)
 
 
@@ -468,12 +529,16 @@ All notable changes to this project will be documented in this file. See
 
 * **sdk:** correct production proto path in dist package ([0b8a0ed](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/0b8a0eda1511c811e6d16fd025f1f34ac478829b))
 * **sdk:** ensure stable integration tests and final biome formatting ([366cc0d](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/366cc0d199ff7acf3bb5ee3d81906383ec37951c))
+
+
 # [1.2.0-alpha.2](https://github.com/Nekzus/Neural-Mesh-Protocol/compare/v1.2.0-alpha.1...v1.2.0-alpha.2) (2026-03-20)
 
 
 ### Bug Fixes
 
 * **sdk:** bundle .proto files and implement dynamic resolution for NPM distribution ([e2914d9](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/e2914d9d570c41841c57de02b952aefe03d29b01))
+
+
 # [1.2.0-alpha.1](https://github.com/Nekzus/Neural-Mesh-Protocol/compare/v1.1.2...v1.2.0-alpha.1) (2026-03-20)
 
 
@@ -509,6 +574,8 @@ All notable changes to this project will be documented in this file. See
 * **sdk:** resolve biome linting and formatting issues ([3c9542d](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/3c9542de8d54b9071e7838a7524cc0b9a86a9bb3))
 * **sdk:** update documentation, keywords, and add code of conduct ([4e58ea0](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/4e58ea0b0f5807fb118cbddd5cc5a81a70d3a0c0))
 * trigger patch release for sdk enhancements ([ad07262](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/ad07262fa756ba56ac53801c5a42ce6dafd88872))
+
+
 # [1.1.0](https://github.com/Nekzus/Neural-Mesh-Protocol/compare/v1.0.0...v1.1.0) (2026-03-05)
 
 
@@ -540,6 +607,8 @@ All notable changes to this project will be documented in this file. See
 ### Bug Fixes
 
 * trim trailing whitespace in package description ([c659a83](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/c659a83bfc5a90dc08d9329bda52d55e942af0fc))
+
+
 # 1.0.0 (2026-03-05)
 
 
@@ -590,6 +659,8 @@ All notable changes to this project will be documented in this file. See
 * **sdk:** Vanguard Enterprise Architecture (PQC, TCP, ZK, Guardian-TS & Piscina Worker Pool) ([125cb94](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/125cb943d475363fcbb90c0cdca21c67e7b1c9ed))
 * **security:** Implement Hybrid PQC (Kyber768), AES-GCM, and TEE Stubs for Phase 4 Zero-Trust Architecture ([dd06fb5](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/dd06fb53a2a7ae66f2fde4420f1de5198e9945ff))
 * **security:** integrate zero-time ast guardian and libp2p kademlia dht caching ([2135346](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/21353463e6e0942ab30efbeb94a8e88a79dced2b))
+
+
 # 1.0.0-alpha.1 (2026-03-05)
 
 
@@ -641,6 +712,8 @@ All notable changes to this project will be documented in this file. See
 * **sdk:** Vanguard Enterprise Architecture (PQC, TCP, ZK, Guardian-TS & Piscina Worker Pool) ([125cb94](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/125cb943d475363fcbb90c0cdca21c67e7b1c9ed))
 * **security:** Implement Hybrid PQC (Kyber768), AES-GCM, and TEE Stubs for Phase 4 Zero-Trust Architecture ([dd06fb5](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/dd06fb53a2a7ae66f2fde4420f1de5198e9945ff))
 * **security:** integrate zero-time ast guardian and libp2p kademlia dht caching ([2135346](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/21353463e6e0942ab30efbeb94a8e88a79dced2b))
+
+
 # [1.0.0-alpha.2](https://github.com/Nekzus/Neural-Mesh-Protocol/compare/v1.0.0-alpha.1...v1.0.0-alpha.2) (2026-03-05)
 
 
