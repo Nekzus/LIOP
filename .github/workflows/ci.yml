@@ -141,6 +141,7 @@ jobs:
         run: pnpm --filter @nekzus/liop build
 
       - name: Semantic Release
+        if: github.ref_name == 'alpha' || github.ref_name == 'main'
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
         run: npx semantic-release
