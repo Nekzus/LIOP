@@ -8,3 +8,10 @@ issueRules:
   # to Blake Embrey is safe and verified. Ignore false positives on unstable ownership.
   unstableOwnership:
     action: ignore
+  # Ignorar falsos positivos del empaquetado (tsup) y del bootstrap P2P de LIOP
+  minifiedScript:
+    action: ignore
+  externalUrls:
+    action: ignore
+  aiPotentialObfuscation:
+    action: ignore
