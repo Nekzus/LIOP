@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.0.0-beta.5](https://github.com/Nekzus/LIOP/compare/v2.0.0-beta.4...v2.0.0-beta.5) (2026-05-31)
+
+
+### Bug Fixes
+
+* **security:** suppress codeql biased random false positives in dp-engine ([d21826f](https://github.com/Nekzus/LIOP/commit/d21826fbac02be5b7f8d74f5fd1089932b182e1a))
+
 # [2.0.0-beta.4](https://github.com/Nekzus/LIOP/compare/v2.0.0-beta.3...v2.0.0-beta.4) (2026-05-30)
 
 
