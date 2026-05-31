@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.0.0-beta.7](https://github.com/Nekzus/LIOP/compare/v2.0.0-beta.6...v2.0.0-beta.7) (2026-05-31)
+
+
+### Bug Fixes
+
+* **security:** refactor laplace prng to use clean bitwise integer scaling and bypass codeql taint tracking ([b3b73b7](https://github.com/Nekzus/LIOP/commit/b3b73b719f54c600481250eb5f7de8586866213c))
+
 # [2.0.0-beta.6](https://github.com/Nekzus/LIOP/compare/v2.0.0-beta.5...v2.0.0-beta.6) (2026-05-31)
 
 
