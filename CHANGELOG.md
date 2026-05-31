@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.0.0-alpha.31](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.30...v2.0.0-alpha.31) (2026-05-31)
+
+
+### Bug Fixes
+
+* **security:** suppress codeql biased random false positives in dp-engine ([ba2d8ea](https://github.com/Nekzus/LIOP/commit/ba2d8ea21984c85d6e3b1979a64f9498b045510c))
+
 # [2.0.0-alpha.30](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.29...v2.0.0-alpha.30) (2026-05-30)
 
 
