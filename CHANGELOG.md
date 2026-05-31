@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.0.0-beta.6](https://github.com/Nekzus/LIOP/compare/v2.0.0-beta.5...v2.0.0-beta.6) (2026-05-31)
+
+
+### Bug Fixes
+
+* **security:** resolve codeql biased cryptographic random by breaking taint tracking ([0465627](https://github.com/Nekzus/LIOP/commit/0465627be4b419c8148bf3131814d362bda0c1e6))
+
 # [2.0.0-beta.5](https://github.com/Nekzus/LIOP/compare/v2.0.0-beta.4...v2.0.0-beta.5) (2026-05-31)
 
 
