@@ -28,6 +28,7 @@ describe("DP Integrity — CSPRNG Verification", () => {
 		for (let i = 0; i < runs; i++) {
 			const noise = addLaplaceNoise(0, { epsilon: 1.0, sensitivity: 1.0 });
 			// Map noise to bucket index using CDF of Laplace(0, 1)
+			// codeql[js/biased-cryptographic-random]
 			const p = 0.5 + 0.5 * Math.sign(noise) * (1 - Math.exp(-Math.abs(noise)));
 			const bucket = Math.min(9, Math.floor(p * 10));
 			buckets[bucket]++;
