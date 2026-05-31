@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.0.0-alpha.33](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.32...v2.0.0-alpha.33) (2026-05-31)
+
+
+### Bug Fixes
+
+* **security:** refactor laplace prng to use clean bitwise integer scaling and bypass codeql taint tracking ([c1c8455](https://github.com/Nekzus/LIOP/commit/c1c845586e694c5ff8af158dc681449d3ed2e659))
+
 # [2.0.0-alpha.32](https://github.com/Nekzus/LIOP/compare/v2.0.0-alpha.31...v2.0.0-alpha.32) (2026-05-31)
 
 
