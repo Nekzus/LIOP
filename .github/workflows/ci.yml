@@ -124,10 +124,6 @@ jobs:
         with:
           ref: ${{ github.ref_name }}
           fetch-depth: 0
-          ref: ${{ github.ref_name }}
-
-      - name: Fetch Git Notes
-        run: git fetch origin +refs/notes/semantic-release:refs/notes/semantic-release || true
 
       - name: Fetch Git Notes
         run: git fetch origin +refs/notes/semantic-release:refs/notes/semantic-release || true
