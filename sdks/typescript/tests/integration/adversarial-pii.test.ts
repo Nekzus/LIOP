@@ -25,6 +25,11 @@ describe("PII Egress Shield v3 — Adversarial Vectors", () => {
 		server = new LiopServer(
 			{ name: "Adversarial-Test", version: "1.0.0" },
 			{
+				workerPool: {
+					minThreads: 1,
+					maxThreads: 4,
+					maxQueue: 100,
+				},
 				security: {
 					forbiddenKeys: [
 						"id",

@@ -40,14 +40,16 @@ An LIOP Agent interacting with an explicit LIOP Server pushes executable logic (
 #### 4.2 Symmetric Payload Sealing
 - The agreed Post-Quantum symmetric secret acts as the cipher for `AES-256-GCM`, enveloping the entirety of the execution payload inside a zero-trust capsule.
 
-#### 4.3 Computational Integrity (ZK-Receipts)
-- The SDK generates **HMAC-SHA256 commitments** that cryptographically bind the output to the exact logic executed, sealed with the Post-Quantum session secret. Migration to a native ZK-VM (RISC Zero / SP1) is planned for future releases.
+#### 4.3 Computational Integrity & Replay Mitigation (ZK-Receipts)
+- The SDK generates **HMAC-SHA256 commitments** that cryptographically bind the output to the exact logic executed, sealed with the Post-Quantum session secret.
+- **Anti-Replay Verification**: To prevent Man-in-the-Middle (MITM) result manipulation, the verifier calculates a local SHA-256 hash of the returned result (`expectedOutput`) and strictly asserts that it matches `Journal.output_hash` (via `verifyZkReceipt`). Under delegated calls, the system isolates proxy arguments using balanced-brace parsing before verification. Migration to a native ZK-VM (RISC Zero / SP1) is planned for future releases.
 
 ### 5. Execution Core (The Sandbox)
 
-#### 5.1 WASI Instantiation
+#### 5.1 WASI Instantiation & Environment Isolation
 - Injected logic is deployed into a bare-metal `Wasmtime` Virtual Machine implementing the WebAssembly System Interface (WASI).
 - No direct network or host filesystem capabilities are allowed by default (`wasi_snapshot_preview1` strict limits).
+- **Environment Isolation**: By default, host environment variables are fully isolated. If enabled (`allowEnv`), variables are restricted through a **strict safe system allowlist** via `getDefaultEnvironment()`, stripping any credentials (e.g., API keys, cloud tokens) and rejecting shell function overrides `()` to protect the host system.
 
 #### 5.2 Zero-Time AST Guardian
 - Before a payload enters the Wasmtime Engine, LIOP evaluates its Abstract Syntax Tree (AST). It destructs payloads attempting to import forbidden JS/C++ system modules outside of the LIOP specification.
@@ -93,14 +95,16 @@ Un Agente LIOP interactuando con un Servidor explícito LIOP inyecta una lógica
 #### 4.2 Sellado Simétrico del Payload
 - El secreto Post-Cuántic simétrico acordado se emplea como cifrado para `AES-256-GCM`, envolviendo el payload de ejecución entero dentro de una cápsula zero-trust.
 
-#### 4.3 Integridad Computacional (ZK-Receipts)
-- El SDK genera **compromisos HMAC-SHA256** que vinculan criptográficamente la salida a la lógica exacta ejecutada, sellados con el secreto de sesión Post-Cuántico. La migración a un ZK-VM nativo (RISC Zero / SP1) está planificada para futuras versiones.
+#### 4.3 Integridad Computacional y Mitigación de Replay (ZK-Receipts)
+- El SDK genera **compromisos HMAC-SHA256** que vinculan criptográficamente la salida a la lógica exacta ejecutada, sellados con el secreto de sesión Post-Cuántico.
+- **Verificación contra Replay**: Para prevenir la manipulación de resultados Man-in-the-Middle (MITM), la entidad verificadora calcula un hash SHA-256 local de la respuesta real recibida (`expectedOutput`) y comprueba rigurosamente que coincida con `Journal.output_hash` (mediante `verifyZkReceipt`). En llamadas delegadas, el verificador aísla los argumentos del proxy mediante un análisis de llaves balanceadas antes de la validación. La migración a un ZK-VM nativo (RISC Zero / SP1) está planificada para futuras versiones.
 
 ### 5. Núcleo de Ejecución (El Sandbox)
 
-#### 5.1 Instanciación WASI
+#### 5.1 Instanciación WASI y Aislamiento de Entorno
 - La lógica inyectada se despliega en una Máquina Virtual `Wasmtime` implementando la interfaz WebAssembly System Interface (WASI).
 - No hay ninguna capacidad de Sistema o de Red permitida por defecto (`wasi_snapshot_preview1` strictly limits).
+- **Aislamiento de Entorno**: Por defecto, las variables de entorno del host están totalmente aisladas. Si se habilita (`allowEnv`), las variables se limitan mediante una **lista permitida segura y estricta** vía `getDefaultEnvironment()`, eliminando credenciales (claves API, tokens de nube) y rechazando anulaciones de funciones de shell `()` para proteger el sistema host.
 
 #### 5.2 Guardián AST Cero-Tiempo
 - Previo a que un payload sea inyectado en Wasmtime Engine, LIOP analiza su Árbol de Sintaxis Abstracto (AST). Aniquila payloads que pretendan importar módulos del sistema fuera de las restricciones de la especificacion de LIOP.

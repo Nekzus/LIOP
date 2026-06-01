@@ -1567,6 +1567,7 @@ export class LiopMcpRouter {
 										proofHex,
 										Buffer.from(lastResponse.zk_receipt),
 										Buffer.from(sharedSecret),
+										resultBody,
 									);
 
 									if (!isValid) {

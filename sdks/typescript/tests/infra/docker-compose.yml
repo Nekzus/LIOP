@@ -124,6 +124,7 @@ services:
     hostname: runner
     command: ["vitest", "run", "--config", "tests/infra/vitest.crossnet.config.ts"]
     environment:
+      AGENT_URL: http://nexus:3000
       NEXUS_URL: http://nexus:3000
       VAULT_URL: http://vault:3000
       BANK_URL: http://bank:3000
