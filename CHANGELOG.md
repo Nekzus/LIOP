@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.1.0-alpha.1](https://github.com/Nekzus/LIOP/compare/v2.0.1-alpha.2...v2.1.0-alpha.1) (2026-06-01)
+
+
+### Features
+
+* **security:** implement ZK-Receipt replay mitigation and complete docs parity audit ([114c1a2](https://github.com/Nekzus/LIOP/commit/114c1a2b2c7721b4576630a7376db04c834b81a7))
+
 ## [2.0.1-alpha.2](https://github.com/Nekzus/LIOP/compare/v2.0.1-alpha.1...v2.0.1-alpha.2) (2026-06-01)
 
 
