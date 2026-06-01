@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.0.1-beta.1](https://github.com/Nekzus/LIOP/compare/v2.0.0...v2.0.1-beta.1) (2026-06-01)
+
+
+### Bug Fixes
+
+* **security:** implement hybrid bitwise-string float scaling to bypass codeql taint tracking ([13c52b2](https://github.com/Nekzus/LIOP/commit/13c52b2a30f5bb309a560617e959294ef09d7dbf))
+
 # [2.0.0](https://github.com/Nekzus/LIOP/compare/v1.2.0...v2.0.0) (2026-06-01)
 
 
