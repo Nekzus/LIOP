@@ -39,6 +39,17 @@ El motor arranca con limitadores estrictos:
 - **Defensa contra Heap Bomb:** Los 12 constructores de `TypedArray` (`Uint8Array`, `Float64Array`, `DataView`, etc.) se neutralizan para prevenir la asignación de buffers binarios masivos que crashearían el proceso worker por agotamiento del heap V8. Cada worker está adicionalmente restringido a un techo de memoria configurable vía `maxHeapMb` (por defecto: 64 MB).
 - **Defensa contra Contaminación de Prototipos:** Once prototipos core de JavaScript (`Object`, `Array`, `String`, `Number`, `Boolean`, `RegExp`, `Map`, `Set`, `Promise`, `Error` y `Function` resuelto dinámicamente) se congelan vía `Object.freeze()` dentro del IIFE del sandbox antes de que el código de usuario se ejecute. Al forzar `"use strict";` en el contenedor, cualquier intento no autorizado de alterar los prototipos arroja un error inmediato de tipo `TypeError` en lugar de fallar en silencio, previniendo que la lógica inyectada sobreescriba métodos nativos.
 - **Pool de Workers (Piscina):** Para evitar bloqueos, el SDK aísla este ciclo dentro de hilos paralelos (vía `piscina`), logrando un rendimiento industrial consistente. El pool de workers implementa un precalentamiento asíncrono en segundo plano (No-Op Warmup) al inicializarse para mitigar la latencia del cold-start de V8 y la carga inicial de WASI (~820k unidades de combustible).
+- **Aislamiento Seguro de Variables de Entorno del Host (`allowEnv`):** Por defecto, el sandbox WASI aísla por completo la ejecución de cualquier variable de entorno del host. Si su lógica de negocio requiere estrictamente variables de entorno, puede habilitar la propagación segura del entorno:
+  ```typescript
+  const server = new LiopServer(info, {
+    // En las opciones de WasiSandbox
+    allowEnv: true
+  });
+  ```
+  Para bloquear por completo los exploits de inyección de comandos en shell (como Shellshock) y evitar la fuga de secretos sensibles (como claves de AWS o tokens de bases de datos), el SDK filtra las variables de entorno mediante una **lista permitida segura y estricta** a través de `getDefaultEnvironment()`:
+  - **Lista de Permitidos en Windows**: `APPDATA`, `HOMEDRIVE`, `HOMEPATH`, `LOCALAPPDATA`, `PATH`, `PROCESSOR_ARCHITECTURE`, `SYSTEMDRIVE`, `SYSTEMROOT`, `TEMP`, `USERNAME`, `USERPROFILE`, `PROGRAMFILES`.
+  - **Lista de Permitidos en Unix/Linux**: `HOME`, `LOGNAME`, `PATH`, `SHELL`, `TERM`, `USER`.
+  Cualquier variable de entorno que comience con definiciones de función de shell `()` se rechaza inmediatamente para evitar la ejecución remota de código.
 
 ## Hacia el Modelo de Componentes (Preview 2)
 

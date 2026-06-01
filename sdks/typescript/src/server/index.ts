@@ -61,6 +61,8 @@ export interface LiopServerOptions {
 		idleTimeout?: number;
 		/** Max heap memory per worker in MB (default: 64). Prevents heap bomb DoS. */
 		maxHeapMb?: number;
+		/** Maximum number of tasks allowed in the queue. Default is "auto". */
+		maxQueue?: number | "auto";
 	};
 	security?: {
 		piiPatterns?: PiiRule[];
@@ -681,7 +683,7 @@ export class LiopServer {
 			maxThreads: this.config?.workerPool?.maxThreads ?? (isTest ? 1 : 8),
 			idleTimeout:
 				this.config?.workerPool?.idleTimeout ?? (isTest ? 500 : 5000),
-			maxQueue: "auto",
+			maxQueue: this.config?.workerPool?.maxQueue ?? "auto",
 			taskQueue: new FixedQueue(),
 			execArgv,
 			// [DoS Defense] Enforce hard memory ceiling per worker thread.

@@ -387,6 +387,7 @@ export class LiopClient {
 							Buffer.from(response.cryptographic_proof).toString("hex"),
 							Buffer.from(response.zk_receipt),
 							Buffer.from(sharedSecret),
+							response.semantic_evidence,
 						);
 
 						if (!isValid) {

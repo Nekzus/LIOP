@@ -130,6 +130,24 @@ const context = vm.createContext(sandboxEnv, {
 
 The `microtaskMode: 'afterEvaluate'` option instructs Node.js to immediately run all microtasks queued by the script before returning. This guarantees that no async logic survives outside the 5,000 ms sandbox execution limit, neutralizing potential asynchronous logic-bomb bypasses.
 
+### Safe Host Environment Variables (`allowEnv`)
+
+By default, the WASI sandbox completely isolates the guest environment. If your business logic strictly requires environment variables, you can enable safe host environment propagation:
+
+```typescript
+const server = new LiopServer(info, {
+  // In WasiSandbox options
+  allowEnv: true
+});
+```
+
+To prevent shell injection exploits (such as Shellshock) and avoid silent leaks of sensitive host credentials (such as `AWS_SECRET_ACCESS_KEY` or `NPM_TOKEN`), the SDK filters environment variables through a **strict safe allowlist** via `getDefaultEnvironment()`:
+
+- **Windows Host Allowlist**: `APPDATA`, `HOMEDRIVE`, `HOMEPATH`, `LOCALAPPDATA`, `PATH`, `PROCESSOR_ARCHITECTURE`, `SYSTEMDRIVE`, `SYSTEMROOT`, `TEMP`, `USERNAME`, `USERPROFILE`, `PROGRAMFILES`.
+- **Unix/Linux Host Allowlist**: `HOME`, `LOGNAME`, `PATH`, `SHELL`, `TERM`, `USER`.
+
+Any environment variable starting with shell function definitions `()` is immediately rejected to prevent remote code execution vectors.
+
 ### Post-Execution Cleanup
 
 The sandbox destroys all temporary artifacts after every execution cycle:
@@ -215,6 +233,7 @@ Presets can be merged with custom regex rules for organization-specific complian
 - **Aggregation-First Policy**: Blocks raw row-level data export — only aggregated results (counts, averages, summaries) pass through
 - **Output Schema Enforcement**: When a `Zod` output schema is defined, `.strict()` mode is automatically applied, rejecting any keys not explicitly allowed in the schema
 - **Cryptographic & Envelope Unwrapping**: Automatically isolates and extracts the raw business data payload from MCP/LIOP envelopes and gRPC proxied responses (via `unwrapForAggregationPolicyScan`) before scanning. This prevents false positives from binary metadata and cryptographic seals (like HMAC-SHA256 ZK-Receipt signatures).
+- **Recursive In-Memory Numerical Sanitization**: Before scanning, all numeric values inside the returned payload are processed recursively: positive floats are clamped to a maximum of 4 decimal places, and negative values are safely clamped to `0` (via `sanitizeOutput()`). This is executed fully in-memory to prevent float-representation side-channels and avoids redundant string conversions.
 - **K-Anonymity on Small Datasets**: For micro-datasets or synthetic demos (dataset size < 10), the Egress Shield applies a strict K-Anonymity filter. Any output returned by the sandbox is rejected if it contains more than **3 scalar keys** (flat properties) or if it has any **arrays or nested objects**. This blocks attempts to rebuild datasets key-by-key or through nested structure side-channels.
 
 ---
@@ -264,7 +283,8 @@ Every sandbox execution produces a **cryptographic receipt** that binds the outp
 3. **Differential Privacy**: Laplace noise is applied to numeric outputs *before* commitment, ensuring the ZK-Receipt matches the noisy data the client receives. Supports **DDP mode** (seeded PRNG via `dataset_hash + image_id`) for audit reproducibility.
 4. **Journal Assembly**: A JSON object containing `image_id`, `dataset_hash`, `output_hash` (SHA-256 of the post-DP result), `fuel` consumed, and `ts` (timestamp)
 5. **HMAC Seal**: `crypto.createHmac("sha256", sessionSecret).update(journal).digest()` — the session secret is derived from the **ML-KEM-768 (Kyber) key exchange**
-6. **Verification**: `crypto.timingSafeEqual(seal, expectedSeal)` — constant-time comparison prevents timing side-channel attacks
+6. **Verification & Replay Mitigation**: The verifier validates the HMAC seal in constant-time (`crypto.timingSafeEqual`). In addition, to prevent **Man-in-the-Middle (MITM) reply manipulation and replay attacks**, the verifier computes a local SHA-256 hash of the received result (`expectedOutput`) and strictly asserts that it is identical to `Journal.output_hash` (via `verifyZkReceipt`).
+7. **Balanced-Brace Proxy Extractor**: If the tool call was delegated via proxy (`__liop_proxy_tool`), the verifier utilizes an in-process balanced-brace state machine to isolate and extract raw proxy arguments from the response before hashing, avoiding validation false positives when host layers append metadata.
 
 <Tip>
   The `sessionSecret` used for HMAC signing is the shared key negotiated via Post-Quantum Cryptography (ML-KEM-768). This ensures that ZK-Receipt integrity remains quantum-resistant.

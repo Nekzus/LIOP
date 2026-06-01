@@ -4,6 +4,7 @@ import { LiopHybridGateway } from "../../src/gateway/hybrid.js";
 import { LiopServer } from "../../src/server/index.js";
 import { log } from "../../src/utils/logger.js";
 import * as grpc from "@grpc/grpc-js";
+import * as net from "node:net";
 
 describe("OAuth 2.1 M2M End-to-End Integration", () => {
 	let nexusServer: LiopServer;
@@ -17,8 +18,17 @@ describe("OAuth 2.1 M2M End-to-End Integration", () => {
 	const CLIENT_SECRET = "dev-secret-change-me";
 
 	beforeEach(async () => {
-		// Use a random high port to avoid local environment collisions
-		nexusPort = Math.floor(Math.random() * 10000) + 20000;
+		// Use a dynamic free port to avoid local environment and Windows EACCES/EADDRINUSE collisions
+		nexusPort = await new Promise<number>((resolve, reject) => {
+			const server = net.createServer();
+			server.unref();
+			server.on("error", reject);
+			server.listen(0, "127.0.0.1", () => {
+				const address = server.address();
+				const port = typeof address === "string" ? 0 : address?.port || 0;
+				server.close(() => resolve(port));
+			});
+		});
 		const nexusIssuer = `http://localhost:${nexusPort}/oidc`;
 
 		// 1. Start Nexus Node (Authorization Server)
