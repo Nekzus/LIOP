@@ -13,19 +13,39 @@ The SDK is published to npm as a single unified package containing both Client a
 
 <CodeGroup>
 ```bash npm
-npm install @nekzus/liop zod
+npm install @nekzus/liop@latest zod
 ```
 ```bash pnpm
-pnpm add @nekzus/liop zod
+pnpm add @nekzus/liop@latest zod
 ```
 ```bash yarn
-yarn add @nekzus/liop zod
+yarn add @nekzus/liop@latest zod
 ```
 </CodeGroup>
 
 <Note>
   We strongly recommend installing `zod` alongside the SDK. Just like the official MCP specification, LIOP relies on Zod parsing to guarantee that Execution Arguments passed by the AI Agent perfectly match the Server's capability manifest.
 </Note>
+
+## Zero-Bloat Architecture (Opt-Out Installations)
+
+By default, `@nekzus/liop` provides out-of-the-box backward compatibility with the Model Context Protocol (MCP) via the `LiopMcpBridge` module. To make this integration seamless, the package lists `@modelcontextprotocol/sdk` as an optional and peer dependency, meaning standard installations (`npm install @nekzus/liop`) will automatically resolve and install it.
+
+However, for constrained production environments (such as Docker edge containers, AWS Lambda, or IoT deployments) where every megabyte counts, you can perform a **pure, zero-bloat LIOP installation** by opting out of the optional dependencies:
+
+<CodeGroup>
+```bash npm
+npm install @nekzus/liop@latest --no-optional
+```
+```bash pnpm
+pnpm add @nekzus/liop@latest --without optional
+```
+```bash yarn
+yarn add @nekzus/liop@latest --ignore-optional
+```
+</CodeGroup>
+
+This drops the installation size dramatically. The SDK uses dynamic `import()` under the hood, meaning the MCP bridge logic is only loaded if requested, maintaining a pristine runtime memory footprint.
 
 ## Under the Hood: The Javy Compiler
 
@@ -40,7 +60,7 @@ The developer never has to manually write or compile Rust/Wasm.
 The TypeScript SDK operates at strict architectural parity with the high-performance Rust core, ensuring true Zero-Trust enterprise constraints:
 
 - **Post-Quantum Cryptography (ML-KEM-768):** End-to-end asymmetric encapsulation (`crystals-kyber`) and symmetric AES-256-GCM authentication.
-- **Hybrid Mesh Transport:** Unrestricted Node.js & browser peering through dual WebSockets (WS/Mplex) and TCP (Yamux) libp2p listeners.
+- **Hybrid Mesh Transport:** Unrestricted Node.js & browser peering through WebSockets (WS) and TCP (Yamux) libp2p listeners.
 - **Guardian-TS (Zero-Time AST Inspection):** Proactive sandbox-escape mitigation that blocks illegal host capabilities *before* `node:wasi` execution logic triggers.
 - **ZK-Receipt Ready:** Native architectural support for trustless Mathematical Execution Proofs against Zero-Knowledge Virtual Machines (zkVMs).
 - **Multi-Core Scaling (Worker Pool):** Hardware-accelerated transactional performance using `piscina`. Bypasses V8's Single-Thread Event Loop bottleneck by offloading PQC decryption, AST inspection, and WASI Sandboxing to isolated OS-level threads.

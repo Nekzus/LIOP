@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { serve } from "@hono/node-server";
-import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
+import type { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import type { JSONRPCMessage } from "@modelcontextprotocol/sdk/types.js";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
@@ -72,9 +72,12 @@ export class LiopStreamBridge {
 	/**
 	 * Creates a new per-session transport instance and wires it to the LIOPMcpBridge logic.
 	 */
-	private createSessionTransport(
+	private async createSessionTransport(
 		clientIp: string,
-	): WebStandardStreamableHTTPServerTransport {
+	): Promise<WebStandardStreamableHTTPServerTransport> {
+		const { WebStandardStreamableHTTPServerTransport } = await import(
+			"@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js"
+		);
 		const transport = new WebStandardStreamableHTTPServerTransport({
 			sessionIdGenerator: () => randomUUID(),
 			onsessioninitialized: (sessionId: string) => {
@@ -163,26 +166,63 @@ export class LiopStreamBridge {
 	private setupRoutes() {
 		this.app.use("*", cors());
 
+		// Initialize strict zero-trust token if not provided
+		if (!process.env.ZERO_TRUST_TOKEN) {
+			process.env.ZERO_TRUST_TOKEN = randomUUID();
+			log.info("=".repeat(60));
+			log.info("⚠️ STRICT ZERO-TRUST MODE ENABLED ⚠️");
+			log.info("No ZERO_TRUST_TOKEN found in environment.");
+			log.info("A secure ephemeral token has been generated for this session:");
+			log.info(`Token: ${process.env.ZERO_TRUST_TOKEN}`);
+			log.info("=".repeat(60));
+		}
+
 		// ZTA (Zero-Trust Architecture) Security Middleware
 		this.app.use("/mcp", async (c, next) => {
 			const auth = c.req.header("Authorization");
+			if (!auth?.startsWith("Bearer ")) {
+				return c.json(
+					{ error: "Unauthorized: LIOP Zero-Trust Policy Enforced" },
+					401,
+				);
+			}
 
+			const token = auth.slice(7);
 			const expectedToken = process.env.ZERO_TRUST_TOKEN;
-			if (expectedToken) {
-				if (
-					!auth?.startsWith("Bearer ") ||
-					auth.split(" ")[1] !== expectedToken
-				) {
+
+			// Check static token fallback first (retrocompatibility)
+			if (expectedToken && token === expectedToken) {
+				await next();
+				return;
+			}
+
+			// Validate with JWT Validator if configured on the server
+			const jwtValidator = this.bridgeLogic.getServer()?.jwtValidator;
+			if (jwtValidator) {
+				try {
+					await jwtValidator.validate(token);
+					await next();
+					return;
+				} catch (e: unknown) {
 					log.info(
-						"[LIOP-StreamBridge] ALERT: Access denied - Invalid Zero-Trust token.",
+						`[LIOP-StreamBridge] JWT Validation failed: ${(e as Error).message}`,
 					);
 					return c.json(
-						{ error: "Unauthorized: LIOP Zero-Trust Policy Enforced" },
+						{
+							error: `Unauthorized: JWT Validation failed - ${(e as Error).message}`,
+						},
 						401,
 					);
 				}
 			}
-			await next();
+
+			log.info(
+				"[LIOP-StreamBridge] ALERT: Access denied - Invalid Zero-Trust token.",
+			);
+			return c.json(
+				{ error: "Unauthorized: LIOP Zero-Trust Policy Enforced" },
+				401,
+			);
 		});
 
 		// Multi-Session Streamable HTTP Handler
@@ -221,8 +261,8 @@ export class LiopStreamBridge {
 				return c.json({ error: "Too Many Sessions: Rate limit exceeded" }, 429);
 			}
 
-			const transport = this.createSessionTransport(clientIp);
-			return transport.handleRequest(c.req.raw);
+			const transport = await this.createSessionTransport(clientIp);
+			return await transport.handleRequest(c.req.raw);
 		});
 	}
 

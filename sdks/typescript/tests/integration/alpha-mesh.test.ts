@@ -76,7 +76,7 @@ return {
 		const toolRequest = {
 			name: "calculate_stats",
 			arguments: {
-				payload: "@LIOP{wasi_v1,Test}\nreturn 1;\n@END",
+				payload: "@LIOP{wasi_v1,Test}\nreturn { ok: 1 };\n@END",
 			},
 		};
 
@@ -85,10 +85,10 @@ return {
 		// or modifying the wasmPayload passed to callTool.
 
 		const realPayload = Buffer.from(
-			"@LIOP{wasi_v1,Test}\\nreturn 1;\\n@END",
+			"@LIOP{wasi_v1,Test}\nreturn { ok: 1 };\n@END",
 		);
 		const _modifiedPayload = Buffer.from(
-			"@LIOP{wasi_v1,Test}\\nreturn 2;\\n@END",
+			"@LIOP{wasi_v1,Test}\nreturn { ok: 2 };\n@END",
 		);
 
 		// If we call with modifiedPayload but the server hash is based on realPayload

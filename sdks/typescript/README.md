@@ -37,7 +37,7 @@ This fundamentally solves the data privacy, bandwidth, and latency challenges of
 | **Guardian AST**              | Zero-time heuristic inspection blocks sandbox escapes (`require`, `fs`, `eval`, `fetch`, prototype pollution).                     |
 | **WASI Sandbox**              | JavaScript payloads execute inside V8 isolates with CPU fuel limits and no access to Node.js globals.                                      |
 | **PII Shield**                | Multi-layer egress filter with Regional Presets (Email, Credit Card with Luhn, IP, Phone, SSN, IBAN Mod-97, Passport MRZ) and custom keys. |
-| **ZK-Receipts**               | Cryptographic proof (SHA-256 + SHA-512 seal) that the returned result was computed honestly from the injected logic.                       |
+| **ZK-Receipts**               | Cryptographic proof (SHA-256 ImageID + HMAC-SHA256 seal) that the returned result was computed honestly from the injected logic.            |
 | **Worker Pool**               | Heavy computation (crypto, sandboxing) dispatched to OS threads via `piscina`, unblocking the V8 event loop.                             |
 | **Cross-AI Adapters**         | Zero-Shot system prompts automatically adapt instructions for Claude (XML-heavy) vs OpenAI/Gemini (JSON-schema).                           |
 | **MCP Bridge**                | `LiopMcpBridge` adapts any `LiopServer` to the JSON-RPC 2.0 / stdio protocol used by Claude Desktop, Cursor, etc.                      |
@@ -49,16 +49,41 @@ This fundamentally solves the data privacy, bandwidth, and latency challenges of
 ## Installation
 
 ```bash
-npm install @nekzus/liop
+npm install @nekzus/liop@latest
+```
+
+Or for the latest stable zero-trust features on the beta channel:
+
+```bash
+npm install @nekzus/liop@beta
 ```
 
 > **Requirements:** Node.js ≥ 20.0. The SDK uses `node:crypto`, `node:vm`, and `piscina` (worker threads) internally.
+
+### Zero-Bloat & Micro-Deployments (Opt-Out)
+
+By default, the SDK provides out-of-the-box MCP backward compatibility (`LiopMcpBridge`) by declaring `@modelcontextprotocol/sdk` as an optional dependency (which is automatically resolved by standard installations of NPM, PNPM, or Yarn).
+
+For constrained production environments (e.g., Docker, AWS Lambda, Edge/IoT) where every megabyte counts, you can perform a **pure, zero-bloat LIOP installation** by opting out of the optional dependencies:
+
+```bash
+# npm
+npm install @nekzus/liop@latest --no-optional
+
+# pnpm
+pnpm add @nekzus/liop@latest --without optional
+
+# yarn
+yarn add @nekzus/liop@latest --ignore-optional
+```
+
+The SDK uses dynamic `import()` statements under the hood to ensure that MCP translator modules are only loaded if they are actually instantiated, guaranteeing a lightweight memory footprint.
 
 ---
 
 ## LIOP Agent (CLI)
 
-The SDK includes a zero-config agent (`liop-agent`) designed to bridge the Logic-Injection-on-Origin Protocol with local AI clients like **Claude Desktop**.
+The SDK includes a zero-config agent CLI (`liop`) designed to bridge the Logic-Injection-on-Origin Protocol with local AI clients like **Claude Desktop**.
 
 ### Installation & Run
 
@@ -66,23 +91,30 @@ You can run the agent directly using `npx` (recommended) or install it globally:
 
 ```bash
 # Run instantly
-npx @nekzus/liop
+npx @nekzus/liop@latest
 
 # Or install globally
-npm install -g @nekzus/liop
-liop-agent
+npm install -g @nekzus/liop@latest
+liop
 ```
 
 ### 🤖 Claude Desktop Configuration
 
-To use the Neural Mesh inside Claude Desktop, update your `claude_desktop_config.json` (typically found in `%APPDATA%\Claude\claude_desktop_config.json` on Windows):
+To integrate LIOP into Claude Desktop, update your `claude_desktop_config.json` (typically found in `%APPDATA%\Claude\claude_desktop_config.json` on Windows):
 
 ```json
 {
   "mcpServers": {
-    "liop-agent": {
+    "liop": {
       "command": "npx",
-      "args": ["-y", "@nekzus/liop"]
+      "args": ["-y", "@nekzus/liop@latest"],
+      "env": {
+        "LIOP_NEXUS_URL": "http://your-nexus-host:3000",
+        "LIOP_LOG_LEVEL": "info",
+        "LIOP_TOKEN_BANK": "your-secure-bank-token",
+        "LIOP_TOKEN_VAULT": "your-secure-vault-token",
+        "NODE_OPTIONS": "--use-system-ca"
+      }
     }
   }
 }
@@ -95,7 +127,7 @@ The agent automatically manages your P2P identity:
 - **Identity Path**: `~/.liop/identity.json`. This file contains your unique PeerID. Keep it safe if you want to maintain a consistent identity in the mesh.
 - **Bootstrap Nodes**: By default, the agent connects to the **LIOP Alpha Nexus**. You can provide custom bootstrap addresses as CLI arguments:
   ```bash
-  npx @nekzus/liop /ip4/1.2.3.4/tcp/4001/p2p/PEER_ID
+  npx @nekzus/liop@latest /ip4/1.2.3.4/tcp/4001/p2p/PEER_ID
   ```
 
 ---
@@ -188,10 +220,31 @@ new LiopServer(
   serverInfo: { name: string; version: string },
   config?: {
     capabilities?: Record<string, unknown>;
+    workerPool?: {
+      enabled?: boolean;           // Enable OS-thread sandboxing (default: true)
+      minThreads?: number;         // Min worker threads (default: CPU count based)
+      maxThreads?: number;         // Max worker threads (default: CPU count)
+      idleTimeout?: number;        // Idle timeout in milliseconds for workers
+      maxHeapMb?: number;          // V8 heap limit per worker (default: 64, env: LIOP_WORKER_MAX_HEAP_MB)
+    };
     security?: {
       piiPatterns?: PiiRule[];     // Regex/validator rules for PII detection
       forbiddenKeys?: string[];    // Keys stripped from outgoing responses
+      sensitiveKeys?: string[];    // Keys that trigger sensitive query budget
+      enableNerScanning?: boolean; // NLP entity detection via compromise (default: false)
+      rateLimit?: {                // Sliding window rate limiter configuration
+        maxPerWindow?: number;     // Max calls per window per tool (default: 15)
+        globalMaxPerWindow?: number; // Max total calls across all tools (default: 40)
+        windowMs?: number;         // Window duration in ms (default: 60000)
+      };
     };
+    taxonomy?: {                   // Data domain classification
+      domain?: string;             // e.g., "finance", "healthcare"
+      clearanceTier?: number;      // e.g., 3, 5 (strictly numeric)
+      executionTypes?: string[];   // e.g., ["aggregation", "analytics"]
+    };
+    auth?: LiopAuthConfig;         // OAuth 2.1 Hybrid authentication config
+    tokenSlug?: string;            // Deterministic token resolution slug (e.g., "BANK", "VAULT")
   }
 )
 ```
@@ -243,22 +296,32 @@ await bridge.connect();
 ### The Shield — Multi-Layer Defense
 
 ```
-┌─────────────────────────────────────────────────────┐
-│  Layer 1: Guardian AST (Zero-Time Static Analysis)  │
-│  Blocks: require, import(), fs, eval, fetch,        │
-│  process, global, __proto__, XMLHttpRequest         │
-├─────────────────────────────────────────────────────┤
-│  Layer 2: WASI Sandbox (V8 Isolate)                 │
-│  No Node.js globals • CPU Fuel limits • 3s timeout  │
-├─────────────────────────────────────────────────────┤
-│  Layer 3: PII Shield (Egress Filter)                │
-│  Scans output for Email, SSN, Credit Card, IP       │
-│  Strips forbidden keys from response objects        │
-├─────────────────────────────────────────────────────┤
-│  Layer 4: ZK-Receipt (Integrity Verification)       │
-│  SHA-256 ImageID + SHA-512 RISC0-style Seal         │
-│  LiopMcpBridge verifies before forwarding to LLM    │
-└─────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────┐
+│  Layer 1: Guardian AST (Zero-Time Static Analysis)        │
+│  14-function WASI allowlist • 128 import cap • Blocks     │
+│  require, import(), fs, eval, fetch, __proto__            │
+├───────────────────────────────────────────────────────────┤
+│  Layer 2: WASI Sandbox (V8 Isolate)                       │
+│  25 poisoned globals (incl. Date, TypedArrays) •          │
+│  CPU Fuel limits • 5s timeout • maxHeapMb (64MB default)  │
+│  Object.freeze() on 11 core prototypes (strict mode)      │
+├───────────────────────────────────────────────────────────┤
+│  Layer 3: Taint Analyzer (IFC — Static)                   │
+│  Acorn AST 3-pass analysis blocks PII side-channels:      │
+│  charCodeAt, boolean inference, arithmetic derivation     │
+├───────────────────────────────────────────────────────────┤
+│  Layer 4: PII Shield (Egress Filter)                      │
+│  4-stage pipeline: exact key → fuzzy key → pattern        │
+│  validators (Luhn, IBAN Mod-97) → NER (compromise)        │
+├───────────────────────────────────────────────────────────┤
+│  Layer 5: Aggregation-First Policy                        │
+│  Blocks raw row export • maxOutputRows (default: 10) •    │
+│  Conditional error: detailed (dev) vs opaque (production) │
+├───────────────────────────────────────────────────────────┤
+│  Layer 6: ZK-Receipt (Integrity Verification)             │
+│  SHA-256 ImageID + HMAC-SHA256 Seal (Kyber768-derived)    │
+│  Timing-safe verification • LiopMcpBridge auto-verifies   │
+└───────────────────────────────────────────────────────────┘
 ```
 
 ### PII Patterns
@@ -296,6 +359,33 @@ const server = new LiopServer(info, {
 // Any response containing these keys → instantly blocked with "Egress Security Violation"
 ```
 
+### Envelope & Cryptographic Unwrapping
+
+To avoid false positive triggers caused by HMAC-SHA256 ZK-Receipt signatures or transport wrapper frames (such as `{ content: [{ type: "text", text: "..." }] }`), the PII Shield and Aggregation-First engines scan only the unwrapped business data (via `unwrapForAggregationPolicyScan`). Cryptographic seals and protocol routing structures are isolated and excluded from compliance scans.
+
+### 📊 3-Tier Query Budget (NIST SP 800-226)
+
+To prevent advanced statistical differentiation or database reconstruction attacks, the SDK implements a tiered, session-based budget engine:
+
+- **Forbidden Tier** (Limit: `3` queries/session): Applied to highly restricted variables like user IDs, passwords, emails, SSNs (configured via `forbiddenKeys`).
+- **Sensitive Tier** (Limit: `8` queries/session): Applied to moderately sensitive variables like account types, medical diagnoses, blood types, financial tickers (configured via `sensitiveKeys`).
+- **Public Tier** (Limit: `25` queries/session): Default budget for non-sensitive public metadata.
+
+If an injected payload queries a field beyond its budget limit, the preflight static analysis immediately blocks execution.
+
+### 🛡️ K-Anonymity on Small Datasets
+
+When operating on high-privacy datasets, if the source records count is **less than 10**, the SDK forces a strict K-Anonymity restriction:
+- Rejects any output that contains nested objects or arrays.
+- Restricts the returned structure to a maximum of **3 scalar keys** (e.g., simple aggregate counts or statistics).
+- Prevents structural data leakage in low-entropy datasets.
+
+### ❄️ Sandbox Poisoned Globals & Date Workaround
+
+For maximum host security, the WASI sandbox enforces a poisoned environment that strips dangerous globals and prevents timing side-channels:
+- **Poisoned/Disabled**: `Date` (Date.now, parse, etc. throw an exception to prevent timing analysis), `eval`, `Function`, `setTimeout`, `setInterval`, `Buffer`, `ArrayBuffer`, and all `TypedArrays`.
+- **Date Workaround**: To perform date checks, use lexicographical string comparison on ISO 8601 strings (e.g., `record.date >= "2026-01-01"`).
+
 ---
 
 ## Logic-Injection-on-Origin Flow
@@ -307,9 +397,10 @@ The following shows a complete Logic-Injection-on-Origin execution cycle (handle
 2. LiopServer receives the payload via tools/call (JSON-RPC or direct)
 3. Guardian AST inspects for sandbox escapes (zero-time heuristic analysis)
 4. Code executes inside a V8 isolate with CPU fuel limits (no Node.js globals)
-5. PII Shield scans output for forbidden data and keys
-6. ZK-Receipt generated (SHA-256 logic hash + SHA-512 seal)
-7. Result + receipt returned to the LLM (raw data never exposed)
+5. Taint Analyzer blocks PII side-channel derivation (charCodeAt, boolean inference)
+6. PII Shield scans output for forbidden data and keys
+7. ZK-Receipt generated (SHA-256 ImageID + HMAC-SHA256 seal)
+8. Result + receipt returned to the LLM (raw data never exposed)
 ```
 
 ### Data Dictionary & Zero-Shot Autonomy
@@ -334,7 +425,7 @@ server.enableZeroShotAutonomy(); // Registers the "Blind Analyst" prompt
 
 Node.js is single-threaded. Heavy operations like Kyber768 decryption, AES-GCM authentication, AST validation, and V8 sandbox instantiation would block the event loop in a standard setup.
 
-This SDK dispatches all heavy computation to OS-level threads via [`piscina`](https://github.com/piscinajs/piscina), achieving Rust-like concurrency:
+This SDK dispatches all heavy computation to OS-level threads via [`piscina`](https://github.com/piscinajs/piscina), achieving Rust-like concurrency. On server or verifier initialization, background warmup tasks are automatically dispatched to pre-warm the pool workers, eliminating V8/WASI cold-start overhead (~820k fuel units) for subsequent calls:
 
 ```typescript
 // Automatic — no configuration needed
@@ -390,10 +481,11 @@ await server.connectToMesh();
 
 This package is continuously tested across multiple platforms and Node.js versions via CI/CD:
 
-- **51+ tests** spanning unit, integration, and conformance suites
+- **285+ tests** spanning unit, integration, conformance, adversarial, and crossnet suites
 - **Multi-OS matrix:** Ubuntu, Windows, macOS
-- **Node.js versions:** 22.x, 24.x
+- **Node.js versions:** 20.x, 22.x
 - **Code quality:** Enforced by [Biome.js](https://biomejs.dev/) (linting + formatting)
+- **Security:** Verified 6-layer defense-in-depth architecture — see [Security Architecture](https://nekzus-32.mintlify.app/typescript-sdk/security)
 
 > To run tests locally or contribute, clone the [repository](https://github.com/Nekzus/LIOP) and follow the [Contributing Guide](https://github.com/Nekzus/LIOP/blob/main/CONTRIBUTING.md).
 

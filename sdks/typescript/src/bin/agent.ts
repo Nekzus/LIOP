@@ -38,8 +38,10 @@ async function resolveBootstrapFromUrl(url: string): Promise<string | null> {
 		);
 		if (!tcpAddr) return null;
 
-		// Rewrite internal Docker IP using industrial mapper if available
-		let resolved = industrialAddressMapper(tcpAddr);
+		// Rewrite internal Docker IP using the address mapper if enabled
+		let resolved = shouldEnableDockerMap()
+			? industrialAddressMapper(tcpAddr)
+			: tcpAddr;
 		if (!resolved || resolved === tcpAddr) {
 			const urlHost = new URL(url).hostname;
 			resolved = tcpAddr.replace(/\/ip4\/[^/]+/, `/ip4/${urlHost}`);
@@ -95,7 +97,12 @@ function normalizeBootstrap(addr: string): string {
 /**
  * industrialAddressMapper
  *
- * Mapea IPs internas de Docker a puertos industriales mapeados en el Host.
+ * Maps Docker-internal IPs to host-published ports for local demo environments.
+ * Activated when any of the following conditions are met:
+ *   - NODE_ENV is "development" or "test"
+ *   - LIOP_DOCKER_MAP="true" or LIOP_DEV_MODE="true" is set
+ *   - LIOP_NEXUS_URL points to a local Docker demo port (127.0.0.1:13000|13001)
+ *
  * Nexus (172.20.0.10) -> 13001
  * Vault (172.20.0.11) -> 13003
  * Bank  (172.20.0.12) -> 13004
@@ -135,6 +142,39 @@ function industrialAddressMapper(addr: string): string | null {
 }
 
 /**
+ * Checks if a URL points to the local Docker demo environment
+ * (loopback address on known demo ports).
+ */
+function isDockerDemoHost(urlStr: string): boolean {
+	try {
+		const u = new URL(urlStr);
+		return (
+			(u.hostname === "127.0.0.1" || u.hostname === "localhost") &&
+			(u.port === "13000" || u.port === "13001")
+		);
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * Determines whether Docker address mapping should be enabled.
+ * True when running in development/test mode, when explicitly requested
+ * via LIOP_DOCKER_MAP/LIOP_DEV_MODE, or when the Nexus URL points to
+ * a local Docker demo port.
+ */
+function shouldEnableDockerMap(): boolean {
+	return (
+		process.env.NODE_ENV === "development" ||
+		process.env.NODE_ENV === "test" ||
+		process.env.LIOP_DOCKER_MAP === "true" ||
+		process.env.LIOP_DEV_MODE === "true" ||
+		(!!process.env.LIOP_NEXUS_URL &&
+			isDockerDemoHost(process.env.LIOP_NEXUS_URL))
+	);
+}
+
+/**
  * LIOP Agent (Zero-Config CLI)
  *
  * Secure Logic-on-Origin gateway for Claude Desktop.
@@ -144,6 +184,29 @@ function industrialAddressMapper(addr: string): string | null {
  * No hardcoded tools, PeerIDs, or port mappings.
  */
 async function main() {
+	// Auto-Relaunch: Ensure system CA certificates are loaded for TLS compatibility.
+	// Corporate proxies (Cloudflare WARP, Zscaler) inject custom root CAs into the
+	// OS certificate store. Node.js ignores these by default, causing UNABLE_TO_VERIFY_LEAF_SIGNATURE.
+	// Pattern: if --use-system-ca is not active, re-spawn with the flag transparently.
+	// stdio: "inherit" ensures Claude Desktop's JSON-RPC pipe is passed through cleanly.
+	if (
+		(process.platform === "win32" || process.platform === "darwin") &&
+		!process.execArgv.includes("--use-system-ca") &&
+		!(process.env.NODE_OPTIONS ?? "").includes("--use-system-ca")
+	) {
+		const { spawn } = await import("node:child_process");
+		const child = spawn(
+			process.execPath,
+			["--use-system-ca", ...process.argv.slice(1)],
+			{ stdio: "inherit", env: process.env },
+		);
+		child.on("exit", (code) => process.exit(code ?? 1));
+		child.on("error", () => process.exit(1));
+		// Block parent — child handles all I/O from here
+		await new Promise(() => {});
+		return;
+	}
+
 	const buildTime = new Date().toISOString();
 	log.info(`[LIOP-Agent] 🚀 Version 1.2.0-alpha.9 | Build: ${buildTime}`);
 
@@ -169,6 +232,10 @@ async function main() {
 
 		// Priority 1.1: Explicit file from environment variable
 		if (process.env.LIOP_BOOTSTRAP_FILE) {
+			log.warn(
+				"LIOP_BOOTSTRAP_FILE is deprecated and will be removed in the next major version. " +
+					"Use LIOP_NEXUS_URL for Auto-Discovery instead.",
+			);
 			const filePath = path.resolve(process.env.LIOP_BOOTSTRAP_FILE);
 			if (fs.existsSync(filePath)) {
 				const addr = fs.readFileSync(filePath, "utf8").trim();
@@ -271,7 +338,7 @@ async function main() {
 
 	// Initialize local server node (lightweight, no tools registered locally)
 	const liopServer = new LiopServer({
-		name: "@nekzus/liop-agent",
+		name: "@nekzus/liop",
 		version: "1.0.0",
 	});
 
@@ -282,7 +349,9 @@ async function main() {
 	const meshNode = new MeshNode({
 		identityPath: identityPath,
 		bootstrapNodes: bootstrapNodes,
-		addressMapper: industrialAddressMapper,
+		addressMapper: shouldEnableDockerMap()
+			? industrialAddressMapper
+			: undefined,
 	});
 
 	// Start P2P Mesh

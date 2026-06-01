@@ -12,14 +12,14 @@ En lugar de programar un servidor personalizado, los usuarios pueden simplemente
 El agente se distribuye a través del paquete principal del SDK. Puedes ejecutarlo directamente usando `npx`:
 
 ```bash
-npx -y @nekzus/liop
+npx -y @nekzus/liop@latest
 ```
 
-O instalarlo globalmente para tener el comando `liop-agent` disponible en todo el sistema:
+O instalarlo globalmente para tener el comando `liop` disponible en todo el sistema:
 
 ```bash
-npm install -g @nekzus/liop
-liop-agent
+npm install -g @nekzus/liop@latest
+liop
 ```
 
 ## 🤖 Integración con Claude Desktop
@@ -30,9 +30,16 @@ LIOP está diseñado para ser un reemplazo directo de los servidores MCP. Para a
 ```json Windows (%APPDATA%\Claude\claude_desktop_config.json)
 {
   "mcpServers": {
-    "liop-agent": {
+    "liop": {
       "command": "npx",
-      "args": ["-y", "@nekzus/liop"]
+      "args": ["-y", "@nekzus/liop@latest"],
+      "env": {
+        "LIOP_NEXUS_URL": "http://tu-nexus-host:3000",
+        "LIOP_TOKEN_BANK": "tu-token-banco-aqui",
+        "LIOP_TOKEN_VAULT": "tu-token-boveda-aqui",
+        "LIOP_LOG_LEVEL": "info",
+        "NODE_OPTIONS": "--use-system-ca"
+      }
     }
   }
 }
@@ -40,9 +47,16 @@ LIOP está diseñado para ser un reemplazo directo de los servidores MCP. Para a
 ```json macOS (~/Library/Application Support/Claude/claude_desktop_config.json)
 {
   "mcpServers": {
-    "liop-agent": {
+    "liop": {
       "command": "npx",
-      "args": ["-y", "@nekzus/liop"]
+      "args": ["-y", "@nekzus/liop@latest"],
+      "env": {
+        "LIOP_NEXUS_URL": "http://tu-nexus-host:3000",
+        "LIOP_TOKEN_BANK": "tu-token-banco-aqui",
+        "LIOP_TOKEN_VAULT": "tu-token-boveda-aqui",
+        "LIOP_LOG_LEVEL": "info",
+        "NODE_OPTIONS": "--use-system-ca"
+      }
     }
   }
 }
@@ -67,10 +81,10 @@ El agente utiliza el `LiopMcpRouter` internamente. Cuando recibe una llamada de 
 3. Inyecta la lógica en el servidor remoto y devuelve el resultado verificado binariamente.
 
 ### 3. Descubrimiento de Bootstrap
-Por defecto, el agente se conecta al **LIOP Alpha Nexus** oficial. Sin embargo, puedes apuntarlo a cualquier nodo bootstrap de la red:
+Por defecto, el agente se conecta al **LIOP Alpha Nexus** oficial. Namun, puedes apuntarlo a cualquier nodo bootstrap de la red:
 
 ```bash
-npx @nekzus/liop /ip4/1.2.3.4/tcp/4001/p2p/PEER_ID
+npx @nekzus/liop@latest /ip4/1.2.3.4/tcp/4001/p2p/PEER_ID
 ```
 
 ## Seguridad y Diagnóstico
@@ -85,4 +99,26 @@ El agente expone automáticamente una herramienta de diagnóstico local llamada 
 
 Esto permite a los clientes de IA autodiagnosticar caídas de conexión o verificar qué herramientas están disponibles sin quemar ancho de banda ni duplicar peticiones de diagnóstico a través de múltiples nodos.
 
+### Variables de Entorno
+
+El comportamiento del agente se puede personalizar mediante las siguientes variables de entorno:
+
+| Variable | Por defecto | Descripción |
+|:---------|:------------|:------------|
+| `LIOP_NEXUS_URL` | *(ninguno)* | URL del nodo Nexus para Auto-Discovery. El agente resuelve el PeerID y el multiaddr desde el endpoint `/health` automáticamente |
+| `LIOP_LOG_LEVEL` | `info` | Controla la verbosidad de los logs (`silent`, `info`, `debug`). Establecer en `silent` para suprimir toda la salida stderr |
+| `LIOP_EXPECTED_PROVIDERS` | `1` | Número de proveedores de la malla a esperar durante el warm-up inicial. El polling adaptativo DHT continúa descubriendo proveedores adicionales en segundo plano |
+| `LIOP_INITIAL_DISCOVERY_TIMEOUT_MS` | `8000` | Tiempo máximo (ms) a esperar durante la fase inicial de descubrimiento de la malla antes de continuar |
+| `LIOP_MCP_COMPACT_TOOL_DESCRIPTIONS` | `true` | Elimina metadatos verbosos del protocolo en las descripciones de herramientas, reduciendo el consumo de tokens en ~500 por herramienta. Establecer en `0` para desactivar |
+| `LIOP_GRPC_PORT` | `50051` | Sobreescribe el puerto gRPC por defecto del servidor RPC interno |
+| `LIOP_WORKER_MAX_HEAP_MB` | `64` | Tamaño máximo del heap V8 por thread worker (defensa contra Heap Bomb) |
+| `LIOP_DOCKER_MAP` | `false` | Fuerza la traducción de IPs internas de contenedores Docker (`172.x.x.x`) a la dirección loopback del host (`127.0.0.1`), mapeando los servicios gRPC de los nodos a los puertos publicados en el host para poder ejecutar demos locales con contenedores aislados |
+| `LIOP_DEV_MODE` | `false` | Activa heurísticas de desarrollo que automatizan el mapeo de puertos Docker si la URL de Nexus apunta a puertos típicos de la demo local (`13000`/`13001`) |
+| `LIOP_DATASET_SCALE` | `1` | Factor de escala utilizado por los nodos de prueba y demo para escalar dinámicamente el tamaño de generación de registros sintéticos (ej. transacciones bancarias, registros médicos) |
+
+<Warning>
+  `LIOP_BOOTSTRAP_FILE` está **deprecada** desde v2.0.0-alpha. Usa `LIOP_NEXUS_URL` en su lugar. El agente emitirá un warning si detecta esta variable.
+</Warning>
+
 Si encuentras problemas de conexión, busca el icono 🛡️ en la consola o pídele al LLM que ejecute `LiopMeshStatus`.
+

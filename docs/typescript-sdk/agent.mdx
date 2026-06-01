@@ -12,14 +12,14 @@ Instead of writing a custom server, users can simply run the agent to instantly 
 The agent is distributed via the main SDK package. You can run it directly using `npx`:
 
 ```bash
-npx -y @nekzus/liop
+npx -y @nekzus/liop@latest
 ```
 
-Or install it globally to have the `liop-agent` command available system-wide:
+Or install it globally to have the `liop` command available system-wide:
 
 ```bash
-npm install -g @nekzus/liop
-liop-agent
+npm install -g @nekzus/liop@latest
+liop
 ```
 
 ## 🤖 Claude Desktop Integration
@@ -30,9 +30,16 @@ LIOP is designed to be a drop-in replacement for MCP servers. To add LIOP tools 
 ```json Windows (%APPDATA%\Claude\claude_desktop_config.json)
 {
   "mcpServers": {
-    "liop-agent": {
+    "liop": {
       "command": "npx",
-      "args": ["-y", "@nekzus/liop"]
+      "args": ["-y", "@nekzus/liop@latest"],
+      "env": {
+        "LIOP_NEXUS_URL": "http://your-nexus-host:3000",
+        "LIOP_TOKEN_BANK": "your-bank-token-here",
+        "LIOP_TOKEN_VAULT": "your-vault-token-here",
+        "LIOP_LOG_LEVEL": "info",
+        "NODE_OPTIONS": "--use-system-ca"
+      }
     }
   }
 }
@@ -40,9 +47,16 @@ LIOP is designed to be a drop-in replacement for MCP servers. To add LIOP tools 
 ```json macOS (~/Library/Application Support/Claude/claude_desktop_config.json)
 {
   "mcpServers": {
-    "liop-agent": {
+    "liop": {
       "command": "npx",
-      "args": ["-y", "@nekzus/liop"]
+      "args": ["-y", "@nekzus/liop@latest"],
+      "env": {
+        "LIOP_NEXUS_URL": "http://your-nexus-host:3000",
+        "LIOP_TOKEN_BANK": "your-bank-token-here",
+        "LIOP_TOKEN_VAULT": "your-vault-token-here",
+        "LIOP_LOG_LEVEL": "info",
+        "NODE_OPTIONS": "--use-system-ca"
+      }
     }
   }
 }
@@ -70,7 +84,7 @@ The agent uses the `LiopMcpRouter` internally. When a tool call is received from
 By default, the agent connects to the official **LIOP Alpha Nexus**. However, you can point it to any mesh bootstrap node:
 
 ```bash
-npx @nekzus/liop /ip4/1.2.3.4/tcp/4001/p2p/PEER_ID
+npx @nekzus/liop@latest /ip4/1.2.3.4/tcp/4001/p2p/PEER_ID
 ```
 
 ## Security & Diagnostics
@@ -85,4 +99,26 @@ The agent automatically exposes a local diagnostic tool called **`LiopMeshStatus
 
 This allows AI clients to autonomously diagnose connection drops or verify which tools are available without burning bandwidth or duplicating diagnostic requests across multiple nodes.
 
+### Environment Variables
+
+The agent behavior can be customized via the following environment variables:
+
+| Variable | Default | Description |
+|:---------|:--------|:------------|
+| `LIOP_NEXUS_URL` | *(none)* | URL of the Nexus node for Auto-Discovery. The agent resolves the PeerID and multiaddr from the `/health` endpoint automatically |
+| `LIOP_LOG_LEVEL` | `info` | Controls log verbosity (`silent`, `info`, `debug`). Set to `silent` to suppress all stderr output |
+| `LIOP_EXPECTED_PROVIDERS` | `1` | Number of mesh providers to wait for during initial warm-up. The adaptive DHT polling continues discovering additional providers in the background |
+| `LIOP_INITIAL_DISCOVERY_TIMEOUT_MS` | `8000` | Maximum time (ms) to wait for the initial mesh discovery phase before proceeding |
+| `LIOP_MCP_COMPACT_TOOL_DESCRIPTIONS` | `true` | Strips verbose protocol metadata from tool descriptions, reducing token consumption by ~500 tokens per tool. Set to `0` to opt-out |
+| `LIOP_GRPC_PORT` | `50051` | Override the default gRPC port for the internal RPC server |
+| `LIOP_WORKER_MAX_HEAP_MB` | `64` | Maximum V8 heap size per worker thread (Heap Bomb defense) |
+| `LIOP_DOCKER_MAP` | `false` | Force translation of Docker-internal container IPs (`172.x.x.x`) to the host loopback (`127.0.0.1`), mapping target gRPC services to host-published ports for running containerized mesh nodes in local environments |
+| `LIOP_DEV_MODE` | `false` | Enables development heuristics, which automatically activates Docker port mapping if the Nexus URL points to local demo ports (`13000`/`13001`) |
+| `LIOP_DATASET_SCALE` | `1` | Scaling factor used by test and demo nodes to dynamically scale synthetic record generation size (e.g., bank transactions, health records) |
+
+<Warning>
+  `LIOP_BOOTSTRAP_FILE` is **deprecated** since v2.0.0-alpha. Use `LIOP_NEXUS_URL` instead. The agent will log a warning if this variable is detected.
+</Warning>
+
 If you encounter connection issues, check for the 🛡️ icon in the console or ask the LLM to call `LiopMeshStatus`.
+

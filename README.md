@@ -81,7 +81,7 @@ The developer-facing SDK, published as [`@nekzus/liop`](https://www.npmjs.com/pa
 | PQC (Kyber) | Post-Quantum key encapsulation for transport layer security |
 | Security | TLS/mTLS, Rate-Limiting, and QUIC transport support |
 | Cross-AI Prompts | Zero-Shot Adaptors to train models in Real-Time (Claude XML, OpenAI, Gemini) |
-| ZK Receipts | Zero-Knowledge proof verification for computational integrity |
+| ZK Receipts | HMAC-SHA256 cryptographic proof of honest computation (ZK-VM roadmap) |
 
 [Read the TypeScript SDK Documentation](./sdks/typescript/README.md)
 
@@ -100,7 +100,7 @@ The native Rust crates providing zero-overhead bindings to the LIOP mesh.
 
 ---
 
-### 3. Mesh Node Server — `servers/mesh-node/`
+### 3. Mesh Node Server — `servers/liop-node/`
 
 The high-performance Data Node host, written in Rust. This is where injected WASM logic executes.
 
@@ -110,11 +110,11 @@ The high-performance Data Node host, written in Rust. This is where injected WAS
 | `guardian.rs` | Zero-Time AST structural scanning via `wasmparser` — rejects malicious imports before JIT |
 | `grpc.rs` | Tonic gRPC server with PQC intent negotiation, Rate-Limiting, and streaming |
 | `p2p.rs` | libp2p Kademlia DHT for decentralized peer discovery over Noise/TCP/QUIC |
-| `zk.rs` | ZK-SNARK proof generation engine (Journal + Seal) via SHA-256 cryptographic hashing |
+| `zk.rs` | ZK-Receipt generation engine (HMAC-SHA256 commitments, ZK-VM roadmap) |
 | `tee.rs` | Trusted Execution Environment trait bounds for AWS Nitro Enclaves / Intel SGX |
-| `config/health`| Externalized `config.toml` and Hyper `/health` endpoints for observability |
+| `config.rs` / `health.rs` | TOML-driven configuration and Hyper-based observability (`/health` probes) |
 
-[Read the Mesh Node Documentation](./servers/mesh-node/README.md)
+[Read the Mesh Node Documentation](./servers/liop-node/README.md)
 
 ## Technical Stack
 
@@ -125,7 +125,7 @@ The high-performance Data Node host, written in Rust. This is where injected WAS
 | **Sandboxing** | Wasmtime 29.0 + WASI Preview 1 |
 | **Post-Quantum Crypto** | ML-KEM-768 (Kyber) + AES-256-GCM |
 | **Static Analysis** | `wasmparser` AST inspection |
-| **Integrity Proofs** | ZK-SNARKs (RISC Zero architecture) |
+| **Integrity Proofs** | HMAC-SHA256 commitments (ZK-VM roadmap: RISC Zero / SP1) |
 | **TypeScript Runtime** | Node.js ≥ 20 + Piscina Worker Threads |
 | **Code Quality** | Biome.js (TS) + Clippy (Rust) |
 | **CI/CD** | GitHub Actions + semantic-release + NPM Provenance |
@@ -135,7 +135,7 @@ The high-performance Data Node host, written in Rust. This is where injected WAS
 ### Install the TypeScript SDK
 
 ```bash
-npm install @nekzus/liop
+npm install @nekzus/liop@latest
 ```
 
 ### Run the Zero-Config Agent (CLI)
@@ -143,7 +143,7 @@ npm install @nekzus/liop
 For end-users wanting to integrate with **Claude Desktop** instantly:
 
 ```bash
-npx -y @nekzus/liop
+npx -y @nekzus/liop@latest
 ```
 
 ### Build the Rust Backend

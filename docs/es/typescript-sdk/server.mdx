@@ -20,15 +20,25 @@ const server = new LiopServer(
     version: "3.2.0",
   },
   {
+    // Identificador único para resolución determinista de tokens
+    tokenSlug: "BANK",
     // Escala el descifrado y el sandboxing WASI a través de todos los núcleos de CPU
-    workerPool: { enabled: true, maxThreads: 16 },
+    workerPool: { enabled: true, maxThreads: 16, maxHeapMb: 128 },
     // Configuración estricta de seguridad y prevención de fugas de datos
     security: {
       piiPatterns: [
         ...PII_PRESETS.US_COMPLIANT,
         /[A-Z]{3}-\d{5}/
       ],
-      forbiddenKeys: ["password", "ssn", "secret_token"]
+      forbiddenKeys: ["password", "ssn", "secret_token"],
+      enableNerScanning: true,
+      rateLimit: { maxPerWindow: 30, windowMs: 60_000 }
+    },
+    // Clasificación del dominio de datos para la taxonomía de la Malla
+    taxonomy: {
+      domain: "healthcare",
+      clearanceTier: 3,
+      executionTypes: ["aggregation", "analytics"]
     }
   }
 );
@@ -38,8 +48,13 @@ const server = new LiopServer(
 
 Al instanciar un `LiopServer`, el segundo parámetro permite definir características avanzadas del nodo:
 
+*   **`tokenSlug` (Resolución Determinista de Tokens):** Cadena canónica (ej. `"BANK"`) que permite a los agentes remotos resolver de forma segura el token de acceso PQC desde su entorno host (`LIOP_TOKEN_<tokenSlug>`). Debe cumplir con la expresión regular `/^[A-Z][A-Z0-9_]*$/`.
+*   **`workerPool.maxHeapMb` (Defensa Heap):** Tamaño máximo del heap V8 en megabytes por thread worker (por defecto: `64`). También configurable vía la variable de entorno `LIOP_WORKER_MAX_HEAP_MB`. Previene ataques DoS de tipo Heap Bomb terminando workers que excedan el límite de memoria.
 *   **`security.forbiddenKeys` (Egress Filter):** Un array de strings. Si el modelo intenta devolver un JSON que contiene cualquiera de estas llaves (ej., `"password"`), el Egress Filter destruirá la respuesta antes de que abandone el servidor.
 *   **`security.piiPatterns` (Sanitización):** Arrays de `PiiRule`. Puedes usar presets (`PII_PRESETS.GLOBAL_STRICT`, `EU_GDPR`, `US_COMPLIANT`) y combinarlos con regex personalizadas. El motor intercepta cualquier salida que coincida con patrones sensibles.
+*   **`security.enableNerScanning` (Detección NLP):** Cuando es `true`, activa el escaneo de Reconocimiento de Entidades Nombradas vía la librería NLP `compromise` para detectar nombres de personas, ubicaciones y organizaciones en los valores de salida. Añade ~10ms de latencia. Por defecto: `false`.
+*   **`security.rateLimit` (Ventana Deslizante):** Configura el limitador de tasa por herramienta para prevenir ataques de micro-exfiltración. `maxPerWindow` (por defecto: `30`) and `windowMs` (por defecto: `60000`) definen los parámetros de la ventana deslizante.
+*   **`taxonomy` (Clasificación de Dominio):** Metadatos opcionales que clasifican el dominio de datos del servidor (`domain`), el nivel de autorización de seguridad expresado como un `number` (`clearanceTier`), y los tipos de ejecución soportados (`executionTypes`). Estos metadatos se anuncian en la DHT y se usan para enrutamiento inteligente.
 *   **Estructura Dinámica de Retorno (Auto-i18n) [PLANIFICADO]:** Esta funcionalidad está en el roadmap. Cuando se implemente, el `LiopServer` inyectará automáticamente directivas *Dynamic Return Structure* en los payloads, obligando a la IA a respetar y devolver las llaves JSON exactamente en el mismo idioma nativo que utilizó el cliente al hacer la solicitud, eliminando la necesidad de librerías de internacionalización (i18n) en tu frontend.
 
 ## Creando Capacidades (Tools)

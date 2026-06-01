@@ -2,6 +2,10 @@
     "branches": [
         "main",
         {
+            "name": "beta",
+            "prerelease": true
+        },
+        {
             "name": "alpha",
             "prerelease": true
         }
@@ -20,7 +24,7 @@
             "@semantic-release/npm",
             {
                 "pkgRoot": "sdks/typescript",
-                "npmPublish": true
+                "npmPublish": false
             }
         ],
         [

@@ -1,0 +1,411 @@
+---
+title: "Arquitectura de Seguridad"
+description: "Capas de defensa en profundidad, pipelines criptográficos y mecanismos de protección de datos en el SDK TypeScript de LIOP"
+---
+
+El SDK TypeScript de LIOP aplica un modelo de seguridad basado en **defensa en profundidad**, compuesto por seis capas independientes. Cada capa aborda una superficie de amenaza distinta — desde el análisis estático de código hasta el filtrado de datos post-ejecución — garantizando que ningún punto único de fallo pueda comprometer el sistema.
+
+<Note>
+  Las características marcadas con **[ROADMAP]** están definidas arquitectónicamente pero aún no están disponibles en la versión actual.
+</Note>
+
+---
+
+## Resumen de las Capas de Seguridad
+
+<Frame>
+  <img className="block dark:hidden w-full" src="/images/animated-security-layers-light.svg" alt="Arquitectura de Capas de Seguridad" />
+  <img className="hidden dark:block w-full" src="/images/animated-security-layers-dark.svg" alt="Arquitectura de Capas de Seguridad" />
+</Frame>
+
+| Capa | Propósito | Momento |
+|:-----|:----------|:--------|
+| **Guardian AST** | Bloquea importaciones WASM no autorizadas antes de la ejecución | Pre-compilación |
+| **WASI Sandbox** | Aísla el entorno de ejecución con 25 globales envenenados y límites de CPU | Ejecución |
+| **Prototype Defense** | Congela 11 prototipos core en modo estricto para prevenir ataques de contaminación | Ejecución |
+| **PII Shield** | Previene la fuga de datos mediante validadores algorítmicos | Post-ejecución |
+| **Aggregation Policy** | Impone límites de cardinalidad en la salida de datos a nivel de fila | Post-ejecución |
+| **ZK-Receipt** | Proporciona prueba HMAC-SHA256 de computación honesta | Post-ejecución |
+
+---
+
+## Capa 1: Guardian AST
+
+El módulo Guardian AST realiza una inspección estática de latencia cero sobre los módulos WebAssembly **antes** de su compilación. Utiliza `WebAssembly.Module.imports()` para enumerar todas las solicitudes de importación dirigidas al host y validarlas contra una lista blanca estricta.
+
+### Lista Blanca de Funciones WASI
+
+Solo las siguientes 14 funciones de `wasi_snapshot_preview1` están permitidas:
+
+```
+fd_write, fd_read, fd_close, fd_seek, fd_prestat_get, fd_prestat_dir_name,
+fd_fdstat_get, environ_get, environ_sizes_get, args_get, args_sizes_get,
+clock_time_get, proc_exit, random_get
+```
+
+Cualquier importación fuera de este conjunto dispara un error `SandboxViolation` inmediato. Un tope fijo de **128 importaciones totales** por módulo previene el agotamiento de recursos mediante payloads de tipo bomba lógica.
+
+<Warning>
+  El Guardian AST inspecciona **importaciones de módulos WASM**, no globales de JavaScript. El bloqueo de APIs peligrosas de JS (`require`, `eval`, `fetch`) es gestionado por la Capa 2 mediante envenenamiento de globales.
+</Warning>
+
+---
+
+## Capa 2: WASI Sandbox
+
+El SDK proporciona un **motor de ejecución de doble vía** que enruta cada payload al mecanismo de aislamiento apropiado:
+
+| Vía | Tecnología | Caso de Uso |
+|:----|:-----------|:------------|
+| **WASM Nativo** | `node:wasi` (preview1) | Binarios `.wasm` pre-compilados |
+| **V8 Isolate** | `node:vm` + contexto endurecido | Payloads JavaScript dinámicos |
+
+### Envenenamiento de Globales V8
+
+Veinticinco vectores de ataque son neutralizados asignándoles `undefined` y sellándolos como no modificables:
+
+```typescript
+const POISONED_GLOBALS = [
+  // APIs Core de Node.js / Runtime
+  "require", "process", "global", "globalThis",
+  "Buffer", "setTimeout", "setInterval", "setImmediate",
+  "queueMicrotask", "eval", "Function", "SharedArrayBuffer",
+  // Defensa contra Canal Lateral de Tiempo
+  "Date",
+  // Defensa contra Heap Bomb / Explotación Binaria
+  "ArrayBuffer", "Uint8Array", "Int8Array",
+  "Uint16Array", "Int16Array", "Uint32Array", "Int32Array",
+  "Float32Array", "Float64Array",
+  "BigInt64Array", "BigUint64Array", "DataView"
+];
+```
+
+<Tip>
+  El **envenenamiento de `Date`** previene que la lógica inyectada realice análisis de canal lateral por temporización para inferir el tamaño del dataset o los patrones de ejecución. El **envenenamiento de TypedArrays** previene ataques DoS de tipo Heap Bomb que alojan buffers binarios masivos para crashear el proceso worker.
+</Tip>
+
+Tras la asignación, el contexto completo del sandbox se congela recursivamente mediante `Object.freeze()`, impidiendo cualquier alteración del entorno aislado en tiempo de ejecución.
+
+### Defensa contra Contaminación de Prototipos
+
+Dentro del IIFE del sandbox, once prototipos core de JavaScript se congelan antes de que el código de usuario se ejecute para cumplir con las estrictas normativas de aislamiento lógico PCI-DSS e HIPAA:
+
+```typescript
+Object.freeze(Object.prototype);
+Object.freeze(Array.prototype);
+Object.freeze(String.prototype);
+Object.freeze(Number.prototype);
+Object.freeze(Boolean.prototype);
+Object.freeze(RegExp.prototype);
+Object.freeze(Map.prototype);
+Object.freeze(Set.prototype);
+Object.freeze(Promise.prototype);
+Object.freeze(Object.getPrototypeOf(function(){})); // Resuelve y congela Function.prototype
+Object.freeze(Error.prototype);
+```
+
+Debido a que `Function` y otros espacios de nombres globales están explícitamente envenenados (establecidos como `undefined`) en el ámbito global para eliminar vías de escape de ejecución, no es posible congelar `Function.prototype` directamente. El SDK lo resuelve dinámicamente mediante `Object.getPrototypeOf(function(){})` para aplicar el congelamiento.
+
+Toda la ejecución del huésped se envuelve en un bloque que contiene `"use strict";`. Por consiguiente, cualquier intento por parte del código inyectado de escribir o asignar propiedades a estos prototipos congelados (ej., `Object.prototype.polluted = "leak"`) arrojará inmediatamente un error duro `TypeError`, deteniendo la ejecución y previniendo vulnerabilidades de contaminación de prototipos.
+
+### Límites de Consumo de CPU
+
+| Parámetro | Valor |
+|:----------|:------|
+| **Timeout de ejecución** | 5.000 ms (terminación forzada) |
+| **Límite de combustible** | 1.000.000 unidades |
+| **Directorio de trabajo** | Efímero (eliminado al finalizar) |
+
+### Defensa contra Evasión de Microtareas
+
+En la ejecución del contexto de V8, las microtareas (como las Promesas resueltas) planificadas durante la evaluación a veces pueden sobrevivir al límite de ejecución del script o eludir las restricciones síncronas simples. Para prevenir esto, el SDK impone:
+
+```typescript
+const context = vm.createContext(sandboxEnv, {
+  name: "LIOP Isolate",
+  origin: "liop://sandbox",
+  microtaskMode: "afterEvaluate",
+});
+```
+
+La opción `microtaskMode: 'afterEvaluate'` le indica a Node.js que ejecute inmediatamente todas las microtareas encoladas por el script antes de retornar. Esto garantiza que ninguna lógica asíncrona sobreviva fuera del límite de ejecución del sandbox de 5.000 ms, neutralizando potenciales evasiones del sandbox mediante bombas lógicas asíncronas.
+
+### Limpieza Post-Ejecución
+
+El sandbox destruye todos los artefactos temporales después de cada ciclo de ejecución:
+
+```typescript
+await fs.rm(workingDir, { recursive: true, force: true });
+```
+
+---
+
+## Capa 3: Escudo de Privacidad (PII Egress Shield)
+
+El escáner PII intercepta toda la salida del sandbox **antes** de devolver los resultados al llamador. A partir de la v3, opera un **pipeline de detección en cuatro etapas** que combina análisis estructural, coincidencia de patrones y procesamiento de lenguaje natural. Cada etapa es independiente — el sistema bloquea los datos si **cualquier** etapa detecta una violación.
+
+### Pipeline de Detección
+
+| Etapa | Mecanismo | Propósito |
+|:------|:----------|:---------|
+| **1. Coincidencia Exacta de Claves** | `Set<string>.has()` — O(1) | Bloquea nombres de campo PII conocidos (`ssn`, `email`, `password`) |
+| **2. Coincidencia Difusa de Claves** | Regex de contorno + subcadena | Captura aliases y variaciones (`patientId`, `names`, `fullName`) |
+| **3. Validadores de Patrones** | Regex + verificaciones algorítmicas | Detecta valores PII independientemente del nombre de la clave |
+| **4. Escaneo NER de Contenido** | Motor NLP `compromise` | Identifica nombres de personas, lugares y organizaciones en texto libre |
+
+### Etapas 1–2: Análisis de Claves
+
+La **coincidencia exacta** utiliza un `Set<string>` para búsqueda en tiempo constante O(1) contra una lista configurable de claves prohibidas.
+
+La **coincidencia difusa** extiende la protección a aliases y variaciones mediante dos algoritmos:
+
+- **Tokens cortos** (< 4 caracteres, ej. `id`): Regex con detección de contorno que identifica `patientId`, `record_id`, `user-id` pero permite `grid`, `video`, `android`
+- **Tokens largos** (≥ 4 caracteres, ej. `name`, `phone`): Contención por subcadena que detecta `firstName`, `accountName`, `names`
+
+Una **lista segura** de palabras comunes del inglés y claves internas del protocolo LIOP previene falsos positivos en términos como `diagnosis`, `medication`, `image_id` o `timestamp`.
+
+### Etapa 3: Validadores de Patrones
+
+| Patrón | Algoritmo | Validación |
+|:-------|:----------|:-----------|
+| **EMAIL** | Regex | Excluye `@example.com`, `@test.com` |
+| **CREDIT_CARD** | **Checksum Luhn** | Suma de dígitos mod 10 === 0 |
+| **IP_ADDRESS** | Regex + verificación de rango | Excluye `127.x.x.x`, valida octetos 0–255 |
+| **PHONE** | Regex + verificación de repetición | 7–15 dígitos, rechaza patrones `1111111` |
+| **SSN** | Validación estructural | Bloquea area=0/666/≥900, grupo=0, serial=0 |
+| **IBAN** | **ISO 7064 Mod-97 via BigInt** | `BigInt(cadenaNumérica) % 97n === 1n` |
+| **PASSPORT_MRZ** | Regex | Zona de Lectura Mecánica TD3 de 44 caracteres |
+
+### Etapa 4: Reconocimiento de Entidades Nombradas (NER)
+
+Cuando `enableNerScanning` se establece en `true`, el escáner utiliza la librería NLP [`compromise`](https://github.com/spencermountain/compromise) para detectar nombres de personas, ubicaciones geográficas y nombres de organizaciones embebidos en los valores de salida — independientemente de la clave utilizada para almacenarlos.
+
+```typescript
+const server = new LiopServer(
+  { name: "secure-vault", version: "1.0.0" },
+  {
+    security: {
+      enableNerScanning: true,  // Activa la detección de entidades por NLP
+      forbiddenKeys: ["id", "name", "ssn", "email"],
+    },
+  },
+);
+```
+
+<Note>
+  El escaneo NER es **opt-in** durante la fase alpha. Añade aproximadamente 10ms de latencia para tamaños de salida típicos (< 10KB). La librería `compromise` opera enteramente dentro del proceso sin realizar llamadas a APIs externas.
+</Note>
+
+### Presets Regionales
+
+El SDK incluye tres conjuntos de patrones preconfigurados, adaptados a los marcos regulatorios más comunes:
+
+```typescript
+PII_PRESETS.GLOBAL_STRICT  // 6 patrones (Excluye SSN)
+PII_PRESETS.US_COMPLIANT   // 6 patrones (Incluye SSN, excluye IBAN)
+PII_PRESETS.EU_GDPR        // 6 patrones (Incluye IBAN, excluye SSN)
+```
+
+Los presets pueden combinarse con reglas regex personalizadas para cumplir con requisitos de compliance específicos de cada organización. Consulte la [guía de configuración de LiopServer](/es/typescript-sdk/server) para ver ejemplos de uso.
+
+### Protecciones Anti-Bypass
+
+- **Defensa contra JSON Anidado**: El análisis recursivo de cadenas con JSON embebido neutraliza la ofuscación mediante envolturas de `JSON.stringify()`
+- **Protección contra Referencias Circulares**: Un `WeakSet` de seguimiento previene la recursión infinita en objetos auto-referenciantes
+- **Política Aggregation-First**: Bloquea la exportación de datos crudos a nivel de fila — solo pasan resultados agregados (conteos, promedios, resúmenes)
+- **Aplicación de Output Schema**: Cuando se define un esquema de salida `Zod`, el modo `.strict()` se aplica automáticamente, rechazando cualquier clave no permitida explícitamente en el esquema
+- **Desempaquetado Criptográfico y de Envoltura**: Aísla y extrae automáticamente el payload de datos de negocio real de las envolturas de transporte MCP/LIOP y de las respuestas proxied de gRPC (mediante `unwrapForAggregationPolicyScan`) antes de realizar el escaneo. Esto evita falsos positivos procedentes de metadatos binarios y sellos criptográficos (como las firmas HMAC-SHA256 de los recibos ZK).
+- **K-Anonymity en Datasets Pequeños**: Para micro-datasets o demos sintéticas (tamaño del dataset < 10), el Escudo de Egreso aplica un filtro estricto de K-Anonymity. Cualquier salida devuelta por el sandbox es rechazada si contiene más de **3 claves escalares** (propiedades planas) o si incluye algún **array u objeto anidado**. Esto bloquea intentos de reconstruir bases de datos registro a registro mediante consultas superpuestas o canales de estructura anidada.
+
+---
+
+## Privacidad Diferencial y Presupuesto de Consultas de 3 Tiers (NIST SP 800-226)
+
+Para prevenir ataques de reconstrucción y diferenciación estadística (donde un agente realiza múltiples consultas superpuestas para aislar los valores de un único registro), el SDK implementa un sistema de presupuesto de consultas estratificado junto con privacidad diferencial de Laplace.
+
+### Límites de Sesión del Presupuesto de Consultas de 3 Tiers
+
+Durante una sesión segura negociada por PQC, el SDK rastrea el acceso a los campos de datos. Cumpliendo con las directrices NIST SP 800-226, los campos se clasifican en tres tiers de sensibilidad, cada uno con su propio límite de consultas estricto por sesión:
+
+1. **Tier Prohibido (Máx 3 consultas/sesión)**: Se aplica a campos declarados en `forbiddenKeys` (ej., `ssn`, `password`, `email`). Cualquier intento de consultar estos campos superando el límite dispara un bloqueo de egreso inmediato.
+2. **Tier Sensible (Máx 8 consultas/sesión)**: Se aplica a campos declarados en `sensitiveKeys` globales o a nivel de herramienta (ej., `balance`, `diagnosis`, `ticker`).
+3. **Tier Público (Máx 25 consultas/sesión)**: Se aplica a cualquier campo público no registrado como sensible o prohibido.
+
+Los límites se imponen dinámicamente basándose en el análisis de flujo de información (taint tracking). Si el presupuesto de algún tier se agota, las ejecuciones subsiguientes en el sandbox que intenten acceder a esos campos son bloqueadas.
+
+### Mecanismo de Laplace y Sensibilidad por Campo
+
+Cuando el tamaño del dataset es menor que `dpSmallDatasetThreshold` (por defecto: 50), el motor de DP aplica ruido Laplace calibrado ($Ruido \sim \text{Laplace}(0, \frac{\Delta s}{\epsilon})$) a todas las salidas numéricas.
+
+El motor calibra la sensibilidad ($\Delta s$) automáticamente basándose en la nomenclatura de los campos:
+- **Campos de Conteo** (`count`, `length`, `size`, `num`): La sensibilidad se fija en $1.0$.
+- **Campos de Promedio** (`avg`, `mean`): La sensibilidad se calcula dinámicamente como $\frac{dpSensitivity}{recordCount}$.
+- **Campos de Suma y Generales**: La sensibilidad se establece según el parámetro `dpSensitivity` configurado en la herramienta.
+
+---
+
+## Capa 4: ZK-Receipts
+
+Cada ejecución del sandbox produce un **recibo criptográfico** que vincula la salida con la lógica exacta que la generó, proporcionando una prueba de computación honesta a prueba de manipulaciones.
+
+### Estructura del Recibo (Binario v1)
+
+| Campo | Tamaño | Tipo | Descripción |
+|:------|:-------|:-----|:------------|
+| **Version** | 1 byte | `0x01` | Identificador de versión del protocolo |
+| **Journal Length** | 2 bytes | Big-Endian `UInt16` | Longitud del payload JSON |
+| **Journal** | Variable | Cadena JSON | Contiene `image_id`, `dataset_hash`, `output_hash`, `fuel` y `ts` |
+| **Seal** | 32 bytes | HMAC-SHA256 | Compromiso criptográfico sobre el diario |
+
+### Pipeline Criptográfico
+
+1. **Generación de ImageID**: Un hash `SHA-256` del payload de lógica original identifica de forma única el código exacto ejecutado
+2. **Hash del Dataset**: Un hash `SHA-256` del dataset serializado ancla el estado de los datos al momento de la ejecución (cumplimiento de auditoría SOX)
+3. **Privacidad Diferencial**: El ruido Laplace se aplica a las salidas numéricas *antes* del compromiso, garantizando que el ZK-Receipt coincida con los datos ruidosos que el cliente recibe. Soporta **modo DDP** (PRNG con semilla via `dataset_hash + image_id`) para reproducibilidad en auditorías.
+4. **Ensamblaje del Journal**: Un objeto JSON que contiene `image_id`, `dataset_hash`, `output_hash` (SHA-256 del resultado post-DP), `fuel` consumido y `ts` (timestamp)
+5. **Sello HMAC**: `crypto.createHmac("sha256", sessionSecret).update(journal).digest()` — el secreto de sesión se deriva del **intercambio de claves ML-KEM-768 (Kyber)**
+6. **Verificación**: `crypto.timingSafeEqual(seal, expectedSeal)` — comparación en tiempo constante que previene ataques de canal lateral por temporización
+
+<Tip>
+  El `sessionSecret` utilizado para la firma HMAC es la clave compartida negociada mediante Criptografía Post-Cuántica (ML-KEM-768). Esto garantiza que la integridad del ZK-Receipt sea resistente a ataques cuánticos.
+</Tip>
+
+---
+
+## Seguridad de Transporte
+
+### Encapsulación de Claves Post-Cuántica (ML-KEM-768)
+
+El SDK utiliza el paquete `mlkem` (compatible con FIPS 203) para la encapsulación de claves:
+
+| Parámetro | Valor |
+|:----------|:------|
+| **Algoritmo** | ML-KEM-768 (Kyber) |
+| **Tamaño de Clave Pública** | 1.184 bytes |
+| **Tamaño de Texto Cifrado** | 1.088 bytes |
+| **Secreto Compartido** | 32 bytes |
+| **Cifrado Simétrico** | AES-256-GCM |
+| **Nonce** | 12 bytes (único por entrada) |
+
+### Aislamiento de Nonce
+
+Cada payload cifrado utiliza un **nonce aleatorio fresco de 12 bytes** (`crypto.randomBytes(12)`), antepuesto al texto cifrado. Esto previene la reutilización de nonce en AES-GCM cuando múltiples payloads se cifran bajo la misma clave de sesión.
+
+### Endurecimiento de TLS en Producción
+
+Si bien la capa PQC de LIOP cifra todos los payloads a nivel de aplicación de extremo a extremo, el cifrado a nivel de transporte (TLS/mTLS) es crítico para prevenir la escucha de metadatos y garantizar la identidad de los nodos.
+
+Para evitar fallos silenciosos en producción, el SDK implementa una verificación estricta a prueba de fallos:
+- En entornos de desarrollo/pruebas, la falta o mala configuración de los archivos de certificado genera una advertencia y realiza un fallback elegante a canales gRPC inseguros.
+- En producción (`process.env.NODE_ENV === 'production'`), cualquier fallo al resolver o cargar los certificados TLS configurados (`rootCert`, `certChain` o `privateKey`) lanza un error fatal, forzando al proceso a detenerse inmediatamente en lugar de degradarse silenciosamente a un canal no cifrado.
+
+### Autenticación Zero-Trust del Bridge
+
+El `LiopStreamBridge` aplica autenticación obligatoria mediante token Bearer en todos los endpoints HTTP:
+
+- Si `ZERO_TRUST_TOKEN` no está configurado, se auto-genera un token efímero seguro vía `randomUUID()`
+- Cada solicitud a `/mcp` requiere un header válido `Authorization: Bearer <token>`
+- Limitación de tasa por IP en la creación de sesiones (por defecto: 10 sesiones concurrentes)
+- Expulsión automática de sesiones inactivas (TTL: 30 minutos)
+
+---
+
+## Seguridad de Red P2P
+
+| Componente | Tecnología |
+|:-----------|:-----------|
+| **Cifrado de Transporte** | Protocolo Noise (Ed25519) |
+| **Multiplexación de Streams** | Yamux |
+| **Identidad** | Pares de claves Ed25519 persistentes |
+| **Descubrimiento** | Kademlia DHT con nodos bootstrap públicos |
+| **Transportes** | TCP + WebSocket |
+
+---
+
+## Aislamiento del Worker Pool
+
+Las operaciones criptográficas de alto consumo se despachan a threads del sistema operativo mediante pools de workers **Piscina**, previniendo el bloqueo del event loop principal de V8:
+
+| Worker | Propósito |
+|:-------|:----------|
+| `logic-execution` | Instanciación del sandbox, descifrado AES, inspección AST |
+| `zk-verifier` | Deserialización de recibos, verificación HMAC |
+
+Configuración por defecto: 2–8 threads (producción), 0–1 threads (test), planificación `FixedQueue`, 5s de timeout por inactividad.
+
+### Defensa contra Heap Bomb
+
+Cada thread worker está restringido mediante `resourceLimits.maxOldGenerationSizeMb` de V8 (por defecto: **64 MB**, configurable vía `workerPool.maxHeapMb` o la variable de entorno `LIOP_WORKER_MAX_HEAP_MB`). Si la lógica inyectada intenta alojar memoria más allá de este límite, el worker se termina inmediatamente con un `WorkerPoolError`, previniendo ataques de denegación de servicio que buscan agotar el heap de Node.js.
+
+### Precalentamiento Asíncrono del Pool de Workers
+
+Para evitar picos iniciales de latencia de CPU y mitigar los arranques en frío (cold-starts) de V8/WASI (~820k unidades de combustible), el SDK incluye una estrategia de precalentamiento asíncrono para el pool de hilos. Durante la inicialización del servidor (o la creación del verificador), se despachan tareas de "precalentamiento" en segundo plano (`isWarmup: true` o `action: "warmup"`) para precalentar las instancias de workers de `Piscina`. Esto garantiza que los hilos worker estén inicializados, los contextos de isolate de V8 estén reservados y los handles de WASI estén pre-cacheados antes de procesar payloads reales de clientes.
+
+---
+
+## Política de Agregación Primero
+
+El SDK impone una heurística de **Agregación Primero** que bloquea la exportación de datos crudos a nivel de fila desde el sandbox. Esta es la última defensa computacional antes de la capa de ZK-Receipt.
+
+### Cómo Funciona
+
+Tras la ejecución, la salida se escanea recursivamente buscando arrays que contengan objetos. Si el número de elementos tipo objeto supera el umbral configurado, la respuesta se bloquea:
+
+| Parámetro | Por defecto | Descripción |
+|:----------|:------------|:------------|
+| **`maxOutputRows`** | 10 | Número máximo de elementos tipo objeto permitidos en un array |
+| **`allowPrimitiveArrays`** | `true` | Permite arrays que contengan únicamente valores primitivos (números, strings) |
+
+```typescript
+server.tool(
+  "analyze_data",
+  "Análisis agregado",
+  { query: z.string() },
+  async ({ query }) => { /* ... */ },
+  {
+    enforceAggregationFirst: {
+      maxOutputRows: 5,
+      allowPrimitiveArrays: true
+    }
+  }
+);
+```
+
+### Normalización Condicional de Errores
+
+El SDK implementa **reporte de errores consciente del entorno** para violaciones de políticas:
+
+| Entorno | Comportamiento |
+|:--------|:---------------|
+| `development` / `test` | Expone errores de validación Zod detallados, metadatos de discrepancia de esquema y mensajes `HINT` para habilitar la autocorrección del LLM |
+| `production` | Devuelve un mensaje genérico `[LIOP] Egress Security Violation` sin filtrar ningún detalle interno |
+
+Esto se controla automáticamente mediante `process.env.NODE_ENV`. En despliegues de producción, asegúrese siempre de que `NODE_ENV=production` esté configurado para activar la opacidad total de errores.
+<Warning>
+  Los mensajes de error detallados en modo desarrollo pueden incluir nombres de campos, estructuras de esquemas y extractos de valores rechazados. Nunca exponga la salida de errores en modo desarrollo a clientes no confiables.
+</Warning>
+
+---
+
+### Canales de Directivas Nativos del Protocolo
+
+Para garantizar que los LLM clientes generen código JavaScript compatible que respete los límites del sandbox sin latencia de prueba y error, el SDK difunde instrucciones estructuradas y nativas del protocolo en tres niveles:
+1. **Metadatos de JSON Schema (`$comment`)**: El diccionario de datos inyecta automáticamente un campo `$comment` que contiene directivas del sandbox directamente en la representación del esquema JSON activo.
+2. **Recurso de Directivas de Ejecución**: Un recurso dinámico (`liop://schema/guidelines`) detalla los workarounds específicos (como el filtrado de fechas mediante cadenas ISO 8601) y restricciones (reglas de K-Anonymity, sufijos de Laplace) requeridos por el nodo.
+3. **Prompts de Sistema Multi-IA**: El sistema de adaptadores de prompts normaliza las restricciones para diferentes modelos (Claude, OpenAI, Gemini) con el fin de prevenir llamadas a APIs alucinadas.
+
+---
+
+## Hoja de Ruta
+
+Las siguientes capacidades están definidas arquitectónicamente y planificadas para versiones futuras:
+
+| Característica | Estado | Descripción |
+|:---------------|:-------|:------------|
+| **TEE Attestation** | 🔴 Planificado | Soporte para enclaves de hardware (AWS Nitro / Intel SGX) |
+| **ZK-VM Nativo** | 🔴 Planificado | Bindings RISC Zero o SP1 para pruebas de conocimiento cero reales |
+| **ZK Core Rust** | 🔴 Planificado | Generación nativa de pruebas criptográficas en el core Rust |
+
+<Warning>
+  El SDK actual utiliza **compromisos HMAC-SHA256** como sellos de ZK-Receipt. Si bien son criptográficamente sólidos para la verificación de integridad, no constituyen pruebas de conocimiento cero verdaderas. La migración a un ZK-VM nativo está planificada para una versión futura.
+</Warning>

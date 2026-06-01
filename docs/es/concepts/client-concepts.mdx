@@ -1,15 +1,15 @@
 ---
 title: "Conceptos del Cliente"
-description: "Cómo los Nodos Agentes aprovechan la Neural Mesh para descubrimiento y ejecución"
+description: "Cómo los Nodos Agentes aprovechan la Malla LIOP para descubrimiento y ejecución"
 ---
 
-En el Neural Mesh Protocol, un "Cliente" es un **Nodo Agente** (Agent Node) o un orquestador de Inteligencia. Mientras el Servidor garantiza una ejecución segura, el Cliente es responsable de descubrir datos, definir intenciones y tejer la lógica que atraviesa la red.
+En el Logic-Injection-on-Origin Protocol, un "Cliente" es un **Nodo Agente** (Agent Node) o un orquestador de Inteligencia. Mientras el Servidor garantiza una ejecución segura, el Cliente es responsable de descubrir datos, definir intenciones y tejer la lógica que atraviesa la red.
 
 Los Nodos Agentes operan la Malla a través de tres mecanismos: **Descubrimiento (DHT)**, **Handshakes de Elicitación** e **Inyección de Lógica**.
 
 ## 1. Descubrimiento de Red (Kademlia DHT)
 
-A diferencia de las arquitecturas tradicionales donde el Cliente debe conocer la IP o el DNS del servidor, los Nodos Agentes en NMP operan en una topología descentralizada:
+A diferencia de las arquitecturas tradicionales donde el Cliente debe conocer la IP o el DNS del servidor, los Nodos Agentes en LIOP operan en una topología descentralizada:
 
 <Frame>
   <img className="block dark:hidden w-full" src="/images/client-dht-light.svg" alt="Enrutamiento por Tabla de Hash Distribuida" />
@@ -23,7 +23,7 @@ A diferencia de las arquitecturas tradicionales donde el Cliente debe conocer la
 
 ## 2. Handshakes de Elicitación y Confianza
 
-La confianza no depende de CAs centralizadas. NMP emplea un handshake **Zero-Trust** antes de ejecutar lógica:
+La confianza no depende de CAs centralizadas. LIOP emplea un handshake **Zero-Trust** antes de ejecutar lógica:
 - **Noise Protocol**: Las conexiones QUIC se cifran usando claves derivadas de la identidad del Agente.
 - **PQC (Kyber)**: Las Elicitaciones encapsulan intenciones con ML-KEM-768, protegiendo la comunicación contra futuras amenazas cuánticas (*Harvest Now, Decrypt Later*).
 
@@ -62,7 +62,7 @@ El punto de origen que define el "Intento" y genera la lógica inicial que se em
 Primer escudo de defensa. Usa la compilación de V8 como paso heurístico para detectar importaciones ilegales al sistema antes de que el payload llegue al módulo criptográfico.
 
 #### 3. Worker Pool (Piscina)
-Para evitar saturar el hilo principal con cálculos matemáticos costosos, NMP delega el cifrado y descifrado a un pool de hilos nativos.
+Para evitar saturar el hilo principal con cálculos matemáticos costosos, LIOP delega el cifrado y descifrado a un pool de hilos nativos.
 - **Outbound**: Los hilos cifran el `.wasm` con Kyber y AES en paralelo.
 - **Inbound**: Los resultados y recibos ZK se verifican concurrentemente, salvando el hilo principal de Node.js.
 

@@ -11,12 +11,12 @@ This directory contains the underlying high-performance, system-level components
 
 ## Components Breakdown
 
-The Cargo Workspace is divided into modular crates:
+The Cargo Workspace is divided into modular crates and source modules:
 
-- **`liop-core`**: The shared library storing standardized Protobuf definitions via `prost` and `tonic`.
-- **`liop-server`**: The Data Node host. Contains the heavy-duty `wasmtime-wasi` sandbox. It securely receives foreign WebAssembly logic, virtualizes strict capabilities (like read-only filesystem access for specific directories), and executes the payload at near-native speeds.
+- **`liop-core`**: The shared library storing standardized Protobuf definitions via `prost` and `tonic` (located in `sdks/rust/crates/core`).
+- **`liop-node`**: The Data Node host application (this directory). Contains the heavy-duty `wasmtime-wasi` sandbox. It securely receives foreign WebAssembly logic, virtualizes strict capabilities (like read-only filesystem access for specific directories), and executes the payload at near-native speeds.
 - **`liop-client`**: The Agent Node injector SDK for compiling and pushing Wasm logic (now located in `sdks/rust/crates/client`).
-- **`config/health`**: Modular infrastructure for TOML-driven external configuration and Hyper-based observability (`/health` probes).
+- **`src/config.rs` & `src/health.rs`**: Modular infrastructure for TOML-driven external configuration (`config.toml`) and Hyper-based observability (`/health` status probes).
 
 ## Core Capabilities (Hardening)
 

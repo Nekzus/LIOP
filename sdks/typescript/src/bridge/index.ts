@@ -1,6 +1,5 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { LiopServerOptions } from "../server/index.js";
-import { LiopServer } from "../server/index.js";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { LiopServer, LiopServerOptions } from "../server/index.js";
 import type { CallToolRequest, CallToolResult } from "../types.js";
 import { log } from "../utils/logger.js";
 
@@ -23,16 +22,22 @@ export class LiopMcpBridge {
 	private liopServer: LiopServer | null = null;
 	private legacyMcpServer: McpServer | null = null;
 	constructor(
-		source: LiopServer | McpServer,
+		// biome-ignore lint/suspicious/noExplicitAny: polymorphic source detection
+		source: LiopServer | McpServer | any,
 		private options: LiopBridgeOptions = {},
 	) {
 		// Determine mode: Exposing LIOP to MCP (Claude) or Wrapping MCP to LIOP (Mesh)
-		if (source instanceof LiopServer) {
-			this.liopServer = source;
+		// We use constructor name check to avoid hard dependency on optional SDK at runtime start
+		if (source?.constructor?.name === "LiopServer") {
+			this.liopServer = source as LiopServer;
 			log.info("[LIOP-Bridge] Mode: EXPOSE (LIOP -> MCP Stdio)");
-		} else if (source instanceof McpServer) {
-			this.legacyMcpServer = source;
+		} else if (source?.constructor?.name === "McpServer") {
+			this.legacyMcpServer = source as McpServer;
 			log.info("[LIOP-Bridge] Mode: WRAP (Legacy MCP -> LIOP Mesh)");
+		} else {
+			// Fallback for inferred legacy MCP servers
+			this.legacyMcpServer = source as McpServer;
+			log.info("[LIOP-Bridge] Mode: WRAP (Inferred Legacy MCP -> LIOP Mesh)");
 		}
 	}
 
@@ -139,7 +144,11 @@ export class LiopMcpBridge {
 
 			try {
 				const result: CallToolResult = await this.liopServer.callTool(request);
-				const isVerified = await this.verifyZkReceipt(request, result);
+				// If the tool execution returned an error (e.g. policy violation), we bypass
+				// ZK-Receipt verification because no cryptographic proof is generated for errors.
+				const isVerified = result.isError
+					? true
+					: await this.verifyZkReceipt(request, result);
 
 				if (!isVerified) {
 					return this.successResponse(id, {
@@ -315,6 +324,10 @@ export class LiopMcpBridge {
 				log.error(`[LIOP-Bridge] Error: ${(e as Error).message}`);
 			}
 		});
+	}
+
+	public getServer(): LiopServer | null {
+		return this.liopServer;
 	}
 }
 

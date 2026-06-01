@@ -41,8 +41,18 @@ describe("mcpCompact utilities", () => {
 			expect(mcpCompactToolDescriptions()).toBe(false);
 		});
 
-		it("should return false when env var is undefined", () => {
+		it("should return true when env var is undefined (default ON)", () => {
 			delete process.env.LIOP_MCP_COMPACT_TOOL_DESCRIPTIONS;
+			expect(mcpCompactToolDescriptions()).toBe(true);
+		});
+
+		it("should return false for '0' (explicit opt-out)", () => {
+			process.env.LIOP_MCP_COMPACT_TOOL_DESCRIPTIONS = "0";
+			expect(mcpCompactToolDescriptions()).toBe(false);
+		});
+
+		it("should return false for 'no' (explicit opt-out)", () => {
+			process.env.LIOP_MCP_COMPACT_TOOL_DESCRIPTIONS = "no";
 			expect(mcpCompactToolDescriptions()).toBe(false);
 		});
 	});

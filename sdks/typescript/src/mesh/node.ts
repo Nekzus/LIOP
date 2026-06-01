@@ -42,6 +42,9 @@ export interface LiopManifest {
 		clearanceTier: number;
 		executionTypes: string[];
 	};
+	authRequired?: boolean;
+	/** Canonical slug for deterministic token resolution. Agents resolve LIOP_TOKEN_<tokenSlug>. Must match /^[A-Z][A-Z0-9_]*$/. */
+	tokenSlug?: string;
 }
 
 export interface MeshNodeConfig {
@@ -481,8 +484,8 @@ export class MeshNode {
 				try {
 					const peerId = peerIdFromString(peer.id);
 					const addrs = peer.addresses.map((a: string) => multiaddr(a));
-					// @ts-expect-error: libp2p version drift workaround
-					await this.node.peerStore.save(peerId, { multiaddrs: addrs });
+					// biome-ignore lint/suspicious/noExplicitAny: bypass libp2p version-drift type mismatch on PeerId
+					await this.node.peerStore.save(peerId as any, { multiaddrs: addrs });
 
 					// Pre-seed DHT routing table
 					// biome-ignore lint/suspicious/noExplicitAny: Internal service access

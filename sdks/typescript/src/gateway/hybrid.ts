@@ -2,6 +2,8 @@ import * as http from "node:http";
 import * as http2 from "node:http2";
 import * as net from "node:net";
 import type { MeshNode } from "../mesh/index.js";
+import type { AuthInfo, JwtValidator } from "../security/jwt-validator.js";
+import { buildProtectedResourceMetadata } from "../security/prm.js";
 import type { LiopServer } from "../server/index.js";
 import { log } from "../utils/logger.js";
 import { LiopMcpRouter } from "./router.js";
@@ -15,12 +17,18 @@ export class LiopHybridGateway {
 	private h2Server: http2.Http2Server;
 	private h1Server: http.Server;
 	private router: LiopMcpRouter;
+	private jwtValidator?: JwtValidator;
+	// biome-ignore lint/suspicious/noExplicitAny: oidc-provider is loaded in Phase C
+	private oauthProvider?: any;
 
 	constructor(
 		private liopServer: LiopServer,
 		private meshNode: MeshNode | null = null,
 		rpcPort: number = 50051,
 	) {
+		this.jwtValidator = this.liopServer.jwtValidator;
+		this.oauthProvider = this.liopServer.oauthProvider;
+
 		// Initialize the Universal Router
 		this.router = new LiopMcpRouter(this.liopServer, this.meshNode, rpcPort);
 
@@ -80,6 +88,38 @@ export class LiopHybridGateway {
 			const url = req.url || "";
 			const method = req.method;
 
+			// [SEC] M2M OAuth 2.1 OIDC Authorization Server Router (Phase C proxy)
+			if (url.startsWith("/oidc") && this.oauthProvider) {
+				const callback =
+					typeof this.oauthProvider.callback === "function"
+						? this.oauthProvider.callback()
+						: this.oauthProvider;
+				// Rewrite req.url to strip the '/oidc' prefix before delegating to oidc-provider
+				const originalUrl = req.url;
+				req.url = (originalUrl || "").slice(5) || "/";
+				try {
+					return callback(req, res);
+				} finally {
+					req.url = originalUrl;
+				}
+			}
+
+			// [SEC] RFC 9728 Protected Resource Metadata (PRM) Endpoint
+			if (method === "GET" && url === "/.well-known/oauth-protected-resource") {
+				if (this.jwtValidator) {
+					const prm = buildProtectedResourceMetadata(
+						this.jwtValidator.getIssuer(),
+						this.jwtValidator.getAudience(),
+					);
+					res.writeHead(200, { "Content-Type": "application/json" });
+					res.end(JSON.stringify(prm));
+					return;
+				}
+				res.writeHead(404);
+				res.end("Not Found");
+				return;
+			}
+
 			if (
 				method === "GET" &&
 				(url === "/" || url === "/mcp" || url === "/health")
@@ -96,6 +136,25 @@ export class LiopHybridGateway {
 									.map((m) => m.toString()),
 							}
 						: null;
+					const issuer = this.jwtValidator?.getIssuer();
+					const baseUrl = issuer
+						? issuer.endsWith("/oidc")
+							? issuer
+							: `${issuer}/oidc`
+						: "";
+					const authInfoResponse =
+						this.jwtValidator && issuer
+							? {
+									issuer,
+									jwks_uri: `${baseUrl}/jwks`,
+									...(this.oauthProvider
+										? {
+												token_endpoint: `${baseUrl}/token`,
+											}
+										: {}),
+								}
+							: undefined;
+
 					res.writeHead(200, { "Content-Type": "application/json" });
 					res.end(
 						JSON.stringify({
@@ -103,6 +162,7 @@ export class LiopHybridGateway {
 							node: this.liopServer.getServerInfo(),
 							mesh: meshInfo,
 							tools: this.liopServer.listTools().map((t) => t.name),
+							auth: authInfoResponse,
 							timestamp: new Date().toISOString(),
 						}),
 					);
@@ -126,12 +186,38 @@ export class LiopHybridGateway {
 			}
 
 			if (url === "/mcp" && method === "POST") {
+				let authInfo: AuthInfo | null = null;
+
+				// [SEC] Continuous verification of Bearer token (NIST SP 800-207)
+				if (this.jwtValidator) {
+					const authHeader = req.headers.authorization;
+					if (!authHeader?.startsWith("Bearer ")) {
+						res.writeHead(401, {
+							"WWW-Authenticate":
+								'Bearer error="invalid_token", error_description="Missing or malformed Authorization header"',
+							"Content-Type": "application/json",
+						});
+						res.end(JSON.stringify({ error: "Unauthorized" }));
+						return;
+					}
+					try {
+						authInfo = await this.jwtValidator.validate(authHeader.slice(7));
+					} catch (e: unknown) {
+						res.writeHead(401, {
+							"WWW-Authenticate": `Bearer error="invalid_token", error_description="${(e as Error).message}"`,
+							"Content-Type": "application/json",
+						});
+						res.end(JSON.stringify({ error: "Invalid token" }));
+						return;
+					}
+				}
+
 				let body = "";
 				req.on("data", (chunk) => (body += chunk.toString()));
 				req.on("end", async () => {
 					try {
 						const jsonRequest = JSON.parse(body);
-						const response = await this.router.dispatch(jsonRequest);
+						const response = await this.router.dispatch(jsonRequest, authInfo);
 						res.writeHead(200, { "Content-Type": "application/json" });
 						res.end(JSON.stringify(response));
 					} catch (e: unknown) {
@@ -169,13 +255,41 @@ export class LiopHybridGateway {
 
 	private handleMcpH2Stream(
 		stream: http2.ServerHttp2Stream,
-		_headers: http2.IncomingHttpHeaders,
+		headers: http2.IncomingHttpHeaders,
 	) {
 		let body = "";
 		stream.on("data", (chunk) => (body += chunk.toString()));
 		stream.on("end", async () => {
 			try {
-				const response = await this.router.dispatch(JSON.parse(body));
+				let authInfo: AuthInfo | null = null;
+
+				// [SEC] Continuous verification of Bearer token over HTTP/2 (NIST SP 800-207)
+				if (this.jwtValidator) {
+					const authHeader = headers.authorization as string;
+					if (!authHeader?.startsWith("Bearer ")) {
+						stream.respond({
+							":status": 401,
+							"www-authenticate":
+								'Bearer error="invalid_token", error_description="Missing or malformed Authorization header"',
+							"content-type": "application/json",
+						});
+						stream.end(JSON.stringify({ error: "Unauthorized" }));
+						return;
+					}
+					try {
+						authInfo = await this.jwtValidator.validate(authHeader.slice(7));
+					} catch (e: unknown) {
+						stream.respond({
+							":status": 401,
+							"www-authenticate": `Bearer error="invalid_token", error_description="${(e as Error).message}"`,
+							"content-type": "application/json",
+						});
+						stream.end(JSON.stringify({ error: "Invalid token" }));
+						return;
+					}
+				}
+
+				const response = await this.router.dispatch(JSON.parse(body), authInfo);
 				if (response) {
 					stream.respond({
 						":status": 200,

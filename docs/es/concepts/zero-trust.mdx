@@ -15,18 +15,26 @@ LIOP utiliza el **Noise Protocol Framework** (usado por aplicaciones de mensajer
 - **Autenticación Mutua**: Las conexiones se autentican de forma bilateral instantánea. Ambos extremos saben exactamente con quién están transaccionando mediante pruebas de posesión de clave.
 - **Criptografía Post-Cuántica (PQC)**: LIOP emplea **Kyber (ML-KEM-768)** para el intercambio de claves y **AES-256-GCM** para el cifrado del payload. Esto protege la transmisión contra ataques futuros de computación cuántica ("Harvest Now, Decrypt Later").
 
-## 2. Inspección de Carga (Guardian AST Sentinel)
+## 2. Inspección de Carga (Guardian AST Sentinel & Taint Analyzer)
 
-Antes de que el servidor ejecute el archivo `.wasm` inyectado, este se somete a un análisis estático profundo.
+Antes de que el Nodo de Datos permita la ejecución del código inyectado, este se somete a un análisis estático profundo del Árbol de Sintaxis Abstracta (AST), tanto a nivel binario como de script.
 
 <Frame>
   <img className="block dark:hidden w-full" src="/images/zero-trust-ast-light.svg" alt="Inspección Guardian AST en LIOP" />
   <img className="hidden dark:block w-full" src="/images/zero-trust-ast-dark.svg" alt="Inspección Guardian AST en LIOP" />
 </Frame>
 
-El **Módulo Guardián** inspecciona el Árbol de Sintaxis Abstracta (AST) del WebAssembly. Como WebAssembly es verificable sin ejecución, el servidor valida que el binario no contenga instrucciones malformadas, recursividad infinita no autorizada o intentos de importar funciones del sistema prohibidas. 
+El **Módulo Guardián** inspecciona el Árbol de Sintaxis Abstracta (AST) de WebAssembly. Como WebAssembly es verificable sin ejecución, el servidor valida que el binario no contenga instrucciones malformadas, recursividad infinita no autorizada o intentos de importar funciones del sistema prohibidas.
 
-Esto neutraliza código malicioso y ataques de escape en tiempo cero, antes de que comience la ejecución.
+Para scripts interpretados (como payloads en JavaScript), el **Taint Analyzer** ejecuta una inspección estática de **Control de Flujo de Información (IFC)**. Este módulo analiza el AST para asegurar que las variables que contienen datos PII no se filtren hacia salidas escalares.
+
+**Protección contra Evasión por Generadores e Iteradores**:
+Para prevenir intentos sofisticados de bypass que utilicen generadores o iteradores (`function*` / `yield`) para extraer registros evadiendo los escaneos estándar de propiedades, el Taint Analyzer realiza un análisis estático profundo de los ámbitos de función:
+- **Rastreo de `YieldExpression`**: El motor evalúa recursivamente los argumentos de `yield`, garantizando que los valores derivados de PII sean marcados incluso si se encapsulan en yields de generadores.
+- **Contaminación (Tainting) del Scope de Funciones**: Las funciones locales (`FunctionDeclaration`, `FunctionExpression`, `ArrowFunctionExpression`) que retornan o hacen `yield` de campos con taint son marcadas permanentemente como *tainted*.
+- **Cadenas de Métodos de Iteración**: Al invocar una función contaminada (`gen()`), el iterador resultante y sus llamadas subsiguientes (como `.next().value`) heredan el taint, propagando la restricción a través del árbol de expresiones y neutralizando la exfiltración por generadores.
+
+Esto neutraliza código malicioso, lógica evasiva y ataques de escape en tiempo cero, antes de que comience la ejecución.
 
 ## 3. Filtro Anti-Exfiltración (Egress Filter)
 
@@ -36,6 +44,15 @@ Este filtro inspecciona dinámicamente el buffer de salida buscando información
 
 **Defensa contra Ofuscación JSON**:
 Los agentes podrían intentar evadir escáneres estáticos mediante doble serialización. Para neutralizar esto, el `PiiScanner` implementa *parsing profundo recursivo*. Si un string devuelto contiene estructuras JSON internas, el Escudo las de-serializa para exponer y filtrar su contenido, volviendo inútil cualquier intento de contrabando de datos.
+
+**Política de Agregación Primero**:
+Más allá del escaneo PII, el Filtro de Egreso impone una heurística de **Agregación Primero** que bloquea la exportación masiva de datos a nivel de fila. Si la salida del sandbox contiene arrays con más elementos tipo objeto que el umbral configurado (por defecto: 10), la respuesta se rechaza. Solo pasan los resultados agregados (conteos, promedios, resúmenes), previniendo la exfiltración masiva de datos incluso cuando los registros individuales no contienen PII.
+
+**Desempaquetado Criptográfico y de Envolturas**:
+Para evitar falsos positivos causados por las firmas HMAC-SHA256 de los recibos ZK, envolturas JSON-RPC o respuestas proxied de herramientas gRPC (como `{ content: [{ type: "text", text: "..." }] }`), el Escudo de Egreso realiza su escaneo estrictamente sobre el payload de negocio desempaquetado (mediante `unwrapForAggregationPolicyScan`). Esto garantiza que los sellos criptográficos y los metadatos de enrutamiento no interfieran con las políticas de seguridad.
+
+**Opacidad Condicional de Errores**:
+En entornos de producción (`NODE_ENV=production`), todas las violaciones de Egreso devuelven un mensaje genérico `[LIOP] Egress Security Violation` sin ningún detalle interno. En entornos de desarrollo/test, se exponen errores de validación de esquema detallados y sugerencias correctivas para habilitar la iteración rápida y la autocorrección del LLM.
 
 ## 4. Sandboxing (WASI)
 
@@ -53,4 +70,95 @@ Al ejecutar la lógica dentro de un Enclave, garantizamos que ni el proveedor de
 
 Junto a la respuesta, el servidor puede emitir un **Recibo ZK**. El Agente verifica este recibo criptográfico en milisegundos, asegurando matemáticamente que el resultado proviene de la ejecución exacta de su binario sobre los datos protegidos, sin que el servidor tenga que revelar los datos al exterior para ser auditado. 
 
+**Ancla de Integridad de Datos**: Cada Recibo ZK incluye un `dataset_hash` — un digest SHA-256 del dataset subyacente al momento de la ejecución. Este ancla criptográfica permite a los clientes verificar que el dataset fue idéntico entre consultas consecutivas, separando definitivamente el ruido legítimo de Privacidad Diferencial de cualquier mutación no autorizada de los datos.
+
 **Validación Estructural ZK**: Esta validación (`verifyZkReceipt`) es ejecutada de forma nativa tanto por el `LiopClient` como por el adaptador `LiopMcpBridge`. Estos componentes actúan como guardianes Zero-Trust infalibles, comprobando las firmas e impidiendo que datos adulterados u orígenes comprometidos sean entregados a la IA.
+
+## 7. Motor de Privacidad Diferencial (Mecanismo de Laplace)
+
+Cuando el sandbox WASI ejecuta lógica inyectada sobre datasets pequeños (por debajo del umbral configurable `smallDatasetThreshold`, por defecto: 50 registros), las salidas numéricas sin proteger podrían revelar información a nivel individual mediante **ataques de diferenciación** (ejecutar la misma consulta antes y después de agregar un registro) o **ataques de búsqueda binaria** (iterar umbrales de filtro para aislar un registro único).
+
+LIOP mitiga esto con un **Mecanismo de Laplace** calibrado que inyecta ruido matemáticamente acotado en todos los campos numéricos de la salida antes del egreso.
+
+<Frame>
+  <img className="block dark:hidden w-full" src="/images/animated-dp-engine-light.svg" alt="Pipeline del Motor de Privacidad Diferencial" />
+  <img className="hidden dark:block w-full" src="/images/animated-dp-engine-dark.svg" alt="Pipeline del Motor de Privacidad Diferencial" />
+</Frame>
+
+### Fuente de Ruido CSPRNG
+
+Todo el ruido se genera mediante `crypto.randomBytes()` del módulo `crypto` de Node.js (respaldado por el pool de entropía del sistema operativo), **nunca** `Math.random()`. Esto previene ataques de reconstrucción de estado donde un adversario podría predecir valores futuros de ruido observando 3-5 salidas ruidosas, según lo exige NIST SP 800-226.
+
+### Modo de Auditoría Determinista (DDP)
+
+Para escenarios de auditoría SOX/PCI-DSS que requieran Recibos ZK reproducibles, el motor soporta **Privacidad Diferencial Determinista (DDP)**. Cuando se activa, el generador de ruido Laplace inicializa un PRNG basado en SHA-256 con semilla `dataset_hash + image_id`, produciendo ruido idéntico para consultas idénticas sobre datasets inmutables. Esto restaura la verificabilidad completa del Recibo ZK sin violar la garantía matemática de privacidad — la semilla permanece criptográficamente impredecible para observadores externos que no tengan acceso tanto al dataset como a la lógica inyectada.
+
+### Sensibilidad Query-Aware
+
+En lugar de aplicar una sensibilidad global única a todos los campos de salida, el motor detecta automáticamente el tipo de consulta a partir del nombre del campo:
+
+| Tipo de Consulta | Patrón de Clave | Sensibilidad | Justificación |
+|:---|:---|:---|:---|
+| **COUNT** | `count`, `length`, `size`, `num`, `total_records` | Siempre `1` | Agregar/eliminar un registro cambia el conteo como máximo en 1 |
+| **AVERAGE** | `avg`, `mean`, `average` | `sensibilidadGlobal / n` | Contribución acotada por registro |
+| **SUM** | Cualquier otra clave numérica | `sensibilidadGlobal` | Valor máximo plausible configurado por el operador |
+
+Esto refleja la arquitectura de la librería de Privacidad Diferencial de Google, que utiliza `CountParams`, `SumParams` y `MeanParams` separados — cada uno con calibración de sensibilidad independiente.
+
+### Piso de Epsilon
+
+Para datasets con menos de 10 registros, el motor impone un epsilon mínimo de `1.0`, independientemente de la configuración del operador. Esto previene la destrucción catastrófica de utilidad donde el ruido sobrepasa completamente la señal. La categoría más sensible de Apple (Datos de Salud) utiliza ε=2.0 sobre millones de registros; usar ε &lt; 1.0 en datasets diminutos produce resultados matemáticamente absurdos.
+
+### Invariantes de Post-Procesamiento
+
+Siguiendo el **Algoritmo TopDown del Censo de EE.UU. 2020**, el motor impone dos restricciones de post-procesamiento que son **gratuitas** bajo el teorema de post-procesamiento de DP (no consumen presupuesto de privacidad adicional):
+
+1. **Enteros no-negativos**: Todos los campos de conteo se redondean y restringen a `≥ 0`.
+2. **Preservación de tipo**: Las entradas enteras producen salidas enteras; las entradas no-negativas permanecen no-negativas.
+
+## 8. Presupuesto de Consultas Estratificado (NIST SP 800-226)
+
+Incluso con la adición de Privacidad Diferencial, un atacante podría teóricamente evadir las protecciones del ruido Laplace ejecutando la misma consulta miles de veces a través de la malla y computando el promedio estadístico para reconstruir los datos originales.
+
+Para evitar esta reconstrucción diferencial, LIOP implementa un **Motor de Presupuesto de Consultas Estratificado (Query Budget)** alineado con las directrices de **NIST SP 800-226**.
+
+### Presupuestos Aislados por Cliente y Persistentes por Sesión
+
+- **Aislamiento de Sesión**: Los presupuestos se rastrean *por cliente* utilizando la identidad criptográfica (`agentDid` o `clientId`) verificada durante el handshake PQC (`negotiateIntent`). Los contadores no se pueden reiniciar al reconectarse o al iniciar un nuevo intent gRPC dentro de la misma sesión.
+- **Validación en Pre-Vuelo (Preflight)**: El `TaintAnalyzer` decodifica y escanea el AST de la lógica inyectada *antes* de instanciar el sandbox. Extrae todos los campos consultados, incluyendo aquellos dentro de bucles de generadores o indexaciones directas. Si el conteo acumulado de consultas de un campo supera el límite de su tier, la petición se aborta inmediatamente en el preflight, devolviendo un error limpio a la IA.
+
+### Tiers de Sensibilidad
+
+LIOP clasifica los campos en tres tiers de sensibilidad, aplicando límites de consulta específicos por sesión:
+
+| Tier de Sensibilidad | Campos Objetivo | Límite de Consultas / Sesión | Descripción y Rationale |
+|:---|:---|:---|:---|
+| **FORBIDDEN (Tier 3)** | SSN, contraseña, nombre completo, email, credenciales | **3 consultas** | Identificadores directos. Altamente restringidos; se bloquean tras 3 peticiones. |
+| **SENSITIVE (Tier 2)** | Balance bancario, tipo de cuenta, diagnóstico médico | **8 consultas** | Propiedades críticas del dominio. Semi-restringidos para prevenir inferencia estadística. |
+| **PUBLIC (Tier 1)** | Edad, divisa de transacción, precio, metadatos | **25 consultas** | Campos de baja sensibilidad. Límite estándar. |
+
+*Nota: Para compatibilidad con sistemas heredados, se puede configurar un límite uniforme mediante `queryBudgetPerField`, el cual sobrescribe los tiers y aplica un límite único para todos los campos.*
+
+## 9. Alineación con Metodologías de Modelado de Amenazas de Privacidad (LINDDUN y PLOT4ai)
+
+Para garantizar el cumplimiento regulatorio e industrial (como GDPR, HIPAA, y la Ley de IA de la UE), los controles de seguridad del protocolo LIOP están sistemáticamente alineados con los estándares de modelado de amenazas de privacidad de la industria.
+
+### Mapeo con LINDDUN
+
+LIOP mitiga matemática y estructuralmente las siete categorías de amenazas del framework **LINDDUN**:
+
+- **Linkability (L) e Identifiability (I)** *(Enlazabilidad e Identificabilidad)*: Neutralizadas por el **Motor de Privacidad Diferencial de Laplace** calibrado que perturba las salidas numéricas, un **Taint Analyzer** a nivel de AST que detecta exfiltraciones basadas en la extracción de caracteres y un estricto **umbral de K-Anonymity** ($n < 10$) que bloquea respuestas sobre datasets diminutos.
+- **Non-repudiation (N)** *(No repudio)*: Resuelto mediante **ZK-Receipts** (compromisos HMAC-SHA256 y recibos de ejecución criptográficos) vinculados a firmas de identidad de nodo persistentes con claves **Ed25519**, lo que proporciona una prueba de ejecución inalterable.
+- **Detectability (D)** *(Detectabilidad)*: Mitigada al normalizar las métricas de consumo de combustible de CPU en buckets discretos de 100 unidades y al utilizar un CSPRNG (`crypto.randomBytes()`) seguro para el ruido de Laplace, neutralizando ataques laterales de temporización y de reconstrucción de estado del generador.
+- **Data Disclosure (D)** *(Divulgación de datos)*: Impedida estructuralmente por el paradigma central **Logic-on-Origin** (trasladar la lógica al dato en vez del dato a la inteligencia), reforzada por el **Escudo Egress PII** de múltiples capas y la **Política Aggregation-First** que bloquea la exportación de filas de datos en bruto.
+- **Unawareness (U) y Non-compliance (N)** *(Falta de conciencia e Incumplimiento)*: Resuelto a través de recursos dinámicos de instrucciones de esquemas (`liop://schema/guidelines`) que guían a los agentes sobre las restricciones activas en tiempo real, diseñados nativamente para cumplir con las guías de **NIST SP 800-226** y **OWASP DLP 2025**.
+
+### Alineación con PLOT4ai
+
+Para riesgos específicos del dominio de Inteligencia Artificial, LIOP se alinea directamente con las categorías de **PLOT4ai** (Privacy Library Of Threats for AI):
+
+- **Data & Data Governance** *(Gobernanza de Datos)*: Garantizada por una malla de enrutamiento descentralizada basada en Kademlia DHT; los datos permanecen locales, seguros y bajo la soberanía exclusiva del nodo de origen.
+- **Cybersecurity & Safety** *(Ciberseguridad y Seguridad)*: Asegurada por un **Sandbox WASI** con congelación de prototipos en tiempo de ejecución (conforme a PCI-DSS) y cifrado de transporte con **Criptografía Post-Cuántica** (handshakes con ML-KEM-768).
+- **Accountability & Transparency** *(Responsabilidad y Transparencia)*: Soportada por modos de auditoría deterministas (DDP) y verificación criptográfica de los hashes de imágenes WASM dentro de Entornos de Ejecución Seguros (**TEEs**).
+
+

@@ -21,10 +21,17 @@ async function main() {
 		fs.mkdirSync(dataDir, { recursive: true });
 	}
 
-	const liopServer = new LiopServer({
-		name: "LIOP-Nexus",
-		version: "1.0.0"
-	});
+	const liopServer = new LiopServer(
+		{
+			name: "LIOP-Nexus",
+			version: "1.0.0",
+		},
+		{
+			auth: {
+				role: "nexus",
+			},
+		},
+	);
 
 	await liopServer.connectToMesh({
 		port: 50051,

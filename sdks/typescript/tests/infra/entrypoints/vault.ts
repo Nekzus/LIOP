@@ -15,6 +15,7 @@ import { z } from "zod";
 import { LiopServer } from "../../../src/server/index.js";
 import { LiopHybridGateway } from "../../../src/gateway/hybrid.js";
 import { log } from "../../../src/utils/logger.js";
+import { generateMedicalDataset } from "../utils/datasetGenerator.js";
 
 async function main() {
 	const dataDir = "/app/data";
@@ -22,25 +23,31 @@ async function main() {
 		fs.mkdirSync(dataDir, { recursive: true });
 	}
 
-	const liopServer = new LiopServer({
-		name: "SIMULATION-the-vault",
-		version: "1.0.0"
-	}, {
-		taxonomy: {
-			domain: "🏥 Healthcare (INDUSTRIAL DEMO)",
-			clearanceTier: 5,
-			executionTypes: ["Blind AST Logic", "Zero-Trust Worker Pool"],
+	const liopServer = new LiopServer(
+		{
+			name: "SIMULATION-the-vault",
+			version: "1.0.0",
 		},
-	});
+		{
+			tokenSlug: "VAULT",
+			auth: {
+				role: "node",
+				revocationPath: path.join(dataDir, "vault-revocations.json"),
+				localTestToken: "vault-local-test-token",
+			},
+			taxonomy: {
+				domain: "🏥 Healthcare (INDUSTRIAL DEMO)",
+				clearanceTier: 5,
+				executionTypes: ["Blind AST Logic", "Zero-Trust Worker Pool"],
+			},
+		},
+	);
 
-	// Industrial Healthcare Dataset + Elena Rodriguez
-	const patients = [
-		{ id: "PAT-7721", name: "Evelyn Reed", age: 42, bloodType: "O+", diagnosis: "Hypertension", lastVisit: "2026-01-15", medications: ["Lisinopril", "Amlodipine"] },
-		{ id: "PAT-1092", name: "Marcus Thorne", age: 58, bloodType: "A-", diagnosis: "Type 2 Diabetes", lastVisit: "2026-02-20", medications: ["Metformin", "Glipizide"] },
-		{ id: "PAT-4432", name: "Sarah Chen", age: 29, bloodType: "B+", diagnosis: "Acute Bronchitis", lastVisit: "2026-03-05", medications: ["Albuterol", "Amoxicillin"] },
-		{ id: "PAT-8819", name: "Julian Vane", age: 65, bloodType: "AB+", diagnosis: "Osteoarthritis", lastVisit: "2025-12-10", medications: ["Celecoxib", "Glucosamine"] },
-		{ id: "PAT-9901", name: "Elena Rodriguez", age: 35, bloodType: "O-", diagnosis: "Hypertension", lastVisit: "2026-03-25", medications: ["Metoprolol"] }
-	];
+	// Industrial Healthcare Dataset (Scale-Aware Generator)
+	const scaleEnv = process.env.LIOP_DATASET_SCALE;
+	const scale = scaleEnv ? Number.parseInt(scaleEnv, 10) : 1;
+	const patients = generateMedicalDataset(Number.isNaN(scale) ? 1 : scale);
+
 
 	// Expose data dictionary for Zero-Trust LLM guidance
 	liopServer.dataDictionary(
@@ -67,13 +74,19 @@ async function main() {
 	liopServer.setSandboxData(patients as unknown as Record<string, unknown>[]);
 	const medicalAggregatedOutputSchema = z
 		.object({
+			// Domain-specific keys (may accept strings)
 			totalPatients: z.number().optional(),
 			hypertensionCount: z.number().optional(),
 			percentage: z.union([z.number(), z.string()]).optional(),
 			averageAge: z.union([z.number(), z.string()]).optional(),
+			avgAge: z.union([z.number(), z.string()]).optional(),
 			clientPayload: z.string().optional(),
 		})
-		.passthrough();
+		// Dynamic aggregation keys (e.g., diagnosis names, age buckets).
+		// Security note: .catchall() is a STRUCTURAL choice, not a security boundary.
+		// Defense-in-depth: PII Scanner (Layer 3) blocks names/IDs/emails,
+		// Aggregation-First (Layer 4) blocks arrays of objects.
+		.catchall(z.number());
 
 	liopServer.tool(
 		"Analyze_Synthetic_Medical_Records",
@@ -94,6 +107,14 @@ async function main() {
 		{
 			enforceAggregationFirst: true,
 			outputSchema: medicalAggregatedOutputSchema,
+			// Phase 110: HIPAA Expert Determination Privacy Profile
+			// Apple Health uses ε=2.0 on millions of records. Using ε<1.0 on
+			// a 5-record dataset destroys utility (NIST SP 800-226 §4.3).
+			// The engine automatically derives per-field sensitivity
+			// (count→1, avg→sensitivity/n, sum→configured value).
+			dpEpsilon: 2.0,
+			dpSensitivity: 1.0, 
+			sensitiveKeys: ["diagnosis", "bloodType"],
 		},
 	);
 

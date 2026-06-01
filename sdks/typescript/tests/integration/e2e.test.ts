@@ -88,7 +88,10 @@ return JSON.stringify(records.map(r => ({ id: r.id, name: r.name, age: r.age }))
 		});
 
 		expect(result.isError).toBe(true);
-		expect(result.content[0].text).toContain("Egress Security Violation");
+		// Blocked by either Taint/Preflight (AST analysis) or Egress Shield (output scan)
+		expect(result.content[0].text).toMatch(
+			/Egress Security Violation|Preflight policy rejected/,
+		);
 	});
 
 	it("should allow aggregated results without PII", async () => {

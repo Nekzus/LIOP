@@ -1,4 +1,5 @@
 import * as crypto from "node:crypto";
+import * as grpc from "@grpc/grpc-js";
 import { LiopVerifier } from "../crypto/verifier.js";
 import { TokenTelemetryEngine } from "../economy/telemetry.js";
 import type { LiopManifest, MeshNode } from "../mesh/index.js";
@@ -6,6 +7,8 @@ import { Kyber768Wrapper } from "../rpc/crypto/kyber.js";
 import { liopV1 } from "../rpc/proto.js";
 import { createChannelCredentials } from "../rpc/tls.js";
 import type { IntentResponse, LogicResponse } from "../rpc/types.js";
+import type { AuthInfo } from "../security/jwt-validator.js";
+import { authorizeRequest } from "../security/rbac.js";
 import type { LiopServer } from "../server/index.js";
 import type { McpRequest, McpResponse } from "../types.js";
 import { log } from "../utils/logger.js";
@@ -81,12 +84,24 @@ export class LiopMcpRouter {
 					mimeType: r.mimeType,
 				}));
 
+				// biome-ignore lint/suspicious/noExplicitAny: access private configuration properties
+				const serverConfig = (this.liopServer as any).config;
+
 				return {
 					peerId: this.meshNode?.getPeerId() || "unknown",
 					grpcPort: this.defaultRpcPort,
 					tools: [...remoteTools],
 					resources,
 					serverInfo: this.liopServer.getServerInfo(),
+					authRequired: this.liopServer.jwtValidator !== undefined,
+					tokenSlug: serverConfig?.tokenSlug,
+					taxonomy: serverConfig?.taxonomy
+						? {
+								domain: serverConfig.taxonomy.domain || "Unknown Domain",
+								clearanceTier: serverConfig.taxonomy.clearanceTier ?? 0,
+								executionTypes: serverConfig.taxonomy.executionTypes || [],
+							}
+						: undefined,
 				};
 			});
 
@@ -96,6 +111,14 @@ export class LiopMcpRouter {
 					`[LIOP-Router] Failed to announce manifest: ${err instanceof Error ? err.message : String(err)}`,
 				);
 			});
+		}
+
+		// [OWASP-A01] Startup warning when diagnostic level exposes full topology
+		if (process.env.LIOP_DIAGNOSTIC_LEVEL === "full") {
+			process.stderr.write(
+				"⚠️ [LIOP-Security] Diagnostic level set to FULL — " +
+					"PeerIDs and network topology are exposed. Do NOT use in production.\n",
+			);
 		}
 	}
 
@@ -137,9 +160,30 @@ export class LiopMcpRouter {
 		});
 	}
 
-	public async dispatch(request: McpRequest): Promise<McpResponse | null> {
+	public async dispatch(
+		request: McpRequest,
+		authInfo?: AuthInfo | null,
+	): Promise<McpResponse | null> {
 		const { method, params, id } = request;
 		log.info(`[LIOP-Router] Processing: ${method}`);
+
+		// [SEC] Enforce RBAC scope validation (Least Privilege) only if JWT validation is active
+		if (this.liopServer.jwtValidator) {
+			const authResult = authorizeRequest(method, authInfo ?? null);
+			if (!authResult.allowed) {
+				log.info(
+					`[LIOP-Router] RBAC Access Denied for method '${method}': ${authResult.reason}`,
+				);
+				return {
+					jsonrpc: "2.0",
+					id,
+					error: {
+						code: -32099, // Custom authentication/authorization failure code
+						message: authResult.reason || "Access Denied",
+					},
+				};
+			}
+		}
 
 		switch (method) {
 			case "initialize":
@@ -217,7 +261,11 @@ export class LiopMcpRouter {
 				};
 			}
 			case "tools/call":
-				return this.transcodeMcpToLiop(id, params as Record<string, unknown>);
+				return this.transcodeMcpToLiop(
+					id,
+					params as { name: string; arguments?: Record<string, unknown> },
+					authInfo?.token,
+				);
 			case "resources/list": {
 				const localResources = this.liopServer.listResources();
 				const remoteResources = await this.getRemoteResources();
@@ -631,7 +679,7 @@ export class LiopMcpRouter {
 		}>
 	> {
 		const EXPECTED_PROVIDERS = Number.parseInt(
-			process.env.LIOP_EXPECTED_PROVIDERS ?? "4",
+			process.env.LIOP_EXPECTED_PROVIDERS ?? "1",
 			10,
 		);
 
@@ -641,7 +689,7 @@ export class LiopMcpRouter {
 		// This prevents a ~20s block when a node (e.g. Bank) is absent.
 		if (this.manifestCache.size < EXPECTED_PROVIDERS && this.meshNode) {
 			const initialTimeoutMs = Number.parseInt(
-				process.env.LIOP_INITIAL_DISCOVERY_TIMEOUT_MS ?? "12000",
+				process.env.LIOP_INITIAL_DISCOVERY_TIMEOUT_MS ?? "8000",
 				10,
 			);
 			const boundedTimeoutMs =
@@ -884,8 +932,23 @@ export class LiopMcpRouter {
 		return null;
 	}
 
-	// biome-ignore lint/suspicious/noExplicitAny: MCP JSON-RPC params/id are polymorphic
-	private async transcodeMcpToLiop(id: any, params: any): Promise<any> {
+	/**
+	 * Redacts a PeerID for external-facing diagnostics.
+	 * LIOP_DIAGNOSTIC_LEVEL controls verbosity:
+	 *   - "redacted" (default): truncated to last 8 chars
+	 *   - "full": complete PeerID (development only)
+	 */
+	private redactPeerId(peerId: string): string {
+		const level = process.env.LIOP_DIAGNOSTIC_LEVEL || "redacted";
+		if (level === "full") return peerId;
+		return `***${peerId.slice(-8)}`;
+	}
+
+	private async transcodeMcpToLiop(
+		id: string | number | null | undefined,
+		params: { name: string; arguments?: Record<string, unknown> },
+		token?: string,
+	): Promise<McpResponse | null> {
 		const toolName = params.name;
 
 		// Intercept the static diagnostic tool
@@ -921,32 +984,43 @@ export class LiopMcpRouter {
 					: [];
 			const bootstrapCount = bootstrapNodes.length;
 
-			const bootstrapList = bootstrapNodes
-				.map((addr) => {
-					const parts = addr.split("/");
-					const id = parts[parts.length - 1];
-					return `  • ${id ? id.slice(-8) : "Unknown"} (${addr})`;
-				})
-				.join("\n");
+			const diagLevel = process.env.LIOP_DIAGNOSTIC_LEVEL || "redacted";
+			const showBootstraps = diagLevel !== "minimal";
+
+			const bootstrapList = showBootstraps
+				? bootstrapNodes
+						.map((addr) => {
+							const parts = addr.split("/");
+							const id = parts[parts.length - 1];
+							return `  • ${id ? id.slice(-8) : "Unknown"} (bootstrap)`;
+						})
+						.join("\n")
+				: "";
 
 			const routingTableSize = this.meshNode
 				? // biome-ignore lint/suspicious/noExplicitAny: access internal nodes
 					(this.meshNode as any).getRoutingTableSize()
 				: 0;
 
-			const localPeerId = this.meshNode?.getPeerId() || "Offline";
+			const rawPeerId = this.meshNode?.getPeerId() || "Offline";
+			const localPeerId =
+				rawPeerId === "Offline" ? rawPeerId : this.redactPeerId(rawPeerId);
 
 			const cachedToolList = Array.from(this.manifestCache.entries())
 				.flatMap(([peerId, { manifest }]) =>
-					manifest.tools.map((t) => `  • ${t.name} (from origin: ${peerId})`),
+					manifest.tools.map(
+						(t) => `  • ${t.name} (from origin: ${this.redactPeerId(peerId)})`,
+					),
 				)
 				.join("\n");
 
 			const statusText = [
 				`LIOP Mesh Status: ${meshState === "Active" ? "Active" : "Offline"}`,
 				`Local Agent Identity: ${localPeerId}`,
-				`Network: ${connections} Conns | ${routingTableSize} DHT Peers | ${bootstrapCount} Bootstraps`,
-				bootstrapCount > 0 ? `\nActive Bootstraps:\n${bootstrapList}\n` : "",
+				`Network: ${connections} Conns | ${routingTableSize} Mesh Nodes | ${bootstrapCount} Bootstraps`,
+				showBootstraps && bootstrapCount > 0
+					? `\nActive Bootstraps:\n${bootstrapList}\n`
+					: "",
 				`Discovery: ${stats.candidates} Candidates | ${stats.success} OK | ${stats.failures} FAIL`,
 				`Tooling: ${providerCount} Providers | ${cachedTools} Total Remote Tools`,
 				cachedTools > 0
@@ -1001,11 +1075,47 @@ export class LiopMcpRouter {
 				log.info(
 					`[LIOP-Router] Resolved ${toolName} via manifest cache (Peer: ${target.peerId}, Original: ${target.originalToolName})`,
 				);
+
+				// Proactive auth check: block locally if the remote node requires authentication
+				// and no token can be resolved — avoids unnecessary network calls to resolvePeer/gRPC
+				const manifestEntry = this.manifestCache.get(target.peerId);
+				let effectiveToken = token;
+				if (manifestEntry?.manifest.authRequired) {
+					const resolvedToken =
+						token || (await this.getOrAcquireMeshAgentToken(target.peerId));
+					if (!resolvedToken) {
+						const providerName =
+							manifestEntry.manifest.serverInfo?.name?.toLowerCase() ||
+							"unknown";
+						const slug = manifestEntry.manifest.tokenSlug;
+						const shortId = target.peerId.slice(-8).toUpperCase();
+						const primaryVar = slug
+							? `LIOP_TOKEN_${slug}`
+							: `LIOP_TOKEN_${providerName.toUpperCase().replace(/[^A-Z0-9_]/g, "_")}`;
+						return {
+							jsonrpc: "2.0",
+							id,
+							result: {
+								content: [
+									{
+										type: "text",
+										text: `Authentication Required: The restricted node (${providerName}) requires an access token. Please define the ${primaryVar} or LIOP_TOKEN_${shortId} environment variable on your agent/client host.`,
+									},
+								],
+								isError: true,
+							},
+						};
+					}
+					// Forward the resolved token instead of the original (potentially undefined) caller token
+					effectiveToken = resolvedToken;
+				}
+
 				return this.routeToRemoteProvider(
 					id,
 					target.originalToolName,
 					target.peerId,
 					params,
+					effectiveToken,
 				);
 			}
 
@@ -1018,7 +1128,13 @@ export class LiopMcpRouter {
 			}
 
 			if (providers.length > 0) {
-				return this.routeToRemoteProvider(id, toolName, providers[0], params);
+				return this.routeToRemoteProvider(
+					id,
+					toolName,
+					providers[0],
+					params,
+					token,
+				);
 			}
 		}
 
@@ -1074,6 +1190,7 @@ export class LiopMcpRouter {
 		peerId: string,
 		// biome-ignore lint/suspicious/noExplicitAny: MCP polymorphic
 		params: any,
+		token?: string,
 		// biome-ignore lint/suspicious/noExplicitAny: MCP polymorphic
 	): Promise<any> {
 		if (!this.meshNode)
@@ -1102,10 +1219,18 @@ export class LiopMcpRouter {
 			}
 		}
 
-		// Host-mode convenience (opt-in):
-		// Some Docker Desktop setups publish gRPC ports on the host as 13011/13021/13031.
-		// Inside Docker networks we must keep the manifest-advertised container port.
-		if (manifestEntry && process.env.LIOP_USE_PUBLISHED_GRPC_PORTS === "1") {
+		// Docker Demo convenience (opt-in):
+		// Docker Desktop setups publish gRPC ports on the host as 13011/13021/13031.
+		// Container-internal gRPC ports (50051) are unreachable from the host.
+		// Activated by any Docker-mapping flag: LIOP_DOCKER_MAP, LIOP_DEV_MODE,
+		// LIOP_USE_PUBLISHED_GRPC_PORTS, or NODE_ENV=development/test.
+		const shouldRemapGrpcPorts =
+			process.env.LIOP_USE_PUBLISHED_GRPC_PORTS === "1" ||
+			process.env.LIOP_DOCKER_MAP === "true" ||
+			process.env.LIOP_DEV_MODE === "true" ||
+			process.env.NODE_ENV === "development" ||
+			process.env.NODE_ENV === "test";
+		if (shouldRemapGrpcPorts && manifestEntry) {
 			const providerName =
 				manifestEntry.manifest.serverInfo?.name?.toLowerCase() || "";
 			if (providerName.includes("vault")) grpcPort = 13011;
@@ -1161,7 +1286,150 @@ export class LiopMcpRouter {
 			targetAddr,
 			createChannelCredentials(),
 		);
-		return this.performTranscoding(id, remoteClient, toolName, params, peerId);
+		return this.performTranscoding(
+			id,
+			remoteClient,
+			toolName,
+			params,
+			peerId,
+			token,
+		);
+	}
+
+	/** Cached M2M token for dynamic gateway-to-node routing */
+	private meshAgentToken?: string;
+
+	/**
+	 * Dynamically acquires an M2M access token from the Nexus Authorization Server.
+	 * If peerId is provided, checks if there are node-specific environment tokens
+	 * before falling back to the global static token or Nexus acquisition.
+	 */
+	private async getOrAcquireMeshAgentToken(
+		peerId?: string,
+	): Promise<string | undefined> {
+		if (peerId) {
+			const manifestEntry = this.manifestCache.get(peerId);
+			const providerName =
+				manifestEntry?.manifest.serverInfo?.name?.toLowerCase() || "";
+
+			let nodeToken: string | undefined;
+
+			// 0. Deterministic tokenSlug resolution (highest priority, zero heuristic)
+			const slug = manifestEntry?.manifest.tokenSlug;
+			if (slug) {
+				const envKey = `LIOP_TOKEN_${slug}`;
+				nodeToken =
+					process.env[envKey] || process.env[`LIOP_OAUTH_TOKEN_${slug}`];
+				log.info(
+					`[LIOP-Router] Step0 tokenSlug=${slug} envKey=${envKey} found=${!!nodeToken} peer=${peerId.slice(-8)}`,
+				);
+			} else {
+				log.info(
+					`[LIOP-Router] Step0 tokenSlug=MISSING (manifest has no tokenSlug) peer=${peerId.slice(-8)} provider=${providerName}`,
+				);
+			}
+
+			// 1. PeerID-specific resolution: LIOP_TOKEN_<last 8 chars of PeerID in uppercase>
+			if (!nodeToken) {
+				const shortId = peerId.slice(-8).toUpperCase();
+				nodeToken =
+					process.env[`LIOP_TOKEN_${shortId}`] ||
+					process.env[`LIOP_OAUTH_TOKEN_${shortId}`];
+			}
+
+			// 2. Provider-name resolution: LIOP_TOKEN_<CLEAN_PROVIDER_NAME_UPPERCASE>
+			if (!nodeToken && providerName) {
+				const cleanName = providerName
+					.toUpperCase()
+					.replace(/[^A-Z0-9_]/g, "_");
+				nodeToken =
+					process.env[`LIOP_TOKEN_${cleanName}`] ||
+					process.env[`LIOP_OAUTH_TOKEN_${cleanName}`];
+			}
+
+			if (nodeToken) {
+				log.info(
+					`[LIOP-Router] Resolved node-specific token for peer ${peerId.slice(-8)} (${providerName || "unknown"})`,
+				);
+				return nodeToken;
+			}
+		}
+
+		if (this.meshAgentToken) return this.meshAgentToken;
+
+		// Support static pre-generated Access Tokens from environment
+		const staticToken = process.env.LIOP_OAUTH_TOKEN || process.env.LIOP_TOKEN;
+		if (staticToken) {
+			this.meshAgentToken = staticToken;
+			return this.meshAgentToken;
+		}
+
+		const nexusUrl = process.env.LIOP_NEXUS_URL;
+		if (!nexusUrl) return undefined;
+
+		const clientId =
+			process.env.LIOP_OAUTH_CLIENT_ID ||
+			process.env.LIOP_CLIENT_ID ||
+			"liop-mesh-agent";
+		const clientSecret =
+			process.env.LIOP_OAUTH_CLIENT_SECRET ||
+			process.env.LIOP_CLIENT_SECRET ||
+			"dev-secret-change-me";
+		const audience =
+			process.env.LIOP_OAUTH_AUDIENCE ||
+			process.env.LIOP_AUDIENCE ||
+			"urn:liop:mesh:api";
+
+		try {
+			const baseUrl = nexusUrl.endsWith("/oidc")
+				? nexusUrl
+				: `${nexusUrl}/oidc`;
+			const tokenUrl = `${baseUrl}/token`;
+			log.info(
+				`[LIOP-Router] Proactively acquiring M2M token from Nexus: ${tokenUrl}`,
+			);
+
+			const params = new URLSearchParams({
+				grant_type: "client_credentials",
+				scope:
+					"liop:tools:call liop:tools:list liop:resources:read liop:schema:read liop:mesh:query",
+				resource: audience,
+				client_id: clientId,
+				client_secret: clientSecret,
+			});
+
+			const response = await fetch(tokenUrl, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/x-www-form-urlencoded",
+				},
+				body: params.toString(),
+			});
+
+			if (!response.ok) {
+				const text = await response.text();
+				log.warn(
+					`[LIOP-Router] M2M Token acquisition failed: ${response.status} ${text}`,
+				);
+				return undefined;
+			}
+
+			const data = (await response.json()) as { access_token: string };
+			if (data.access_token) {
+				this.meshAgentToken = data.access_token;
+				log.info(
+					"[LIOP-Router] M2M Token acquired successfully for router routing.",
+				);
+				return this.meshAgentToken;
+			}
+		} catch (err: unknown) {
+			log.warn(
+				`[LIOP-Router] Failed to acquire M2M token: ${
+					err instanceof Error ? err.message : String(err)
+				}`,
+			);
+		}
+		return undefined;
 	}
 
 	private async performTranscoding(
@@ -1173,6 +1441,7 @@ export class LiopMcpRouter {
 		// biome-ignore lint/suspicious/noExplicitAny: MCP polymorphic
 		params: any,
 		peerId?: string,
+		token?: string,
 		// biome-ignore lint/suspicious/noExplicitAny: MCP polymorphic
 	): Promise<any> {
 		const capabilityHash = toolName;
@@ -1182,13 +1451,52 @@ export class LiopMcpRouter {
 
 		const transcodingStartTime = Date.now();
 
+		// Auto-acquire self-identity M2M token if client did not supply one but a Nexus AS is configured
+		let activeToken = token;
+		if (!activeToken) {
+			activeToken = await this.getOrAcquireMeshAgentToken(peerId);
+		}
+
+		if (peerId) {
+			const manifestEntry = this.manifestCache.get(peerId);
+			if (manifestEntry?.manifest.authRequired && !activeToken) {
+				const providerName =
+					manifestEntry.manifest.serverInfo?.name?.toLowerCase() || "unknown";
+				const slug = manifestEntry.manifest.tokenSlug;
+				const shortId = peerId.slice(-8).toUpperCase();
+				const primaryVar = slug
+					? `LIOP_TOKEN_${slug}`
+					: `LIOP_TOKEN_${providerName.toUpperCase().replace(/[^A-Z0-9_]/g, "_")}`;
+
+				return {
+					jsonrpc: "2.0",
+					id,
+					result: {
+						content: [
+							{
+								type: "text",
+								text: `Authentication Required: The restricted node (${providerName}) requires an access token. Please define the ${primaryVar} or LIOP_TOKEN_${shortId} environment variable on your agent/client host.`,
+							},
+						],
+						isError: true,
+					},
+				};
+			}
+		}
+
 		return new Promise((resolve) => {
+			const metadata = new grpc.Metadata();
+			if (activeToken) {
+				metadata.add("authorization", `Bearer ${activeToken}`);
+			}
+
 			client.negotiateIntent(
 				{
 					agent_did: `did:liop:${this.meshNode?.getPeerId() || "mcp-proxy"}`,
 					capability_hash: capabilityHash,
 					proof_of_intent: proofOfIntent,
 				},
+				metadata,
 				async (err: Error | null, response: IntentResponse) => {
 					if (err || !response.accepted) {
 						return resolve({
@@ -1222,13 +1530,21 @@ export class LiopMcpRouter {
 						nonce,
 					);
 
-					const call = client.executeLogic({
-						session_token: response.session_token,
-						wasm_binary: new Uint8Array(sealedLogic),
-						inputs: {},
-						pqc_ciphertext: ciphertext,
-						aes_nonce: nonce,
-					});
+					const metadataCall = new grpc.Metadata();
+					if (activeToken) {
+						metadataCall.add("authorization", `Bearer ${activeToken}`);
+					}
+
+					const call = client.executeLogic(
+						{
+							session_token: response.session_token,
+							wasm_binary: new Uint8Array(sealedLogic),
+							inputs: {},
+							pqc_ciphertext: ciphertext,
+							aes_nonce: nonce,
+						},
+						metadataCall,
+					);
 
 					let resultBody = "";
 					let lastResponse: LogicResponse | null = null;
@@ -1239,26 +1555,35 @@ export class LiopMcpRouter {
 					call.on("end", async () => {
 						try {
 							if (lastResponse) {
-								const isValid = await this.verifier.verifyZkReceipt(
-									Buffer.from(proxyLogic),
-									Buffer.from(lastResponse.cryptographic_proof).toString("hex"),
-									Buffer.from(lastResponse.zk_receipt),
-								);
+								// Only verify ZK-Receipt if the remote execution succeeded.
+								// If the remote execution failed due to a policy error (e.g. Egress Shield),
+								// the ZK proof is empty and we should bypass validation to propagate the original error.
+								if (!lastResponse.is_error) {
+									const proofHex = Buffer.from(
+										lastResponse.cryptographic_proof,
+									).toString("hex");
+									const isValid = await this.verifier.verifyZkReceipt(
+										Buffer.from(proxyLogic),
+										proofHex,
+										Buffer.from(lastResponse.zk_receipt),
+										Buffer.from(sharedSecret),
+									);
 
-								if (!isValid) {
-									return resolve({
-										jsonrpc: "2.0",
-										id,
-										result: {
-											content: [
-												{
-													type: "text",
-													text: "SECURITY ALERT: Remote response failed cryptographic integrity audit.",
-												},
-											],
-											isError: true,
-										},
-									});
+									if (!isValid) {
+										return resolve({
+											jsonrpc: "2.0",
+											id,
+											result: {
+												content: [
+													{
+														type: "text",
+														text: "SECURITY ALERT: Remote response failed cryptographic integrity audit.",
+													},
+												],
+												isError: true,
+											},
+										});
+									}
 								}
 							}
 

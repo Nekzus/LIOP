@@ -104,3 +104,9 @@ export interface McpResponse {
 		data?: unknown;
 	};
 }
+
+/**
+ * Re-export AuthInfo from the security module for convenience.
+ * Compatible with MCP TypeScript SDK AuthInfo interface shape.
+ */
+export type { AuthInfo } from "./security/jwt-validator.js";

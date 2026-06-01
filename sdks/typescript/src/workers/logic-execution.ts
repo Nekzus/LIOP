@@ -7,17 +7,24 @@ import {
 } from "../crypto/logic-image-id.js";
 import { ASTGuardian } from "../sandbox/guardian.js";
 import { WasiSandbox } from "../sandbox/wasi.js";
+import { applyDpToOutput } from "../security/dp-engine.js";
 
 export interface WorkerData {
-	ciphertext: Uint8Array;
-	secretKeyObj: ArrayLike<number>;
-	kyberPublicKey: Uint8Array;
-	wasmBinary: Uint8Array; // Can also be JS code in non-encrypted mode
-	inputs: Record<string, Uint8Array>;
+	isWarmup?: boolean;
+	ciphertext?: Uint8Array;
+	secretKeyObj?: ArrayLike<number>;
+	kyberPublicKey?: Uint8Array;
+	wasmBinary?: Uint8Array; // Can also be JS code in non-encrypted mode
+	inputs?: Record<string, Uint8Array>;
 	records?: Record<string, unknown>[];
-	sessionToken: string;
+	sessionToken?: string;
 	isEncrypted?: boolean;
 	aesNonce?: Uint8Array;
+	dpConfig?: {
+		epsilon: number;
+		sensitivity: number;
+		smallDatasetThreshold: number;
+	};
 }
 
 export default async function processLogicExecution(data: WorkerData): Promise<{
@@ -26,6 +33,31 @@ export default async function processLogicExecution(data: WorkerData): Promise<{
 	fuel_consumed: number;
 	zk_receipt?: string;
 }> {
+	// Freeze Host prototypes in the Worker thread proactively to completely lock down the Isolate environment
+	if (
+		typeof Object.prototype === "object" &&
+		!Object.isFrozen(Object.prototype)
+	) {
+		Object.freeze(Object.prototype);
+		Object.freeze(Array.prototype);
+		Object.freeze(String.prototype);
+		Object.freeze(Number.prototype);
+		Object.freeze(Boolean.prototype);
+		Object.freeze(RegExp.prototype);
+		Object.freeze(Map.prototype);
+		Object.freeze(Set.prototype);
+		Object.freeze(Promise.prototype);
+		Object.freeze(Error.prototype);
+	}
+
+	if (data.isWarmup) {
+		return {
+			image_id: "",
+			output: "warm",
+			fuel_consumed: 0,
+		};
+	}
+
 	const {
 		ciphertext,
 		secretKeyObj,
@@ -34,7 +66,8 @@ export default async function processLogicExecution(data: WorkerData): Promise<{
 		aesNonce,
 		records,
 		isEncrypted = true,
-	} = data;
+		dpConfig,
+	} = data as Required<WorkerData>;
 
 	let decryptedPayload: Buffer | string;
 	const decryptedInputs: Record<string, unknown> = {};
@@ -68,13 +101,15 @@ export default async function processLogicExecution(data: WorkerData): Promise<{
 		// 3. Decrypt Inputs
 		for (const [key, encValue] of Object.entries(inputs || {})) {
 			const valBuffer = Buffer.from(encValue);
+			// Extract 12-byte prepended nonce, ciphertext, and 16-byte AuthTag
+			const inputNonce = valBuffer.subarray(0, 12);
 			const valTag = valBuffer.subarray(-16);
-			const valData = valBuffer.subarray(0, -16);
+			const valData = valBuffer.subarray(12, -16);
 
 			const valDecipher = crypto.createDecipheriv(
 				"aes-256-gcm",
 				aesKey,
-				Buffer.from(aesNonce || new Uint8Array(12)),
+				inputNonce,
 			);
 			valDecipher.setAuthTag(valTag);
 			let valDecrypted = valDecipher.update(valData);
@@ -128,7 +163,9 @@ export default async function processLogicExecution(data: WorkerData): Promise<{
 			decryptedInputs,
 		);
 
-		// 5. Generate Cryptographic Proof of Execution (HMAC-SHA256 Commitment)
+		let finalOutput = result.output;
+
+		// Pre-compute Image ID and Dataset Hash for Audit Trail & DP Seeding
 		let logicBytes: Uint8Array;
 		if (typeof decryptedPayload === "string") {
 			logicBytes = Buffer.from(decryptedPayload, "utf-8");
@@ -137,15 +174,40 @@ export default async function processLogicExecution(data: WorkerData): Promise<{
 		}
 		const imageId = deriveLogicImageDigest(logicBytes).toString("hex");
 
+		// Phase 110: Include dataset_hash for SOX audit trail compliance.
+		// This SHA-256 anchor proves the underlying dataset was identical
+		// across consecutive queries, separating DP noise from data mutation.
+		const datasetHash = crypto
+			.createHash("sha256")
+			.update(JSON.stringify(records || []))
+			.digest("hex");
+
+		// Apply Differential Privacy before committing to the ZK-Receipt
+		if (dpConfig) {
+			finalOutput = applyDpToOutput(
+				finalOutput,
+				{
+					...dpConfig,
+					seed: `${datasetHash}:${imageId}`,
+				},
+				records?.length || 0,
+			);
+		}
+
+		// 5. Generate Cryptographic Proof of Execution (HMAC-SHA256 Commitment)
+
 		const journal = Buffer.from(
 			JSON.stringify({
 				image_id: imageId,
+				dataset_hash: datasetHash,
 				output_hash: crypto
 					.createHash("sha256")
 					.update(
-						typeof result.output === "string"
-							? result.output
-							: JSON.stringify(result.output),
+						typeof finalOutput === "string"
+							? finalOutput
+							: finalOutput === undefined
+								? "undefined"
+								: JSON.stringify(finalOutput),
 					)
 					.digest("hex"),
 				fuel: result.fuelConsumed,
@@ -170,7 +232,7 @@ export default async function processLogicExecution(data: WorkerData): Promise<{
 		return {
 			image_id: imageId,
 			zk_receipt: zkReceipt,
-			output: result.output,
+			output: finalOutput,
 			fuel_consumed: result.fuelConsumed,
 		};
 	} finally {

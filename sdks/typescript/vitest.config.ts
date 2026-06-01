@@ -1,12 +1,14 @@
+/// <reference types="vitest" />
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
+    maxWorkers: process.env.CI ? 1 : undefined,
     exclude: [
-      "**/node_modules/**", 
-      "**/dist/**", 
-      "**/tests/crossnet/**", 
-      "**/.{idea,git,cache,output,temp}/**"
+      "**/node_modules/**",
+      "**/dist/**",
+      "**/tests/crossnet/**",
+      "**/.{idea,git,cache,output,temp}/**",
     ],
     coverage: {
       provider: "v8",
@@ -22,4 +24,3 @@ export default defineConfig({
     },
   },
 });
-

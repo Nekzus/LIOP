@@ -1,3 +1,4 @@
+import * as fs from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -38,12 +39,28 @@ export class LiopVerifier {
 				}
 			}
 
+			// Support both flat dist/ and original src/ structure
+			const workerPaths = [
+				path.resolve(__dirname, `./workers/zk-verifier${workerExt}`), // Flat dist/ (tsup)
+				path.resolve(__dirname, `../workers/zk-verifier${workerExt}`), // Original src/
+			];
+
+			const workerFilename =
+				workerPaths.find((p) => fs.existsSync(p)) || workerPaths[1];
+
 			LiopVerifier.zkWorkerPool = new Piscina({
-				filename: path.resolve(__dirname, `../workers/zk-verifier${workerExt}`),
+				filename: workerFilename,
 				minThreads: 1,
 				maxThreads: 2, // Minimal footprint since verification is fast compared to generation
 				idleTimeout: 30000,
 				execArgv,
+			});
+
+			// Pre-warm the verification worker
+			LiopVerifier.zkWorkerPool.run({ action: "warmup" }).catch((err) => {
+				log.debug(
+					`[LiopVerifier] Verification pool warm-up ping failed: ${err.message}`,
+				);
 			});
 		}
 		return LiopVerifier.zkWorkerPool;
@@ -60,6 +77,7 @@ export class LiopVerifier {
 		logicPayload: Buffer,
 		remoteImageIdHex: string,
 		zkReceipt: Buffer,
+		sessionSecret?: Buffer,
 	): Promise<boolean> {
 		const pool = this.getZkPool();
 		if (!pool) throw new Error("Worker pool initialization failed");
@@ -68,6 +86,7 @@ export class LiopVerifier {
 			logicPayload: new Uint8Array(logicPayload),
 			remoteImageIdHex,
 			zkReceipt: new Uint8Array(zkReceipt),
+			sessionSecret: sessionSecret ? new Uint8Array(sessionSecret) : undefined,
 		});
 
 		if (result.verified) {

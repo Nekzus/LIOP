@@ -22,6 +22,44 @@ process.emit = (name, data, ...args) => {
 	return originalEmit.call(process, name, data, ...args);
 };
 
+/**
+ * Returns a filtered environment object containing only safe system variables,
+ * preventing exposure of sensitive credentials and shell function injection.
+ */
+export function getDefaultEnvironment(): Record<string, string> {
+	const isWindows = process.platform === "win32";
+	const safeKeys = isWindows
+		? [
+				"APPDATA",
+				"HOMEDRIVE",
+				"HOMEPATH",
+				"LOCALAPPDATA",
+				"PATH",
+				"PROCESSOR_ARCHITECTURE",
+				"SYSTEMDRIVE",
+				"SYSTEMROOT",
+				"TEMP",
+				"USERNAME",
+				"USERPROFILE",
+				"PROGRAMFILES",
+			]
+		: ["HOME", "LOGNAME", "PATH", "SHELL", "TERM", "USER"];
+
+	const env: Record<string, string> = {
+		NODE_ENV: "production",
+		LIOP_NODE: "true",
+	};
+
+	for (const key of safeKeys) {
+		const val = process.env[key];
+		if (val !== undefined && !val.startsWith("()")) {
+			env[key] = val;
+		}
+	}
+
+	return env;
+}
+
 export interface SandboxConfig {
 	allowEnv?: boolean;
 	allowedDirectories?: Record<string, string>; // guestPath -> hostPath
@@ -76,7 +114,7 @@ export class WasiSandbox {
 				version: "preview1",
 				args: ["liop_runtime"],
 				env: this.config.allowEnv
-					? process.env
+					? { ...getDefaultEnvironment(), RUNTIME_ID: this.sandboxId }
 					: {
 							NODE_ENV: "production",
 							LIOP_NODE: "true",
@@ -160,13 +198,47 @@ export class WasiSandbox {
 			sandboxEnv.eval = undefined;
 			sandboxEnv.Function = undefined;
 			sandboxEnv.SharedArrayBuffer = undefined;
+			sandboxEnv.Date = undefined;
+
+			// [DoS Defense] Block off-heap memory allocation vectors.
+			// Logic-on-Origin operates on JSON data (env.records) — binary buffers
+			// serve no legitimate purpose and enable memory exhaustion DoS.
+			// (Uint8Array(2GB) bypassed Piscina's maxOldGenerationSizeMb limit)
+			sandboxEnv.ArrayBuffer = undefined;
+			sandboxEnv.Uint8Array = undefined;
+			sandboxEnv.Int8Array = undefined;
+			sandboxEnv.Uint16Array = undefined;
+			sandboxEnv.Int16Array = undefined;
+			sandboxEnv.Uint32Array = undefined;
+			sandboxEnv.Int32Array = undefined;
+			sandboxEnv.Float32Array = undefined;
+			sandboxEnv.Float64Array = undefined;
+			sandboxEnv.BigInt64Array = undefined;
+			sandboxEnv.BigUint64Array = undefined;
+			sandboxEnv.DataView = undefined;
+
+			// Recurse and strip prototype chain from host-passed objects to prevent escaping via constructor
+			// biome-ignore lint/suspicious/noExplicitAny: Required for recursive null prototype mapping
+			const toNullPrototype = (obj: any): any => {
+				if (!obj || typeof obj !== "object") {
+					return obj;
+				}
+				if (Array.isArray(obj)) {
+					return obj.map(toNullPrototype);
+				}
+				const clone = Object.create(null);
+				for (const [key, val] of Object.entries(obj)) {
+					clone[key] = toNullPrototype(val);
+				}
+				return clone;
+			};
 
 			// Inject strictly monitored globals
-			sandboxEnv.records = JSON.parse(JSON.stringify(records)); // Deep copy safety
-			sandboxEnv.env = JSON.parse(JSON.stringify(env));
+			sandboxEnv.records = toNullPrototype(JSON.parse(JSON.stringify(records))); // Deep copy safety + null prototype
+			sandboxEnv.env = toNullPrototype(JSON.parse(JSON.stringify(env)));
 
 			for (const [key, value] of Object.entries(inputs)) {
-				sandboxEnv[key] = JSON.parse(JSON.stringify(value));
+				sandboxEnv[key] = toNullPrototype(JSON.parse(JSON.stringify(value)));
 			}
 
 			// Freeze the sandbox context to prevent mutation (SEC-GAP-1)
@@ -206,7 +278,21 @@ export class WasiSandbox {
 
 			const scriptCode = `
 				(function() {
+					"use strict";
 					try {
+						// Pre-execution prototype freezing (PCI-DSS Compliance)
+						Object.freeze(Object.prototype);
+						Object.freeze(Array.prototype);
+						Object.freeze(String.prototype);
+						Object.freeze(Number.prototype);
+						Object.freeze(Boolean.prototype);
+						Object.freeze(RegExp.prototype);
+						Object.freeze(Map.prototype);
+						Object.freeze(Set.prototype);
+						Object.freeze(Promise.prototype);
+						Object.freeze(Error.prototype);
+						Object.freeze(Object.getPrototypeOf(function(){}));
+
 						${processedLogic}
 						if (typeof liop_main === 'function') {
 							return liop_main(env);
@@ -223,9 +309,31 @@ export class WasiSandbox {
 					filename: `liop-sandbox-${this.sandboxId.slice(0, 8)}.js`,
 				});
 
+				// Freeze Host prototypes in production (non-test environments) to completely block Prototype Pollution
+				if (
+					!process.env.VITEST &&
+					typeof Object.prototype === "object" &&
+					!Object.isFrozen(Object.prototype)
+				) {
+					Object.freeze(Object.prototype);
+					Object.freeze(Array.prototype);
+					Object.freeze(String.prototype);
+					Object.freeze(Number.prototype);
+					Object.freeze(Boolean.prototype);
+					Object.freeze(RegExp.prototype);
+					Object.freeze(Map.prototype);
+					Object.freeze(Set.prototype);
+					Object.freeze(Promise.prototype);
+					Object.freeze(Error.prototype);
+				}
+
+				// microtaskMode: Ensures Promises created inside the sandbox are
+				// resolved within the timeout/breakOnSigint scope (Node.js ≥14.6).
+				// Without this, async microtasks could escape the 5s CPU limit.
 				const context = vm.createContext(sandboxEnv, {
 					name: "LIOP Isolate",
 					origin: "liop://sandbox",
+					microtaskMode: "afterEvaluate",
 				});
 
 				// Execution with hard CPU and Memory limits (Fuel)
@@ -236,7 +344,9 @@ export class WasiSandbox {
 				});
 
 				const duration = performance.now() - startTime;
-				const fuelUsed = Math.floor(duration * 1500 + 100);
+				// SEC: Normalize fuel to buckets of 100 to prevent timing side-channel inference
+				const rawFuel = Math.floor(duration * 1500 + 100);
+				const fuelUsed = Math.ceil(rawFuel / 100) * 100;
 
 				if (fuelUsed > 1000000) {
 					throw new Error(

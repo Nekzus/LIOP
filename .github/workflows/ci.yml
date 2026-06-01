@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - alpha
+      - beta
       - 'feat/*'
   pull_request:
     branches:
@@ -22,15 +23,15 @@ jobs:
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 1
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 24.x
           cache: 'pnpm'
@@ -55,15 +56,15 @@ jobs:
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 1
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
 
       - name: Setup Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node-version }}
           cache: 'pnpm'
@@ -78,12 +79,39 @@ jobs:
       - name: Run Tests
         run: pnpm run test
 
+  security:
+    name: Dependency Security Audit
+    runs-on: ubuntu-latest
+    needs: lint
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24.x
+          cache: 'pnpm'
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Audit Dependencies (High+ Severity)
+        run: pnpm audit --audit-level=high
+
   publish:
     name: Publish to NPM
-    needs: [lint, test]
+    needs: [lint, test, security]
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/alpha' || startsWith(github.ref, 'refs/heads/feat/'))
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/alpha' || github.ref == 'refs/heads/beta' || startsWith(github.ref, 'refs/heads/feat/'))
     permissions:
       contents: write
       issues: write
@@ -92,15 +120,19 @@ jobs:
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
+          ref: ${{ github.ref_name }}
           fetch-depth: 0
 
+      - name: Fetch Git Notes
+        run: git fetch origin +refs/notes/semantic-release:refs/notes/semantic-release || true
+
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 24
           cache: 'pnpm'
@@ -113,7 +145,15 @@ jobs:
         run: pnpm --filter @nekzus/liop build
 
       - name: Semantic Release
+        if: github.ref_name == 'alpha' || github.ref_name == 'beta' || github.ref_name == 'main'
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npx semantic-release
+
+      - name: Publish Package to NPM (OIDC Trusted Publishing)
+        run: |
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            pnpm --filter @nekzus/liop publish --no-git-checks --provenance
+          else
+            pnpm --filter @nekzus/liop publish --no-git-checks --provenance --tag ${{ github.ref_name }}
+          fi

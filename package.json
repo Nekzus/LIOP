@@ -1,6 +1,6 @@
 {
   "name": "liop",
-  "version": "1.0.0-alpha.2",
+  "version": "1.4.0-alpha.0",
   "private": true,
   "description": "Logic-Injection-on-Origin Protocol (LIOP) - Official High-Performance WebAssembly Logic-on-Origin Execution Sandbox",
   "author": "Nekzus",
@@ -45,5 +45,5 @@
   "engines": {
     "node": ">=20.0"
   },
-  "packageManager": "pnpm@10.33.0"
+  "packageManager": "pnpm@11.4.0"
 }

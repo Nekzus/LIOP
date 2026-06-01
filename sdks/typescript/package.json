@@ -1,12 +1,13 @@
 {
   "name": "@nekzus/liop",
-  "version": "1.2.0",
+  "version": "2.0.0-beta.7",
   "description": "Official SDK for Logic-Injection-on-Origin Protocol (LIOP). Deploy Logic-on-Origin with WebAssembly at gRPC speed and bidirectional MCP compatibility.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "liop-agent": "./dist/bin/agent.js"
+    "liop": "./dist/bin/agent.js"
   },
+  "sideEffects": false,
   "files": [
     "dist",
     "README.md",
@@ -15,35 +16,35 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
+      "import": "./dist/index.js"
     },
     "./client": {
-      "types": "./dist/client/index.d.ts",
-      "default": "./dist/client/index.js"
+      "types": "./dist/client.d.ts",
+      "import": "./dist/client.js"
     },
     "./server": {
-      "types": "./dist/server/index.d.ts",
-      "default": "./dist/server/index.js"
+      "types": "./dist/server.d.ts",
+      "import": "./dist/server.js"
     },
     "./types": {
       "types": "./dist/types.d.ts",
-      "default": "./dist/types.js"
+      "import": "./dist/types.js"
     },
     "./bridge": {
-      "types": "./dist/bridge/index.d.ts",
-      "default": "./dist/bridge/index.js"
+      "types": "./dist/bridge.d.ts",
+      "import": "./dist/bridge.js"
     },
     "./gateway": {
-      "types": "./dist/gateway/hybrid.d.ts",
-      "default": "./dist/gateway/hybrid.js"
+      "types": "./dist/gateway.d.ts",
+      "import": "./dist/gateway.js"
     },
     "./mesh": {
-      "types": "./dist/mesh/index.d.ts",
-      "default": "./dist/mesh/index.js"
+      "types": "./dist/mesh.d.ts",
+      "import": "./dist/mesh.js"
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json && npx tsx scripts/copy-protos.ts",
+    "build": "tsup && npx tsx scripts/copy-protos.ts",
     "test": "vitest run --fileParallelism=false",
     "test:all": "vitest run --fileParallelism=false",
     "test:integration": "vitest run tests/integration --fileParallelism=false",
@@ -104,12 +105,19 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.4",
+    "@opentelemetry/api": "^1.9.1",
     "@opentelemetry/sdk-metrics": "^2.7.0",
     "@types/node": "^25.3.1",
+    "@types/oidc-provider": "^9.5.0",
     "@vitest/coverage-v8": "^4.0.18",
+    "acorn": "^8.16.0",
+    "acorn-walk": "^8.3.5",
+    "tsup": "^8.5.1",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.18"
+    "vitest": "^4.0.18",
+    "zod": "^3.23.11",
+    "zod-to-json-schema": "^3.24.1"
   },
   "dependencies": {
     "@chainsafe/libp2p-noise": "^17.0.0",
@@ -117,31 +125,45 @@
     "@grpc/grpc-js": "^1.14.3",
     "@grpc/proto-loader": "^0.8.0",
     "@hono/node-server": "^1.19.11",
-    "@libp2p/bootstrap": "^10.0.15",
-    "@libp2p/crypto": "^5.1.14",
-    "@libp2p/identify": "^4.0.14",
-    "@libp2p/kad-dht": "^16.1.7",
-    "@libp2p/mplex": "^12.0.11",
-    "@libp2p/noise": "^1.0.1",
-    "@libp2p/peer-id": "^4.0.10",
-    "@libp2p/peer-id-factory": "^4.0.10",
-    "@libp2p/ping": "^3.0.12",
-    "@libp2p/tcp": "^11.0.14",
-    "@libp2p/websockets": "^10.1.7",
-    "@modelcontextprotocol/sdk": "^1.28.0",
+    "@libp2p/bootstrap": "^12.0.22",
+    "@libp2p/crypto": "^5.1.18",
+    "@libp2p/identify": "^4.1.6",
+    "@libp2p/kad-dht": "^16.3.0",
+    "@libp2p/peer-id": "^6.0.9",
+    "@libp2p/ping": "^3.1.5",
+    "@libp2p/tcp": "^11.0.20",
+    "@libp2p/websockets": "^10.1.13",
     "@multiformats/multiaddr": "^13.0.1",
-    "@opentelemetry/api": "^1.9.1",
-    "gpt-tokenizer": "^3.4.0",
     "hono": "^4.12.5",
     "it-pipe": "^3.0.1",
-    "libp2p": "^3.1.3",
+    "jose": "^6.2.3",
+    "libp2p": "^3.3.1",
     "mlkem": "^2.7.0",
     "multiformats": "^13.4.2",
-    "p-event": "^7.1.0",
+    "oidc-provider": "^9.8.3",
     "piscina": "^5.1.4",
-    "uint8arraylist": "^2.4.8",
-    "uint8arrays": "^3.1.1",
-    "zod": "^3.23.11",
-    "zod-to-json-schema": "^3.24.1"
+    "uint8arrays": "^3.1.1"
+  },
+  "optionalDependencies": {
+    "@modelcontextprotocol/sdk": "^1.28.0",
+    "compromise": "14.15.0",
+    "gpt-tokenizer": "^3.4.0"
+  },
+  "peerDependencies": {
+    "@modelcontextprotocol/sdk": "^1.28.0",
+    "@opentelemetry/api": "^1.9.1"
+  },
+  "peerDependenciesMeta": {
+    "@modelcontextprotocol/sdk": {
+      "optional": true
+    },
+    "@opentelemetry/api": {
+      "optional": true
+    }
+  },
+  "overrides": {
+    "content-type": "1.0.5",
+    "protobufjs": "^7.5.8",
+    "type-is": "2.0.1"
   }
 }

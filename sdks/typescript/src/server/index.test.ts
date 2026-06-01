@@ -111,11 +111,14 @@ describe("LiopServer", () => {
 		);
 
 		const resources = server.listResources();
-		// 2 resources: auto-registered envelope-spec + user dataDictionary
-		expect(resources.length).toBe(2);
+		// 3 resources: auto-registered envelope-spec + guidelines + user dataDictionary
+		expect(resources.length).toBe(3);
 		expect(
 			resources.some((r) => r.uri === "liop://protocol/envelope-spec"),
 		).toBe(true);
+		expect(resources.some((r) => r.uri === "liop://schema/guidelines")).toBe(
+			true,
+		);
 		expect(resources.some((r) => r.uri === "liop://schema/app")).toBe(true);
 
 		const content = await server.readResource("liop://schema/app");
@@ -244,5 +247,154 @@ describe("LiopServer", () => {
 
 		expect(throttledRes.isError).toBe(true);
 		expect(throttledRes.content[0].text).toContain("LIOP_THROTTLED");
+	});
+
+	it("should rate limit tool calls exceeding max per window", async () => {
+		const server = new LiopServer({ name: "test", version: "1" });
+		server.tool("echo", "Echo", { msg: z.string() }, async ({ msg }) => ({
+			content: [{ type: "text", text: msg }],
+		}));
+
+		// Fire 15 calls (the new default max)
+		for (let i = 0; i < 15; i++) {
+			const r = await server.callTool({
+				name: "echo",
+				arguments: { msg: `call-${i}` },
+			});
+			expect(r.isError).toBeFalsy();
+		}
+
+		// The 16th call should be rate limited with retry-after
+		const blocked = await server.callTool({
+			name: "echo",
+			arguments: { msg: "overflow" },
+		});
+		expect(blocked.isError).toBe(true);
+		expect(blocked.content[0].text).toContain("LIOP_RATE_LIMITED");
+		expect(blocked.content[0].text).toContain("Retry after");
+	});
+
+	it("should respect custom rate limit from server options", async () => {
+		const server = new LiopServer(
+			{ name: "test", version: "1" },
+			{ security: { rateLimit: { maxPerWindow: 3, windowMs: 60000 } } },
+		);
+		server.tool("echo", "Echo", { msg: z.string() }, async ({ msg }) => ({
+			content: [{ type: "text", text: msg }],
+		}));
+
+		for (let i = 0; i < 3; i++) {
+			const r = await server.callTool({
+				name: "echo",
+				arguments: { msg: `call-${i}` },
+			});
+			expect(r.isError).toBeFalsy();
+		}
+
+		const blocked = await server.callTool({
+			name: "echo",
+			arguments: { msg: "overflow" },
+		});
+		expect(blocked.isError).toBe(true);
+		expect(blocked.content[0].text).toContain("LIOP_RATE_LIMITED");
+	});
+
+	it("should rate limit per-tool independently", async () => {
+		const server = new LiopServer(
+			{ name: "test", version: "1" },
+			{ security: { rateLimit: { maxPerWindow: 2, windowMs: 60000 } } },
+		);
+		server.tool("toolA", "A", { msg: z.string() }, async ({ msg }) => ({
+			content: [{ type: "text", text: msg }],
+		}));
+		server.tool("toolB", "B", { msg: z.string() }, async ({ msg }) => ({
+			content: [{ type: "text", text: msg }],
+		}));
+
+		// Exhaust toolA limit
+		await server.callTool({ name: "toolA", arguments: { msg: "1" } });
+		await server.callTool({ name: "toolA", arguments: { msg: "2" } });
+
+		// toolA should be blocked
+		const blockedA = await server.callTool({
+			name: "toolA",
+			arguments: { msg: "3" },
+		});
+		expect(blockedA.isError).toBe(true);
+
+		// toolB should still work independently
+		const okB = await server.callTool({
+			name: "toolB",
+			arguments: { msg: "1" },
+		});
+		expect(okB.isError).toBeFalsy();
+	});
+	it("should terminate workers exceeding memory limits (heap bomb defense)", async () => {
+		const server = new LiopServer(
+			{ name: "test", version: "1" },
+			{ workerPool: { maxHeapMb: 32 } },
+		);
+		server.tool(
+			"exec",
+			"Exec",
+			{ payload: z.string() },
+			async () => ({ content: [] }),
+			{ enforceAggregationFirst: true },
+		);
+		server.setSandboxData([{ id: 1 }]);
+
+		const result = await server.callTool({
+			name: "exec",
+			arguments: {
+				payload: `@LIOP{wasi_v1,HeapBomb}
+const a = [];
+for (let i = 0; i < 5000000; i++) {
+    a.push(i.toString() + 'X'.repeat(1000) + i.toString());
+}
+return { size: a.length };
+@END`,
+			},
+		});
+
+		expect(result.isError).toBe(true);
+		expect(result.content[0].text).toMatch(/memory|heap|Worker|resource/i);
+	});
+
+	it("should enforce global cross-tool rate limit", async () => {
+		const server = new LiopServer(
+			{ name: "test", version: "1" },
+			{
+				security: {
+					rateLimit: {
+						maxPerWindow: 100,
+						globalMaxPerWindow: 5,
+						windowMs: 60000,
+					},
+				},
+			},
+		);
+		server.tool("toolA", "A", { msg: z.string() }, async ({ msg }) => ({
+			content: [{ type: "text", text: msg }],
+		}));
+		server.tool("toolB", "B", { msg: z.string() }, async ({ msg }) => ({
+			content: [{ type: "text", text: msg }],
+		}));
+
+		// Distribute calls across tools to stay under per-tool limit
+		for (let i = 0; i < 3; i++) {
+			await server.callTool({ name: "toolA", arguments: { msg: `${i}` } });
+		}
+		for (let i = 0; i < 2; i++) {
+			await server.callTool({ name: "toolB", arguments: { msg: `${i}` } });
+		}
+
+		// 6th call should hit global limit
+		const blocked = await server.callTool({
+			name: "toolA",
+			arguments: { msg: "overflow" },
+		});
+		expect(blocked.isError).toBe(true);
+		expect(blocked.content[0].text).toContain("LIOP_RATE_LIMITED");
+		expect(blocked.content[0].text).toContain("Global");
 	});
 });

@@ -41,7 +41,7 @@ pnpm run hifi:agent --scenario=fuel-exhaustion
 - **Simulated Kyber ML-KEM-768 & AES-256-GCM Handshakes.**
 - **Guardian AST:** Deep packet / Logic inspection pre-compilation.
 - **Wasmtime WASI Fuel Management:** Strict instruction limit encapsulation.
-- **Simulated Hardware ZK-SNARK Proving.** 
+- **ZK-Receipt Integrity (HMAC-SHA256).** 
 
 ## Repository Architecture Highlight
 By executing `agent.ts` you will see how it completely encapsulates the intended remote operations by seamlessly sending a compiled manifest into the isolated context of `server-node.ts`.

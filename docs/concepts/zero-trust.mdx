@@ -17,9 +17,9 @@ Instead of relying on centralized Certificate Authorities (like TLS/HTTPS), LIOP
 - **Mutual Authentication**: Connections in the Kademlia Mesh are mutually authenticated instantly. You know symmetrically who is invoking you, and they know who is answering.
 - **Post-Quantum Cryptography (PQC)**: Elicitation Handshakes utilize **Kyber (ML-KEM-768)** to derive the symmetric key for the **AES-256-GCM** payload encapsulation, shielding all AI logic transmission from "Harvest Now, Decrypt Later" quantum supercomputer attacks.
 
-## 2. Payload Inspection (Zero-Time Guardian)
+## 2. Payload Inspection (Zero-Time Guardian & Taint Analyzer)
 
-Before the Data Node even allows `wasmtime` to boot the `.wasm` file, it undergoes static mathematical analysis.
+Before the Data Node even allows execution of the injected code, it undergoes static Abstract Syntax Tree (AST) analysis at both binary and script levels.
 
 <Frame>
   <img className="block dark:hidden w-full" src="/images/zero-trust-ast-light.svg" alt="Guardian AST Inspection" />
@@ -28,7 +28,15 @@ Before the Data Node even allows `wasmtime` to boot the `.wasm` file, it undergo
 
 The **Guardian Module** inspects the WebAssembly Abstract Syntax Tree (AST). Since WebAssembly is strongly typed and mathematically verifiable without execution, the LIOP Server validates that the binary contains no malformed instructions, infinite recursive branching, or unexpected system hook imports.
 
-This effectively neutralizes entire classes of evasive malware in *zero-time* before execution begins.
+For interpreted scripts (such as JavaScript payloads), the **Taint Analyzer** executes a static **Information Flow Control (IFC)** check. This tracker inspects the AST to ensure PII variables do not leak into scalar outputs.
+
+**Generator & Iterator Evasion Protection**:
+To prevent sophisticated bypass attempts that use generators or iterators (`function*` / `yield`) to extract records without triggering standard property checks, the Taint Analyzer performs deep static traversal of function scopes:
+- **`YieldExpression` Tracking**: The engine recursively evaluates yield arguments, ensuring PII-derived values are flagged even when encapsulated in generator yields.
+- **Function/Generator Scope Tainting**: Local functions (`FunctionDeclaration`, `FunctionExpression`, `ArrowFunctionExpression`) that return or yield tainted fields are marked as *tainted*.
+- **Iterator Method Chains**: When a tainted function is invoked (`gen()`), its resulting iterator and subsequent operations (like `.next().value`) are flagged, transferring the taint dynamically through the expression tree and neutralizing generator-based exfiltration.
+
+This effectively neutralizes entire classes of evasive logic and malware in *zero-time* before execution begins.
 
 ## 3. Anti-Exfiltration (Egress Filter)
 
@@ -38,6 +46,15 @@ This filter dynamically analyzes the output buffer (checking for Personally Iden
 
 **Double JSON Encoding Defense (Deep-Parsing Recursion)**:
 AI Agents may attempt to bypass static regex scanners by double-serializing strings (`"\"id\":\"...\""`). To counteract this, the `PiiScanner` implements recursive deep-parsing. If a returned string resembles an object, the Shield dynamically de-serializes it internally to expose the obfuscated schema before applying the matching algorithms, rendering string-contraband techniques entirely ineffective.
+
+**Aggregation-First Policy**:
+Beyond PII scanning, the Egress Filter enforces an **Aggregation-First** heuristic that blocks raw row-level data exports. If the sandbox output contains arrays with more object elements than the configured threshold (default: 10), the response is rejected. Only aggregated results (counts, averages, summaries) pass through, preventing bulk data exfiltration even when individual records contain no PII.
+
+**Cryptographic & Transport Wrapper Unwrapping**:
+To prevent false positive triggers caused by HMAC-SHA256 ZK-Receipt signatures, JSON-RPC envelopes, or gRPC proxied tool responses (such as `{ content: [{ type: "text", text: "..." }] }`), the Egress Shield executes its scan strictly over the unwrapped business data (via `unwrapForAggregationPolicyScan`). This ensures that cryptographic seals and routing wrappers do not interfere with safety policies.
+
+**Conditional Error Opacity**:
+In production environments (`NODE_ENV=production`), all Egress violations return a generic `[LIOP] Egress Security Violation` message with zero internal details. In development/test environments, detailed schema validation errors and corrective hints are exposed to enable rapid iteration and LLM self-correction.
 
 ## 4. Sandboxing (WASI)
 
@@ -49,10 +66,101 @@ Software isolation is never perfect against advanced persistent threats (APT) le
 
 By running the `Wasmtime` engine inside an Enclave, we guarantee that neither the Cloud Provider (e.g., Amazon) nor a compromised root administrator on the Host machine can dump the RAM to steal the proprietary datasets being analyzed by the Agent. This is a baseline requirement for Financial and Healthcare AI agents.
 
-## 6. Computacional Integrity (ZK-SNARKs)
+## 6. Computational Integrity (ZK-Receipts)
 
-In scenarios where an Agent must trust a dark untrusted Server (e.g., "Did the Server actually execute my sorting algorithm, or did it fake the response?"), LIOP implements integrated structural abstractions for **Zero-Knowledge Virtual Machines**.
+In scenarios where an Agent must trust a remote Server (e.g., "Did the Server actually execute my sorting algorithm, or did it fake the response?"), LIOP implements cryptographic integrity verification via **ZK-Receipts**.
 
-Alongside the Logic Response, the Data Node emits a mathematical **ZK Receipt** (via engines like `risc0-zkvm` and SHA-256 cryptographic `image_id` proofs). The Agent verifies this cryptographic receipt in milliseconds off-chain, ensuring deterministic execution of its exact JS/WASM AST over genuine source data without the server ever revealing the underlying proprietary data points to the mesh. 
+The current implementation uses **HMAC-SHA256 commitments**: each execution generates a SHA-256 `ImageID` (hash of the injected logic) and an HMAC-SHA256 `Seal` derived from the Post-Quantum session secret. This binds the output to the exact logic executed, making forgery computationally infeasible. Migration to a native ZK-VM engine (RISC Zero / SP1) for full zero-knowledge proofs is planned for future releases.
 
-**The ZK Shield Proxy**: This mathematical validation (`verifyZkReceipt`) is fundamentally secured and performed natively by both the SDK's `LiopClient` (via `client.verifier`) and the `LiopMcpRouter`. These components act as a Zero-Trust Shield, automatically isolating compromised environments and blocking the delivery of adulterated execution payloads back to the calling LLM framework.
+**Dataset Integrity Anchor**: Each ZK-Receipt includes a `dataset_hash` — a SHA-256 digest of the underlying dataset at execution time. This cryptographic anchor allows clients to verify that the dataset was identical across consecutive queries, definitively separating legitimate Differential Privacy noise from unauthorized data mutation.
+
+**The ZK Shield Proxy**: This cryptographic validation (`verifyZkReceipt`) is performed natively by both the SDK's `LiopClient` (via `client.verifier`) and the `LiopMcpRouter`. These components act as a Zero-Trust Shield, automatically isolating compromised environments and blocking the delivery of adulterated execution payloads back to the calling LLM framework.
+
+## 7. Differential Privacy Engine (Laplace Mechanism)
+
+When the WASI sandbox executes injected logic on small datasets (below the configurable `smallDatasetThreshold`, default: 50 records), raw numeric outputs could reveal individual-level information through **differencing attacks** (running the same query before and after adding a record) or **binary search attacks** (iterating filter thresholds to isolate a single record).
+
+LIOP mitigates this with a calibrated **Laplace Mechanism** that injects mathematically bounded noise into all numeric output fields before egress.
+
+<Frame>
+  <img className="block dark:hidden w-full" src="/images/animated-dp-engine-light.svg" alt="Differential Privacy Engine Pipeline" />
+  <img className="hidden dark:block w-full" src="/images/animated-dp-engine-dark.svg" alt="Differential Privacy Engine Pipeline" />
+</Frame>
+
+### CSPRNG Noise Source
+
+All noise is generated using `crypto.randomBytes()` from the Node.js `crypto` module (backed by the OS-level entropy pool), **never** `Math.random()`. This prevents state-reconstruction attacks where an adversary could predict future noise values by observing 3-5 noisy outputs, as mandated by NIST SP 800-226.
+
+### Deterministic Audit Mode (DDP)
+
+For SOX/PCI-DSS audit scenarios requiring reproducible ZK-Receipts, the engine supports **Deterministic Differential Privacy (DDP)**. When activated, the Laplace noise generator initializes a SHA-256-based PRNG seeded with `dataset_hash + image_id`, producing identical noise for identical queries on immutable datasets. This restores full ZK-Receipt verifiability without violating the mathematical privacy guarantee — the seed remains cryptographically unpredictable to external observers who lack access to both the dataset and the exact injected logic.
+
+### Query-Aware Sensitivity
+
+Instead of applying a single global sensitivity to all output fields, the engine automatically detects the query type from the field name:
+
+| Query Type | Key Pattern | Sensitivity | Rationale |
+|:---|:---|:---|:---|
+| **COUNT** | `count`, `length`, `size`, `num`, `total_records` | Always `1` | Adding/removing one record changes count by at most 1 |
+| **AVERAGE** | `avg`, `mean`, `average` | `globalSensitivity / n` | Bounded contribution per record |
+| **SUM** | Any other numeric key | `globalSensitivity` | Operator-configured max plausible value |
+
+This mirrors Google's Differential Privacy library architecture, which uses separate `CountParams`, `SumParams`, and `MeanParams` — each with independent sensitivity calibration.
+
+### Epsilon Floor
+
+For datasets with fewer than 10 records, the engine enforces a minimum epsilon of `1.0`, regardless of the operator's configuration. This prevents catastrophic utility destruction where noise completely overwhelms the signal. Apple's most sensitive category (Health Data) uses ε=2.0 on millions of records; using ε &lt; 1.0 on tiny datasets produces mathematically meaningless results.
+
+### Post-Processing Invariants
+
+Following the **US Census 2020 TopDown Algorithm**, the engine enforces two post-processing constraints that are **free** under the DP post-processing theorem (they do not consume additional privacy budget):
+
+1. **Non-negative integers**: All count fields are rounded and clamped to `≥ 0`.
+2. **Type preservation**: Integer inputs produce integer outputs; non-negative inputs remain non-negative.
+
+## 8. Tiered Query Budget (NIST SP 800-226)
+
+Even with Differential Privacy, an adversary could theoretically bypass Laplace noise protections by executing the same query thousands of times across the mesh and computing the statistical average to reconstruct the original data.
+
+To prevent this differential reconstruction, LIOP implements a **Tiered Query Budget Engine** aligned with **NIST SP 800-226** guidelines.
+
+### Client-Isolated & Session-Persistent Budgets
+
+- **Session Isolation**: Budgets are tracked *per-client* using the cryptographic identity (`agentDid` or `clientId`) verified during the PQC handshake (`negotiateIntent`). Contadores cannot be cleared or reset by reconnecting or starting a new gRPC intent within the same session.
+- **Preflight Enforcement**: The `TaintAnalyzer` decodes and scans the AST of the injected logic *before* spawning the sandbox. It extracts all accessed fields, including those within generator loops or direct indices. If a field's cumulative query count exceeds its tier limit, the request is instantly aborted in preflight, returning a clean error directly to the LLM.
+
+### Sensitivity Tiers
+
+LIOP classifies fields into three distinct sensitivity tiers, applying different query budgets per session:
+
+| Sensitivity Tier | Target Fields | Query Limit / Session | Description & Rationale |
+|:---|:---|:---|:---|
+| **FORBIDDEN (Tier 3)** | SSN, password, full name, email, credentials | **3 queries** | Direct identifiers. Highly restricted, blocked after 3 requests. |
+| **SENSITIVE (Tier 2)** | Account balance, account type, medical diagnosis | **8 queries** | Domain-critical properties. Semi-restricted to prevent inference. |
+| **PUBLIC (Tier 1)** | Age, transaction currency, price, metadata | **25 queries** | Low-sensitivity fields. Standard limit. |
+
+*Note: For legacy compatibility, a uniform limit can be configured via `queryBudgetPerField`, which overrides the tiers and enforces a single limit for all fields.*
+
+## 9. Privacy Threat Modeling Alignment (LINDDUN & PLOT4ai)
+
+To guarantee industrial and regulatory compliance (e.g., GDPR, HIPAA, EU AI Act), the Logic-Injection-on-Origin Protocol's security controls are systematically aligned with standard privacy threat modeling frameworks.
+
+### LINDDUN Mapping
+
+LIOP mathematically and structurally mitigates all seven threat categories of the **LINDDUN** framework:
+
+- **Linkability (L) & Identifiability (I)**: Neutralized by the calibrated **Laplace Differential Privacy Engine** that perturbs numeric outputs, an AST-level **Taint Analyzer** that flags character-level exfiltration, and a hard **K-Anonymity threshold** ($n < 10$) that blocks outputs in tiny datasets.
+- **Non-repudiation (N)**: Solved through **ZK-Receipts** (HMAC-SHA256 commitments and cryptographic execution receipts) coupled with sovereign **Ed25519 node identity signatures**, ensuring verifiable computational proof.
+- **Detectability (D)**: Defeated by normalizing CPU/fuel consumption metrics into discrete buckets of 100 and utilizing a CSPRNG (`crypto.randomBytes()`) for Laplace noise, preventing timing and state-reconstruction side-channel attacks.
+- **Data Disclosure (D)**: Structurally prevented by the core **Logic-on-Origin** paradigm (pushing math instead of pulling data), backed by the multi-layered **Egress PII Shield** and the **Aggregation-First Policy** that blocks raw row exports.
+- **Unawareness (U) & Non-compliance (N)**: Addressed via dynamic schema instructions (`liop://schema/guidelines`) that inform AI agents of active constraints, built natively to comply with **NIST SP 800-226** and **OWASP DLP 2025** guidelines.
+
+### PLOT4ai Alignment
+
+For AI-centric risks, LIOP maps directly to the core domains of **PLOT4ai** (Privacy Library Of Threats for AI):
+
+- **Data & Data Governance**: Enforced by sovereign Kademlia DHT peer routing; data remains local, secure, and under the origin's sole administrative domain.
+- **Cybersecurity & Safety**: Guaranteed by the **WASI Sandbox** running with pre-execution frozen prototypes (PCI-DSS compliant) and transport-layer **Post-Quantum Cryptography** (ML-KEM-768 handshakes).
+- **Accountability & Transparency**: Provided by deterministic audit modes (DDP) and cryptographic verification of WASM image hashes inside Trusted Execution Environments (TEEs).
+
+

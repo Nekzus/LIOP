@@ -173,18 +173,168 @@ export const PII_PRESETS = {
 export class PiiScanner {
 	private patterns: PiiRule[];
 	private forbiddenKeysSet: Set<string>;
+	private nerScanner: import("./ner-scanner.js").NerScanner | null;
 
-	constructor(patterns: PiiRule[] = [], forbiddenKeys: string[] = []) {
+	/**
+	 * Safelist of keys that contain forbidden substrings but are NOT PII.
+	 * Prevents false positives from fuzzy matching (e.g., "grid" contains "id").
+	 */
+	private static readonly KEY_SAFELIST = new Set([
+		// Common words containing "id" substring
+		"grid",
+		"video",
+		"android",
+		"identity",
+		"provide",
+		"override",
+		"validate",
+		"hidden",
+		"widget",
+		"guidelines",
+		"beside",
+		"guideline",
+		"outside",
+		"inside",
+		"collide",
+		"decide",
+		"divide",
+		"aside",
+		"ride",
+		"side",
+		"wide",
+		"hide",
+		"tide",
+		"pride",
+		"bride",
+		"slide",
+		"guide",
+		"stride",
+		"oxide",
+		"dioxide",
+		"suicide",
+		"homicide",
+		"pesticide",
+		"valid",
+		"invalid",
+		"void",
+		"avoid",
+		// Common words containing "name" substring
+		"diagnosis",
+		"medication",
+		"namespace",
+		"namesake",
+		"rename",
+		"filename",
+		"hostname",
+		"typename",
+		"unnamed",
+		"renamed",
+		// Common words containing "phone" substring
+		"phonetic",
+		"phoneme",
+		"microphone",
+		"headphone",
+		"telephone",
+		"saxophone",
+		"smartphone",
+		// Common words containing "address" substring
+		"streetview",
+		"addressable",
+		"addressing",
+		// Common words containing "city" substring
+		"cityscape",
+		"electricity",
+		"capacity",
+		"velocity",
+		"opacity",
+		// Common technical terms
+		"timestamp",
+		"timezone",
+		// LIOP Protocol Internal Keys (must never be blocked)
+		"image_id",
+		"computation_result",
+		"zk_receipt",
+		"testid",
+		"toolid",
+		"sessionid",
+		"peerid",
+		"nodeid",
+		"requestid",
+		"correlationid",
+		"traceid",
+		"spanid",
+	]);
+
+	/**
+	 * Short forbidden tokens (< 4 chars) that require boundary-aware matching.
+	 * Uses regex boundary detection to avoid false positives.
+	 */
+	private shortTokenBoundaryPatterns: Map<string, RegExp>;
+
+	/**
+	 * Long forbidden tokens (>= 4 chars) that use substring containment.
+	 */
+	private longForbiddenTokens: string[];
+
+	constructor(
+		patterns: PiiRule[] = [],
+		forbiddenKeys: string[] = [],
+		nerScanner?: import("./ner-scanner.js").NerScanner | null,
+	) {
 		this.patterns = patterns;
-		// Optimizes large recursive evaluations using O(1) continuous key lookup
 		this.forbiddenKeysSet = new Set(forbiddenKeys.map((k) => k.toLowerCase()));
+		this.nerScanner = nerScanner ?? null;
+
+		// Pre-compute fuzzy matching structures for performance
+		this.shortTokenBoundaryPatterns = new Map();
+		this.longForbiddenTokens = [];
+
+		for (const token of this.forbiddenKeysSet) {
+			if (token.length < 4) {
+				// Short tokens: require word boundary (camelCase, snake_case, kebab-case, or exact)
+				// "id" matches: "patientId", "record_id", "user-id", "id"
+				// "id" does NOT match: "grid", "video", "android"
+				this.shortTokenBoundaryPatterns.set(
+					token,
+					new RegExp(
+						(() => {
+							// Build a case-insensitive character class pattern for each letter
+							// e.g. "id" -> "[iI][dD]" — used for snake/kebab/exact matches only
+							const ciPattern = token
+								.split("")
+								.map((c) => `[${c.toLowerCase()}${c.toUpperCase()}]`)
+								.join("");
+							// camelCase: strictly requires uppercase first letter preceded by lowercase
+							// e.g. "patientId" matches, "valid_ages" does NOT
+							const camelPattern = `[a-z]${token.charAt(0).toUpperCase()}${token.slice(1)}`;
+							return (
+								`(?:^|[_-])${ciPattern}(?:$|[_-])|` + // snake/kebab boundary
+								`${camelPattern}(?:$|[A-Z_-])|` + // camelCase boundary (strict uppercase start)
+								`^${ciPattern}$` // exact match
+							);
+						})(),
+					),
+				);
+			} else {
+				this.longForbiddenTokens.push(token);
+			}
+		}
 	}
 
 	/**
 	 * Scans any input (string, object, array) for PII violations.
 	 * Returns the pattern/rule name that triggered the violation, or null if safe.
+	 *
+	 * Detection pipeline (fail-fast):
+	 *   1. Exact key match (O(1) Set lookup)
+	 *   2. Fuzzy key match (boundary detection for short tokens, substring for long)
+	 *   3. Regex/algorithmic pattern match on string values
+	 *   4. NER content scan on string values (if enabled)
 	 */
-	public scan(input: unknown, seen = new WeakSet<object>()): string | null {
+	public async scan(
+		input: unknown,
+		seen = new WeakSet<object>(),
+	): Promise<string | null> {
 		if (input === null || input === undefined) return null;
 
 		// 1. String Scan (Direct Regex/String/Definition check)
@@ -199,15 +349,31 @@ export class PiiScanner {
 				try {
 					const parsed = JSON.parse(trimmed);
 					// Successfully parsed JSON string. Recursively scan the unescaped object.
-					const violation = this.scan(parsed, seen);
+					const violation = await this.scan(parsed, seen);
 					if (violation) return violation;
 				} catch (_e) {
 					// Silent fallback: It looked like JSON but wasn't valid. Proceed with raw string check.
 				}
 			}
 
-			// Fallback: Check the raw string
-			return this.checkString(input);
+			// Check string value against regex patterns
+			const patternViolation = this.checkString(input);
+			if (patternViolation) return patternViolation;
+
+			// Layer 3: NER Content Scan — detect person names in free-text values
+			if (this.nerScanner) {
+				const nerResult = await this.nerScanner.scan(input);
+				if (nerResult.detected) {
+					const personEntity = nerResult.entities.find(
+						(e) => e.type === "person",
+					);
+					if (personEntity) {
+						return `PII Entity Detected: person name "${personEntity.text}"`;
+					}
+				}
+			}
+
+			return null;
 		}
 
 		// 2. Recursive Objects/Arrays Scan
@@ -218,22 +384,53 @@ export class PiiScanner {
 
 			if (Array.isArray(input)) {
 				for (const element of input) {
-					const violation = this.scan(element, seen);
+					const violation = await this.scan(element, seen);
 					if (violation) return violation;
 				}
 			} else {
 				for (const [key, value] of Object.entries(
 					input as Record<string, unknown>,
 				)) {
-					// Check Keys using O(1) Constant Time Memory Evaluation
+					// Layer 1: Exact key match — O(1) constant time
 					if (this.forbiddenKeysSet.has(key.toLowerCase())) {
 						return `Forbidden Key: ${key}`;
 					}
 
+					// Layer 2: Fuzzy key match — catches aliases and variations
+					const fuzzyViolation = this.checkKeyFuzzy(key);
+					if (fuzzyViolation) return fuzzyViolation;
+
 					// Recurse into values
-					const violation = this.scan(value, seen);
+					const violation = await this.scan(value, seen);
 					if (violation) return violation;
 				}
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * Checks a key against fuzzy matching rules.
+	 * Short tokens use boundary-aware regex; long tokens use substring containment.
+	 */
+	private checkKeyFuzzy(key: string): string | null {
+		const normalized = key.toLowerCase();
+
+		// Skip safelisted keys entirely
+		if (PiiScanner.KEY_SAFELIST.has(normalized)) return null;
+
+		// Short token boundary matching (e.g., "id" in "patientId" but not "grid")
+		for (const [token, pattern] of this.shortTokenBoundaryPatterns) {
+			if (pattern.test(key)) {
+				return `Forbidden Key (fuzzy): ${key} matches boundary pattern "${token}"`;
+			}
+		}
+
+		// Long token substring matching (e.g., "name" in "firstName", "names")
+		for (const token of this.longForbiddenTokens) {
+			if (normalized.includes(token)) {
+				return `Forbidden Key (fuzzy): ${key} contains restricted token "${token}"`;
 			}
 		}
 

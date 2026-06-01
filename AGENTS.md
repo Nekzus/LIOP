@@ -10,7 +10,7 @@ This document provides essential instructions, technical context, and developmen
 ## 🚀 Project Vision & Paradigm
 Logic-Injection-on-Origin Protocol (LIOP) is the high-performance successor to the Model Context Protocol (MCP).
 - **Core Paradigm**: *Logic-Injection-on-Origin (LIO)*. Instead of moving data to the logic (Context-Pulling), LIOP moves logic (WASM micro-modules) to the data (Logic-Injection).
-- **Security model**: Extreme Zero-Trust using WASI sandboxing, PQC (Post-Quantum Cryptography), and ZK-SNARKs for computational integrity.
+- **Security model**: Extreme Zero-Trust using WASI sandboxing, PQC (Post-Quantum Cryptography), and ZK-Receipts (HMAC-SHA256) for computational integrity.
 
 ---
 
@@ -24,7 +24,7 @@ Logic-Injection-on-Origin Protocol (LIOP) is the high-performance successor to t
 
 ### SDK & Tooling (Node.js/TypeScript)
 - **Environment**: Node.js 20+ (LTS).
-- **Package Manager**: [pnpm 10+](https://pnpm.io/) (Hardlinks enabled).
+- **Package Manager**: [pnpm 11+](https://pnpm.io/) (Hardlinks enabled).
 - **Linting & Formatting**: [BiomeJS](https://biomejs.dev/) (Strict compliance).
 - **Concurrency**: [Piscina](https://github.com/piscinajs/piscina) (Worker Pools for crypto-heavy tasks).
 - **Testing**: [Vitest](https://vitest.dev/) (Unit & E2E).
@@ -46,10 +46,13 @@ Logic-Injection-on-Origin Protocol (LIOP) is the high-performance successor to t
 ---
 
 ## 🛡️ Security Guardrails (The Shield)
-Agents must enforce these three layers of defense:
-1. **Layer 1: Guardian AST**: Static inspection of injected logic to prevent sandbox escapes.
-2. **Layer 2: WASI Sandbox**: Strict isolation of file system and network calls.
-3. **Layer 3: Egress PII Shield**: Recursive scanning of all outgoing data to prevent personal data leaks (PIIs).
+Agents must enforce these six layers of defense:
+1. **Layer 1: Guardian AST**: Static inspection of injected WASM imports against a strict 14-function allowlist.
+2. **Layer 2: WASI Sandbox**: V8 Isolate with 25 poisoned globals, strict mode, 11-prototype pre-execution freezing (to satisfy PCI-DSS limits), and CPU fuel limits.
+3. **Layer 3: Taint Analyzer (IFC)**: Acorn-based static taint tracking to block PII side-channel derivation (`charCodeAt`, boolean inference).
+4. **Layer 4: Egress PII Shield**: Four-stage pipeline (key match, fuzzy, pattern validators, NER) scanning all outgoing data.
+5. **Layer 5: Aggregation-First Policy**: Blocks raw row-level data export — only aggregated results pass through.
+6. **Layer 6: ZK-Receipt (HMAC-SHA256)**: Cryptographic proof binding output to exact logic executed, sealed with PQC session secret.
 
 ---
 
@@ -69,4 +72,12 @@ Agents must enforce these three layers of defense:
 
 ---
 
+## 🔒 Secure CI/CD & Publishing (OIDC)
+- **Tokenless Infrastructure**: Static npm tokens (`NPM_TOKEN`) are strictly prohibited in the CI pipeline. The repository uses **OIDC / Trusted Publishers** on npmjs.com.
+- **Decoupled pnpm Workspace Publishing**: Do not enable `"npmPublish": true` in semantic-release configuration. Standard npm publishing breaks under pnpm workspaces. Publishing is decoupled: semantic-release tags the code, and a native `pnpm publish --provenance --no-git-checks` command executes the publish step.
+- **Provenance Verification**: `--provenance` is mandatory in CI to guarantee build origin.
+
+---
+
 *This file is read by Antigravity IDE at start-up to ensure architectural alignment.*
+
