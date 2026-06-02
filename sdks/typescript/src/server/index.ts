@@ -1856,7 +1856,7 @@ Protocol Adherence is mandatory for successful execution.`,
 							toolName || "unknown_tool",
 							logic,
 							toolPolicy,
-							request.session_token,
+							session.agent_did || request.session_token,
 						);
 
 						if (preflightReason) {
