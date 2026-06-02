@@ -252,6 +252,15 @@ Durante una sesión segura negociada por PQC, el SDK rastrea el acceso a los cam
 
 Los límites se imponen dinámicamente basándose en el análisis de flujo de información (taint tracking). Si el presupuesto de algún tier se agota, las ejecuciones subsiguientes en el sandbox que intenten acceder a esos campos son bloqueadas.
 
+### Presupuestos de Consultas Persistentes y Control de Concurrencia
+
+Para mantener los invariantes de seguridad Zero-Trust a través de reinicios o fallas del servidor, o en clústeres multi-instancia (como múltiples procesos puente locales en paralelo), el SDK admite la persistencia de presupuestos de consultas activos en el sistema de archivos:
+
+- **Configuración de Persistencia**: Los operadores pueden proporcionar la propiedad `budgetStorePath` de forma global en las opciones del constructor de `LiopServer` o localmente dentro de una política `LogicExecutionPolicy` a nivel de herramienta.
+- **Anclaje de Identidad del Cliente (Anti-Bypass)**: Los límites de presupuesto están estrictamente vinculados a la identidad criptográfica del cliente (`agentDid` derivado de su PeerID Ed25519 persistente, o `clientId` de los tokens JWT autorizados por el servidor Nexus OAuth 2.1). Al auditar la identidad real del cliente en lugar de tokens de transporte efímeros (como el `session_token` de gRPC), el SDK evita que los adversarios restablezcan sus presupuestos de consultas al iniciar nuevos handshakes o reconectarse.
+- **Bloqueo Atómico de Archivos**: Bajo el capó, el SDK impone la sincronización entre procesos y actualizaciones atómicas en el archivo JSON del presupuesto mediante bloqueos del sistema de archivos (archivos `.lock`). Esto evita condiciones de carrera donde múltiples peticiones paralelas de un LLM se ejecutan simultáneamente en diferentes hilos o instancias de workers para exceder los límites de presupuesto.
+- **Tolerancia a Fallos en Memoria**: Si fallan los permisos de escritura en el sistema de archivos, si el directorio de almacenamiento es de solo lectura, o si ocurre un deadlock de bloqueo, el SDK reporta automáticamente el error a los logs del sistema y realiza un fallback al rastreo de presupuesto en memoria aislado por sesión, asegurando la continuidad del servicio del nodo sin comprometer las políticas de seguridad.
+
 ### Mecanismo de Laplace y Sensibilidad por Campo
 
 Cuando el tamaño del dataset es menor que `dpSmallDatasetThreshold` (por defecto: 50), el motor de DP aplica ruido Laplace calibrado ($Ruido \sim \text{Laplace}(0, \frac{\Delta s}{\epsilon})$) a todas las salidas numéricas.
