@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.1.0-beta.2](https://github.com/Nekzus/LIOP/compare/v2.1.0-beta.1...v2.1.0-beta.2) (2026-06-02)
+
+
+### Bug Fixes
+
+* **deps:** update vitest to 4.1.8 and configure saveExact workspace policy ([da98609](https://github.com/Nekzus/LIOP/commit/da986096e2c2cd77d648da71120f07594fe32438))
+
+
+### Features
+
+* **ts-sdk:** implement persistent query budget store and fix ESM entrypoints ([ce5d3bc](https://github.com/Nekzus/LIOP/commit/ce5d3bca22d732e6da513e7f409d5f4c8b9a1c81))
+
 <<<<<<< HEAD
 # [2.1.0-beta.1](https://github.com/Nekzus/LIOP/compare/v2.0.1-beta.1...v2.1.0-beta.1) (2026-06-01)
 =======
