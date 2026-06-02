@@ -252,6 +252,14 @@ During a secure PQC-negotiated session, the SDK tracks query access to data fiel
 
 Limits are enforced dynamically based on taint analysis tracking. If any tier's budget is exhausted, further sandbox executions attempting to access fields in that tier are blocked.
 
+### Persistent Query Budgets & Concurrency Controls
+
+To maintain zero-trust security invariants across server restarts, server crashes, or in multi-instance clusters (such as multiple parallel local bridge processes), the SDK supports filesystem-backed persistence of active query budgets:
+
+- **Configuring Persistence**: Operators can provide `budgetStorePath` either globally in the `LiopServer` constructor options or locally inside a tool-level `LogicExecutionPolicy`.
+- **Atomic File Locking**: Under the hood, the SDK enforces cross-process synchronization and atomic updates to the budget JSON store using file-system locking (`.lock` files). This prevents race conditions where parallel LLM requests execute concurrently on separate worker threads/instances to exceed budget caps.
+- **Fail-Safe In-Memory Fallback**: If filesystem write permissions fail, if the storage directory is read-only, or if a locking deadlock occurs, the SDK automatically reports the error to system logs and falls back to session-isolated in-memory budget tracking, ensuring continued node serviceability without dropping security enforcement.
+
 ### Laplace Mechanism & Field Sensitivity
 
 When the dataset size falls below `dpSmallDatasetThreshold` (default: 50), the DP Engine applies calibrated Laplace noise ($Noise \sim \text{Laplace}(0, \frac{\Delta s}{\epsilon})$) to all numeric outputs.

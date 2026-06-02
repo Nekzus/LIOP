@@ -192,6 +192,55 @@ server.tool(
 );
 ```
 
+#### Persistencia del Presupuesto (budgetStorePath)
+
+Para persistir y compartir los presupuestos de consultas a través de reinicios del servidor y múltiples procesos en ejecución, configure la propiedad `budgetStorePath`. Esta propiedad se puede definir de manera global en el constructor de `LiopServer`, o localmente dentro de la política de una herramienta específica:
+
+```typescript
+import path from "path";
+
+// 1. Configuración de Persistencia Global
+const server = new LiopServer(
+  { name: "financial-vault", version: "1.0.0" },
+  {
+    budgetStorePath: path.join(__dirname, "../data/query-budgets.json"),
+    security: {
+      sensitiveKeys: ["balance"]
+    }
+  }
+);
+
+// 2. Sobrescritura de Persistencia a Nivel de Herramienta
+server.tool(
+  "analyze_records",
+  "Analiza registros de base de datos de forma segura",
+  { payload: z.string() },
+  async (args) => { /* ... */ },
+  {
+    enforceAggregationFirst: true,
+    budgetStorePath: path.join(__dirname, "../data/tool-specific-budgets.json")
+  }
+);
+```
+
+##### Autogeneración de Directorios y Base de Datos
+
+- **Creación Automática de Directorios**: El SDK detecta automáticamente si las carpetas contenedoras de la ruta `budgetStorePath` no existen y las crea recursivamente (mediante `fs.mkdirSync(..., { recursive: true })`) durante la primera escritura.
+- **Estructura Jerárquica del JSON**: El archivo se inicializa de forma automática como una base de datos estructurada en un esquema JSON de 3 niveles que rastrea `clientId` (o `agentDid`), el nombre de la herramienta (`toolName`), y el contador del campo (`field`) consultado:
+
+```json
+{
+  "mcp-client": {
+    "analyze_records": {
+      "ssn": 2,
+      "balance": 5
+    }
+  }
+}
+```
+
+El bloqueo atómico de archivos (`.lock`) se gestiona automáticamente bajo el capó para sincronizar las escrituras concurrentes. Si la escritura en disco falla por falta de permisos o bloqueos persistentes, el motor realiza un fallback silencioso al rastreo de presupuestos en memoria aislado por sesión.
+
 ### Política de Privacidad Diferencial
 Para datasets por debajo del `dpSmallDatasetThreshold` (por defecto: 50 registros), el servidor aplica automáticamente ruido Laplace calibrado a todas las salidas numéricas. Configure el perfil de privacidad en la política a nivel de herramienta al registrarla:
 

@@ -246,6 +246,7 @@ new LiopServer(
     auth?: LiopAuthConfig;         // OAuth 2.1 Hybrid authentication config
     tokenSlug?: string;            // Deterministic token resolution slug (e.g., "BANK", "VAULT")
     allowEnv?: boolean;            // Enable safe host environment propagation (default: false)
+    budgetStorePath?: string;      // Path to a shared JSON file for persistent Query Budget tracking
   }
 )
 ```
@@ -254,7 +255,7 @@ new LiopServer(
 
 | Method                       | Signature                                          | Description                                                                         |
 | :--------------------------- | :------------------------------------------------- | :---------------------------------------------------------------------------------- |
-| `tool()`                   | `(name, description, zodSchema, handler)`        | Registers a callable tool with Zod input validation.                                |
+| `tool()`                   | `(name, description, shape, handler, policy?)`     | Registers a callable tool with Zod input validation and logic execution policies.   |
 | `prompt()`                 | `(name, description, args, handler)`             | Registers a dynamic prompt template.                                                |
 | `resource()`               | `(name, uri, description?, mimeType?, content?)` | Registers a readable resource.                                                      |
 | `dataDictionary()`         | `(schema, name?, uri?, description?)`            | Broadcasts a data schema so LLMs can write accurate Logic-Injection-on-Origin code. |
@@ -270,6 +271,24 @@ new LiopServer(
 | `connectToMesh()`          | `()`                                             | Connects to the libp2p Kademlia DHT.                                                |
 | `clearAstCache()`          | `()`                                             | Invalidates the Guardian AST logic cache.                                           |
 | `close()`                  | `()`                                             | Destroys the worker pool and releases threads.                                      |
+
+#### LogicExecutionPolicy Options
+
+When registering a tool via `server.tool()`, you can optionally pass a `policy` object to configure security and privacy guards for that specific tool:
+
+```typescript
+interface LogicExecutionPolicy {
+  outputSchema?: z.ZodType<unknown>;         // Validate returned business payload (strict by default)
+  enforceAggregationFirst?: boolean | AggregationPolicy; // Block row-level exports & enforce K-Anonymity
+  preflightDenyPatterns?: RegExp[];          // Custom regex patterns blocked in static analysis
+  dpEpsilon?: number;                        // Laplace Differential Privacy epsilon (default: 1.0)
+  dpSensitivity?: number;                    // Maximum change per single record (default: 1.0)
+  dpSmallDatasetThreshold?: number;          // Size threshold below which DP is active (default: 50)
+  queryBudgetPerField?: number;              // Uniform session query limit per field (legacy compatibility)
+  sensitiveKeys?: string[];                  // Tool-level fields under the 8-query sensitive budget tier
+  budgetStorePath?: string;                  // Shared path for persistent and concurrent query budgets
+}
+```
 
 ### `LiopMcpBridge`
 

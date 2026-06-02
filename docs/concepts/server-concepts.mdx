@@ -196,6 +196,55 @@ server.tool(
 );
 ```
 
+#### Persistent Budget Store
+
+To persist and share query budgets across server restarts and multiple running processes, configure the `budgetStorePath` property. This can be defined globally in the `LiopServer` constructor, or locally inside a tool-level policy:
+
+```typescript
+import path from "path";
+
+// 1. Global Persistence Configuration
+const server = new LiopServer(
+  { name: "financial-vault", version: "1.0.0" },
+  {
+    budgetStorePath: path.join(__dirname, "../data/query-budgets.json"),
+    security: {
+      sensitiveKeys: ["balance"]
+    }
+  }
+);
+
+// 2. Tool-Level Persistence Override
+server.tool(
+  "analyze_records",
+  "Analyzes database records securely",
+  { payload: z.string() },
+  async (args) => { /* ... */ },
+  {
+    enforceAggregationFirst: true,
+    budgetStorePath: path.join(__dirname, "../data/tool-specific-budgets.json")
+  }
+);
+```
+
+##### Directory & Database Autogeneration
+
+- **Automatic Directory Creation**: The SDK automatically detects if parent folders in `budgetStorePath` do not exist and creates them recursively (via `fs.mkdirSync(..., { recursive: true })`) during first write.
+- **Hierarchical JSON Structure**: The file initializes automatically as a JSON database structured in a 3-level nested schema tracking `clientId` (or `agentDid`), `toolName`, and the accessed `field` counter:
+
+```json
+{
+  "mcp-client": {
+    "analyze_records": {
+      "ssn": 2,
+      "balance": 5
+    }
+  }
+}
+```
+
+Atomic locking (`.lock`) is managed automatically under the hood to synchronize concurrent writes. If file storage writes fail, it silently falls back to session-isolated in-memory budget tracking.
+
 ### Differential Privacy Policy
 For datasets below the `dpSmallDatasetThreshold` (default: 50 records), the server automatically applies calibrated Laplace noise to all numeric outputs. Configure the privacy profile at the tool-level policy when registering a tool:
 
