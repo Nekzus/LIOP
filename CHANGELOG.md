@@ -5,7 +5,6 @@ All notable changes to this project will be documented in this file. See
 
 # [2.1.0](https://github.com/Nekzus/LIOP/compare/v2.0.0...v2.1.0) (2026-06-02)
 
-
 ### Bug Fixes
 
 * **deps:** update vitest to 4.1.8 and configure saveExact workspace policy ([da98609](https://github.com/Nekzus/LIOP/commit/da986096e2c2cd77d648da71120f07594fe32438))
@@ -21,7 +20,10 @@ All notable changes to this project will be documented in this file. See
 
 * **security:** implement ZK-Receipt replay mitigation and complete docs parity audit ([114c1a2](https://github.com/Nekzus/LIOP/commit/114c1a2b2c7721b4576630a7376db04c834b81a7))
 * **ts-sdk:** implement persistent query budget store and fix ESM entrypoints ([ce5d3bc](https://github.com/Nekzus/LIOP/commit/ce5d3bca22d732e6da513e7f409d5f4c8b9a1c81))
+
+
 # [2.0.0](https://github.com/Nekzus/LIOP/compare/v1.2.0...v2.0.0) (2026-06-01)
+
 ### Bug Fixes
 
 * **ci/sdk-ts:** resolve CodeQL Node 20 deprecation and fix libp2p PeerId type drift ([db1cece](https://github.com/Nekzus/LIOP/commit/db1cecefe3afd5929e790dec63f0cc78af055bf2))
@@ -47,8 +49,8 @@ All notable changes to this project will be documented in this file. See
 * **sdk:** initialize beta release channel for production hardening ([a90a70c](https://github.com/Nekzus/LIOP/commit/a90a70c5044d9000699d59513660bbc56146ddcf))
 * **sdk:** override dependency resolutions in root package.json ([292e4b9](https://github.com/Nekzus/LIOP/commit/292e4b9f68d3abefdd8d448611085f2d50d0086f))
 
-# [1.2.0](https://github.com/Nekzus/Neural-Mesh-Protocol/compare/v1.1.2...v1.2.0) (2026-04-28)
 
+# [1.2.0](https://github.com/Nekzus/Neural-Mesh-Protocol/compare/v1.1.2...v1.2.0) (2026-04-28)
 
 ### Bug Fixes
 
@@ -126,16 +128,16 @@ All notable changes to this project will be documented in this file. See
 
 * **sdk:** cache-first tool routing, TTL 300s, early-exit refresh ([279dced](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/279dceddd78f869cb113ba845e3ac9aa9e2e7310))
 
-## [1.1.2](https://github.com/Nekzus/Neural-Mesh-Protocol/compare/v1.1.1...v1.1.2) (2026-03-05)
 
+## [1.1.2](https://github.com/Nekzus/Neural-Mesh-Protocol/compare/v1.1.1...v1.1.2) (2026-03-05)
 
 ### Bug Fixes
 
 * **sdk:** enable npm provenance with id-token permissions and restore dynamic badge ([dfd6300](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/dfd630084b837e1f2d4ca742dced16e69453424c))
 * **sdk:** final biome linting and formatting fixes for provenance release ([6887614](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/68876149972d70807d6c7b06c7b4763240065c67))
 
-## [1.1.1](https://github.com/Nekzus/Neural-Mesh-Protocol/compare/v1.1.0...v1.1.1) (2026-03-05)
 
+## [1.1.1](https://github.com/Nekzus/Neural-Mesh-Protocol/compare/v1.1.0...v1.1.1) (2026-03-05)
 
 ### Bug Fixes
 
@@ -147,7 +149,6 @@ All notable changes to this project will be documented in this file. See
 
 
 # [1.1.0](https://github.com/Nekzus/Neural-Mesh-Protocol/compare/v1.0.0...v1.1.0) (2026-03-05)
-
 
 ### Bug Fixes
 
@@ -164,8 +165,8 @@ All notable changes to this project will be documented in this file. See
 
 * restore original picture element for SDK README logo ([3de18a5](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/3de18a5c19e14b8aba7b5d450135a1eb20f72079))
 
-# 1.0.0 (2026-03-05)
 
+# 1.0.0 (2026-03-05)
 
 ### Bug Fixes
 
@@ -214,4 +215,3 @@ All notable changes to this project will be documented in this file. See
 * **sdk:** Vanguard Enterprise Architecture (PQC, TCP, ZK, Guardian-TS & Piscina Worker Pool) ([125cb94](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/125cb943d475363fcbb90c0cdca21c67e7b1c9ed))
 * **security:** Implement Hybrid PQC (Kyber768), AES-GCM, and TEE Stubs for Phase 4 Zero-Trust Architecture ([dd06fb5](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/dd06fb53a2a7ae66f2fde4420f1de5198e9945ff))
 * **security:** integrate zero-time ast guardian and libp2p kademlia dht caching ([2135346](https://github.com/Nekzus/Neural-Mesh-Protocol/commit/21353463e6e0942ab30efbeb94a8e88a79dced2b))
-
