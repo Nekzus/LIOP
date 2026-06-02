@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { execSync } from 'node:child_process';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -8,11 +9,20 @@ const __dirname = path.dirname(__filename);
 const changelogPath = path.join(__dirname, '../CHANGELOG.md');
 
 if (!fs.existsSync(changelogPath)) {
-  console.error('Error: CHANGELOG.md not found at ' + changelogPath);
+  console.error(`Error: CHANGELOG.md not found at ${changelogPath}`);
   process.exit(1);
 }
 
-console.log('Sanitizing CHANGELOG.md...');
+// Auto-detect branch
+let branch = '';
+try {
+  branch = execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf8' }).trim();
+} catch (e) {
+  console.error('Failed to detect git branch, defaulting to main.');
+  branch = 'main';
+}
+
+console.log(`Sanitizing CHANGELOG.md for branch '${branch}'...`);
 
 let content = fs.readFileSync(changelogPath, 'utf8');
 
@@ -78,15 +88,34 @@ for (const block of versionBlocks) {
   }
 }
 
-const formattedBlocks = [];
+// Now filter uniqueBlocks based on the current branch
+const filteredBlocks = [];
 for (const [ver, block] of uniqueBlocks) {
-  const blockContent = block.content.join('\n').trim();
-  if (blockContent) {
-    formattedBlocks.push(`${block.header}\n\n${blockContent}`);
+  if (branch === 'beta') {
+    // Keep only beta pre-releases
+    if (ver.includes('-beta')) {
+      filteredBlocks.push(block);
+    }
+  } else if (branch === 'alpha') {
+    // Keep only alpha pre-releases
+    if (ver.includes('-alpha')) {
+      filteredBlocks.push(block);
+    }
   } else {
-    formattedBlocks.push(block.header);
+    // main branch or others: keep only stable versions (no alpha, no beta)
+    if (!ver.includes('-alpha') && !ver.includes('-beta')) {
+      filteredBlocks.push(block);
+    }
   }
 }
+
+const formattedBlocks = filteredBlocks.map(block => {
+  const blockContent = block.content.join('\n').trim();
+  if (blockContent) {
+    return `${block.header}\n\n${blockContent}`;
+  }
+  return block.header;
+});
 
 const finalContent = [
   header.join('\n').trim(),
