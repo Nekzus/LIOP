@@ -9,6 +9,7 @@
   "homepage": "https://nekzus-32.mintlify.app/",
   "scripts": {
     "build": "pnpm --filter @nekzus/liop build",
+    "sanitize-changelog": "node scripts/sanitize-changelog.js",
     "test": "pnpm --filter @nekzus/liop test",
     "lint": "pnpm --filter @nekzus/liop lint",
     "format": "pnpm --filter @nekzus/liop format",
