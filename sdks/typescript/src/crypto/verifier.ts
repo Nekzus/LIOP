@@ -78,6 +78,7 @@ export class LiopVerifier {
 		remoteImageIdHex: string,
 		zkReceipt: Buffer,
 		sessionSecret?: Buffer,
+		expectedOutput?: unknown,
 	): Promise<boolean> {
 		const pool = this.getZkPool();
 		if (!pool) throw new Error("Worker pool initialization failed");
@@ -87,6 +88,7 @@ export class LiopVerifier {
 			remoteImageIdHex,
 			zkReceipt: new Uint8Array(zkReceipt),
 			sessionSecret: sessionSecret ? new Uint8Array(sessionSecret) : undefined,
+			expectedOutput,
 		});
 
 		if (result.verified) {

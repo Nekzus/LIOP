@@ -35,11 +35,11 @@ This fundamentally solves the data privacy, bandwidth, and latency challenges of
 | **Logic-Injection-on-Origin** | LLMs send code, not queries. Data never leaves the origin server.                                                                          |
 | **MCP Drop-in Replacement**   | `LiopServer` mirrors the Anthropic MCP `Server` API — tools, resources, and prompts with `Zod` schemas.                             |
 | **Guardian AST**              | Zero-time heuristic inspection blocks sandbox escapes (`require`, `fs`, `eval`, `fetch`, prototype pollution).                     |
-| **WASI Sandbox**              | JavaScript payloads execute inside V8 isolates with CPU fuel limits and no access to Node.js globals.                                      |
-| **PII Shield**                | Multi-layer egress filter with Regional Presets (Email, Credit Card with Luhn, IP, Phone, SSN, IBAN Mod-97, Passport MRZ) and custom keys. |
-| **ZK-Receipts**               | Cryptographic proof (SHA-256 ImageID + HMAC-SHA256 seal) that the returned result was computed honestly from the injected logic.            |
-| **Worker Pool**               | Heavy computation (crypto, sandboxing) dispatched to OS threads via `piscina`, unblocking the V8 event loop.                             |
-| **Cross-AI Adapters**         | Zero-Shot system prompts automatically adapt instructions for Claude (XML-heavy) vs OpenAI/Gemini (JSON-schema).                           |
+| **WASI Sandbox**              | JavaScript payloads execute inside V8 isolates with CPU fuel limits, no Node.js globals, and safe environment isolation (`allowEnv`). |
+| **PII Shield**                | Multi-layer egress filter with Regional Presets, custom keys, and recursive floats sanitization (`sanitizeOutput`). |
+| **ZK-Receipts**               | Cryptographic proof with `output_hash` cross-verification (Replay Mitigation) and balanced-brace proxy extraction. |
+| **Worker Pool**               | Heavy computation (crypto, sandboxing) dispatched to OS threads via `piscina` with background async warmup. |
+| **Cross-AI Adapters**         | Zero-Shot system prompts automatically adapt instructions for Claude (XML-heavy) vs OpenAI/Gemini (JSON-schema). |
 | **MCP Bridge**                | `LiopMcpBridge` adapts any `LiopServer` to the JSON-RPC 2.0 / stdio protocol used by Claude Desktop, Cursor, etc.                      |
 | **Post-Quantum Ready**        | ML-KEM-768 (Kyber) handshake + AES-256-GCM symmetric encryption for transport-layer security.                                              |
 | **P2P Mesh**                  | Kademlia DHT discovery via `libp2p` with TCP + WebSocket + Yamux multiplexing and Noise encryption.                                      |
@@ -245,6 +245,8 @@ new LiopServer(
     };
     auth?: LiopAuthConfig;         // OAuth 2.1 Hybrid authentication config
     tokenSlug?: string;            // Deterministic token resolution slug (e.g., "BANK", "VAULT")
+    allowEnv?: boolean;            // Enable safe host environment propagation (default: false)
+    budgetStorePath?: string;      // Path to a shared JSON file for persistent Query Budget tracking
   }
 )
 ```
@@ -253,7 +255,7 @@ new LiopServer(
 
 | Method                       | Signature                                          | Description                                                                         |
 | :--------------------------- | :------------------------------------------------- | :---------------------------------------------------------------------------------- |
-| `tool()`                   | `(name, description, zodSchema, handler)`        | Registers a callable tool with Zod input validation.                                |
+| `tool()`                   | `(name, description, shape, handler, policy?)`     | Registers a callable tool with Zod input validation and logic execution policies.   |
 | `prompt()`                 | `(name, description, args, handler)`             | Registers a dynamic prompt template.                                                |
 | `resource()`               | `(name, uri, description?, mimeType?, content?)` | Registers a readable resource.                                                      |
 | `dataDictionary()`         | `(schema, name?, uri?, description?)`            | Broadcasts a data schema so LLMs can write accurate Logic-Injection-on-Origin code. |
@@ -269,6 +271,24 @@ new LiopServer(
 | `connectToMesh()`          | `()`                                             | Connects to the libp2p Kademlia DHT.                                                |
 | `clearAstCache()`          | `()`                                             | Invalidates the Guardian AST logic cache.                                           |
 | `close()`                  | `()`                                             | Destroys the worker pool and releases threads.                                      |
+
+#### LogicExecutionPolicy Options
+
+When registering a tool via `server.tool()`, you can optionally pass a `policy` object to configure security and privacy guards for that specific tool:
+
+```typescript
+interface LogicExecutionPolicy {
+  outputSchema?: z.ZodType<unknown>;         // Validate returned business payload (strict by default)
+  enforceAggregationFirst?: boolean | AggregationPolicy; // Block row-level exports & enforce K-Anonymity
+  preflightDenyPatterns?: RegExp[];          // Custom regex patterns blocked in static analysis
+  dpEpsilon?: number;                        // Laplace Differential Privacy epsilon (default: 1.0)
+  dpSensitivity?: number;                    // Maximum change per single record (default: 1.0)
+  dpSmallDatasetThreshold?: number;          // Size threshold below which DP is active (default: 50)
+  queryBudgetPerField?: number;              // Uniform session query limit per field (legacy compatibility)
+  sensitiveKeys?: string[];                  // Tool-level fields under the 8-query sensitive budget tier
+  budgetStorePath?: string;                  // Shared path for persistent and concurrent query budgets
+}
+```
 
 ### `LiopMcpBridge`
 
@@ -300,11 +320,11 @@ await bridge.connect();
 │  Layer 1: Guardian AST (Zero-Time Static Analysis)        │
 │  14-function WASI allowlist • 128 import cap • Blocks     │
 │  require, import(), fs, eval, fetch, __proto__            │
-├───────────────────────────────────────────────────────────┤
+├───────────────────────────────────────────────────────────┐
 │  Layer 2: WASI Sandbox (V8 Isolate)                       │
 │  25 poisoned globals (incl. Date, TypedArrays) •          │
 │  CPU Fuel limits • 5s timeout • maxHeapMb (64MB default)  │
-│  Object.freeze() on 11 core prototypes (strict mode)      │
+│  Object.freeze() on 11 core prototypes • allowEnv allowlist │
 ├───────────────────────────────────────────────────────────┤
 │  Layer 3: Taint Analyzer (IFC — Static)                   │
 │  Acorn AST 3-pass analysis blocks PII side-channels:      │
@@ -312,15 +332,16 @@ await bridge.connect();
 ├───────────────────────────────────────────────────────────┤
 │  Layer 4: PII Shield (Egress Filter)                      │
 │  4-stage pipeline: exact key → fuzzy key → pattern        │
-│  validators (Luhn, IBAN Mod-97) → NER (compromise)        │
+│  validators (Luhn, IBAN Mod-97) → NER (compromise) •      │
+│  Recursive In-Memory Numerical Sanitization (4 decimals)  │
 ├───────────────────────────────────────────────────────────┤
 │  Layer 5: Aggregation-First Policy                        │
 │  Blocks raw row export • maxOutputRows (default: 10) •    │
 │  Conditional error: detailed (dev) vs opaque (production) │
 ├───────────────────────────────────────────────────────────┤
-│  Layer 6: ZK-Receipt (Integrity Verification)             │
-│  SHA-256 ImageID + HMAC-SHA256 Seal (Kyber768-derived)    │
-│  Timing-safe verification • LiopMcpBridge auto-verifies   │
+│  Layer 6: ZK-Receipt (Integrity & Replay Mitigation)       │
+│  SHA-256 ImageID + HMAC-SHA256 Seal (Kyber768-derived) •  │
+│  output_hash cross-verification • Balanced-brace extractor │
 └───────────────────────────────────────────────────────────┘
 ```
 
@@ -385,6 +406,32 @@ When operating on high-privacy datasets, if the source records count is **less t
 For maximum host security, the WASI sandbox enforces a poisoned environment that strips dangerous globals and prevents timing side-channels:
 - **Poisoned/Disabled**: `Date` (Date.now, parse, etc. throw an exception to prevent timing analysis), `eval`, `Function`, `setTimeout`, `setInterval`, `Buffer`, `ArrayBuffer`, and all `TypedArrays`.
 - **Date Workaround**: To perform date checks, use lexicographical string comparison on ISO 8601 strings (e.g., `record.date >= "2026-01-01"`).
+
+### 🧹 Recursive In-Memory Numerical Sanitization
+
+To mitigate timing channels, statistical differentiation, and floats side-channels, the SDK executes a recursive sanitization pipeline before the PII scanner runs:
+- Positive floating-point numbers are recursively rounded to exactly **4 decimal places**.
+- Negative values are safely clamped to **0** (via `sanitizeOutput()`).
+- This operation runs entirely in-memory and recursively on all fields, preserving data structure immutability without expensive and fragile serialization-deserialization cycles.
+
+### 🌐 Environment Isolation & allowEnv Allowlist
+
+For robust sandboxing, the WASI execution path isolates host environment variables. Propagation can be enabled explicitly:
+```typescript
+const server = new LiopServer(info, {
+  allowEnv: true
+});
+```
+To block arbitrary command execution (e.g., Shellshock) and prevent exposure of host credentials, the SDK filters environment variables through a **strict system allowlist** (`getDefaultEnvironment()`):
+- **Windows Allowlist**: `APPDATA`, `HOMEDRIVE`, `HOMEPATH`, `LOCALAPPDATA`, `PATH`, `PROCESSOR_ARCHITECTURE`, `SYSTEMDRIVE`, `SYSTEMROOT`, `TEMP`, `USERNAME`, `USERPROFILE`, `PROGRAMFILES`.
+- **Unix/Linux Allowlist**: `HOME`, `LOGNAME`, `PATH`, `SHELL`, `TERM`, `USER`.
+Variables starting with shell functions `()` are dropped.
+
+### 🔒 ZK-Receipt Replay & Tampering Mitigation
+
+LIOP ZK-Receipts provide cryptographic evidence that a computation was executed honestly under zero-trust bounds. To defeat **Man-in-the-Middle (MITM) reply tampering and replay attacks** (re-using old signatures on new query data):
+- The verification pipeline computes the SHA-256 hash of the received business output (`expectedOutput`) and strictly asserts its equivalence with `Journal.output_hash` signed inside the ZK-Receipt (via `verifyZkReceipt`).
+- **Balanced-Brace Proxy Extractor**: If the tool call was delegated to a proxied tool (`__liop_proxy_tool`), the verifier invokes an in-process balanced-brace state machine to safely isolate proxy arguments from the response metadata, preventing false validation failures.
 
 ---
 

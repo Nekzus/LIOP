@@ -39,6 +39,17 @@ If the agent asks to read `/var/log/nginx/` and the server allows it as `/logs`,
 - **Heap Bomb Defense:** All 12 `TypedArray` constructors (`Uint8Array`, `Float64Array`, `DataView`, etc.) are neutralized to prevent allocation of massive binary buffers that could crash the worker process through V8 heap exhaustion. Each worker is additionally constrained to a configurable memory ceiling via `maxHeapMb` (default: 64 MB).
 - **Prototype Pollution Defense:** Eleven core JavaScript prototypes (`Object`, `Array`, `String`, `Number`, `Boolean`, `RegExp`, `Map`, `Set`, `Promise`, `Error`, and `Function` resolved dynamically) are frozen via `Object.freeze()` inside the sandbox IIFE before user code executes. By wrapping execution in `"use strict";`, any unauthorized attempts to pollute prototypes trigger immediate `TypeError` halts instead of silent failures, preventing injected logic from overriding built-in methods.
 - **Non-Blocking Pool:** The Sandbox execution is inherently computationally heavy. To prevent Node.js servers from freezing, the `@nekzus/liop` isolates this entire lifecycle inside native `worker_threads` (via `piscina`), achieving parallel throughput identical to the native Mesh-Node. The pool implements an asynchronous background warmup (No-Op Warmup) on initialization to eliminate V8 cold-start overhead (~820k fuel units).
+- **Safe Host Environment Isolation (`allowEnv`):** By default, the WASI sandbox completely isolates the execution from any environment variables. If host variables are strictly required by the business logic, you can enable environment propagation:
+  ```typescript
+  const server = new LiopServer(info, {
+    // In WasiSandbox options
+    allowEnv: true
+  });
+  ```
+  To completely block command-injection exploits (such as Shellshock) and prevent leakage of sensitive secrets (like AWS keys or database tokens), the SDK filters environment variables through a **strict safe allowlist** via `getDefaultEnvironment()`:
+  - **Windows Host Allowlist**: `APPDATA`, `HOMEDRIVE`, `HOMEPATH`, `LOCALAPPDATA`, `PATH`, `PROCESSOR_ARCHITECTURE`, `SYSTEMDRIVE`, `SYSTEMROOT`, `TEMP`, `USERNAME`, `USERPROFILE`, `PROGRAMFILES`.
+  - **Unix/Linux Host Allowlist**: `HOME`, `LOGNAME`, `PATH`, `SHELL`, `TERM`, `USER`.
+  Any environment variable starting with shell function definitions `()` is immediately rejected to prevent remote code execution.
 
 ## Moving towards Component Model (Preview 2)
 

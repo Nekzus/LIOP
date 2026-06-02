@@ -10,14 +10,14 @@
     },
     "dependencies": {
         "@nekzus/liop": "workspace:*",
-        "chalk": "^5.3.0",
-        "cli-table3": "^0.6.5",
-        "piscina": "^5.1.4",
-        "zod": "^3.23.11"
+        "chalk": "5.3.0",
+        "cli-table3": "0.6.5",
+        "piscina": "5.1.4",
+        "zod": "3.25.76"
     },
     "devDependencies": {
-        "@types/node": "^25.3.5",
-        "tsx": "^4.21.0",
-        "typescript": "^5.9.3"
+        "@types/node": "25.3.1",
+        "tsx": "4.21.0",
+        "typescript": "5.9.3"
     }
 }

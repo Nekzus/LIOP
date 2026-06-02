@@ -61,6 +61,8 @@ export interface LiopServerOptions {
 		idleTimeout?: number;
 		/** Max heap memory per worker in MB (default: 64). Prevents heap bomb DoS. */
 		maxHeapMb?: number;
+		/** Maximum number of tasks allowed in the queue. Default is "auto". */
+		maxQueue?: number | "auto";
 	};
 	security?: {
 		piiPatterns?: PiiRule[];
@@ -101,6 +103,10 @@ export interface LiopServerOptions {
 	 * Must match SCREAMING_SNAKE_CASE: /^[A-Z][A-Z0-9_]*$/ (e.g., "BANK", "VAULT", "HFT_ORACLE").
 	 */
 	tokenSlug?: string;
+	/**
+	 * Path to a shared JSON file for persistent Query Budget tracking across multiple server instances.
+	 */
+	budgetStorePath?: string;
 }
 
 export interface AggregationPolicy {
@@ -149,6 +155,10 @@ export interface LogicExecutionPolicy {
 	 * Domain-specific sensitive keys that fall under the "sensitive" query budget tier.
 	 */
 	sensitiveKeys?: string[];
+	/**
+	 * Path to a shared JSON file for persistent Query Budget tracking across multiple server instances.
+	 */
+	budgetStorePath?: string;
 }
 
 export class LiopServer {
@@ -298,49 +308,84 @@ export class LiopServer {
 		const extractedFields = this.taintAnalyzer.extractQueriedFields(logic);
 
 		if (extractedFields.length > 0) {
-			let clientBudget = this.fieldQueryBudget.get(clientId);
-			if (!clientBudget) {
-				clientBudget = new Map<string, Map<string, number>>();
-				this.fieldQueryBudget.set(clientId, clientBudget);
-			}
+			const storePath = policy?.budgetStorePath || this.config?.budgetStorePath;
+			if (storePath) {
+				try {
+					const budgetError = this.executeWithBudgetLock(
+						storePath,
+						(budget) => {
+							const clientBudget = budget[clientId] || {};
+							const toolBudget = clientBudget[_toolName] || {};
 
-			let toolBudget = clientBudget.get(_toolName);
-			if (!toolBudget) {
-				toolBudget = new Map<string, number>();
-				clientBudget.set(_toolName, toolBudget);
-			}
+							for (const field of extractedFields) {
+								const sensitivity = this.taintAnalyzer.classifyField(
+									field,
+									policy?.sensitiveKeys,
+								);
 
-			// Check budget before incrementing to avoid partial updates on failure
-			for (const field of extractedFields) {
-				const sensitivity = this.taintAnalyzer.classifyField(
-					field,
-					policy?.sensitiveKeys,
+								let queryLimit = 25; // default public
+								let sensLabel = "public";
+
+								if (policy?.queryBudgetPerField !== undefined) {
+									queryLimit = policy.queryBudgetPerField;
+									sensLabel = "override";
+								} else if (sensitivity === "forbidden") {
+									queryLimit = 3;
+									sensLabel = "forbidden";
+								} else if (sensitivity === "sensitive") {
+									queryLimit = 8;
+									sensLabel = "sensitive";
+								}
+
+								const count = toolBudget[field] ?? 0;
+								if (count >= queryLimit) {
+									return {
+										result: `Preflight policy rejected: Query budget exceeded for field '${field}' (max ${queryLimit} per session for ${sensLabel} fields). Rotate PQC session to reset budget.`,
+									};
+								}
+							}
+
+							// All within budget, increment them
+							const updatedToolBudget = { ...toolBudget };
+							for (const field of extractedFields) {
+								updatedToolBudget[field] = (updatedToolBudget[field] ?? 0) + 1;
+							}
+
+							const updatedClientBudget = { ...clientBudget };
+							updatedClientBudget[_toolName] = updatedToolBudget;
+
+							const updatedBudget = { ...budget };
+							updatedBudget[clientId] = updatedClientBudget;
+
+							return { result: null, updatedBudget };
+						},
+					);
+
+					if (budgetError) {
+						return budgetError;
+					}
+				} catch (e: unknown) {
+					const errorMsg = e instanceof Error ? e.message : String(e);
+					// Fallback to in-memory on filesystem locking errors
+					log.error(
+						`[LIOP-Server] Error applying persistent query budget: ${errorMsg}. Falling back to in-memory.`,
+					);
+					const inMemoryError = this.applyInMemoryBudget(
+						clientId,
+						_toolName,
+						extractedFields,
+						policy,
+					);
+					if (inMemoryError) return inMemoryError;
+				}
+			} else {
+				const inMemoryError = this.applyInMemoryBudget(
+					clientId,
+					_toolName,
+					extractedFields,
+					policy,
 				);
-
-				let queryLimit = 25; // default public
-				let sensLabel = "public";
-
-				if (policy?.queryBudgetPerField !== undefined) {
-					queryLimit = policy.queryBudgetPerField;
-					sensLabel = "override";
-				} else if (sensitivity === "forbidden") {
-					queryLimit = 3;
-					sensLabel = "forbidden";
-				} else if (sensitivity === "sensitive") {
-					queryLimit = 8;
-					sensLabel = "sensitive";
-				}
-
-				const count = toolBudget.get(field) ?? 0;
-				if (count >= queryLimit) {
-					return `Preflight policy rejected: Query budget exceeded for field '${field}' (max ${queryLimit} per session for ${sensLabel} fields). Rotate PQC session to reset budget.`;
-				}
-			}
-
-			// All fields within budget, increment them
-			for (const field of extractedFields) {
-				const count = toolBudget.get(field) ?? 0;
-				toolBudget.set(field, count + 1);
+				if (inMemoryError) return inMemoryError;
 			}
 		}
 
@@ -681,7 +726,7 @@ export class LiopServer {
 			maxThreads: this.config?.workerPool?.maxThreads ?? (isTest ? 1 : 8),
 			idleTimeout:
 				this.config?.workerPool?.idleTimeout ?? (isTest ? 500 : 5000),
-			maxQueue: "auto",
+			maxQueue: this.config?.workerPool?.maxQueue ?? "auto",
 			taskQueue: new FixedQueue(),
 			execArgv,
 			// [DoS Defense] Enforce hard memory ceiling per worker thread.
@@ -1811,7 +1856,7 @@ Protocol Adherence is mandatory for successful execution.`,
 							toolName || "unknown_tool",
 							logic,
 							toolPolicy,
-							request.session_token,
+							session.agent_did || request.session_token,
 						);
 
 						if (preflightReason) {
@@ -2362,5 +2407,154 @@ Protocol Adherence is mandatory for successful execution.`,
 				);
 			}
 		}
+	}
+
+	private getPersistentBudget(
+		storePath: string,
+	): Record<string, Record<string, Record<string, number>>> {
+		try {
+			if (!fs.existsSync(storePath)) {
+				return {};
+			}
+			const content = fs.readFileSync(storePath, "utf-8");
+			return JSON.parse(content || "{}");
+		} catch {
+			return {};
+		}
+	}
+
+	private savePersistentBudget(
+		storePath: string,
+		budget: Record<string, Record<string, Record<string, number>>>,
+	): void {
+		const tempPath = `${storePath}.tmp`;
+		const dir = path.dirname(storePath);
+		if (!fs.existsSync(dir)) {
+			fs.mkdirSync(dir, { recursive: true });
+		}
+		fs.writeFileSync(tempPath, JSON.stringify(budget, null, 2), "utf-8");
+		fs.renameSync(tempPath, storePath);
+	}
+
+	private executeWithBudgetLock<T>(
+		storePath: string,
+		action: (
+			budget: Record<string, Record<string, Record<string, number>>>,
+		) => {
+			result: T;
+			updatedBudget?: Record<string, Record<string, Record<string, number>>>;
+		},
+	): T {
+		const lockPath = `${storePath}.lock`;
+		const maxRetries = 100;
+		const delayMs = 15;
+		let attempts = 0;
+
+		const dir = path.dirname(storePath);
+		if (!fs.existsSync(dir)) {
+			try {
+				fs.mkdirSync(dir, { recursive: true });
+			} catch {
+				// Ignore concurrent directory creation
+			}
+		}
+
+		while (attempts < maxRetries) {
+			try {
+				fs.writeFileSync(lockPath, process.pid.toString(), { flag: "wx" });
+				break;
+			} catch (e: unknown) {
+				if (
+					e &&
+					typeof e === "object" &&
+					"code" in e &&
+					(e as Record<string, unknown>).code === "EEXIST"
+				) {
+					attempts++;
+					const jitter = Math.floor(Math.random() * 10);
+					const targetTime = Date.now() + delayMs + jitter;
+					while (Date.now() < targetTime) {
+						// Sync spin wait
+					}
+				} else {
+					throw e;
+				}
+			}
+		}
+
+		if (attempts >= maxRetries) {
+			throw new Error(
+				"Timeout acquiring lock for persistent query budget database",
+			);
+		}
+
+		try {
+			const currentBudget = this.getPersistentBudget(storePath);
+			const { result, updatedBudget } = action(currentBudget);
+			if (updatedBudget) {
+				this.savePersistentBudget(storePath, updatedBudget);
+			}
+			return result;
+		} finally {
+			try {
+				if (fs.existsSync(lockPath)) {
+					fs.unlinkSync(lockPath);
+				}
+			} catch {
+				// Ignore lock removal errors
+			}
+		}
+	}
+
+	private applyInMemoryBudget(
+		clientId: string,
+		_toolName: string,
+		extractedFields: string[],
+		policy?: LogicExecutionPolicy,
+	): string | null {
+		let clientBudget = this.fieldQueryBudget.get(clientId);
+		if (!clientBudget) {
+			clientBudget = new Map<string, Map<string, number>>();
+			this.fieldQueryBudget.set(clientId, clientBudget);
+		}
+
+		let toolBudget = clientBudget.get(_toolName);
+		if (!toolBudget) {
+			toolBudget = new Map<string, number>();
+			clientBudget.set(_toolName, toolBudget);
+		}
+
+		for (const field of extractedFields) {
+			const sensitivity = this.taintAnalyzer.classifyField(
+				field,
+				policy?.sensitiveKeys,
+			);
+
+			let queryLimit = 25; // default public
+			let sensLabel = "public";
+
+			if (policy?.queryBudgetPerField !== undefined) {
+				queryLimit = policy.queryBudgetPerField;
+				sensLabel = "override";
+			} else if (sensitivity === "forbidden") {
+				queryLimit = 3;
+				sensLabel = "forbidden";
+			} else if (sensitivity === "sensitive") {
+				queryLimit = 8;
+				sensLabel = "sensitive";
+			}
+
+			const count = toolBudget.get(field) ?? 0;
+			if (count >= queryLimit) {
+				return `Preflight policy rejected: Query budget exceeded for field '${field}' (max ${queryLimit} per session for ${sensLabel} fields). Rotate PQC session to reset budget.`;
+			}
+		}
+
+		for (const field of extractedFields) {
+			const count = toolBudget.get(field) ?? 0;
+			toolBudget.set(field, count + 1);
+		}
+
+		return null;
 	}
 }

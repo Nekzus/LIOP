@@ -130,6 +130,24 @@ const context = vm.createContext(sandboxEnv, {
 
 La opción `microtaskMode: 'afterEvaluate'` le indica a Node.js que ejecute inmediatamente todas las microtareas encoladas por el script antes de retornar. Esto garantiza que ninguna lógica asíncrona sobreviva fuera del límite de ejecución del sandbox de 5.000 ms, neutralizando potenciales evasiones del sandbox mediante bombas lógicas asíncronas.
 
+### Variables de Entorno Seguras del Host (`allowEnv`)
+
+Por defecto, el sandbox WASI aísla por completo el entorno del huésped. Si su lógica de negocio requiere estrictamente variables de entorno, puede habilitar la propagación segura de variables del host:
+
+```typescript
+const server = new LiopServer(info, {
+  // En las opciones de WasiSandbox
+  allowEnv: true
+});
+```
+
+Para prevenir vulnerabilidades por inyección de comandos en shell (como Shellshock) y evitar fugas silenciosas de credenciales del host (como `AWS_SECRET_ACCESS_KEY` o `NPM_TOKEN`), el SDK filtra las variables de entorno mediante una **lista permitida estricta y segura** a través de `getDefaultEnvironment()`:
+
+- **Lista de Permitidos en Windows**: `APPDATA`, `HOMEDRIVE`, `HOMEPATH`, `LOCALAPPDATA`, `PATH`, `PROCESSOR_ARCHITECTURE`, `SYSTEMDRIVE`, `SYSTEMROOT`, `TEMP`, `USERNAME`, `USERPROFILE`, `PROGRAMFILES`.
+- **Lista de Permitidos en Unix/Linux**: `HOME`, `LOGNAME`, `PATH`, `SHELL`, `TERM`, `USER`.
+
+Cualquier variable de entorno que comience con definiciones de función de shell `()` se rechaza de inmediato para neutralizar vectores de ejecución de código remoto.
+
 ### Limpieza Post-Ejecución
 
 El sandbox destruye todos los artefactos temporales después de cada ciclo de ejecución:
@@ -215,6 +233,7 @@ Los presets pueden combinarse con reglas regex personalizadas para cumplir con r
 - **Política Aggregation-First**: Bloquea la exportación de datos crudos a nivel de fila — solo pasan resultados agregados (conteos, promedios, resúmenes)
 - **Aplicación de Output Schema**: Cuando se define un esquema de salida `Zod`, el modo `.strict()` se aplica automáticamente, rechazando cualquier clave no permitida explícitamente en el esquema
 - **Desempaquetado Criptográfico y de Envoltura**: Aísla y extrae automáticamente el payload de datos de negocio real de las envolturas de transporte MCP/LIOP y de las respuestas proxied de gRPC (mediante `unwrapForAggregationPolicyScan`) antes de realizar el escaneo. Esto evita falsos positivos procedentes de metadatos binarios y sellos criptográficos (como las firmas HMAC-SHA256 de los recibos ZK).
+- **Sanitización Numérica Recursiva en Memoria**: Antes de realizar el escaneo, todos los valores numéricos del payload devuelto se procesan de forma recursiva: los números decimales positivos (floats) se redondean a un máximo de 4 decimales, y los valores negativos se acotan de forma segura a `0` (mediante `sanitizeOutput()`). Esto se ejecuta enteramente en memoria para evitar canales laterales en representaciones de coma flotante y previene conversiones de cadena de caracteres redundantes.
 - **K-Anonymity en Datasets Pequeños**: Para micro-datasets o demos sintéticas (tamaño del dataset < 10), el Escudo de Egreso aplica un filtro estricto de K-Anonymity. Cualquier salida devuelta por el sandbox es rechazada si contiene más de **3 claves escalares** (propiedades planas) o si incluye algún **array u objeto anidado**. Esto bloquea intentos de reconstruir bases de datos registro a registro mediante consultas superpuestas o canales de estructura anidada.
 
 ---
@@ -232,6 +251,15 @@ Durante una sesión segura negociada por PQC, el SDK rastrea el acceso a los cam
 3. **Tier Público (Máx 25 consultas/sesión)**: Se aplica a cualquier campo público no registrado como sensible o prohibido.
 
 Los límites se imponen dinámicamente basándose en el análisis de flujo de información (taint tracking). Si el presupuesto de algún tier se agota, las ejecuciones subsiguientes en el sandbox que intenten acceder a esos campos son bloqueadas.
+
+### Presupuestos de Consultas Persistentes y Control de Concurrencia
+
+Para mantener los invariantes de seguridad Zero-Trust a través de reinicios o fallas del servidor, o en clústeres multi-instancia (como múltiples procesos puente locales en paralelo), el SDK admite la persistencia de presupuestos de consultas activos en el sistema de archivos:
+
+- **Configuración de Persistencia**: Los operadores pueden proporcionar la propiedad `budgetStorePath` de forma global en las opciones del constructor de `LiopServer` o localmente dentro de una política `LogicExecutionPolicy` a nivel de herramienta.
+- **Anclaje de Identidad del Cliente (Anti-Bypass)**: Los límites de presupuesto están estrictamente vinculados a la identidad criptográfica del cliente (`agentDid` derivado de su PeerID Ed25519 persistente, o `clientId` de los tokens JWT autorizados por el servidor Nexus OAuth 2.1). Al auditar la identidad real del cliente en lugar de tokens de transporte efímeros (como el `session_token` de gRPC), el SDK evita que los adversarios restablezcan sus presupuestos de consultas al iniciar nuevos handshakes o reconectarse.
+- **Bloqueo Atómico de Archivos**: Bajo el capó, el SDK impone la sincronización entre procesos y actualizaciones atómicas en el archivo JSON del presupuesto mediante bloqueos del sistema de archivos (archivos `.lock`). Esto evita condiciones de carrera donde múltiples peticiones paralelas de un LLM se ejecutan simultáneamente en diferentes hilos o instancias de workers para exceder los límites de presupuesto.
+- **Tolerancia a Fallos en Memoria**: Si fallan los permisos de escritura en el sistema de archivos, si el directorio de almacenamiento es de solo lectura, o si ocurre un deadlock de bloqueo, el SDK reporta automáticamente el error a los logs del sistema y realiza un fallback al rastreo de presupuesto en memoria aislado por sesión, asegurando la continuidad del servicio del nodo sin comprometer las políticas de seguridad.
 
 ### Mecanismo de Laplace y Sensibilidad por Campo
 
@@ -264,7 +292,8 @@ Cada ejecución del sandbox produce un **recibo criptográfico** que vincula la 
 3. **Privacidad Diferencial**: El ruido Laplace se aplica a las salidas numéricas *antes* del compromiso, garantizando que el ZK-Receipt coincida con los datos ruidosos que el cliente recibe. Soporta **modo DDP** (PRNG con semilla via `dataset_hash + image_id`) para reproducibilidad en auditorías.
 4. **Ensamblaje del Journal**: Un objeto JSON que contiene `image_id`, `dataset_hash`, `output_hash` (SHA-256 del resultado post-DP), `fuel` consumido y `ts` (timestamp)
 5. **Sello HMAC**: `crypto.createHmac("sha256", sessionSecret).update(journal).digest()` — el secreto de sesión se deriva del **intercambio de claves ML-KEM-768 (Kyber)**
-6. **Verificación**: `crypto.timingSafeEqual(seal, expectedSeal)` — comparación en tiempo constante que previene ataques de canal lateral por temporización
+6. **Verificación y Mitigación de Replay**: El verificador valida el sello HMAC en tiempo constante (`crypto.timingSafeEqual`). Adicionalmente, para prevenir **ataques de replay e intercambio de respuestas Man-in-the-Middle (MITM)**, el verificador calcula un hash SHA-256 local del resultado recibido (`expectedOutput`) y comprueba rigurosamente que coincida con `Journal.output_hash` (mediante `verifyZkReceipt`).
+7. **Extractor de Proxy por Llaves Balanceadas**: Si la llamada a la herramienta se delegó mediante proxy (`__liop_proxy_tool`), el verificador ejecuta una máquina de estados de llaves balanceadas en proceso para aislar y extraer los argumentos crudos del proxy a partir de la respuesta antes de calcular el hash, eludiendo falsos positivos de validación cuando el host inyecta metadatos.
 
 <Tip>
   El `sessionSecret` utilizado para la firma HMAC es la clave compartida negociada mediante Criptografía Post-Cuántica (ML-KEM-768). Esto garantiza que la integridad del ZK-Receipt sea resistente a ataques cuánticos.

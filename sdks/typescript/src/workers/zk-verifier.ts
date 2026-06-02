@@ -21,10 +21,93 @@ export interface ZkVerificationPayload {
 	zkReceipt?: Uint8Array;
 	/** Kyber-derived session secret to verify HMAC signature */
 	sessionSecret?: Uint8Array;
+	/** The expected output value of the computation for anti-replay/tampering verification */
+	expectedOutput?: unknown;
 }
 
 function deriveImageId(logicPayload: Uint8Array): Buffer {
 	return deriveLogicImageDigest(logicPayload);
+}
+
+interface ZkJournal {
+	image_id: string;
+	dataset_hash: string;
+	output_hash: string;
+	fuel: number;
+	ts: number;
+}
+
+function tryExtractProxyOutput(logicPayload: Uint8Array): unknown | null {
+	try {
+		const logicStr = Buffer.from(logicPayload).toString("utf-8").trim();
+		if (!logicStr.includes("__liop_proxy_tool")) {
+			return null;
+		}
+
+		const firstBraceIdx = logicStr.indexOf("{");
+		if (firstBraceIdx === -1) {
+			return null;
+		}
+
+		let braceCount = 0;
+		let inDoubleQuote = false;
+		let inSingleQuote = false;
+		let inBacktick = false;
+		let escaped = false;
+		let lastBraceIdx = -1;
+
+		for (let i = firstBraceIdx; i < logicStr.length; i++) {
+			const char = logicStr[i];
+
+			if (escaped) {
+				escaped = false;
+				continue;
+			}
+
+			if (char === "\\") {
+				escaped = true;
+				continue;
+			}
+
+			if (char === '"' && !inSingleQuote && !inBacktick) {
+				inDoubleQuote = !inDoubleQuote;
+				continue;
+			}
+
+			if (char === "'" && !inDoubleQuote && !inBacktick) {
+				inSingleQuote = !inSingleQuote;
+				continue;
+			}
+
+			if (char === "`" && !inDoubleQuote && !inSingleQuote) {
+				inBacktick = !inBacktick;
+				continue;
+			}
+
+			if (!inDoubleQuote && !inSingleQuote && !inBacktick) {
+				if (char === "{") {
+					braceCount++;
+				} else if (char === "}") {
+					braceCount--;
+					if (braceCount === 0) {
+						lastBraceIdx = i;
+						break;
+					}
+				}
+			}
+		}
+
+		if (lastBraceIdx !== -1) {
+			const jsonStr = logicStr.slice(firstBraceIdx, lastBraceIdx + 1);
+			const parsed = JSON.parse(jsonStr);
+			if (parsed?.__liop_proxy_tool) {
+				return parsed;
+			}
+		}
+	} catch (_e) {
+		// Fallback
+	}
+	return null;
 }
 
 /**
@@ -34,8 +117,20 @@ function deriveImageId(logicPayload: Uint8Array): Buffer {
 async function verifyZkReceipt(
 	payload: ZkVerificationPayload,
 ): Promise<{ verified: boolean; message: string }> {
-	const { logicPayload, remoteImageIdHex, zkReceipt, sessionSecret } =
-		payload as Required<ZkVerificationPayload>;
+	const {
+		logicPayload,
+		remoteImageIdHex,
+		zkReceipt,
+		sessionSecret,
+		expectedOutput,
+	} = payload;
+
+	if (!logicPayload || !remoteImageIdHex || !zkReceipt) {
+		return {
+			verified: false,
+			message: "Missing required verification fields.",
+		};
+	}
 
 	// 1. Calculate local ImageID (Integrity Check)
 	const localImageId = deriveImageId(logicPayload);
@@ -78,8 +173,9 @@ async function verifyZkReceipt(
 	}
 
 	// 3. Parse journal and verify imageId
+	let journalData: ZkJournal;
 	try {
-		const journalData = JSON.parse(journal.toString());
+		journalData = JSON.parse(journal.toString()) as ZkJournal;
 		if (journalData.image_id !== localImageIdHex) {
 			return {
 				verified: false,
@@ -100,6 +196,30 @@ async function verifyZkReceipt(
 			return {
 				verified: false,
 				message: "Invalid seal: HMAC verification failed.",
+			};
+		}
+	}
+
+	// 5. Output Hash Verification (Anti-Replay / Anti-Tampering)
+	if (expectedOutput !== undefined) {
+		const proxyOutput = tryExtractProxyOutput(logicPayload);
+		const actualExpected = proxyOutput !== null ? proxyOutput : expectedOutput;
+
+		const expectedOutputStr =
+			typeof actualExpected === "string"
+				? actualExpected
+				: actualExpected === undefined
+					? "undefined"
+					: JSON.stringify(actualExpected);
+		const expectedOutputHash = crypto
+			.createHash("sha256")
+			.update(expectedOutputStr)
+			.digest("hex");
+
+		if (journalData.output_hash !== expectedOutputHash) {
+			return {
+				verified: false,
+				message: `Output Hash Mismatch (Replay/Tamper attempt): Journal output_hash (${journalData.output_hash.slice(0, 8)}) != Calculated output_hash (${expectedOutputHash.slice(0, 8)})`,
 			};
 		}
 	}

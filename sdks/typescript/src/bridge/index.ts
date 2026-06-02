@@ -211,6 +211,8 @@ export class LiopMcpBridge {
 							Buffer.from(payload, "utf-8"),
 							data.image_id,
 							Buffer.from(data.zk_receipt || "", "base64"),
+							undefined,
+							data.computation_result,
 						);
 
 						if (!isAuthentic) {
