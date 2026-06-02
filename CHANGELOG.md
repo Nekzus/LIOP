@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.1.0-alpha.3](https://github.com/Nekzus/LIOP/compare/v2.1.0-alpha.2...v2.1.0-alpha.3) (2026-06-02)
+
+
+### Bug Fixes
+
+* **sdk:** bind preflight query budget to agent_did in executeLogic gRPC flow ([d6b3ba1](https://github.com/Nekzus/LIOP/commit/d6b3ba1196b3a64fcadab1532c839a9131147f02))
+
 # [2.1.0-alpha.2](https://github.com/Nekzus/LIOP/compare/v2.1.0-alpha.1...v2.1.0-alpha.2) (2026-06-02)
 
 
