@@ -11,11 +11,15 @@
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import { LiopServer } from "../../../src/server/index.js";
 import { LiopHybridGateway } from "../../../src/gateway/hybrid.js";
 import { log } from "../../../src/utils/logger.js";
 import { generateMedicalDataset } from "../utils/datasetGenerator.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 async function main() {
 	const dataDir = "/app/data";
@@ -40,6 +44,7 @@ async function main() {
 				clearanceTier: 5,
 				executionTypes: ["Blind AST Logic", "Zero-Trust Worker Pool"],
 			},
+			budgetStorePath: path.join(dataDir, "query-budgets.json"),
 		},
 	);
 

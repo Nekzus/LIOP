@@ -29,3 +29,12 @@ auditConfig:
 
 minimumReleaseAgeExclude:
   - '@libp2p/kad-dht@16.3.0'
+
+overrides:
+  multiformats: "13.4.2"
+  "@multiformats/multiaddr": "13.0.1"
+  protobufjs: "7.5.8"
+  content-type: "1.0.5"
+  type-is: "2.0.1"
+  "@libp2p/interface": "3.2.3"
+  "@libp2p/peer-collections": "7.0.21"
