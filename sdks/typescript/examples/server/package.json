@@ -12,10 +12,10 @@
 		"@nekzus/liop": "workspace:*"
 	},
 	"devDependencies": {
-		"tsx": "^4.7.0",
-		"typescript": "^5.0.0",
-		"zod": "^3.23.11",
-		"vitest": "^4.0.18",
-		"tsdown": "latest"
+		"tsx": "4.21.0",
+		"typescript": "5.9.3",
+		"zod": "3.25.76",
+		"vitest": "4.1.8",
+		"tsdown": "0.22.1"
 	}
 }

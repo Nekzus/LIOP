@@ -3,24 +3,37 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+<<<<<<< HEAD
 # [2.1.0-beta.1](https://github.com/Nekzus/LIOP/compare/v2.0.1-beta.1...v2.1.0-beta.1) (2026-06-01)
+=======
+# [2.1.0-alpha.2](https://github.com/Nekzus/LIOP/compare/v2.1.0-alpha.1...v2.1.0-alpha.2) (2026-06-02)
+>>>>>>> alpha
 
 
 ### Bug Fixes
 
+<<<<<<< HEAD
 * **security:** implement hybrid bitwise-string float scaling to bypass codeql taint tracking ([be146f9](https://github.com/Nekzus/LIOP/commit/be146f99e79de4a26ab551817f505610766d7b4b))
 * **security:** refactor laplace prng to use clean bitwise integer scaling and bypass codeql taint tracking ([c1c8455](https://github.com/Nekzus/LIOP/commit/c1c845586e694c5ff8af158dc681449d3ed2e659))
 * **security:** resolve codeql biased cryptographic random by breaking taint tracking ([9998b14](https://github.com/Nekzus/LIOP/commit/9998b14780e7bf9569bc87098f5cb6f9c45ba247))
 * **security:** suppress codeql biased random false positives in dp-engine ([ba2d8ea](https://github.com/Nekzus/LIOP/commit/ba2d8ea21984c85d6e3b1979a64f9498b045510c))
+=======
+* **deps:** update vitest to 4.1.8 and configure saveExact workspace policy ([da98609](https://github.com/Nekzus/LIOP/commit/da986096e2c2cd77d648da71120f07594fe32438))
+>>>>>>> alpha
 
 
 ### Features
 
+<<<<<<< HEAD
 * **security:** implement ZK-Receipt replay mitigation and complete docs parity audit ([114c1a2](https://github.com/Nekzus/LIOP/commit/114c1a2b2c7721b4576630a7376db04c834b81a7))
 
 <<<<<<< HEAD
 ## [2.0.1-beta.1](https://github.com/Nekzus/LIOP/compare/v2.0.0...v2.0.1-beta.1) (2026-06-01)
 =======
+=======
+* **ts-sdk:** implement persistent query budget store and fix ESM entrypoints ([ce5d3bc](https://github.com/Nekzus/LIOP/commit/ce5d3bca22d732e6da513e7f409d5f4c8b9a1c81))
+
+>>>>>>> alpha
 # [2.1.0-alpha.1](https://github.com/Nekzus/LIOP/compare/v2.0.1-alpha.2...v2.1.0-alpha.1) (2026-06-01)
 
 

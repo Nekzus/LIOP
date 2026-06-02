@@ -126,8 +126,10 @@ To prevent this differential reconstruction, LIOP implements a **Tiered Query Bu
 
 ### Client-Isolated & Session-Persistent Budgets
 
-- **Session Isolation**: Budgets are tracked *per-client* using the cryptographic identity (`agentDid` or `clientId`) verified during the PQC handshake (`negotiateIntent`). Contadores cannot be cleared or reset by reconnecting or starting a new gRPC intent within the same session.
-- **Preflight Enforcement**: The `TaintAnalyzer` decodes and scans the AST of the injected logic *before* spawning the sandbox. It extracts all accessed fields, including those within generator loops or direct indices. If a field's cumulative query count exceeds its tier limit, the request is instantly aborted in preflight, returning a clean error directly to the LLM.
+- **Session Isolation & Persistence**: Budgets are tracked *per-client* using the cryptographic identity (`agentDid` or `clientId`) verified during the PQC handshake (`negotiateIntent`). Under the hood, these budgets can be written to disk via a shared JSON file (`budgetStorePath`). This prevents limits from being bypassed by reconnecting, starting a new gRPC intent, or restarting the server.
+- **Concurrency & File Locking**: To prevent statistical differentiation attacks where multiple parallel requests are dispatched concurrently to bypass budget limits, the engine synchronizes access using file-level locking (`.lock` files). Updates are atomic, guaranteeing that no two client-specific requests can evade validation checks in a distributed or multi-threaded setup.
+- **Preflight Enforcement**: The `TaintAnalyzer` decodes and scans the AST of the injected logic *before* spawning the sandbox. It extracts all accessed fields, including those within generator loops or direct indices. If a field's cumulative query count (loaded dynamically from the budget store) exceeds its tier limit, the request is instantly aborted in preflight, returning a clean error directly to the LLM.
+- **Fail-Safe Fallback**: If filesystem restrictions or deadlocks prevent locking/writing, the engine prints a warning and falls back dynamically to in-memory session budget tracking, maintaining security enforcement at all times.
 
 ### Sensitivity Tiers
 
