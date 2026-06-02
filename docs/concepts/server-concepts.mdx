@@ -245,6 +245,11 @@ server.tool(
 
 Atomic locking (`.lock`) is managed automatically under the hood to synchronize concurrent writes. If file storage writes fail, it silently falls back to session-isolated in-memory budget tracking.
 
+##### Client Identity Binding & Budget Resets (Anti-Bypass)
+
+- **Persistent Identity Anchoring**: The budget limits are bound to the client's persistent cryptographic identity (`agentDid` derived from their Ed25519 PeerID or `clientId` from OAuth 2.1 JSON Web Tokens) rather than ephemeral transport tokens (such as gRPC `session_token`). This prevents malicious clients from bypassing their query budgets by simply reconnecting or negotiating new gRPC intents.
+- **Budget Resets via PQC Session Rotation**: For legitimate clients or environments without file-backed persistence, the session budget can be reset by initiating a new ephemeral ML-KEM-768 (Kyber) handshake, which rotates the Post-Quantum session keys. If a budget is exhausted and no persistence is configured, the SDK returns a clear error: `Rotate PQC session to reset budget`.
+
 ### Differential Privacy Policy
 For datasets below the `dpSmallDatasetThreshold` (default: 50 records), the server automatically applies calibrated Laplace noise to all numeric outputs. Configure the privacy profile at the tool-level policy when registering a tool:
 

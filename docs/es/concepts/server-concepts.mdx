@@ -241,6 +241,11 @@ server.tool(
 
 El bloqueo atómico de archivos (`.lock`) se gestiona automáticamente bajo el capó para sincronizar las escrituras concurrentes. Si la escritura en disco falla por falta de permisos o bloqueos persistentes, el motor realiza un fallback silencioso al rastreo de presupuestos en memoria aislado por sesión.
 
+##### Vinculación de Identidad de Cliente y Restablecimiento de Presupuestos (Anti-Bypass)
+
+- **Anclaje de Identidad Persistente**: Los límites de presupuesto están vinculados a la identidad criptográfica persistente del cliente (`agentDid` derivado de su PeerID Ed25519 o `clientId` de los JSON Web Tokens de OAuth 2.1) en lugar de tokens de transporte efímeros (como el `session_token` de gRPC). Esto evita que clientes maliciosos omitan sus presupuestos de consulta simplemente reconectándose o negociando nuevos intents de gRPC.
+- **Restablecimiento del Presupuesto mediante Rotación de Sesión PQC**: Para clientes legítimos o entornos sin persistencia basada en archivos, el presupuesto de la sesión se puede restablecer iniciando un nuevo handshake efímero de ML-KEM-768 (Kyber), el cual rota las claves de sesión post-cuánticas. Si el presupuesto se agota y no hay persistencia configurada, el SDK devuelve un error explícito: `Rotate PQC session to reset budget`.
+
 ### Política de Privacidad Diferencial
 Para datasets por debajo del `dpSmallDatasetThreshold` (por defecto: 50 registros), el servidor aplica automáticamente ruido Laplace calibrado a todas las salidas numéricas. Configure el perfil de privacidad en la política a nivel de herramienta al registrarla:
 
