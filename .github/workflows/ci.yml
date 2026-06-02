@@ -42,6 +42,13 @@ jobs:
       - name: Check Code Formatting
         run: pnpm run check
 
+      - name: Validate CHANGELOG Integrity
+        run: |
+          if grep -qE "<<<<<<<|=======|>>>>>>>" CHANGELOG.md; then
+            echo "Error: Git conflict markers found in CHANGELOG.md"
+            exit 1
+          fi
+
   test:
     name: Build & Test on ${{ matrix.os }} (Node ${{ matrix.node-version }})
     runs-on: ${{ matrix.os }}
