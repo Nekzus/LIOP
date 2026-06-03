@@ -107,126 +107,126 @@ importers:
   sdks/typescript:
     dependencies:
       '@chainsafe/libp2p-noise':
-        specifier: ^17.0.0
+        specifier: 17.0.0
         version: 17.0.0
       '@chainsafe/libp2p-yamux':
-        specifier: ^8.0.1
+        specifier: 8.0.1
         version: 8.0.1
       '@grpc/grpc-js':
-        specifier: ^1.14.3
+        specifier: 1.14.4
         version: 1.14.4
       '@grpc/proto-loader':
-        specifier: ^0.8.0
+        specifier: 0.8.1
         version: 0.8.1
       '@hono/node-server':
-        specifier: ^1.19.11
+        specifier: 1.19.11
         version: 1.19.11(hono@4.12.23)
       '@libp2p/bootstrap':
-        specifier: ^12.0.22
+        specifier: 12.0.24
         version: 12.0.24
       '@libp2p/crypto':
-        specifier: ^5.1.18
-        version: 5.1.19
+        specifier: 5.1.18
+        version: 5.1.18
       '@libp2p/identify':
-        specifier: ^4.1.6
+        specifier: 4.1.6
         version: 4.1.6
       '@libp2p/kad-dht':
-        specifier: ^16.3.0
+        specifier: 16.3.1
         version: 16.3.1
       '@libp2p/peer-id':
-        specifier: ^6.0.9
-        version: 6.0.10
+        specifier: 6.0.9
+        version: 6.0.9
       '@libp2p/ping':
-        specifier: ^3.1.5
-        version: 3.1.6
+        specifier: 3.1.5
+        version: 3.1.5
       '@libp2p/tcp':
-        specifier: ^11.0.20
+        specifier: 11.0.20
         version: 11.0.20
       '@libp2p/websockets':
-        specifier: ^10.1.13
+        specifier: 10.1.13
         version: 10.1.13
       '@multiformats/multiaddr':
         specifier: 13.0.1
         version: 13.0.1
       hono:
-        specifier: ^4.12.5
+        specifier: 4.12.23
         version: 4.12.23
       it-pipe:
-        specifier: ^3.0.1
+        specifier: 3.0.1
         version: 3.0.1
       jose:
-        specifier: ^6.2.3
+        specifier: 6.2.3
         version: 6.2.3
       libp2p:
-        specifier: ^3.3.1
+        specifier: 3.3.3
         version: 3.3.3
       mlkem:
-        specifier: ^2.7.0
+        specifier: 2.7.0
         version: 2.7.0
       multiformats:
         specifier: 13.4.2
         version: 13.4.2
       oidc-provider:
-        specifier: ^9.8.3
+        specifier: 9.8.4
         version: 9.8.4
       piscina:
-        specifier: ^5.1.4
+        specifier: 5.1.4
         version: 5.1.4
       uint8arrays:
-        specifier: ^3.1.1
+        specifier: 3.1.1
         version: 3.1.1
     devDependencies:
       '@biomejs/biome':
         specifier: 2.4.8
         version: 2.4.8
       '@opentelemetry/api':
-        specifier: ^1.9.1
+        specifier: 1.9.1
         version: 1.9.1
       '@opentelemetry/sdk-metrics':
-        specifier: ^2.7.0
+        specifier: 2.7.0
         version: 2.7.0(@opentelemetry/api@1.9.1)
       '@types/node':
-        specifier: ^25.3.1
+        specifier: 25.3.1
         version: 25.3.1
       '@types/oidc-provider':
-        specifier: ^9.5.0
+        specifier: 9.5.0
         version: 9.5.0
       '@vitest/coverage-v8':
         specifier: 4.1.8
         version: 4.1.8(vitest@4.1.8)
       acorn:
-        specifier: ^8.16.0
+        specifier: 8.16.0
         version: 8.16.0
       acorn-walk:
-        specifier: ^8.3.5
+        specifier: 8.3.5
         version: 8.3.5
       tsup:
-        specifier: ^8.5.1
+        specifier: 8.5.1
         version: 8.5.1(jiti@2.6.1)(postcss@8.5.14)(tsx@4.21.0)(typescript@5.9.3)
       tsx:
-        specifier: ^4.21.0
+        specifier: 4.21.0
         version: 4.21.0
       typescript:
-        specifier: ^5.9.3
+        specifier: 5.9.3
         version: 5.9.3
       vitest:
         specifier: 4.1.8
         version: 4.1.8(@opentelemetry/api@1.9.1)(@types/node@25.3.1)(@vitest/coverage-v8@4.1.8)(vite@7.3.3(@types/node@25.3.1)(jiti@2.6.1)(tsx@4.21.0))
       zod:
-        specifier: ^3.23.11
+        specifier: 3.25.76
         version: 3.25.76
       zod-to-json-schema:
-        specifier: ^3.24.1
-        version: 3.25.1(zod@3.25.76)
+        specifier: 3.24.1
+        version: 3.24.1(zod@3.25.76)
     optionalDependencies:
       '@modelcontextprotocol/sdk':
-        specifier: ^1.28.0
+        specifier: 1.28.0
         version: 1.28.0(zod@3.25.76)
       compromise:
         specifier: 14.15.0
         version: 14.15.0
       gpt-tokenizer:
-        specifier: ^3.4.0
+        specifier: 3.4.0
         version: 3.4.0
 
   sdks/typescript/examples/client-quickstart:
@@ -655,6 +655,9 @@ packages:
   '@libp2p/bootstrap@12.0.24':
     resolution: {integrity: sha512-TE1mkUDgfCtMIY9jok/PnPdQDicH1ynwnH5znflpGynEACAVHQMg42CPb2TUWK0/go6uA/y7rQITji96K44PgQ==}
 
+  '@libp2p/crypto@5.1.18':
+    resolution: {integrity: sha512-sCm+dFFZmH4LJIHTCzPy7+EBRhzkndFUcIU8bui6iaxK6SDSRVa11+/O6DzW8hn/U9LgDXe6jXnzWM8bM7OoCA==}
+
   '@libp2p/crypto@5.1.19':
     resolution: {integrity: sha512-hYNeHQpUSwLPopWCgDf6OklOvVwJPS/vYZOiBG3VXPIzx5AkONBOfdkgVwB4YsIBH2V6z+TMgMH0yXUZsMurPA==}
 
@@ -682,11 +685,17 @@ packages:
   '@libp2p/peer-id@6.0.10':
     resolution: {integrity: sha512-FgXeraxl932zim/K+vipCkscjLNMsyNVBh1NpGcJ+y8DQi/jgFXV4YZ0M2JuWM20GTcVCqDT5P10A0DJHRjecg==}
 
+  '@libp2p/peer-id@6.0.9':
+    resolution: {integrity: sha512-MlofyOOpxzZA4tIcOVPjd1FQIa0TA0g+bn+d08vfo9znCjfe6Lh0RBFyLdlICbyogVN6wn7+29SYch78wCuuCQ==}
+
   '@libp2p/peer-record@9.0.11':
     resolution: {integrity: sha512-8bRt7mOXdFmiGpNNziytrX0rhj9uUBjv8SRZt/tuPvLKn3LUl9M6Z9e2atX0Cai2UENw7T8IR3AE/cVaunjgxA==}
 
   '@libp2p/peer-store@12.0.21':
     resolution: {integrity: sha512-y13xQ7vTFLX04v/34p1h60/1iaS4yziJFov3VLJOmScQ+QibpLvKAtlrczpFRRFSzqIzW/4EeR7pdAk1QCMo9A==}
+
+  '@libp2p/ping@3.1.5':
+    resolution: {integrity: sha512-1ri4Swms2lc5yLTZOvVAqHXJr4vx8TPTEp7uHM4+Q+hKQ8zNulzWiyTBBdKh2tCdZbGYLevqt0e52iyqVFRN8A==}
 
   '@libp2p/ping@3.1.6':
     resolution: {integrity: sha512-scLY3/lC4xu6wq835JmeT2Q+sN2L1R/lexTICZuvoMW36f9hN8oAXwP+zf+eQpz20r628X4j6KWznfOc2cYE+A==}
@@ -4016,6 +4025,11 @@ packages:
     resolution: {integrity: sha512-CzhO+pFNo8ajLM2d2IW/R93ipy99LWjtwblvC1RsoSUMZgyLbYFr221TnSNT7GjGdYui6P459mw9JH/g/zW2ug==}
     engines: {node: '>=18'}
 
+  zod-to-json-schema@3.24.1:
+    resolution: {integrity: sha512-3h08nf3Vw3Wl3PK+q3ow/lIil81IT2Oa7YpQyUUDsEWbXveMesdfK1xBd2RhCkynwZndAxixji/7SYJJowr62w==}
+    peerDependencies:
+      zod: ^3.24.1
+
   zod-to-json-schema@3.25.1:
     resolution: {integrity: sha512-pM/SU9d3YAggzi6MtR4h7ruuQlqKtad8e9S0fmxcMi+ueAK5Korys/aWcV9LIIHTVbj01NdzxcnXSN+O74ZIVA==}
     peerDependencies:
@@ -4340,6 +4354,16 @@ snapshots:
       '@multiformats/multiaddr-matcher': 3.0.2
       main-event: 1.0.1
 
+  '@libp2p/crypto@5.1.18':
+    dependencies:
+      '@libp2p/interface': 3.2.3
+      '@noble/curves': 2.0.1
+      '@noble/hashes': 2.0.1
+      multiformats: 13.4.2
+      protons-runtime: 6.0.1
+      uint8arraylist: 2.4.8
+      uint8arrays: 5.1.1
+
   '@libp2p/crypto@5.1.19':
     dependencies:
       '@libp2p/interface': 3.2.3
@@ -4447,6 +4471,13 @@ snapshots:
       multiformats: 13.4.2
       uint8arrays: 6.1.1
 
+  '@libp2p/peer-id@6.0.9':
+    dependencies:
+      '@libp2p/crypto': 5.1.19
+      '@libp2p/interface': 3.2.3
+      multiformats: 13.4.2
+      uint8arrays: 5.1.1
+
   '@libp2p/peer-record@9.0.11':
     dependencies:
       '@libp2p/crypto': 5.1.19
@@ -4475,6 +4506,16 @@ snapshots:
       protons-runtime: 6.0.1
       uint8arraylist: 2.4.8
       uint8arrays: 6.1.1
+
+  '@libp2p/ping@3.1.5':
+    dependencies:
+      '@libp2p/crypto': 5.1.19
+      '@libp2p/interface': 3.2.3
+      '@libp2p/interface-internal': 3.1.6
+      p-event: 7.1.0
+      race-signal: 2.0.0
+      uint8arraylist: 2.4.8
+      uint8arrays: 5.1.1
 
   '@libp2p/ping@3.1.6':
     dependencies:
@@ -7837,9 +7878,14 @@ snapshots:
 
   yoctocolors@2.1.2: {}
 
+  zod-to-json-schema@3.24.1(zod@3.25.76):
+    dependencies:
+      zod: 3.25.76
+
   zod-to-json-schema@3.25.1(zod@3.25.76):
     dependencies:
       zod: 3.25.76
+    optional: true
 
   zod@3.25.76: {}
 
