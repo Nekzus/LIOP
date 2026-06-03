@@ -148,12 +148,6 @@ importers:
       '@multiformats/multiaddr':
         specifier: 13.0.1
         version: 13.0.1
-      acorn:
-        specifier: 8.16.0
-        version: 8.16.0
-      acorn-walk:
-        specifier: 8.3.5
-        version: 8.3.5
       hono:
         specifier: 4.12.23
         version: 4.12.23
@@ -181,12 +175,6 @@ importers:
       uint8arrays:
         specifier: 3.1.1
         version: 3.1.1
-      zod:
-        specifier: 3.25.76
-        version: 3.25.76
-      zod-to-json-schema:
-        specifier: 3.24.1
-        version: 3.24.1(zod@3.25.76)
     devDependencies:
       '@biomejs/biome':
         specifier: 2.4.8
@@ -206,6 +194,12 @@ importers:
       '@vitest/coverage-v8':
         specifier: 4.1.8
         version: 4.1.8(vitest@4.1.8)
+      acorn:
+        specifier: 8.16.0
+        version: 8.16.0
+      acorn-walk:
+        specifier: 8.3.5
+        version: 8.3.5
       tsup:
         specifier: 8.5.1
         version: 8.5.1(jiti@2.6.1)(postcss@8.5.14)(tsx@4.21.0)(typescript@5.9.3)
@@ -218,6 +212,12 @@ importers:
       vitest:
         specifier: 4.1.8
         version: 4.1.8(@opentelemetry/api@1.9.1)(@types/node@25.3.1)(@vitest/coverage-v8@4.1.8)(vite@7.3.3(@types/node@25.3.1)(jiti@2.6.1)(tsx@4.21.0))
+      zod:
+        specifier: 3.25.76
+        version: 3.25.76
+      zod-to-json-schema:
+        specifier: 3.24.1
+        version: 3.24.1(zod@3.25.76)
     optionalDependencies:
       '@modelcontextprotocol/sdk':
         specifier: 1.28.0
