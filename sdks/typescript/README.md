@@ -536,6 +536,16 @@ This package is continuously tested across multiple platforms and Node.js versio
 
 > To run tests locally or contribute, clone the [repository](https://github.com/Nekzus/LIOP) and follow the [Contributing Guide](https://github.com/Nekzus/LIOP/blob/main/CONTRIBUTING.md).
 
+## Security Auditing & Supply Chain
+
+This repository is integrated with [Socket.dev](https://socket.dev) to continuously monitor and secure the software supply chain against malicious packages, hidden telemetry, and dependency vulnerabilities.
+
+You can run security audits and check package health scores directly from the monorepo root:
+
+- **Scan Monorepo Dependencies:** `pnpm socket:scan` (performs a security scan and generates a report)
+- **Check SDK Security Score:** `pnpm socket:score` (shows the detailed package score for the SDK in Markdown format)
+- **Fix Vulnerabilities:** `pnpm socket:fix` (automatically remediates known CVEs in package.json)
+
 ---
 
 ## Related
