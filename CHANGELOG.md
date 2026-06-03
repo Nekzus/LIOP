@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.1.0-alpha.7](https://github.com/Nekzus/LIOP/compare/v2.1.0-alpha.6...v2.1.0-alpha.7) (2026-06-03)
+
+
+### Features
+
+* **socket:** restore noExternal for performance and keep unminified bundle ([729e199](https://github.com/Nekzus/LIOP/commit/729e199b07462091da895a5c24de7f001a2c43e0))
+
 # [2.1.0-alpha.6](https://github.com/Nekzus/LIOP/compare/v2.1.0-alpha.5...v2.1.0-alpha.6) (2026-06-03)
 
 
