@@ -23,5 +23,6 @@ export default defineConfig({
   treeshake: true,
   shims: true,
   skipNodeModulesBundle: true,
+  noExternal: ['@opentelemetry/api'],
   outDir: 'dist',
 });
