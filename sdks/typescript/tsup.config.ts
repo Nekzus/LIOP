@@ -16,7 +16,7 @@ export default defineConfig({
   format: ['esm'],
   dts: true,
   clean: true,
-  minify: true,
+  minify: false,
   sourcemap: true,
   target: 'node20',
   splitting: true,
