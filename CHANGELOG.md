@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.1.0-alpha.6](https://github.com/Nekzus/LIOP/compare/v2.1.0-alpha.5...v2.1.0-alpha.6) (2026-06-03)
+
+
+### Features
+
+* **socket:** add opentelemetry/api to noExternal to fix npx ERR_MODULE_NOT_FOUND error ([bac6c2d](https://github.com/Nekzus/LIOP/commit/bac6c2d6a41f216cb58ebd78f66435d17a9ae072))
+
 # [2.1.0-alpha.5](https://github.com/Nekzus/LIOP/compare/v2.1.0-alpha.4...v2.1.0-alpha.5) (2026-06-03)
 
 
