@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.1.0-alpha.8](https://github.com/Nekzus/LIOP/compare/v2.1.0-alpha.7...v2.1.0-alpha.8) (2026-06-03)
+
+
+### Features
+
+* **socket:** consolidate unminified bundle and restore performance path ([a28ec70](https://github.com/Nekzus/LIOP/commit/a28ec70b84664c83ec3d7c0df29755008cb165b2))
+
 # [2.1.0-alpha.7](https://github.com/Nekzus/LIOP/compare/v2.1.0-alpha.6...v2.1.0-alpha.7) (2026-06-03)
 
 
