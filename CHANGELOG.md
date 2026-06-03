@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.1.0-alpha.5](https://github.com/Nekzus/LIOP/compare/v2.1.0-alpha.4...v2.1.0-alpha.5) (2026-06-03)
+
+
+### Features
+
+* **socket:** disable tsup minification to eliminate minifiedFile alerts ([ed6def1](https://github.com/Nekzus/LIOP/commit/ed6def18eb818fa72b8f92ad8c11c4803106875a))
+
 # [2.1.0-alpha.4](https://github.com/Nekzus/LIOP/compare/v2.1.0-alpha.3...v2.1.0-alpha.4) (2026-06-03)
 
 
