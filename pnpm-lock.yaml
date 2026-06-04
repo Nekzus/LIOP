@@ -140,8 +140,8 @@ importers:
         specifier: 12.0.24
         version: 12.0.24
       '@libp2p/crypto':
-        specifier: 5.1.18
-        version: 5.1.18
+        specifier: 5.1.19
+        version: 5.1.19
       '@libp2p/identify':
         specifier: 4.1.7
         version: 4.1.7
@@ -828,9 +828,6 @@ packages:
 
   '@libp2p/bootstrap@12.0.24':
     resolution: {integrity: sha512-TE1mkUDgfCtMIY9jok/PnPdQDicH1ynwnH5znflpGynEACAVHQMg42CPb2TUWK0/go6uA/y7rQITji96K44PgQ==}
-
-  '@libp2p/crypto@5.1.18':
-    resolution: {integrity: sha512-sCm+dFFZmH4LJIHTCzPy7+EBRhzkndFUcIU8bui6iaxK6SDSRVa11+/O6DzW8hn/U9LgDXe6jXnzWM8bM7OoCA==}
 
   '@libp2p/crypto@5.1.19':
     resolution: {integrity: sha512-hYNeHQpUSwLPopWCgDf6OklOvVwJPS/vYZOiBG3VXPIzx5AkONBOfdkgVwB4YsIBH2V6z+TMgMH0yXUZsMurPA==}
@@ -4582,16 +4579,6 @@ snapshots:
       '@multiformats/multiaddr': 13.0.3
       '@multiformats/multiaddr-matcher': 3.0.2
       main-event: 1.0.1
-
-  '@libp2p/crypto@5.1.18':
-    dependencies:
-      '@libp2p/interface': 3.2.3
-      '@noble/curves': 2.0.1
-      '@noble/hashes': 2.0.1
-      multiformats: 14.0.0
-      protons-runtime: 6.0.1
-      uint8arraylist: 2.4.8
-      uint8arrays: 5.1.1
 
   '@libp2p/crypto@5.1.19':
     dependencies:
