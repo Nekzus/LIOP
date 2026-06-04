@@ -42,7 +42,7 @@ async function main() {
 				clearanceTier: 3,
 				executionTypes: ["Read-Only Queries", "Transactional Verification"],
 			},
-			budgetStorePath: path.join(dataDir, "query-budgets.json"),
+			budgetStorePath: path.join(dataDir, "bank-query-budgets.json"),
 		},
 	);
 
@@ -87,10 +87,10 @@ async function main() {
 			// Domain-specific keys (may accept strings/arrays)
 			totalAccounts: z.number().optional(),
 			total_records: z.number().optional(),
-			byType: z.record(z.union([z.number(), z.string()])).optional(),
+			byType: z.record(z.string(), z.union([z.number(), z.string()])).optional(),
 			totalBalance: z.union([z.number(), z.string()]).optional(),
 			avgBalance: z.union([z.number(), z.string()]).optional(),
-			balanceByCurrency: z.record(z.union([z.number(), z.string()])).optional(),
+			balanceByCurrency: z.record(z.string(), z.union([z.number(), z.string()])).optional(),
 			columns: z.array(z.string()).optional(),
 			clientPayload: z.string().optional(),
 			// SEC-HARDENING: Removed 'balances' and 'accounts' arrays —

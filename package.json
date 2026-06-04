@@ -25,7 +25,10 @@
     "demo:stop": "pnpm --filter @nekzus/liop demo:stop",
     "demo:clean": "pnpm --filter @nekzus/liop demo:clean",
     "demo:claude": "pnpm --filter @nekzus/liop demo:claude",
-    "demo:inspector": "pnpm --filter @nekzus/liop demo:inspector"
+    "demo:inspector": "pnpm --filter @nekzus/liop demo:inspector",
+    "socket:scan": "socket scan create --report .",
+    "socket:score": "socket package score npm @nekzus/liop --markdown",
+    "socket:fix": "socket fix"
   },
   "config": {
     "commitizen": {
@@ -46,5 +49,5 @@
   "engines": {
     "node": ">=20.0"
   },
-  "packageManager": "pnpm@11.4.0"
+  "packageManager": "pnpm@11.5.1"
 }

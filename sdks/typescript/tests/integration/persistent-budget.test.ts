@@ -193,4 +193,94 @@ describe("LIOP Persistent Query Budget Integration", () => {
 		const count = data["concurrent-client"]["check"]["item"];
 		expect(count).toBe(30);
 	});
+
+	it("should reset budget selectively by toolName via resetFieldBudget()", async () => {
+		const policy = {
+			enforceAggregationFirst: true,
+			queryBudgetPerField: 2,
+			budgetStorePath: testBudgetPath,
+		};
+
+		if (fs.existsSync(testBudgetPath)) {
+			fs.unlinkSync(testBudgetPath);
+		}
+
+		const server = new LiopServer(
+			{ name: "Reset-Server", version: "1" },
+			{ budgetStorePath: testBudgetPath },
+		);
+		server.setSandboxData([{ val: 10 }, { score: 5 }]);
+
+		server.tool("tool_a", "Tool A", { payload: z.string() }, async () => ({ content: [] }), policy);
+		server.tool("tool_b", "Tool B", { payload: z.string() }, async () => ({ content: [] }), policy);
+
+		const payloadA = "@LIOP{wasi_v1,Q}\nreturn { count: env.records.filter(r => r.val > 0).length }\n@END";
+		const payloadB = "@LIOP{wasi_v1,Q}\nreturn { count: env.records.filter(r => r.score > 0).length }\n@END";
+
+		// Exhaust budget for tool_a and tool_b
+		await server.callTool({ name: "tool_a", arguments: { payload: payloadA } }, "reset-client");
+		await server.callTool({ name: "tool_a", arguments: { payload: payloadA } }, "reset-client");
+		await server.callTool({ name: "tool_b", arguments: { payload: payloadB } }, "reset-client");
+		await server.callTool({ name: "tool_b", arguments: { payload: payloadB } }, "reset-client");
+
+		// Both should be exhausted now
+		const blocked_a = await server.callTool({ name: "tool_a", arguments: { payload: payloadA } }, "reset-client");
+		expect(blocked_a.isError).toBe(true);
+		const blocked_b = await server.callTool({ name: "tool_b", arguments: { payload: payloadB } }, "reset-client");
+		expect(blocked_b.isError).toBe(true);
+
+		// Reset only tool_a
+		server.resetFieldBudget("reset-client", "tool_a");
+
+		// tool_a should work again
+		const unblocked_a = await server.callTool({ name: "tool_a", arguments: { payload: payloadA } }, "reset-client");
+		expect(unblocked_a.isError).toBeUndefined();
+
+		// tool_b should still be blocked
+		const still_blocked_b = await server.callTool({ name: "tool_b", arguments: { payload: payloadB } }, "reset-client");
+		expect(still_blocked_b.isError).toBe(true);
+
+		// Verify persistent store reflects the selective reset:
+		// tool_a was reset and then called once, so its count should be 1 (not the exhausted 2)
+		const data = JSON.parse(fs.readFileSync(testBudgetPath, "utf-8"));
+		expect(data["reset-client"]["tool_a"]["val"]).toBe(1);
+		expect(data["reset-client"]["tool_b"]["score"]).toBe(2);
+	});
+
+	it("should reset all tools for a client via resetFieldBudget() without toolName", async () => {
+		const policy = {
+			enforceAggregationFirst: true,
+			queryBudgetPerField: 1,
+			budgetStorePath: testBudgetPath,
+		};
+
+		if (fs.existsSync(testBudgetPath)) {
+			fs.unlinkSync(testBudgetPath);
+		}
+
+		const server = new LiopServer(
+			{ name: "FullReset-Server", version: "1" },
+			{ budgetStorePath: testBudgetPath },
+		);
+		server.setSandboxData([{ x: 1 }]);
+		server.tool("t1", "T1", { payload: z.string() }, async () => ({ content: [] }), policy);
+
+		const payload = "@LIOP{wasi_v1,Q}\nreturn { count: env.records.filter(r => r.x > 0).length }\n@END";
+
+		// Exhaust budget
+		await server.callTool({ name: "t1", arguments: { payload } }, "full-reset-client");
+		const blocked = await server.callTool({ name: "t1", arguments: { payload } }, "full-reset-client");
+		expect(blocked.isError).toBe(true);
+
+		// Full reset (no toolName)
+		server.resetFieldBudget("full-reset-client");
+
+		// Should work again
+		const unblocked = await server.callTool({ name: "t1", arguments: { payload } }, "full-reset-client");
+		expect(unblocked.isError).toBeUndefined();
+
+		// Verify persistent store was reset: count should be 1 (from the successful post-reset call)
+		const data = JSON.parse(fs.readFileSync(testBudgetPath, "utf-8"));
+		expect(data["full-reset-client"]["t1"]["x"]).toBe(1);
+	});
 });

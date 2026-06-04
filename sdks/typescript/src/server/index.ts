@@ -8,7 +8,6 @@ import * as grpc from "@grpc/grpc-js";
 import { createMlKem768 } from "mlkem";
 import { FixedQueue, Piscina } from "piscina";
 import { z } from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
 import { type LiopManifest, MeshNode } from "../mesh/node.js";
 import { LiopRpcServer } from "../rpc/server.js";
 import type { LogicRequest, LogicResponse } from "../rpc/types.js";
@@ -419,8 +418,14 @@ export class LiopServer {
 					return policy.outputSchema;
 				}
 				const obj = policy.outputSchema as z.ZodObject<z.ZodRawShape>;
-				// If schema has an explicit catchall (not ZodNever), respect it
-				if (!(obj._def.catchall instanceof z.ZodNever)) {
+				const def = (obj as any).def || (obj as any)._def;
+				// If schema has an explicit catchall (not ZodNever), respect it.
+				// In Zod v4, default catchall is undefined, so we check for both.
+				if (
+					def &&
+					def.catchall !== undefined &&
+					!(def.catchall instanceof z.ZodNever)
+				) {
 					return obj;
 				}
 				// Otherwise force strict to block unrecognized keys by default
@@ -872,6 +877,14 @@ export class LiopServer {
 			"OPTIONAL PARAMETERS:",
 			"- __liop_bypass_ast_cache: boolean (force AST re-evaluation)",
 			"",
+			"QUERY BUDGET TIERS (NIST SP 800-226):",
+			"- FORBIDDEN (PII fields like name, accountHolder): Blocked in AST preflight. Never executed, does not consume budget.",
+			"- SENSITIVE (fields marked via sensitiveKeys): 8 queries per agent identity (or queryBudgetPerField override).",
+			"- PUBLIC (all other fields): 25 queries per agent identity.",
+			"- PERSISTENCE: The budget is tracked by agent DID and persisted to disk, NOT by MCP session.",
+			"  Reconnecting or starting a new session does NOT reset the budget.",
+			"  Reset requires: administrator calling resetFieldBudget() or manual deletion of the budget store file.",
+			"",
 			"AUTHENTICATION (tokenSlug Convention):",
 			"- Restricted nodes declare authRequired: true in their manifest.",
 			"- Token resolution: LIOP_TOKEN_<tokenSlug> (deterministic) > LIOP_TOKEN_<PeerID> > LIOP_TOKEN_<ProviderName>",
@@ -965,7 +978,7 @@ export class LiopServer {
 		}
 
 		const schema = z.object(shape);
-		const generatedSchema = zodToJsonSchema(schema);
+		const generatedSchema = z.toJSONSchema(schema, { target: "draft-07" });
 
 		let finalDescription = description;
 		let finalHandler = handler;
@@ -1212,11 +1225,12 @@ INDUSTRIAL CONSTRAINTS & PROTOCOL RULES:
 7. SCHEMA RIGIDITY: Only use fields defined in the 'Data Dictionary'. Usage of non-existent fields will trigger a sandbox runtime exception.
 8. SANDBOX RUNTIME: The 'Date' class/constructor is poisoned and set to undefined. Calling 'new Date()', 'Date.now()', or 'Date.parse()' will throw exceptions.
    Workaround: Perform chronological operations and filtering using lexicographical string comparisons on ISO 8601 date strings (e.g., 'record.date >= "2024-01-01"').
-   Additionally, standard globals like 'eval', 'Function', 'setTimeout', 'setInterval', 'Buffer', ArrayBuffer, and TypedArrays are also undefined.${
-			this.activeSchema
-				? `\n\nCURRENT DATA DICTIONARY (STRICT):\n${JSON.stringify(this.activeSchema, null, 2)}`
-				: ""
-		}
+   Additionally, standard globals like 'eval', 'Function', 'setTimeout', 'setInterval', 'Buffer', ArrayBuffer, and TypedArrays are also undefined.
+9. QUERY BUDGET PERSISTENCE: The per-field query budget is tracked by your agent DID and persisted to disk. Reconnecting or starting a new MCP session does NOT reset the budget. If you receive "Query budget exceeded", you must use a different field or request an administrator to invoke resetFieldBudget().${
+									this.activeSchema
+										? `\n\nCURRENT DATA DICTIONARY (STRICT):\n${JSON.stringify(this.activeSchema, null, 2)}`
+										: ""
+								}
 
 Protocol Adherence is mandatory for successful execution.`,
 							},
@@ -1269,6 +1283,13 @@ Protocol Adherence is mandatory for successful execution.`,
 			"4. GENERAL RESTRICTIONS:",
 			"   - Do not use 'eval', 'Function', 'setTimeout', 'setInterval', 'Buffer', 'ArrayBuffer', or TypedArrays.",
 			"   - Do not attempt to modify prototypes (Object.prototype, Array.prototype).",
+			"",
+			"5. QUERY BUDGET TIERS (NIST SP 800-226):",
+			"   The per-field query budget is tracked by agent DID and persisted to disk (not per MCP session).",
+			"   - FORBIDDEN (PII fields): Always blocked in AST preflight. Does not consume budget.",
+			"   - SENSITIVE (sensitiveKeys): 8 queries per agent identity (or queryBudgetPerField override).",
+			"   - PUBLIC (other fields): 25 queries per agent identity.",
+			"   - Reset requires administrator intervention via resetFieldBudget().",
 		].join("\n");
 	}
 
@@ -2402,6 +2423,52 @@ Protocol Adherence is mandatory for successful execution.`,
 			} catch (err: unknown) {
 				log.error(
 					`[LiopServer] Failed to persist revocation: ${
+						err instanceof Error ? err.message : String(err)
+					}`,
+				);
+			}
+		}
+	}
+
+	/**
+	 * Resets the query budget for a specific client identity.
+	 * If toolName is provided, only that tool's budget is cleared.
+	 * Otherwise, all tool budgets for the client are reset.
+	 *
+	 * Operates on both in-memory and persistent (disk) budget stores.
+	 * Uses file-level locking for safe concurrent access.
+	 */
+	public resetFieldBudget(clientId: string, toolName?: string): void {
+		// 1. Clear in-memory budget
+		if (toolName) {
+			const clientBudget = this.fieldQueryBudget.get(clientId);
+			if (clientBudget) {
+				clientBudget.delete(toolName);
+			}
+		} else {
+			this.fieldQueryBudget.delete(clientId);
+		}
+
+		// 2. Clear persistent budget (if configured)
+		const storePath = this.config?.budgetStorePath;
+		if (storePath) {
+			try {
+				this.executeWithBudgetLock(storePath, (budget) => {
+					if (toolName) {
+						if (budget[clientId]) {
+							delete budget[clientId][toolName];
+						}
+					} else {
+						delete budget[clientId];
+					}
+					return { result: undefined, updatedBudget: budget };
+				});
+				log.info(
+					`[LiopServer] Reset query budget for client ${clientId}${toolName ? ` / tool ${toolName}` : ""}`,
+				);
+			} catch (err: unknown) {
+				log.error(
+					`[LiopServer] Failed to reset persistent budget: ${
 						err instanceof Error ? err.message : String(err)
 					}`,
 				);
