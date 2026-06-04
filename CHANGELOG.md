@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.1.0-alpha.9](https://github.com/Nekzus/LIOP/compare/v2.1.0-alpha.8...v2.1.0-alpha.9) (2026-06-04)
+
+
+### Features
+
+* **deps:** support zod v4 validation engine and uint8arrays v6 runtime ([ec16f34](https://github.com/Nekzus/LIOP/commit/ec16f3457c6e911c4d874f7c18efde1165b370cd))
+
 # [2.1.0-alpha.8](https://github.com/Nekzus/LIOP/compare/v2.1.0-alpha.7...v2.1.0-alpha.8) (2026-06-03)
 
 
