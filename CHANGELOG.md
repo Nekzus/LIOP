@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.1.0-alpha.10](https://github.com/Nekzus/LIOP/compare/v2.1.0-alpha.9...v2.1.0-alpha.10) (2026-06-04)
+
+
+### Bug Fixes
+
+* **tests:** align bank entrypoint with strict zod v4 z.record signature ([55b134e](https://github.com/Nekzus/LIOP/commit/55b134e7718d7bf2bc380fee201898ccdd5ce4ef))
+
+
+### Features
+
+* **sdk:** document query budgets, isolate store paths per node, and add reset API (fases 148-150) ([162a9e0](https://github.com/Nekzus/LIOP/commit/162a9e0a4aea42a68fbc03e844cea5516839e3ea))
+
 # [2.1.0-alpha.9](https://github.com/Nekzus/LIOP/compare/v2.1.0-alpha.8...v2.1.0-alpha.9) (2026-06-04)
 
 
