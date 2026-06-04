@@ -163,6 +163,7 @@
   "overrides": {
     "content-type": "1.0.5",
     "protobufjs": "7.5.8",
-    "type-is": "2.0.1"
+    "type-is": "2.0.1",
+    "uint8arrays": "6.1.1"
   }
 }
