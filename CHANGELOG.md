@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.1.0-alpha.12](https://github.com/Nekzus/LIOP/compare/v2.1.0-alpha.11...v2.1.0-alpha.12) (2026-06-04)
+
+
+### Bug Fixes
+
+* **sdk:** override uint8arrays to resolve ecdsa import error in npx ([a47546b](https://github.com/Nekzus/LIOP/commit/a47546bcdbbbba27a8138c519f7d72f66ce2c2cc))
+
 # [2.1.0-alpha.11](https://github.com/Nekzus/LIOP/compare/v2.1.0-alpha.10...v2.1.0-alpha.11) (2026-06-04)
 
 
