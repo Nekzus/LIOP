@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.1.0-alpha.11](https://github.com/Nekzus/LIOP/compare/v2.1.0-alpha.10...v2.1.0-alpha.11) (2026-06-04)
+
+
+### Features
+
+* **sdk:** document package audit findings and verify zero-bloat state ([e2a9cbe](https://github.com/Nekzus/LIOP/commit/e2a9cbe5d9a4a1acf29ea44753a735cbe29c58b4))
+
 # [2.1.0-alpha.10](https://github.com/Nekzus/LIOP/compare/v2.1.0-alpha.9...v2.1.0-alpha.10) (2026-06-04)
 
 
