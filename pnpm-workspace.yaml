@@ -38,6 +38,7 @@ overrides:
   type-is: "2.0.1"
   "@libp2p/interface": "3.2.3"
   "@libp2p/peer-collections": "7.0.21"
+  uint8arrays: "6.1.1"
   vitest: "4.1.8"
   "@vitest/coverage-v8": "4.1.8"
   aggregate-error: "npm:@socketregistry/aggregate-error@^1"
