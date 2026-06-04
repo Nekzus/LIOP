@@ -14,6 +14,7 @@ export default defineConfig({
     'workers/zk-verifier': 'src/workers/zk-verifier.ts',
   },
   format: ['esm'],
+  tsconfig: 'tsconfig.build.json',
   dts: true,
   clean: true,
   minify: false,

@@ -8,7 +8,6 @@ import * as grpc from "@grpc/grpc-js";
 import { createMlKem768 } from "mlkem";
 import { FixedQueue, Piscina } from "piscina";
 import { z } from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
 import { type LiopManifest, MeshNode } from "../mesh/node.js";
 import { LiopRpcServer } from "../rpc/server.js";
 import type { LogicRequest, LogicResponse } from "../rpc/types.js";
@@ -419,8 +418,14 @@ export class LiopServer {
 					return policy.outputSchema;
 				}
 				const obj = policy.outputSchema as z.ZodObject<z.ZodRawShape>;
-				// If schema has an explicit catchall (not ZodNever), respect it
-				if (!(obj._def.catchall instanceof z.ZodNever)) {
+				const def = (obj as any).def || (obj as any)._def;
+				// If schema has an explicit catchall (not ZodNever), respect it.
+				// In Zod v4, default catchall is undefined, so we check for both.
+				if (
+					def &&
+					def.catchall !== undefined &&
+					!(def.catchall instanceof z.ZodNever)
+				) {
 					return obj;
 				}
 				// Otherwise force strict to block unrecognized keys by default
@@ -965,7 +970,7 @@ export class LiopServer {
 		}
 
 		const schema = z.object(shape);
-		const generatedSchema = zodToJsonSchema(schema);
+		const generatedSchema = z.toJSONSchema(schema, { target: "draft-07" });
 
 		let finalDescription = description;
 		let finalHandler = handler;
@@ -1216,7 +1221,7 @@ INDUSTRIAL CONSTRAINTS & PROTOCOL RULES:
 			this.activeSchema
 				? `\n\nCURRENT DATA DICTIONARY (STRICT):\n${JSON.stringify(this.activeSchema, null, 2)}`
 				: ""
-		}
+}
 
 Protocol Adherence is mandatory for successful execution.`,
 							},
