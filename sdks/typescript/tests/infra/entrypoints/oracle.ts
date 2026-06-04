@@ -45,7 +45,7 @@ async function main() {
 				clearanceTier: 1,
 				executionTypes: ["Open Endpoints"],
 			},
-			budgetStorePath: path.join(dataDir, "query-budgets.json"),
+			budgetStorePath: path.join(dataDir, "oracle-query-budgets.json"),
 		},
 	);
 

@@ -42,7 +42,7 @@ async function main() {
 				clearanceTier: 3,
 				executionTypes: ["Read-Only Queries", "Transactional Verification"],
 			},
-			budgetStorePath: path.join(dataDir, "query-budgets.json"),
+			budgetStorePath: path.join(dataDir, "bank-query-budgets.json"),
 		},
 	);
 
