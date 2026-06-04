@@ -24,6 +24,5 @@ export default defineConfig({
   treeshake: true,
   shims: true,
   skipNodeModulesBundle: true,
-  noExternal: ['acorn', 'acorn-walk', 'zod', 'zod-to-json-schema', '@opentelemetry/api'],
   outDir: 'dist',
 });
