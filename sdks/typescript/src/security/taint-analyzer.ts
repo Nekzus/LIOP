@@ -286,7 +286,7 @@ export class TaintAnalyzer {
 
 				const fn = callback as acorn.ArrowFunctionExpression;
 				const recordParam = fn.params.length > 1 ? fn.params[1] : fn.params[0];
-				if (!recordParam || recordParam.type !== "Identifier") return;
+				if (recordParam?.type !== "Identifier") return;
 
 				const paramName = (recordParam as acorn.Identifier).name;
 				const fields = this.extractFieldsFromBody(
