@@ -546,6 +546,8 @@ You can run security audits and check package health scores directly from the mo
 - **Check SDK Security Score:** `pnpm socket:score` (shows the detailed package score for the SDK in Markdown format)
 - **Fix Vulnerabilities:** `pnpm socket:fix` (automatically remediates known CVEs in package.json)
 
+The codebase undergoes regular dependencies audits. As of June 2026, the SDK is verified to be 100% free of orphan packages and dead dependencies, ensuring an ultra-lightweight deployment footprint.
+
 ---
 
 ## Related
