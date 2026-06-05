@@ -1,16 +1,6 @@
 {
 	"extends": "./tsconfig.json",
 	"compilerOptions": {
-		"rootDir": "./src",
-		"skipLibCheck": true
-	},
-	"exclude": [
-		"node_modules",
-		"dist",
-		"tests",
-		"**/*.test.ts",
-		"examples",
-		"**/*.spec.ts",
-		"scripts"
-	]
+		"ignoreDeprecations": "6.0"
+	}
 }

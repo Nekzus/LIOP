@@ -25,7 +25,10 @@
     "demo:stop": "pnpm --filter @nekzus/liop demo:stop",
     "demo:clean": "pnpm --filter @nekzus/liop demo:clean",
     "demo:claude": "pnpm --filter @nekzus/liop demo:claude",
-    "demo:inspector": "pnpm --filter @nekzus/liop demo:inspector"
+    "demo:inspector": "pnpm --filter @nekzus/liop demo:inspector",
+    "socket:scan": "socket scan create --report .",
+    "socket:score": "socket package score npm @nekzus/liop --markdown",
+    "socket:fix": "socket fix"
   },
   "config": {
     "commitizen": {
@@ -43,8 +46,39 @@
     "cz-conventional-changelog": "3.3.0",
     "semantic-release": "24.2.9"
   },
+  "overrides": {
+    "aggregate-error": "npm:@socketregistry/aggregate-error@^1",
+    "array-buffer-byte-length": "npm:@socketregistry/array-buffer-byte-length@^1",
+    "deep-equal": "npm:@socketregistry/deep-equal@^1",
+    "es-define-property": "npm:@socketregistry/es-define-property@^1",
+    "es-get-iterator": "npm:@socketregistry/es-get-iterator@^1",
+    "function-bind": "npm:@socketregistry/function-bind@^1",
+    "gopd": "npm:@socketregistry/gopd@^1",
+    "has-symbols": "npm:@socketregistry/has-symbols@^1",
+    "hasown": "npm:@socketregistry/hasown@^1",
+    "indent-string": "npm:@socketregistry/indent-string@^1",
+    "is-arguments": "npm:@socketregistry/is-arguments@^1",
+    "is-array-buffer": "npm:@socketregistry/is-array-buffer@^1",
+    "is-date-object": "npm:@socketregistry/is-date-object@^1",
+    "is-interactive": "npm:@socketregistry/is-interactive@^1",
+    "is-regex": "npm:@socketregistry/is-regex@^1",
+    "is-shared-array-buffer": "npm:@socketregistry/is-shared-array-buffer@^1",
+    "is-unicode-supported": "npm:@socketregistry/is-unicode-supported@^1",
+    "isarray": "npm:@socketregistry/isarray@^1",
+    "object-assign": "npm:@socketregistry/object-assign@^1",
+    "object-is": "npm:@socketregistry/object-is@^1",
+    "object-keys": "npm:@socketregistry/object-keys@^1",
+    "object.assign": "npm:@socketregistry/object.assign@^1",
+    "regexp.prototype.flags": "npm:@socketregistry/regexp.prototype.flags@^1",
+    "safe-buffer": "npm:@socketregistry/safe-buffer@^1",
+    "safer-buffer": "npm:@socketregistry/safer-buffer@^1",
+    "side-channel": "npm:@socketregistry/side-channel@^1",
+    "which-boxed-primitive": "npm:@socketregistry/which-boxed-primitive@^1",
+    "which-collection": "npm:@socketregistry/which-collection@^1",
+    "which-typed-array": "npm:@socketregistry/which-typed-array@^1"
+  },
   "engines": {
     "node": ">=20.0"
   },
-  "packageManager": "pnpm@11.4.0"
+  "packageManager": "pnpm@11.5.1"
 }

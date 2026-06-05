@@ -44,7 +44,7 @@ async function main() {
 				clearanceTier: 5,
 				executionTypes: ["Blind AST Logic", "Zero-Trust Worker Pool"],
 			},
-			budgetStorePath: path.join(dataDir, "query-budgets.json"),
+			budgetStorePath: path.join(dataDir, "vault-query-budgets.json"),
 		},
 	);
 

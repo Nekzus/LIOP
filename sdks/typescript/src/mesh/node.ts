@@ -165,16 +165,16 @@ export class MeshNode {
 				"@libp2p/crypto/keys"
 				// biome-ignore lint/suspicious/noExplicitAny: <libp2p type workaround>
 			)) as any;
-			// @ts-expect-error: libp2p ESM dynamic import type conflict
-			// biome-ignore lint/suspicious/noExplicitAny: <libp2p type workaround>
-			const uint8arrays = (await import("uint8arrays")) as any;
+			const { fromString: u8FromString } = await import(
+				"uint8arrays/from-string"
+			);
 
 			if (this.config.identityPath) {
 				const absolutePath = path.resolve(this.config.identityPath);
 				try {
 					const data = await fs.readFile(absolutePath, "utf-8");
 					const json = JSON.parse(data);
-					const protobufBytes = uint8arrays.fromString(json.privKey, "base64");
+					const protobufBytes = u8FromString(json.privKey, "base64");
 					try {
 						const privateKey = privateKeyFromProtobuf(protobufBytes);
 						log.info(
@@ -234,13 +234,10 @@ export class MeshNode {
 				"@libp2p/crypto/keys"
 				// biome-ignore lint/suspicious/noExplicitAny: <libp2p type workaround>
 			)) as any;
-			// @ts-expect-error: libp2p ESM dynamic import type conflict
-			const uint8arrays = await import("uint8arrays");
+			const { toString: u8ToString } = await import("uint8arrays/to-string");
 
 			const protobufBytes = privateKeyToProtobuf(privateKey);
-			const privKeyEncoded = (
-				uint8arrays.toString || uint8arrays.default.toString
-			)(protobufBytes, "base64");
+			const privKeyEncoded = u8ToString(protobufBytes, "base64");
 
 			const json = {
 				id: this.node.peerId.toString(),
