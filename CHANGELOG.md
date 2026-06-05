@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.1.0-alpha.14](https://github.com/Nekzus/LIOP/compare/v2.1.0-alpha.13...v2.1.0-alpha.14) (2026-06-05)
+
+
+### Bug Fixes
+
+* **deps:** declare socketregistry overrides in package.json files for npm and socket.dev scans ([dc02365](https://github.com/Nekzus/LIOP/commit/dc02365ccaa684d5f4f1789d4864f95adc39164a))
+
 # [2.1.0-alpha.13](https://github.com/Nekzus/LIOP/compare/v2.1.0-alpha.12...v2.1.0-alpha.13) (2026-06-04)
 
 
