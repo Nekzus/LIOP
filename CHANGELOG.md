@@ -3,6 +3,29 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.2.0](https://github.com/Nekzus/LIOP/compare/v2.1.0...v2.2.0) (2026-06-05)
+
+
+### Bug Fixes
+
+* **deps:** declare socketregistry overrides in package.json files for npm and socket.dev scans ([dc02365](https://github.com/Nekzus/LIOP/commit/dc02365ccaa684d5f4f1789d4864f95adc39164a))
+* **sdk:** bind preflight query budget to agent_did in executeLogic gRPC flow ([d6b3ba1](https://github.com/Nekzus/LIOP/commit/d6b3ba1196b3a64fcadab1532c839a9131147f02))
+* **sdk:** bundle @opentelemetry/api in noExternal to avoid peer dependency resolve errors in npx ([d824222](https://github.com/Nekzus/LIOP/commit/d82422204c58464fa4f5b45334c4e470c82a9f5f))
+* **sdk:** override uint8arrays to resolve ecdsa import error in npx ([a47546b](https://github.com/Nekzus/LIOP/commit/a47546bcdbbbba27a8138c519f7d72f66ce2c2cc))
+* **tests:** align bank entrypoint with strict zod v4 z.record signature ([55b134e](https://github.com/Nekzus/LIOP/commit/55b134e7718d7bf2bc380fee201898ccdd5ce4ef))
+
+
+### Features
+
+* **deps:** support zod v4 validation engine and uint8arrays v6 runtime ([ec16f34](https://github.com/Nekzus/LIOP/commit/ec16f3457c6e911c4d874f7c18efde1165b370cd))
+* **sdk:** document package audit findings and verify zero-bloat state ([e2a9cbe](https://github.com/Nekzus/LIOP/commit/e2a9cbe5d9a4a1acf29ea44753a735cbe29c58b4))
+* **sdk:** document query budgets, isolate store paths per node, and add reset API (fases 148-150) ([162a9e0](https://github.com/Nekzus/LIOP/commit/162a9e0a4aea42a68fbc03e844cea5516839e3ea))
+* **socket:** add opentelemetry/api to noExternal to fix npx ERR_MODULE_NOT_FOUND error ([bac6c2d](https://github.com/Nekzus/LIOP/commit/bac6c2d6a41f216cb58ebd78f66435d17a9ae072))
+* **socket:** add security auditing tools and document supply chain validation ([77a45b9](https://github.com/Nekzus/LIOP/commit/77a45b9fae2af45241fb4a71809e60052cd5fc7a))
+* **socket:** consolidate unminified bundle and restore performance path ([a28ec70](https://github.com/Nekzus/LIOP/commit/a28ec70b84664c83ec3d7c0df29755008cb165b2))
+* **socket:** disable tsup minification to eliminate minifiedFile alerts ([ed6def1](https://github.com/Nekzus/LIOP/commit/ed6def18eb818fa72b8f92ad8c11c4803106875a))
+* **socket:** restore noExternal for performance and keep unminified bundle ([729e199](https://github.com/Nekzus/LIOP/commit/729e199b07462091da895a5c24de7f001a2c43e0))
+
 # [2.1.0](https://github.com/Nekzus/LIOP/compare/v2.0.0...v2.1.0) (2026-06-02)
 
 ### Bug Fixes
