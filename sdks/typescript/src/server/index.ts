@@ -307,6 +307,18 @@ export class LiopServer {
 		const extractedFields = this.taintAnalyzer.extractQueriedFields(logic);
 
 		if (extractedFields.length > 0) {
+			// Guard against prototype pollution attacks (CWE-915 / js/prototype-polluting-assignment)
+			if (
+				clientId === "__proto__" ||
+				clientId === "constructor" ||
+				clientId === "prototype" ||
+				_toolName === "__proto__" ||
+				_toolName === "constructor" ||
+				_toolName === "prototype"
+			) {
+				return "Preflight policy rejected: invalid property key names (prototype pollution guard).";
+			}
+
 			const storePath = policy?.budgetStorePath || this.config?.budgetStorePath;
 			if (storePath) {
 				try {
@@ -2439,6 +2451,22 @@ Protocol Adherence is mandatory for successful execution.`,
 	 * Uses file-level locking for safe concurrent access.
 	 */
 	public resetFieldBudget(clientId: string, toolName?: string): void {
+		// Guard against prototype pollution attacks (CWE-915 / js/prototype-polluting-assignment)
+		if (
+			clientId === "__proto__" ||
+			clientId === "constructor" ||
+			clientId === "prototype" ||
+			(toolName &&
+				(toolName === "__proto__" ||
+					toolName === "constructor" ||
+					toolName === "prototype"))
+		) {
+			log.warn(
+				`[LiopServer] Blocked resetFieldBudget call due to prototype pollution keys.`,
+			);
+			return;
+		}
+
 		// 1. Clear in-memory budget
 		if (toolName) {
 			const clientBudget = this.fieldQueryBudget.get(clientId);
