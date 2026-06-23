@@ -8,6 +8,7 @@ import {
 import { ASTGuardian } from "../sandbox/guardian.js";
 import { WasiSandbox } from "../sandbox/wasi.js";
 import { applyDpToOutput } from "../security/dp-engine.js";
+import { sanitizeOutput } from "../server/output-sanitizer.js";
 
 export interface WorkerData {
 	isWarmup?: boolean;
@@ -193,6 +194,9 @@ export default async function processLogicExecution(data: WorkerData): Promise<{
 				records?.length || 0,
 			);
 		}
+
+		// Apply Output Sanitizer before commitment to guarantee ZK output consistency
+		finalOutput = sanitizeOutput(finalOutput);
 
 		// 5. Generate Cryptographic Proof of Execution (HMAC-SHA256 Commitment)
 

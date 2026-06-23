@@ -190,7 +190,10 @@ export class LiopClient {
 		const manifest = await this.meshNode.queryManifest(providerId);
 		if (manifest) {
 			grpcPort = manifest.grpcPort;
-			log.info(`[LiopClient] Manifest resolved: gRPC port ${grpcPort}`);
+			this.manifests.set(providerId, manifest);
+			log.info(
+				`[LiopClient] Manifest resolved: gRPC port ${grpcPort}. Cached manifest for PeerID ${providerId}`,
+			);
 		}
 
 		const addrs = await this.meshNode.resolvePeer(providerId);
@@ -442,10 +445,16 @@ export class LiopClient {
 			// If peerId is actually a toolName (which happens when called from callTool),
 			// resolve the real PeerID and its manifest from the manifest cache.
 			if (!manifest) {
+				log.info(
+					`[LiopClient] PeerID "${peerId}" not found in manifest cache as PeerID. Searching tools in cached manifests...`,
+				);
 				for (const [pId, m] of this.manifests.entries()) {
 					if (m.tools.some((t) => t.name === peerId)) {
 						manifest = m;
 						realPeerId = pId;
+						log.info(
+							`[LiopClient] Resolved tool "${peerId}" to provider PeerID "${pId.slice(-8)}" from manifest cache.`,
+						);
 						break;
 					}
 				}
@@ -460,6 +469,17 @@ export class LiopClient {
 				envToken =
 					process.env[`LIOP_TOKEN_${slug}`] ||
 					process.env[`LIOP_OAUTH_TOKEN_${slug}`];
+				log.info(
+					`[LiopClient] Resolved via tokenSlug "${slug}" (LIOP_TOKEN_${slug}) -> found: ${!!envToken}`,
+				);
+			} else {
+				log.info(
+					`[LiopClient] No tokenSlug available for peer ${realPeerId.slice(-8)}. Available cache keys: ${Array.from(
+						this.manifests.keys(),
+					)
+						.map((k) => k.slice(-8))
+						.join(", ")}`,
+				);
 			}
 
 			// 1. PeerID-specific resolution: LIOP_TOKEN_<last 8 chars of PeerID in uppercase>

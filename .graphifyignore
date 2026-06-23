@@ -1,0 +1,12 @@
+# Rust build artifacts
+target/
+
+# TypeScript / Node build & test outputs
+dist/
+coverage/
+.tsup/
+
+# Logs y temporales
+*.log
+.eslintcache
+.turbo/

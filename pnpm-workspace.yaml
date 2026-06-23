@@ -1,6 +1,7 @@
 packages:
   - "sdks/typescript"
   - "sdks/typescript/examples/**"
+  - "sdks/typescript/tests/infra/playground-web"
   - "examples/**"
 
 verifyDeps: false

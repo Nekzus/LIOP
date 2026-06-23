@@ -21,9 +21,21 @@ Additionally, a **Claude Desktop Client** runs natively on the host and connects
 - `pnpm run demo:build`: Builds demo images explicitly (recommended after code changes).
 - `pnpm run demo:start`: Starts the mesh in the background without rebuilding (fast path).
 - `pnpm run demo:start:rebuild`: Rebuilds + starts the mesh in one step.
+- `pnpm run demo:playground`: Starts the LIOP Interactive Playground (served at `http://localhost:14000`).
+- `pnpm run demo:client-sdk`: Runs a headless client smoke test using the native SDK (`LiopClient`) directly.
 - `pnpm run demo:claude`: Configures your local Claude Desktop to attach to the running Docker mesh.
 - `pnpm run demo:stop`: Tears down the infrastructure.
 - `pnpm run demo:inspector`: Prints the official [MCP Inspector](https://github.com/modelcontextprotocol/inspector) connection URL for the LIOP Nexus MCP endpoint (`POST /mcp`). Requires Node.js **^22.7.5** for the Inspector itself (see upstream README). Add `--run` to spawn `npx @modelcontextprotocol/inspector` after printing the link.
+
+### LIOP Interactive Playground
+
+The Interactive Playground provides a premium, responsive web interface built with **React + Shadcn/ui + Framer Motion** to execute JS logic on remote nodes:
+
+1. Compile the UI assets: `pnpm run demo:playground:build`
+2. Start the mesh and playground: `pnpm run demo:playground`
+3. Open `http://localhost:14000` in your browser.
+4. Run templates and observe the real-time PQC encryption, WASI execution and ZK-Receipt validation timelines.
+
 
 ### MCP Inspector (browser against LIOP)
 

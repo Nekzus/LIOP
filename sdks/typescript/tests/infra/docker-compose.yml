@@ -145,6 +145,37 @@ services:
       oracle:
         condition: service_started
 
+  playground:
+    <<: *node-base
+    container_name: liop-playground
+    hostname: playground
+    command: ["tsx", "--no-warnings", "tests/infra/entrypoints/playground.ts"]
+    environment:
+      LIOP_NODE_ROLE: client
+      LIOP_LOG_LEVEL: info
+      NEXUS_P2P: "/ip4/172.20.0.10/tcp/4000"
+      LIOP_CLIENT_ID: liop-mesh-agent
+      LIOP_CLIENT_SECRET: dev-secret-change-me
+      LIOP_NEXUS_URL: http://nexus:3000
+      LIOP_TOKEN_BANK: bank-local-test-token
+      LIOP_TOKEN_VAULT: vault-local-test-token
+      LIOP_TOKEN_ORACLE: oracle-local-test-token
+    networks:
+      liop-testnet:
+        ipv4_address: 172.20.0.200
+    ports:
+      - "14000:3000"
+    depends_on:
+      nexus:
+        condition: service_healthy
+      vault:
+        condition: service_started
+      bank:
+        condition: service_started
+      oracle:
+        condition: service_started
+
+
   # Official MCP Inspector (browser UI + proxy). Optional; does not start by default.
   # Start: docker compose --profile inspector up -d mcp-inspector
   # UI: http://127.0.0.1:16274 — in the sidebar use streamable-http → http://nexus:3000/mcp

@@ -430,6 +430,7 @@ export class LiopServer {
 					return policy.outputSchema;
 				}
 				const obj = policy.outputSchema as z.ZodObject<z.ZodRawShape>;
+				// biome-ignore lint/suspicious/noExplicitAny: library version compatibility check
 				const def = (obj as any).def || (obj as any)._def;
 				// If schema has an explicit catchall (not ZodNever), respect it.
 				// In Zod v4, default catchall is undefined, so we check for both.

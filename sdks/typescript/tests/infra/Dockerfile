@@ -27,6 +27,11 @@ RUN --mount=type=cache,target=/pnpm/store,id=liop-pnpm-store \
 WORKDIR /app/sdks/typescript
 RUN pnpm run build
 
+# Build the Playground Web Frontend
+WORKDIR /app/sdks/typescript/tests/infra/playground-web
+RUN pnpm run build
+
+
 # Deploy isolated directory with all required monorepo deps injected as regular node_modules
 WORKDIR /app
 RUN --mount=type=cache,target=/pnpm/store,id=liop-pnpm-store \
