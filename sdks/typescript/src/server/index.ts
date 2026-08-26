@@ -237,10 +237,11 @@ export class LiopServer {
 
 	// Compact envelope: @LIOP{target,name}\n<code>\n@END
 	private static readonly LIOP_COMPACT_REGEX =
-		/@LIOP\{(?<target>[^,}]+)(?:,(?<name>[^}]*))?\}\n(?<logic>[\s\S]*?)\n@END/m;
+		/@LIOP\{(?<target>[^,}]+)(?:,\s*(?<name>[^}]*))?\}[\r\n]+(?<logic>[\s\S]*?)[\r\n]+@END/m;
 
 	private extractLogic(payload: string): string | null {
-		const compact = payload.match(LiopServer.LIOP_COMPACT_REGEX);
+		if (!payload || typeof payload !== "string") return null;
+		const compact = payload.trim().match(LiopServer.LIOP_COMPACT_REGEX);
 		return compact?.groups?.logic ? compact.groups.logic.trim() : null;
 	}
 

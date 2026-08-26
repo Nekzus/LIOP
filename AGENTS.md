@@ -42,6 +42,19 @@ Logic-Injection-on-Origin Protocol (LIOP) is the high-performance successor to t
 2. **BiomeJS Compliance**: All TS code must pass `pnpm run check`. Never use `any` unless absolutely necessary (annotate with `// biome-ignore`).
 3. **Rust IDIOMS**: Prefer zero-cost abstractions. Use `tracing` for logs instead of `println!`.
 4. **Error Handling**: Use `Result/Option` in Rust and exhaustive catch (with `unknown`) in TS.
+5. **Dual-Era MCP Compliance (2026-07-28 & 2025-11-25)**:
+   - Implement `subscriptions/listen` and `resources/templates/list` to satisfy modern MCP v2 clients without polling overhead.
+   - Use strict legacy stripping (`adaptResponseForLegacyClient`) for 2025-era handshakes.
+6. **Cross-Platform String & AST Parsing**:
+   - Always use `[\r\n]+` and `\s*` in regexes parsing syntax envelopes (`@LIOP{...}...@END`) to remain 100% resilient across Windows CRLF and POSIX LF.
+7. **Docker/Host Hybrid Mesh Routing**:
+   - Auto-detect local Docker demo endpoints (`127.0.0.1:13000`) and map gRPC targets to published host ports (`13011`/`13021`/`13031`) instead of unreachable container-internal IPs (`172.20.0.x`).
+8. **MCP Client Configuration & Single-Gateway Invariant**:
+   - On Windows systems with MSIX/Store installs, Claude Desktop config resides at:
+     `%LOCALAPPDATA%\Packages\Claude_pzs8sxrjxfjjc\LocalCache\Roaming\Claude\claude_desktop_config.json`.
+   - Never configure duplicate or overlapping LIOP mesh servers in `claude_desktop_config.json`. Always route through a single unified gateway instance to prevent client-side tool index corruption.
+9. **Symmetric Network Channel Configuration**:
+   - Always mirror `GRPC_CHANNEL_OPTIONS` (keepalive 30s, timeout 10s, permit_without_calls) between `LiopRpcServer` and `LiopRpcClient` to ensure connections survive corporate stateful firewalls and aggressive NAT timeouts.
 
 ---
 

@@ -217,6 +217,63 @@ export class LiopHybridGateway {
 				req.on("end", async () => {
 					try {
 						const jsonRequest = JSON.parse(body);
+
+						// [SEP-2243] Header-based routing validation
+						const mcpMethod = req.headers["mcp-method"] as string | undefined;
+						const mcpName = req.headers["mcp-name"] as string | undefined;
+						const mcpVersion = req.headers["mcp-protocol-version"] as
+							| string
+							| undefined;
+
+						if (mcpMethod && mcpMethod !== jsonRequest.method) {
+							res.writeHead(400, { "Content-Type": "application/json" });
+							res.end(
+								JSON.stringify({
+									jsonrpc: "2.0",
+									id: jsonRequest.id ?? null,
+									error: {
+										code: -32020,
+										message: `HeaderMismatch: 'Mcp-Method' header (${mcpMethod}) does not match JSON-RPC method (${jsonRequest.method})`,
+									},
+								}),
+							);
+							return;
+						}
+
+						if (
+							mcpName &&
+							jsonRequest.params?.name &&
+							mcpName !== jsonRequest.params.name
+						) {
+							res.writeHead(400, { "Content-Type": "application/json" });
+							res.end(
+								JSON.stringify({
+									jsonrpc: "2.0",
+									id: jsonRequest.id ?? null,
+									error: {
+										code: -32020,
+										message: `HeaderMismatch: 'Mcp-Name' header (${mcpName}) does not match target name (${jsonRequest.params.name})`,
+									},
+								}),
+							);
+							return;
+						}
+
+						if (mcpVersion && jsonRequest.params) {
+							if (!jsonRequest.params._meta) {
+								jsonRequest.params._meta = {};
+							}
+							if (
+								!jsonRequest.params._meta[
+									"io.modelcontextprotocol/protocolVersion"
+								]
+							) {
+								jsonRequest.params._meta[
+									"io.modelcontextprotocol/protocolVersion"
+								] = mcpVersion;
+							}
+						}
+
 						const response = await this.router.dispatch(jsonRequest, authInfo);
 						res.writeHead(200, { "Content-Type": "application/json" });
 						res.end(JSON.stringify(response));
@@ -289,7 +346,69 @@ export class LiopHybridGateway {
 					}
 				}
 
-				const response = await this.router.dispatch(JSON.parse(body), authInfo);
+				const jsonRequest = JSON.parse(body);
+
+				// [SEP-2243] Header-based routing validation in HTTP/2
+				const mcpMethod = headers["mcp-method"] as string | undefined;
+				const mcpName = headers["mcp-name"] as string | undefined;
+				const mcpVersion = headers["mcp-protocol-version"] as
+					| string
+					| undefined;
+
+				if (mcpMethod && mcpMethod !== jsonRequest.method) {
+					stream.respond({
+						":status": 400,
+						"content-type": "application/json",
+					});
+					stream.end(
+						JSON.stringify({
+							jsonrpc: "2.0",
+							id: jsonRequest.id ?? null,
+							error: {
+								code: -32020,
+								message: `HeaderMismatch: 'Mcp-Method' header (${mcpMethod}) does not match JSON-RPC method (${jsonRequest.method})`,
+							},
+						}),
+					);
+					return;
+				}
+
+				if (
+					mcpName &&
+					jsonRequest.params?.name &&
+					mcpName !== jsonRequest.params.name
+				) {
+					stream.respond({
+						":status": 400,
+						"content-type": "application/json",
+					});
+					stream.end(
+						JSON.stringify({
+							jsonrpc: "2.0",
+							id: jsonRequest.id ?? null,
+							error: {
+								code: -32020,
+								message: `HeaderMismatch: 'Mcp-Name' header (${mcpName}) does not match target name (${jsonRequest.params.name})`,
+							},
+						}),
+					);
+					return;
+				}
+
+				if (mcpVersion && jsonRequest.params) {
+					if (!jsonRequest.params._meta) {
+						jsonRequest.params._meta = {};
+					}
+					if (
+						!jsonRequest.params._meta["io.modelcontextprotocol/protocolVersion"]
+					) {
+						jsonRequest.params._meta[
+							"io.modelcontextprotocol/protocolVersion"
+						] = mcpVersion;
+					}
+				}
+
+				const response = await this.router.dispatch(jsonRequest, authInfo);
 				if (response) {
 					stream.respond({
 						":status": 200,

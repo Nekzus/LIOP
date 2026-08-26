@@ -1,5 +1,9 @@
 import { LiopVerifier } from "../crypto/verifier.js";
 import {
+	MCP_LEGACY_SUPPORT_ENABLED,
+	MCP_PROTOCOL_VERSION_LEGACY,
+} from "../gateway/mcp-compat.js";
+import {
 	type LiopManifest,
 	MeshNode,
 	type MeshNodeConfig,
@@ -9,7 +13,12 @@ import { AesGcmWrapper } from "../rpc/crypto/aes.js";
 import { Kyber768Wrapper } from "../rpc/crypto/kyber.js";
 import type { LiopTlsOptions } from "../rpc/tls.js";
 import type { LogicRequest, LogicResponse } from "../rpc/types.js";
-import type { CallToolRequest, CallToolResult } from "../types.js";
+import {
+	type CallToolRequest,
+	type CallToolResult,
+	MCP_PROTOCOL_VERSION,
+	type McpEra,
+} from "../types.js";
 import { log } from "../utils/logger.js";
 
 /**
@@ -24,6 +33,11 @@ export class LiopClient {
 	private serverInfo?: { name: string; version: string };
 	public verifier: LiopVerifier = new LiopVerifier();
 	private oauthToken?: string;
+
+	/** Protocol negotiation era */
+	public era: McpEra = "modern";
+	/** Negotiated protocol version */
+	public protocolVersion: string = MCP_PROTOCOL_VERSION;
 
 	constructor(tls?: LiopTlsOptions) {
 		this.tlsOptions = tls;
@@ -209,6 +223,70 @@ export class LiopClient {
 		}
 
 		return `127.0.0.1:${grpcPort}`;
+	}
+
+	/**
+	 * Probes a remote MCP endpoint using 'server/discover' to negotiate protocol era.
+	 * Falls back to legacy initialize handshake if server/discover fails.
+	 */
+	public async probeServerDiscover(mcpUrl: string): Promise<{
+		era: McpEra;
+		protocolVersion: string;
+		supportedVersions: string[];
+	}> {
+		try {
+			const headers: Record<string, string> = {
+				"Content-Type": "application/json",
+				"Mcp-Method": "server/discover",
+			};
+			if (this.oauthToken) {
+				headers.Authorization = `Bearer ${this.oauthToken}`;
+			}
+
+			const res = await fetch(mcpUrl, {
+				method: "POST",
+				headers,
+				body: JSON.stringify({
+					jsonrpc: "2.0",
+					id: 1,
+					method: "server/discover",
+					params: {},
+				}),
+			});
+
+			if (res.ok) {
+				const json = (await res.json()) as {
+					result?: { supportedVersions?: string[] };
+				};
+				const supported = json.result?.supportedVersions || [];
+				if (supported.includes(MCP_PROTOCOL_VERSION)) {
+					this.era = "modern";
+					this.protocolVersion = MCP_PROTOCOL_VERSION;
+					return {
+						era: "modern",
+						protocolVersion: MCP_PROTOCOL_VERSION,
+						supportedVersions: supported,
+					};
+				}
+			}
+		} catch (_err) {
+			// Ignore discovery network probe failures and fallback to legacy if enabled
+		}
+
+		/** @mcp-legacy Fallback to legacy era. Remove when v1 EOL. */
+		if (MCP_LEGACY_SUPPORT_ENABLED) {
+			this.era = "legacy";
+			this.protocolVersion = MCP_PROTOCOL_VERSION_LEGACY;
+			return {
+				era: "legacy",
+				protocolVersion: MCP_PROTOCOL_VERSION_LEGACY,
+				supportedVersions: [MCP_PROTOCOL_VERSION_LEGACY],
+			};
+		}
+
+		throw new Error(
+			"Server does not support MCP 2026-07-28 and legacy support is disabled.",
+		);
 	}
 
 	/**

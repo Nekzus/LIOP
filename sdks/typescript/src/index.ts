@@ -3,6 +3,7 @@ export * from "./client/index.js";
 export * from "./economy/index.js";
 export * from "./errors.js";
 export * from "./gateway/hybrid.js";
+export * from "./gateway/router.js";
 export * from "./mesh/node.js";
 export * from "./prompts/adapters.js";
 export * from "./rpc/client.js";

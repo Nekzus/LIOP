@@ -10,12 +10,24 @@ import type { IntentResponse, LogicResponse } from "../rpc/types.js";
 import type { AuthInfo } from "../security/jwt-validator.js";
 import { authorizeRequest } from "../security/rbac.js";
 import type { LiopServer } from "../server/index.js";
-import type { McpRequest, McpResponse } from "../types.js";
+import {
+	MCP_PROTOCOL_VERSION,
+	type McpEra,
+	type McpRequest,
+	type McpResponse,
+} from "../types.js";
 import { log } from "../utils/logger.js";
 import {
 	mcpCompactToolDescriptions,
 	stripVerboseLiopToolDescription,
 } from "../utils/mcpCompact.js";
+import {
+	adaptResponseForLegacyClient,
+	buildLegacyInitializeResponse,
+	isLegacyRequest,
+	MCP_LEGACY_SUPPORT_ENABLED,
+	MCP_PROTOCOL_VERSION_LEGACY,
+} from "./mcp-compat.js";
 
 /**
  * Time-to-live for cached manifests (seconds).
@@ -160,6 +172,27 @@ export class LiopMcpRouter {
 		});
 	}
 
+	/**
+	 * Detects the protocol era of an incoming request.
+	 * Modern requests carry '_meta' with protocol version "2026-07-28" or use modern RPCs.
+	 * Legacy requests use 'initialize' handshake or lack '_meta' envelopes.
+	 */
+	public detectEra(request: McpRequest): McpEra {
+		const params = request.params as Record<string, unknown> | undefined;
+		const meta = params?._meta as Record<string, unknown> | undefined;
+		const version = meta?.["io.modelcontextprotocol/protocolVersion"];
+
+		if (version === MCP_PROTOCOL_VERSION) {
+			return "modern";
+		}
+
+		if (MCP_LEGACY_SUPPORT_ENABLED && isLegacyRequest(request)) {
+			return "legacy";
+		}
+
+		return "modern";
+	}
+
 	public async dispatch(
 		request: McpRequest,
 		authInfo?: AuthInfo | null,
@@ -186,12 +219,45 @@ export class LiopMcpRouter {
 		}
 
 		switch (method) {
-			case "initialize":
+			/** @mcp-legacy Initialize handshake for 2025-era clients. Remove when v1 EOL. */
+			case "initialize": {
+				if (!MCP_LEGACY_SUPPORT_ENABLED) {
+					return {
+						jsonrpc: "2.0",
+						id,
+						error: {
+							code: -32601,
+							message:
+								"Method retired: initialize (MCP 2026-07-28 is stateless)",
+						},
+					};
+				}
+				log.info(
+					"[LIOP-Router] ⚠️ Legacy MCP client detected (2025-era initialize).",
+				);
+				return buildLegacyInitializeResponse(
+					this.liopServer.getServerInfo(),
+					id,
+				);
+			}
+			/** @mcp-legacy Initialized notification for 2025-era clients. Remove when v1 EOL. */
+			case "notifications/initialized":
+				if (!MCP_LEGACY_SUPPORT_ENABLED) return null;
+				// Cloud MCP clients often fire tools/list immediately; kick discovery early
+				// so manifests populate before (or right after) that call completes.
+				this.kickDiscoveryAfterInitialized().catch(() => {});
+				return null;
+			case "notifications/cancelled":
+				return null; // No-op for MCP spec compliance
+			case "server/discover":
 				return {
 					jsonrpc: "2.0",
 					id,
 					result: {
-						protocolVersion: "2025-11-25",
+						resultType: "complete",
+						supportedVersions: MCP_LEGACY_SUPPORT_ENABLED
+							? [MCP_PROTOCOL_VERSION, MCP_PROTOCOL_VERSION_LEGACY]
+							: [MCP_PROTOCOL_VERSION],
 						capabilities: {
 							tools: { listChanged: true },
 							resources: { listChanged: true },
@@ -200,13 +266,6 @@ export class LiopMcpRouter {
 						serverInfo: this.liopServer.getServerInfo(),
 					},
 				};
-			case "notifications/initialized":
-				// Cloud MCP clients often fire tools/list immediately; kick discovery early
-				// so manifests populate before (or right after) that call completes.
-				this.kickDiscoveryAfterInitialized().catch(() => {});
-				return null;
-			case "notifications/cancelled":
-				return null; // No-op for MCP spec compliance
 			case "ping":
 				return { jsonrpc: "2.0", id, result: {} };
 			case "tools/list": {
@@ -239,7 +298,10 @@ export class LiopMcpRouter {
 					},
 				};
 
-				const allTools = [diagnosticTool, ...listedLocals, ...remoteTools];
+				// Deterministic sorting per SEP-2549
+				const allTools = [diagnosticTool, ...listedLocals, ...remoteTools].sort(
+					(a, b) => a.name.localeCompare(b.name),
+				);
 
 				// [Token Economy] Record telemetry for the tools/list response
 				const telemetry = TokenTelemetryEngine.getInstance();
@@ -252,24 +314,52 @@ export class LiopMcpRouter {
 					estimatedOutputTokens: telemetry.countTokens(toolsResponsePayload),
 				});
 
-				return {
+				const era = this.detectEra(request);
+				let response: McpResponse = {
 					jsonrpc: "2.0",
 					id,
 					result: {
+						resultType: "complete",
+						ttlMs: 300_000,
+						cacheScope: "public",
 						tools: allTools,
 					},
 				};
+
+				/** @mcp-legacy Strip modern fields for legacy clients */
+				if (era === "legacy" && MCP_LEGACY_SUPPORT_ENABLED) {
+					response = adaptResponseForLegacyClient(response);
+				}
+
+				return response;
 			}
-			case "tools/call":
-				return this.transcodeMcpToLiop(
+			case "tools/call": {
+				const response = await this.transcodeMcpToLiop(
 					id,
 					params as { name: string; arguments?: Record<string, unknown> },
 					authInfo?.token,
 				);
+				if (!response) return null;
+
+				const era = this.detectEra(request);
+				if (era === "legacy" && MCP_LEGACY_SUPPORT_ENABLED) {
+					return adaptResponseForLegacyClient(response);
+				}
+				if (response.result && typeof response.result === "object") {
+					const resObj = response.result as Record<string, unknown>;
+					if (!resObj.resultType) {
+						resObj.resultType = "complete";
+					}
+				}
+				return response;
+			}
 			case "resources/list": {
 				const localResources = this.liopServer.listResources();
 				const remoteResources = await this.getRemoteResources();
-				const allResources = [...localResources, ...remoteResources];
+				// Deterministic sorting per SEP-2549
+				const allResources = [...localResources, ...remoteResources].sort(
+					(a, b) => a.uri.localeCompare(b.uri),
+				);
 
 				// [Token Economy] Record resources/list telemetry
 				const rlTelemetry = TokenTelemetryEngine.getInstance();
@@ -281,11 +371,24 @@ export class LiopMcpRouter {
 					estimatedOutputTokens: rlTelemetry.countTokens(rlPayload),
 				});
 
-				return {
+				const era = this.detectEra(request);
+				let response: McpResponse = {
 					jsonrpc: "2.0",
 					id,
-					result: { resources: allResources },
+					result: {
+						resultType: "complete",
+						ttlMs: 300_000,
+						cacheScope: "public",
+						resources: allResources,
+					},
 				};
+
+				/** @mcp-legacy Strip modern fields for legacy clients */
+				if (era === "legacy" && MCP_LEGACY_SUPPORT_ENABLED) {
+					response = adaptResponseForLegacyClient(response);
+				}
+
+				return response;
 			}
 			case "resources/read": {
 				const typedParams = params as { uri?: string } | undefined;
@@ -311,7 +414,30 @@ export class LiopMcpRouter {
 						durationMs: Date.now() - rrStartTime,
 					});
 
-					return { jsonrpc: "2.0", id, result };
+					const era = this.detectEra(request);
+					const rawResult =
+						typeof result === "object" && result !== null
+							? {
+									resultType: "complete",
+									ttlMs: 60_000,
+									cacheScope: "private",
+									...result,
+								}
+							: {
+									resultType: "complete",
+									ttlMs: 60_000,
+									cacheScope: "private",
+									contents: result,
+								};
+
+					let response: McpResponse = { jsonrpc: "2.0", id, result: rawResult };
+
+					/** @mcp-legacy Strip modern fields for legacy clients */
+					if (era === "legacy" && MCP_LEGACY_SUPPORT_ENABLED) {
+						response = adaptResponseForLegacyClient(response);
+					}
+
+					return response;
 				} catch (err: unknown) {
 					// Fallback: Resolve remotely from manifest cache
 					const targetUri = typedParams.uri;
@@ -323,10 +449,14 @@ export class LiopMcpRouter {
 							log.info(
 								`[LIOP-Router] Resolved resource ${targetUri} from cache (Peer: ${manifest.peerId})`,
 							);
-							return {
+							const era = this.detectEra(request);
+							let response: McpResponse = {
 								jsonrpc: "2.0",
 								id,
 								result: {
+									resultType: "complete",
+									ttlMs: 60_000,
+									cacheScope: "private",
 									contents: [
 										{
 											uri: remoteResource.uri,
@@ -339,6 +469,13 @@ export class LiopMcpRouter {
 									],
 								},
 							};
+
+							/** @mcp-legacy Strip modern fields for legacy clients */
+							if (era === "legacy" && MCP_LEGACY_SUPPORT_ENABLED) {
+								response = adaptResponseForLegacyClient(response);
+							}
+
+							return response;
 						}
 					}
 
@@ -353,7 +490,9 @@ export class LiopMcpRouter {
 				}
 			}
 			case "prompts/list": {
-				const promptsList = this.liopServer.listPrompts();
+				const promptsList = this.liopServer
+					.listPrompts()
+					.sort((a, b) => a.name.localeCompare(b.name));
 
 				// [Token Economy] Record prompts/list telemetry
 				const plTelemetry = TokenTelemetryEngine.getInstance();
@@ -365,11 +504,24 @@ export class LiopMcpRouter {
 					estimatedOutputTokens: plTelemetry.countTokens(plPayload),
 				});
 
-				return {
+				const era = this.detectEra(request);
+				let response: McpResponse = {
 					jsonrpc: "2.0",
 					id,
-					result: { prompts: promptsList },
+					result: {
+						resultType: "complete",
+						ttlMs: 300_000,
+						cacheScope: "public",
+						prompts: promptsList,
+					},
 				};
+
+				/** @mcp-legacy Strip modern fields for legacy clients */
+				if (era === "legacy" && MCP_LEGACY_SUPPORT_ENABLED) {
+					response = adaptResponseForLegacyClient(response);
+				}
+
+				return response;
 			}
 			case "prompts/get": {
 				const typedParams = params as
@@ -404,7 +556,20 @@ export class LiopMcpRouter {
 						durationMs: Date.now() - pgStartTime,
 					});
 
-					return { jsonrpc: "2.0", id, result };
+					const era = this.detectEra(request);
+					const rawResult =
+						typeof result === "object" && result !== null
+							? { resultType: "complete", ...result }
+							: result;
+
+					let response: McpResponse = { jsonrpc: "2.0", id, result: rawResult };
+
+					/** @mcp-legacy Strip modern fields for legacy clients */
+					if (era === "legacy" && MCP_LEGACY_SUPPORT_ENABLED) {
+						response = adaptResponseForLegacyClient(response);
+					}
+
+					return response;
 				} catch (err: unknown) {
 					return {
 						jsonrpc: "2.0",
@@ -415,6 +580,43 @@ export class LiopMcpRouter {
 						},
 					};
 				}
+			}
+			case "resources/templates/list": {
+				const era = this.detectEra(request);
+				let response: McpResponse = {
+					jsonrpc: "2.0",
+					id,
+					result: {
+						resultType: "complete",
+						ttlMs: 300_000,
+						cacheScope: "public",
+						resourceTemplates: [],
+					},
+				};
+
+				/** @mcp-legacy Strip modern fields for legacy clients */
+				if (era === "legacy" && MCP_LEGACY_SUPPORT_ENABLED) {
+					response = adaptResponseForLegacyClient(response);
+				}
+
+				return response;
+			}
+			case "subscriptions/listen": {
+				const era = this.detectEra(request);
+				let response: McpResponse = {
+					jsonrpc: "2.0",
+					id,
+					result: {
+						resultType: "complete",
+					},
+				};
+
+				/** @mcp-legacy Strip modern fields for legacy clients */
+				if (era === "legacy" && MCP_LEGACY_SUPPORT_ENABLED) {
+					response = adaptResponseForLegacyClient(response);
+				}
+
+				return response;
 			}
 			default:
 				return {
@@ -1219,17 +1421,23 @@ export class LiopMcpRouter {
 			}
 		}
 
-		// Docker Demo convenience (opt-in):
+		// Docker Demo convenience (opt-in or auto-detected):
 		// Docker Desktop setups publish gRPC ports on the host as 13011/13021/13031.
-		// Container-internal gRPC ports (50051) are unreachable from the host.
-		// Activated by any Docker-mapping flag: LIOP_DOCKER_MAP, LIOP_DEV_MODE,
-		// LIOP_USE_PUBLISHED_GRPC_PORTS, or NODE_ENV=development/test.
+		// Container-internal gRPC ports (50051) and 172.20.0.x IPs are unreachable directly from the host.
+		const nexusUrl = process.env.LIOP_NEXUS_URL || "";
+		const isDockerDemo =
+			nexusUrl.includes("127.0.0.1:13000") ||
+			nexusUrl.includes("localhost:13000") ||
+			nexusUrl.includes("127.0.0.1:13001") ||
+			nexusUrl.includes("localhost:13001");
 		const shouldRemapGrpcPorts =
 			process.env.LIOP_USE_PUBLISHED_GRPC_PORTS === "1" ||
 			process.env.LIOP_DOCKER_MAP === "true" ||
 			process.env.LIOP_DEV_MODE === "true" ||
 			process.env.NODE_ENV === "development" ||
-			process.env.NODE_ENV === "test";
+			process.env.NODE_ENV === "test" ||
+			isDockerDemo;
+
 		if (shouldRemapGrpcPorts && manifestEntry) {
 			const providerName =
 				manifestEntry.manifest.serverInfo?.name?.toLowerCase() || "";
@@ -1242,33 +1450,38 @@ export class LiopMcpRouter {
 		const addrs = await this.meshNode.resolvePeer(peerId);
 		let targetAddr: string | null = null;
 
-		// [LIOP-ALPHA] Check if the peer is running on the same physical machine
-		// by comparing its advertised IPs against our local OS interfaces.
-		const os = await import("node:os");
-		const localInterfaces = Object.values(os.networkInterfaces())
-			.flat()
-			.filter((i) => i?.family === "IPv4")
-			.map((i) => i?.address);
+		// If running in Docker mapped mode, always route to 127.0.0.1 on the published host port
+		if (shouldRemapGrpcPorts) {
+			targetAddr = `127.0.0.1:${grpcPort}`;
+		} else {
+			// [LIOP-ALPHA] Check if the peer is running on the same physical machine
+			// by comparing its advertised IPs against our local OS interfaces.
+			const os = await import("node:os");
+			const localInterfaces = Object.values(os.networkInterfaces())
+				.flat()
+				.filter((i) => i?.family === "IPv4")
+				.map((i) => i?.address);
 
-		// Loop through all advertised addresses to find the optimal target
-		for (const addr of addrs) {
-			const parts = addr.split("/");
-			const ipIdx = parts.indexOf("ip4");
-			if (ipIdx !== -1) {
-				const advertisedIp = parts[ipIdx + 1];
+			// Loop through all advertised addresses to find the optimal target
+			for (const addr of addrs) {
+				const parts = addr.split("/");
+				const ipIdx = parts.indexOf("ip4");
+				if (ipIdx !== -1) {
+					const advertisedIp = parts[ipIdx + 1];
 
-				// Loopback priority or Same-Machine detection
-				if (
-					advertisedIp === "127.0.0.1" ||
-					localInterfaces.includes(advertisedIp)
-				) {
-					targetAddr = `127.0.0.1:${grpcPort}`;
-					break; // Supreme priority for local execution
-				}
+					// Loopback priority or Same-Machine detection
+					if (
+						advertisedIp === "127.0.0.1" ||
+						localInterfaces.includes(advertisedIp)
+					) {
+						targetAddr = `127.0.0.1:${grpcPort}`;
+						break; // Supreme priority for local execution
+					}
 
-				// Default to first discovered valid external IP
-				if (!targetAddr) {
-					targetAddr = `${advertisedIp}:${grpcPort}`;
+					// Default to first discovered valid external IP
+					if (!targetAddr) {
+						targetAddr = `${advertisedIp}:${grpcPort}`;
+					}
 				}
 			}
 		}

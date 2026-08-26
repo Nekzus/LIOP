@@ -1,6 +1,15 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import {
+	isLegacyRequest,
+	MCP_LEGACY_SUPPORT_ENABLED,
+	MCP_PROTOCOL_VERSION_LEGACY,
+} from "../gateway/mcp-compat.js";
 import type { LiopServer, LiopServerOptions } from "../server/index.js";
-import type { CallToolRequest, CallToolResult } from "../types.js";
+import {
+	type CallToolRequest,
+	type CallToolResult,
+	MCP_PROTOCOL_VERSION,
+} from "../types.js";
 import { log } from "../utils/logger.js";
 
 export interface LiopBridgeOptions {
@@ -76,13 +85,35 @@ export class LiopMcpBridge {
 	): Promise<unknown> {
 		if (!this.liopServer) return null;
 
+		const isLegacy =
+			MCP_LEGACY_SUPPORT_ENABLED && isLegacyRequest({ method, params, id });
+
 		if (method === "initialize") {
+			/** @mcp-legacy Initialize for stdio bridge. Remove when v1 EOL. */
+			if (!MCP_LEGACY_SUPPORT_ENABLED) {
+				return this.errorResponse(id, -32601, "Method retired: initialize");
+			}
 			return this.successResponse(id, {
-				protocolVersion: "2025-11-25",
+				protocolVersion: MCP_PROTOCOL_VERSION_LEGACY,
 				capabilities: {
-					prompts: {},
-					resources: {},
-					tools: {},
+					prompts: { listChanged: true },
+					resources: { listChanged: true },
+					tools: { listChanged: true },
+				},
+				serverInfo: this.liopServer.getServerInfo(),
+			});
+		}
+
+		if (method === "server/discover") {
+			return this.successResponse(id, {
+				resultType: "complete",
+				supportedVersions: MCP_LEGACY_SUPPORT_ENABLED
+					? [MCP_PROTOCOL_VERSION, MCP_PROTOCOL_VERSION_LEGACY]
+					: [MCP_PROTOCOL_VERSION],
+				capabilities: {
+					prompts: { listChanged: true },
+					resources: { listChanged: true },
+					tools: { listChanged: true },
 				},
 				serverInfo: this.liopServer.getServerInfo(),
 			});
@@ -92,18 +123,54 @@ export class LiopMcpBridge {
 		if (method === "ping") return this.successResponse(id, {});
 
 		if (method === "tools/list") {
-			const tools = this.liopServer.listTools();
-			return this.successResponse(id, { tools });
+			const tools = this.liopServer
+				.listTools()
+				.sort((a, b) => a.name.localeCompare(b.name));
+			return this.successResponse(
+				id,
+				isLegacy
+					? { tools }
+					: {
+							resultType: "complete",
+							ttlMs: 300_000,
+							cacheScope: "public",
+							tools,
+						},
+			);
 		}
 
 		if (method === "resources/list") {
-			const resources = this.liopServer.listResources();
-			return this.successResponse(id, { resources });
+			const resources = this.liopServer
+				.listResources()
+				.sort((a, b) => a.uri.localeCompare(b.uri));
+			return this.successResponse(
+				id,
+				isLegacy
+					? { resources }
+					: {
+							resultType: "complete",
+							ttlMs: 300_000,
+							cacheScope: "public",
+							resources,
+						},
+			);
 		}
 
 		if (method === "prompts/list") {
-			const prompts = this.liopServer.listPrompts();
-			return this.successResponse(id, { prompts });
+			const prompts = this.liopServer
+				.listPrompts()
+				.sort((a, b) => a.name.localeCompare(b.name));
+			return this.successResponse(
+				id,
+				isLegacy
+					? { prompts }
+					: {
+							resultType: "complete",
+							ttlMs: 300_000,
+							cacheScope: "public",
+							prompts,
+						},
+			);
 		}
 
 		if (method === "prompts/get") {
@@ -115,7 +182,12 @@ export class LiopMcpBridge {
 					name: params.name as string,
 					arguments: params.arguments as Record<string, string> | undefined,
 				});
-				return this.successResponse(id, result);
+				return this.successResponse(
+					id,
+					isLegacy || typeof result !== "object" || result === null
+						? result
+						: { resultType: "complete", ...result },
+				);
 			} catch (err: unknown) {
 				return this.errorResponse(id, -32000, (err as Error).message);
 			}
@@ -127,7 +199,24 @@ export class LiopMcpBridge {
 			}
 			try {
 				const result = await this.liopServer.readResource(params.uri as string);
-				return this.successResponse(id, result);
+				return this.successResponse(
+					id,
+					isLegacy
+						? result
+						: typeof result === "object" && result !== null
+							? {
+									resultType: "complete",
+									ttlMs: 60_000,
+									cacheScope: "private",
+									...result,
+								}
+							: {
+									resultType: "complete",
+									ttlMs: 60_000,
+									cacheScope: "private",
+									contents: result,
+								},
+				);
 			} catch (err: unknown) {
 				return this.errorResponse(id, -32000, (err as Error).message);
 			}
@@ -162,7 +251,15 @@ export class LiopMcpBridge {
 					});
 				}
 
-				return this.successResponse(id, result);
+				return this.successResponse(
+					id,
+					isLegacy
+						? result
+						: {
+								resultType: "complete",
+								...result,
+							},
+				);
 			} catch (err: unknown) {
 				return this.errorResponse(id, -32000, (err as Error).message);
 			}
