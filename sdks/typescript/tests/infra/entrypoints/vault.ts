@@ -85,13 +85,15 @@ async function main() {
 			percentage: z.union([z.number(), z.string()]).optional(),
 			averageAge: z.union([z.number(), z.string()]).optional(),
 			avgAge: z.union([z.number(), z.string()]).optional(),
+			diagnosesDistribution: z.record(z.string(), z.union([z.number(), z.string()])).optional(),
+			byDiagnosis: z.record(z.string(), z.union([z.number(), z.string()])).optional(),
 			clientPayload: z.string().optional(),
 		})
 		// Dynamic aggregation keys (e.g., diagnosis names, age buckets).
 		// Security note: .catchall() is a STRUCTURAL choice, not a security boundary.
 		// Defense-in-depth: PII Scanner (Layer 3) blocks names/IDs/emails,
 		// Aggregation-First (Layer 4) blocks arrays of objects.
-		.catchall(z.number());
+		.catchall(z.union([z.number(), z.string(), z.boolean()]));
 
 	liopServer.tool(
 		"Analyze_Synthetic_Medical_Records",

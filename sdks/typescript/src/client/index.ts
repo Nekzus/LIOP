@@ -291,25 +291,39 @@ export class LiopClient {
 
 	/**
 	 * Discovers remote capabilities via the LIOP Manifest Protocol.
+	 * Utilizes a memory cache to avoid redundant network dials against live peers.
 	 */
-	public async discoverTools(): Promise<
-		{ name: string; description?: string }[]
-	> {
+	public async discoverTools(
+		forceRefresh = false,
+	): Promise<{ name: string; description?: string }[]> {
 		if (!this.meshNode) {
 			throw new Error("Client must be connected before discovering tools.");
 		}
 
-		log.info(`[LiopClient] Discovery started...`);
+		log.info(
+			`[LiopClient] Discovery started (forceRefresh: ${forceRefresh})...`,
+		);
 		const providerIds = await this.meshNode.discoverManifestProviders();
 		const tools: { name: string; description?: string }[] = [];
 		const seenNames = new Set<string>();
 
 		for (const peerId of providerIds) {
 			try {
-				log.info(`[LiopClient] Querying manifest from: ${peerId}`);
-				const manifest = await this.meshNode.queryManifest(peerId);
+				let manifest: LiopManifest | null | undefined = !forceRefresh
+					? this.manifests.get(peerId)
+					: undefined;
+
+				if (!manifest) {
+					log.info(`[LiopClient] Querying manifest from: ${peerId}`);
+					manifest = await this.meshNode.queryManifest(peerId);
+					if (manifest) {
+						this.manifests.set(peerId, manifest);
+					}
+				} else {
+					log.info(`[LiopClient] Using cached manifest for: ${peerId}`);
+				}
+
 				if (manifest) {
-					this.manifests.set(peerId, manifest);
 					for (const tool of manifest.tools) {
 						if (!seenNames.has(tool.name)) {
 							tools.push({ name: tool.name, description: tool.description });
@@ -349,8 +363,32 @@ export class LiopClient {
 		let rpcClient = this.rpcClients.get("static");
 
 		if (!rpcClient) {
-			const dynamicAddress = await this.resolveCapability(toolName);
-			rpcClient = this.getOrCreateRpcClient(toolName, dynamicAddress);
+			// Fast-path: Check if capability already exists in cached manifests to bypass DHT walk
+			let resolvedHost: string | null = null;
+			for (const [peerId, manifest] of this.manifests.entries()) {
+				if (manifest.tools.some((t) => t.name === toolName)) {
+					const addrs = await this.meshNode.resolvePeer(peerId);
+					for (const maddr of addrs) {
+						const parts = maddr.split("/");
+						if (parts[1] === "ip4") {
+							resolvedHost = `${parts[2]}:${manifest.grpcPort}`;
+							log.info(
+								`[LiopClient] Fast-path: Resolved ${toolName} from manifest cache to ${resolvedHost}`,
+							);
+							break;
+						}
+					}
+					if (resolvedHost) {
+						rpcClient = this.getOrCreateRpcClient(peerId, resolvedHost);
+						break;
+					}
+				}
+			}
+
+			if (!rpcClient) {
+				const dynamicAddress = await this.resolveCapability(toolName);
+				rpcClient = this.getOrCreateRpcClient(toolName, dynamicAddress);
+			}
 		} else {
 			log.info(
 				`[LiopClient] Using existing static gRPC connection for ${toolName}.`,
