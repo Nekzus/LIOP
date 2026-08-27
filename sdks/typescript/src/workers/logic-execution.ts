@@ -19,6 +19,7 @@ export interface WorkerData {
 	inputs?: Record<string, Uint8Array>;
 	records?: Record<string, unknown>[];
 	sessionToken?: string;
+	sessionTimestamp?: number;
 	isEncrypted?: boolean;
 	aesNonce?: Uint8Array;
 	dpConfig?: {
@@ -57,6 +58,22 @@ export default async function processLogicExecution(data: WorkerData): Promise<{
 			output: "warm",
 			fuel_consumed: 0,
 		};
+	}
+
+	// [PQC Security] Enforce Strict 1-Hour Session Lifetime (NIST SP 800-53 / PCI-DSS)
+	if (data.sessionTimestamp !== undefined) {
+		const MAX_SESSION_KEY_LIFETIME_MS = 3600 * 1000; // 3600 seconds
+		const age = Date.now() - data.sessionTimestamp;
+		if (age > MAX_SESSION_KEY_LIFETIME_MS) {
+			throw new Error(
+				`[LIOP-PQC] Session secret expired: Age (${Math.round(age / 1000)}s) exceeds 3600s TTL limit.`,
+			);
+		}
+		if (data.sessionTimestamp > Date.now() + 60000) {
+			throw new Error(
+				"[LIOP-PQC] Session secret invalid: Timestamp is in the future.",
+			);
+		}
 	}
 
 	const {

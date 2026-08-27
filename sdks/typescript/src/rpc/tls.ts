@@ -17,6 +17,7 @@
 
 import * as fs from "node:fs";
 import * as grpc from "@grpc/grpc-js";
+import type { CertManager } from "../security/cert-manager.js";
 import { log } from "../utils/logger.js";
 
 export interface LiopTlsOptions {
@@ -26,6 +27,10 @@ export interface LiopTlsOptions {
 	certChain?: string;
 	/** Path to the private key (PEM format) */
 	privateKey?: string;
+	/** Require mutual TLS (mTLS): verify client certificate against root CA */
+	mutualTls?: boolean;
+	/** Optional CertManager instance for automated certificate management and hot reloading */
+	certManager?: CertManager;
 }
 
 const isTlsEnforced = () =>
@@ -35,10 +40,49 @@ const isTlsEnforced = () =>
 /**
  * Creates gRPC server credentials from TLS options.
  * In production or when LIOP_ENFORCE_TLS=true, refuses to fall back to insecure.
+ * When mutualTls=true, enforces client certificate authentication against root CA.
  */
 export function createServerCredentials(
 	tls?: LiopTlsOptions,
 ): grpc.ServerCredentials {
+	// Mutual TLS requires a root CA certificate to authenticate clients
+	if (tls?.mutualTls && !tls.rootCert && !tls.certManager?.getRootCert()) {
+		throw new Error(
+			"[LIOP-TLS] FATAL: Mutual TLS (mTLS) enabled but no root CA certificate (rootCert) provided to verify client certificates.",
+		);
+	}
+
+	// If CertManager is provided, use its in-memory cached buffers
+	if (tls?.certManager) {
+		try {
+			const certChain = tls.certManager.getCertChain();
+			const privateKey = tls.certManager.getPrivateKey();
+			const rootCert = tls.certManager.getRootCert();
+
+			if (tls.mutualTls && !rootCert) {
+				throw new Error(
+					"[LIOP-TLS] FATAL: Mutual TLS (mTLS) enabled but CertManager has no root CA certificate loaded.",
+				);
+			}
+
+			return grpc.ServerCredentials.createSsl(
+				rootCert,
+				[{ cert_chain: certChain, private_key: privateKey }],
+				Boolean(tls.mutualTls),
+			);
+		} catch (error) {
+			if (isTlsEnforced()) {
+				throw new Error(
+					`[LIOP-TLS] FATAL: CertManager server credential creation failed in enforced mode: ${error}`,
+				);
+			}
+			log.warn(
+				`[LIOP-TLS] CertManager failed, falling back to insecure: ${error}`,
+			);
+			return grpc.ServerCredentials.createInsecure();
+		}
+	}
+
 	if (!tls?.certChain || !tls?.privateKey) {
 		if (isTlsEnforced()) {
 			throw new Error(
@@ -56,9 +100,17 @@ export function createServerCredentials(
 		const certChain = fs.readFileSync(tls.certChain);
 		const privateKey = fs.readFileSync(tls.privateKey);
 
-		return grpc.ServerCredentials.createSsl(rootCert, [
-			{ cert_chain: certChain, private_key: privateKey },
-		]);
+		if (tls.mutualTls && !rootCert) {
+			throw new Error(
+				"[LIOP-TLS] FATAL: Mutual TLS (mTLS) enabled but no root CA certificate (rootCert) provided to verify client certificates.",
+			);
+		}
+
+		return grpc.ServerCredentials.createSsl(
+			rootCert,
+			[{ cert_chain: certChain, private_key: privateKey }],
+			Boolean(tls.mutualTls),
+		);
 	} catch (error) {
 		if (isTlsEnforced()) {
 			throw new Error(
@@ -80,6 +132,31 @@ export function createServerCredentials(
 export function createChannelCredentials(
 	tls?: LiopTlsOptions,
 ): grpc.ChannelCredentials {
+	// If CertManager is provided, use its in-memory cached credentials
+	if (tls?.certManager) {
+		try {
+			const rootCert = tls.certManager.getRootCert();
+			if (!rootCert) {
+				throw new Error(
+					"[LIOP-TLS] FATAL: Channel TLS requires a root CA certificate in CertManager.",
+				);
+			}
+			const certChain = tls.certManager.getCertChain();
+			const privateKey = tls.certManager.getPrivateKey();
+			return grpc.credentials.createSsl(rootCert, privateKey, certChain);
+		} catch (error) {
+			if (isTlsEnforced()) {
+				throw new Error(
+					`[LIOP-TLS] FATAL: Channel certificate loading failed in enforced mode: ${error}`,
+				);
+			}
+			log.warn(
+				`[LIOP-TLS] Channel CertManager failed, falling back to insecure: ${error}`,
+			);
+			return grpc.credentials.createInsecure();
+		}
+	}
+
 	if (!tls?.rootCert) {
 		if (isTlsEnforced()) {
 			throw new Error(

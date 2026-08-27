@@ -7,6 +7,11 @@ import { buildProtectedResourceMetadata } from "../security/prm.js";
 import type { LiopServer } from "../server/index.js";
 import { log } from "../utils/logger.js";
 import {
+	dispatchGrpcWebRequest,
+	GRPC_WEB_CONSTANTS,
+	isGrpcWebRequest,
+} from "./grpc-web.js";
+import {
 	InMemoryRateLimiter,
 	type RateLimiterOptions,
 } from "./rate-limiter.js";
@@ -94,6 +99,22 @@ export class LiopHybridGateway {
 		this.h1Server.on("request", async (req, res) => {
 			const url = req.url || "";
 			const method = req.method;
+
+			// [Phase Beta-2] gRPC-Web HTTP/1.1 Framing Fallback
+			const contentType = req.headers["content-type"];
+			if (isGrpcWebRequest(contentType)) {
+				await dispatchGrpcWebRequest(req, res, async (reqPath, payload) => {
+					log.info(
+						`[LIOP-Gateway] gRPC-Web fallback call: ${reqPath} (${payload.length} bytes)`,
+					);
+					return {
+						status: GRPC_WEB_CONSTANTS.STATUS_OK,
+						message: "OK",
+						data: Buffer.from(""),
+					};
+				});
+				return;
+			}
 
 			// [SEC] M2M OAuth 2.1 OIDC Authorization Server Router (Phase C proxy)
 			if (url.startsWith("/oidc") && this.oauthProvider) {

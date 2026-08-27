@@ -230,6 +230,7 @@ export class LiopServer {
 			kyber_sk: Uint8Array;
 			agent_did?: string;
 			tokenHash?: string;
+			createdAt: number;
 		}
 	> = new Map();
 	private revokedTokenHashes: Set<string> = new Set();
@@ -1739,6 +1740,7 @@ Protocol Adherence is mandatory for successful execution.`,
 										kyber_sk: secretKey,
 										agent_did: request.agent_did,
 										tokenHash,
+										createdAt: Date.now(),
 									});
 
 									callback(null, {
@@ -1787,6 +1789,7 @@ Protocol Adherence is mandatory for successful execution.`,
 										kyber_sk: secretKey,
 										agent_did: request.agent_did,
 										tokenHash,
+										createdAt: Date.now(),
 									});
 
 									callback(null, {
@@ -1815,6 +1818,7 @@ Protocol Adherence is mandatory for successful execution.`,
 							capability_hash: request.capability_hash,
 							kyber_sk: secretKey,
 							agent_did: request.agent_did,
+							createdAt: Date.now(),
 						});
 
 						callback(null, {
@@ -1842,6 +1846,20 @@ Protocol Adherence is mandatory for successful execution.`,
 							details: "Invalid session token",
 						});
 						return;
+					}
+
+					// [PQC Security] Enforce Strict 1-Hour Session Lifetime (NIST SP 800-53 / PCI-DSS)
+					const MAX_SESSION_KEY_LIFETIME_MS = 3600 * 1000;
+					if (session.createdAt) {
+						const sessionAge = Date.now() - session.createdAt;
+						if (sessionAge > MAX_SESSION_KEY_LIFETIME_MS) {
+							this.sessions.delete(request.session_token);
+							call.emit("error", {
+								code: grpc.status.UNAUTHENTICATED,
+								details: `[LIOP-PQC] Session secret expired: Age (${Math.round(sessionAge / 1000)}s) exceeds 3600s TTL limit. Re-handshake required.`,
+							});
+							return;
+						}
 					}
 
 					// Verify if the token associated with this session has been revoked in the meantime
@@ -1940,6 +1958,7 @@ Protocol Adherence is mandatory for successful execution.`,
 							aesNonce: request.aes_nonce,
 							records: this.sandboxRecords,
 							sessionToken: request.session_token,
+							sessionTimestamp: session.createdAt,
 							isEncrypted: true,
 							dpConfig, // Apply DP noise inside worker before ZK-Receipt commitment
 						});
