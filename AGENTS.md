@@ -67,6 +67,13 @@ Logic-Injection-on-Origin Protocol (LIOP) is the high-performance successor to t
    - Tests evaluating mesh telemetry (`LiopMeshStatus`) must assert on patterns (`/\d+ Conns/`), invariant tools, and cryptographic proofs rather than fixed socket counters.
 13. **Global Distributed Deployment Roadmap Alignment**:
    - All future protocol developments must align strictly with the 5-phase evolution blueprint (Beta-1 Conectividad [DONE], Beta-2 Seguridad Avanzada, Beta-3 Observabilidad & SOC 2, RC Atestación TEE, GA Red Global Masiva). Refer to `learning_proposal.md` and repository roadmap docs for exact component specifications and dependency requirements.
+14. **Realtime Metric Scrape Refresh Invariant**:
+   - Prometheus gauges reporting dynamic runtime state (e.g., `liop_mesh_peers_connected`, `liop_manifest_cache_size`) must be sampled and updated on-the-fly synchronously inside the `GET /metrics` request handler, ensuring scrape collectors always receive accurate instantaneous telemetry.
+15. **AST Envelope Parsing with Top-Level Return**:
+   - Injected micro-modules frequently execute logic with top-level `return` expressions. All Acorn AST parsers evaluating logic envelopes must explicitly configure `{ allowReturnOutsideFunction: true }` to prevent syntax parsing failures.
+16. **Mandatory GPG Commit Signing (Strict No-Bypass Invariant)**:
+   - All git commits must be cryptographically signed with GPG. Agents are strictly prohibited from using `--no-gpg-sign`.
+   - When running `git commit`, provide adequate wait time for the user to unlock the GPG key via the pinentry modal. If GPG agent cache expires (`Vida máxima?`), alert the user to re-authenticate instead of evading signature verification.
 
 ---
 
@@ -85,6 +92,9 @@ Agents must enforce these six layers of defense:
 - **NEVER use `git clean -fdx`**: It destroys the pnpm virtual store and corrupts `node_modules`.
 - **Symlink Management**: Avoid absolute paths; use relative resolution within the workspace.
 - **Wasmtime Fuel**: Always configure fuel limits to prevent infinite-loop DoS attacks.
+- **Docker BuildKit Cache Lock Recovery**:
+  - When using Docker BuildKit cache mounts (`--mount=type=cache,target=/pnpm/store`), cancelling builds or interrupting Docker in Windows/WSL2 can wedge BuildKit cache locks.
+  - Never attempt single-service hot builds if a previous build was killed. Instead: kill stuck background tasks, run `docker builder prune -f`, execute `docker compose down -v --remove-orphans`, and rebuild cleanly with `docker compose up -d --build`.
 
 ---
 
