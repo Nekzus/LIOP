@@ -4,6 +4,8 @@ import { LiopServer } from "../../src/server/index.js";
 import { MeshNode } from "../../src/mesh/index.js";
 import { InMemoryRateLimiter } from "../../src/gateway/rate-limiter.js";
 import { GRPC_CHANNEL_OPTIONS } from "../../src/rpc/channel-options.js";
+import { Dilithium65Wrapper } from "../../src/rpc/crypto/dilithium.js";
+import { decodeFrames, encodeDataFrame } from "../../src/gateway/grpc-web.js";
 
 describe("Live Docker Mesh Integration (Global Distributed Hardening)", () => {
 	let router: LiopMcpRouter;
@@ -236,5 +238,55 @@ describe("Live Docker Mesh Integration (Global Distributed Hardening)", () => {
 		expect(text).toContain("Analyze_Synthetic_Bank_Transactions");
 		expect(text).toContain("Analyze_HFT_Market_Data");
 		expect(text).toContain("Analyze_Synthetic_Medical_Records");
+	});
+
+	it("should verify ML-DSA-65 (FIPS 204) post-quantum signatures on live manifests", async (ctx) => {
+		if (!dockerOnline) {
+			ctx.skip();
+			return;
+		}
+		// biome-ignore lint/suspicious/noExplicitAny: internal manifest inspection
+		const manifestCache = (router as any).manifestCache as Map<
+			string,
+			// biome-ignore lint/suspicious/noExplicitAny: test assertion
+			{ manifest: any }
+		>;
+		expect(manifestCache.size).toBeGreaterThan(0);
+
+		for (const [peerId, { manifest }] of manifestCache.entries()) {
+			if (manifest.pqcSignature && manifest.pqcPublicKey) {
+				const verified = Dilithium65Wrapper.verifyManifest(
+					manifest,
+					manifest.pqcSignature,
+					manifest.pqcPublicKey,
+				);
+				expect(verified).toBe(true);
+			}
+		}
+	});
+
+	it("should support gRPC-Web HTTP/1.1 framing fallback on Nexus Gateway", async (ctx) => {
+		if (!dockerOnline) {
+			ctx.skip();
+			return;
+		}
+		const requestPayload = encodeDataFrame(Buffer.from("grpc-web-ping"));
+		const res = await fetch("http://127.0.0.1:13000/liop.LiopService/Intent", {
+			method: "POST",
+			headers: {
+				"content-type": "application/grpc-web+proto",
+			},
+			body: requestPayload,
+		});
+
+		expect(res.status).toBe(200);
+		expect(res.headers.get("content-type")).toContain("application/grpc-web");
+		const arrayBuf = await res.arrayBuffer();
+		const responseBuf = Buffer.from(arrayBuf);
+		const frames = decodeFrames(responseBuf);
+		expect(frames.length).toBeGreaterThan(0);
+		const trailer = frames.find((f) => f.isTrailer);
+		expect(trailer).toBeDefined();
+		expect(trailer?.payload.toString("utf-8")).toContain("grpc-status:0");
 	});
 });

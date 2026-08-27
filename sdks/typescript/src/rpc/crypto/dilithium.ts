@@ -139,7 +139,8 @@ export const Dilithium65Wrapper = {
 		secretKey: Uint8Array,
 		publicKey: Uint8Array,
 	): { signature: string; publicKey: string } {
-		const canonicalStr = canonicalizeJson(manifest);
+		const { pqcSignature: _sig, pqcPublicKey: _pub, ...unsigned } = manifest;
+		const canonicalStr = canonicalizeJson(unsigned);
 		const sig = this.sign(canonicalStr, secretKey);
 		return {
 			signature: Buffer.from(sig).toString("base64"),
@@ -158,7 +159,8 @@ export const Dilithium65Wrapper = {
 		try {
 			const sig = Buffer.from(signatureBase64, "base64");
 			const pub = Buffer.from(publicKeyBase64, "base64");
-			const canonicalStr = canonicalizeJson(manifest);
+			const { pqcSignature: _sig, pqcPublicKey: _pub, ...unsigned } = manifest;
+			const canonicalStr = canonicalizeJson(unsigned);
 			return this.verify(sig, canonicalStr, pub);
 		} catch {
 			return false;

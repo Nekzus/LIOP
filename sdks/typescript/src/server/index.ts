@@ -9,6 +9,7 @@ import { createMlKem768 } from "mlkem";
 import { FixedQueue, Piscina } from "piscina";
 import { z } from "zod";
 import { type LiopManifest, MeshNode } from "../mesh/node.js";
+import { Dilithium65Wrapper } from "../rpc/crypto/dilithium.js";
 import { LiopRpcServer } from "../rpc/server.js";
 import type { LogicRequest, LogicResponse } from "../rpc/types.js";
 import { AUTH_DEFAULTS } from "../security/auth-config.js";
@@ -235,6 +236,7 @@ export class LiopServer {
 	> = new Map();
 	private revokedTokenHashes: Set<string> = new Set();
 	private lastRevocationLoadTime = 0;
+	private pqcKeyPair = Dilithium65Wrapper.generateKeyPair();
 
 	// Compact envelope: @LIOP{target,name}\n<code>\n@END
 	private static readonly LIOP_COMPACT_REGEX =
@@ -1650,7 +1652,7 @@ Protocol Adherence is mandatory for successful execution.`,
 				text: typeof r.content === "string" ? r.content : r.description,
 			}));
 
-			return {
+			const unsignedManifest: LiopManifest = {
 				peerId: meshNodeRef.getPeerId(),
 				grpcPort: port,
 				tools,
@@ -1665,6 +1667,18 @@ Protocol Adherence is mandatory for successful execution.`,
 							executionTypes: this.config.taxonomy.executionTypes || [],
 						}
 					: undefined,
+			};
+
+			const attestation = Dilithium65Wrapper.signManifest(
+				unsignedManifest as unknown as Record<string, unknown>,
+				this.pqcKeyPair.secretKey,
+				this.pqcKeyPair.publicKey,
+			);
+
+			return {
+				...unsignedManifest,
+				pqcSignature: attestation.signature,
+				pqcPublicKey: attestation.publicKey,
 			};
 		});
 

@@ -4,6 +4,7 @@ import { LiopVerifier } from "../crypto/verifier.js";
 import { TokenTelemetryEngine } from "../economy/telemetry.js";
 import type { LiopManifest, MeshNode } from "../mesh/index.js";
 import { GRPC_CHANNEL_OPTIONS } from "../rpc/channel-options.js";
+import { Dilithium65Wrapper } from "../rpc/crypto/dilithium.js";
 import { Kyber768Wrapper } from "../rpc/crypto/kyber.js";
 import { liopV1 } from "../rpc/proto.js";
 import { createChannelCredentials } from "../rpc/tls.js";
@@ -806,6 +807,27 @@ export class LiopMcpRouter {
 				for (const result of queryResults) {
 					if (result.status === "fulfilled" && result.value?.manifest) {
 						const { peerId, manifest } = result.value;
+
+						// [Phase Beta-2] ML-DSA-65 (FIPS 204) Manifest Attestation Verification
+						if (manifest.pqcSignature && manifest.pqcPublicKey) {
+							const isValid = Dilithium65Wrapper.verifyManifest(
+								manifest as unknown as Record<string, unknown>,
+								manifest.pqcSignature,
+								manifest.pqcPublicKey,
+							);
+							if (!isValid) {
+								log.warn(
+									`[LIOP-Router] ⚠️ Tampered manifest rejected for peer ${peerId} (ML-DSA-65 signature invalid)`,
+								);
+								this.recordManifestQueryFailure(peerId);
+								errorCount++;
+								continue;
+							}
+							log.info(
+								`[LIOP-Router] 🔒 ML-DSA-65 (FIPS 204) Manifest attestation verified for peer ${peerId}`,
+							);
+						}
+
 						this.manifestCache.set(peerId, {
 							manifest,
 							cachedAt: Date.now(),

@@ -132,6 +132,9 @@ services:
       LIOP_CLIENT_ID: liop-mesh-agent
       LIOP_CLIENT_SECRET: dev-secret-change-me
       LIOP_NEXUS_URL: http://nexus:3000
+      LIOP_TOKEN_BANK: bank-local-test-token
+      LIOP_TOKEN_VAULT: vault-local-test-token
+      LIOP_TOKEN_ORACLE: oracle-local-test-token
     networks:
       liop-testnet:
         ipv4_address: 172.20.0.100
