@@ -2,7 +2,11 @@ import * as http from "node:http";
 import * as http2 from "node:http2";
 import * as net from "node:net";
 import type { MeshNode } from "../mesh/index.js";
-import { protocolMetrics } from "../observability/metrics.js";
+import {
+	manifestCacheSize,
+	meshPeersConnected,
+	protocolMetrics,
+} from "../observability/metrics.js";
 import type { AuthInfo, JwtValidator } from "../security/jwt-validator.js";
 import { buildProtectedResourceMetadata } from "../security/prm.js";
 import type { LiopServer } from "../server/index.js";
@@ -114,6 +118,12 @@ export class LiopHybridGateway {
 
 			// [Phase Beta-3] Prometheus Metrics Endpoint
 			if (method === "GET" && url === "/metrics") {
+				if (this.meshNode) {
+					meshPeersConnected.set({}, this.meshNode.getPeers().length);
+				}
+				if (this.router) {
+					manifestCacheSize.set({}, this.router.getManifestCacheSize());
+				}
 				res.writeHead(200, {
 					"Content-Type": "text/plain; version=0.0.4; charset=utf-8",
 				});

@@ -136,6 +136,10 @@ export class LiopMcpRouter {
 		}
 	}
 
+	public getManifestCacheSize(): number {
+		return this.manifestCache.size;
+	}
+
 	private shouldSkipManifestQuery(peerId: string): boolean {
 		const state = this.manifestFailureState.get(peerId);
 		if (!state) return false;
