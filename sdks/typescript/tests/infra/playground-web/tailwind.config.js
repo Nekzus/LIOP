@@ -7,17 +7,18 @@ export default {
   theme: {
     extend: {
       colors: {
-        border: "rgba(255, 255, 255, 0.08)",
-        input: "rgba(255, 255, 255, 0.05)",
+        border: "var(--border-subtle)",
+        "border-muted": "var(--border-muted)",
+        input: "var(--bg-surface-2)",
         ring: "hsl(199, 89%, 48%)",
-        background: "#07070a",
+        background: "var(--bg-canvas)",
         foreground: "#f4f4f5",
         primary: {
           DEFAULT: "hsl(199, 89%, 48%)", // Cyan
           foreground: "#000000",
         },
         secondary: {
-          DEFAULT: "rgba(255, 255, 255, 0.05)",
+          DEFAULT: "var(--bg-surface-2)",
           foreground: "#f4f4f5",
         },
         destructive: {
@@ -41,9 +42,12 @@ export default {
           foreground: "#38bdf8",
         },
         card: {
-          DEFAULT: "#0d0e14",
+          DEFAULT: "var(--bg-surface-1)",
           foreground: "#f4f4f5",
         },
+      },
+      boxShadow: {
+        card: "var(--card-shadow)",
       },
       borderRadius: {
         lg: "0.5rem",
