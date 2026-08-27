@@ -14,15 +14,7 @@ import type {
  * Handles intent negotiation and secure logic execution.
  */
 
-/** Production-grade gRPC channel options per official grpc-node recommendations */
-const GRPC_CHANNEL_OPTIONS = {
-	"grpc.keepalive_time_ms": 30_000,
-	"grpc.keepalive_timeout_ms": 10_000,
-	"grpc.keepalive_permit_without_calls": 1,
-	"grpc.max_send_message_length": -1,
-	"grpc.max_receive_message_length": -1,
-	"grpc.enable_retries": 1,
-};
+import { GRPC_CHANNEL_OPTIONS } from "./channel-options.js";
 
 export class LiopRpcServer {
 	private server: grpc.Server;

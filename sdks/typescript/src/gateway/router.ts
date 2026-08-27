@@ -3,6 +3,7 @@ import * as grpc from "@grpc/grpc-js";
 import { LiopVerifier } from "../crypto/verifier.js";
 import { TokenTelemetryEngine } from "../economy/telemetry.js";
 import type { LiopManifest, MeshNode } from "../mesh/index.js";
+import { GRPC_CHANNEL_OPTIONS } from "../rpc/channel-options.js";
 import { Kyber768Wrapper } from "../rpc/crypto/kyber.js";
 import { liopV1 } from "../rpc/proto.js";
 import { createChannelCredentials } from "../rpc/tls.js";
@@ -1421,6 +1422,9 @@ export class LiopMcpRouter {
 			}
 		}
 
+		// Resolve IP from active connections
+		const addrs = await this.meshNode.resolvePeer(peerId);
+
 		// Docker Demo convenience (opt-in or auto-detected):
 		// Docker Desktop setups publish gRPC ports on the host as 13011/13021/13031.
 		// Container-internal gRPC ports (50051) and 172.20.0.x IPs are unreachable directly from the host.
@@ -1430,24 +1434,42 @@ export class LiopMcpRouter {
 			nexusUrl.includes("localhost:13000") ||
 			nexusUrl.includes("127.0.0.1:13001") ||
 			nexusUrl.includes("localhost:13001");
+		const isDockerPort = addrs.some(
+			(a) =>
+				a.includes("13001") ||
+				a.includes("13003") ||
+				a.includes("13004") ||
+				a.includes("13005") ||
+				a.includes("13011") ||
+				a.includes("13021") ||
+				a.includes("13031"),
+		);
 		const shouldRemapGrpcPorts =
 			process.env.LIOP_USE_PUBLISHED_GRPC_PORTS === "1" ||
 			process.env.LIOP_DOCKER_MAP === "true" ||
 			process.env.LIOP_DEV_MODE === "true" ||
 			process.env.NODE_ENV === "development" ||
 			process.env.NODE_ENV === "test" ||
-			isDockerDemo;
+			isDockerDemo ||
+			isDockerPort;
 
-		if (shouldRemapGrpcPorts && manifestEntry) {
+		if (shouldRemapGrpcPorts) {
 			const providerName =
-				manifestEntry.manifest.serverInfo?.name?.toLowerCase() || "";
-			if (providerName.includes("vault")) grpcPort = 13011;
-			else if (providerName.includes("bank")) grpcPort = 13021;
-			else if (providerName.includes("oracle")) grpcPort = 13031;
+				manifestEntry?.manifest?.serverInfo?.name?.toLowerCase() || "";
+			const tn = toolName.toLowerCase();
+			if (providerName.includes("vault") || tn.includes("medical")) {
+				grpcPort = 13011;
+			} else if (providerName.includes("bank") || tn.includes("bank")) {
+				grpcPort = 13021;
+			} else if (
+				providerName.includes("oracle") ||
+				tn.includes("hft") ||
+				tn.includes("market")
+			) {
+				grpcPort = 13031;
+			}
 		}
 
-		// Resolve IP from active connections
-		const addrs = await this.meshNode.resolvePeer(peerId);
 		let targetAddr: string | null = null;
 
 		// If running in Docker mapped mode, always route to 127.0.0.1 on the published host port
@@ -1498,6 +1520,7 @@ export class LiopMcpRouter {
 		const remoteClient = new liopV1.LogicMesh(
 			targetAddr,
 			createChannelCredentials(),
+			GRPC_CHANNEL_OPTIONS,
 		);
 		return this.performTranscoding(
 			id,
@@ -1733,7 +1756,9 @@ export class LiopMcpRouter {
 						);
 					// SECURITY: Avoid AES-GCM nonce reuse across multiple ciphertexts.
 					// We embed arguments directly into the proxy logic so we only encrypt ONE payload per session/nonce.
-					const embeddedArgsJson = JSON.stringify(params.arguments || {});
+					const embeddedArgs =
+						params?.arguments ?? (params?.payload !== undefined ? params : {});
+					const embeddedArgsJson = JSON.stringify(embeddedArgs);
 					const proxyLogic = `return { "__liop_proxy_tool": "${toolName}", "__liop_proxy_args": ${embeddedArgsJson} };`;
 					const nonce = crypto.randomBytes(12);
 

@@ -55,6 +55,18 @@ Logic-Injection-on-Origin Protocol (LIOP) is the high-performance successor to t
    - Never configure duplicate or overlapping LIOP mesh servers in `claude_desktop_config.json`. Always route through a single unified gateway instance to prevent client-side tool index corruption.
 9. **Symmetric Network Channel Configuration**:
    - Always mirror `GRPC_CHANNEL_OPTIONS` (keepalive 30s, timeout 10s, permit_without_calls) between `LiopRpcServer` and `LiopRpcClient` to ensure connections survive corporate stateful firewalls and aggressive NAT timeouts.
+10. **Multiaddr-Driven Network Remapping (Resilience against Env Sanitization)**:
+   - MCP clients and subagent runners often strip or fail to propagate environment variables (`LIOP_DOCKER_MAP`).
+   - Mesh dispatchers and routers must inspect peer multiaddrs directly (`isDockerPort` checking ports 13001-13005 / 13011-13031) and automatically map gRPC targets to published host ports (`13011`/`13021`/`13031`).
+11. **Elastic Parameter Resolution in MCP Gateway**:
+   - Support both structured (`params.arguments`) and flat (`params.payload`) RPC invocations in `performTranscoding()`:
+     `const embeddedArgs = params?.arguments ?? (params?.payload !== undefined ? params : {});`
+   - Prevents argument loss across disparate MCP client implementations.
+12. **Resilient Assertions for Dynamic P2P Topologies**:
+   - In live P2P integration tests (libp2p DHT), connection and provider counts fluctuate organically.
+   - Tests evaluating mesh telemetry (`LiopMeshStatus`) must assert on patterns (`/\d+ Conns/`), invariant tools, and cryptographic proofs rather than fixed socket counters.
+13. **Global Distributed Deployment Roadmap Alignment**:
+   - All future protocol developments must align strictly with the 5-phase evolution blueprint (Beta-1 Conectividad [DONE], Beta-2 Seguridad Avanzada, Beta-3 Observabilidad & SOC 2, RC Atestación TEE, GA Red Global Masiva). Refer to `learning_proposal.md` and repository roadmap docs for exact component specifications and dependency requirements.
 
 ---
 

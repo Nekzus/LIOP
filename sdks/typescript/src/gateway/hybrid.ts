@@ -6,6 +6,10 @@ import type { AuthInfo, JwtValidator } from "../security/jwt-validator.js";
 import { buildProtectedResourceMetadata } from "../security/prm.js";
 import type { LiopServer } from "../server/index.js";
 import { log } from "../utils/logger.js";
+import {
+	InMemoryRateLimiter,
+	type RateLimiterOptions,
+} from "./rate-limiter.js";
 import { LiopMcpRouter } from "./router.js";
 
 /**
@@ -20,14 +24,17 @@ export class LiopHybridGateway {
 	private jwtValidator?: JwtValidator;
 	// biome-ignore lint/suspicious/noExplicitAny: oidc-provider is loaded in Phase C
 	private oauthProvider?: any;
+	private rateLimiter: InMemoryRateLimiter;
 
 	constructor(
 		private liopServer: LiopServer,
 		private meshNode: MeshNode | null = null,
 		rpcPort: number = 50051,
+		rateLimiterOptions?: RateLimiterOptions,
 	) {
 		this.jwtValidator = this.liopServer.jwtValidator;
 		this.oauthProvider = this.liopServer.oauthProvider;
+		this.rateLimiter = new InMemoryRateLimiter(rateLimiterOptions);
 
 		// Initialize the Universal Router
 		this.router = new LiopMcpRouter(this.liopServer, this.meshNode, rpcPort);
@@ -215,6 +222,30 @@ export class LiopHybridGateway {
 				let body = "";
 				req.on("data", (chunk) => (body += chunk.toString()));
 				req.on("end", async () => {
+					// [SEC] Rate limiting per IP or authenticated client (OWASP API4:2023)
+					const clientIp = req.socket.remoteAddress || "127.0.0.1";
+					const rateLimitKey = authInfo?.clientId
+						? `client:${authInfo.clientId}`
+						: `ip:${clientIp}`;
+					const rateStatus = this.rateLimiter.check(rateLimitKey);
+					if (!rateStatus.allowed) {
+						res.writeHead(429, {
+							"Content-Type": "application/json",
+							"Retry-After": Math.ceil(rateStatus.resetMs / 1000).toString(),
+						});
+						res.end(
+							JSON.stringify({
+								jsonrpc: "2.0",
+								id: null,
+								error: {
+									code: -32029,
+									message: "Rate limit exceeded. Too many requests.",
+								},
+							}),
+						);
+						return;
+					}
+
 					try {
 						const jsonRequest = JSON.parse(body);
 
@@ -467,6 +498,7 @@ export class LiopHybridGateway {
 		if (this.meshNode) {
 			await this.meshNode.stop();
 		}
+		this.rateLimiter.close();
 		this.netServer.close();
 		this.h2Server.close();
 		this.h1Server.close();

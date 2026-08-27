@@ -28,16 +28,23 @@ export interface LiopTlsOptions {
 	privateKey?: string;
 }
 
-const isProduction = () => process.env.NODE_ENV === "production";
+const isTlsEnforced = () =>
+	process.env.NODE_ENV === "production" ||
+	process.env.LIOP_ENFORCE_TLS === "true";
 
 /**
  * Creates gRPC server credentials from TLS options.
- * In production, refuses to fall back to insecure if TLS loading fails.
+ * In production or when LIOP_ENFORCE_TLS=true, refuses to fall back to insecure.
  */
 export function createServerCredentials(
 	tls?: LiopTlsOptions,
 ): grpc.ServerCredentials {
 	if (!tls?.certChain || !tls?.privateKey) {
+		if (isTlsEnforced()) {
+			throw new Error(
+				"[LIOP-TLS] FATAL: TLS certificates required in production or when LIOP_ENFORCE_TLS=true.",
+			);
+		}
 		log.warn(
 			"[LIOP-TLS] No TLS certificates configured — using insecure server credentials",
 		);
@@ -53,9 +60,9 @@ export function createServerCredentials(
 			{ cert_chain: certChain, private_key: privateKey },
 		]);
 	} catch (error) {
-		if (isProduction()) {
+		if (isTlsEnforced()) {
 			throw new Error(
-				`[LIOP-TLS] FATAL: Server certificate loading failed in production mode. ` +
+				`[LIOP-TLS] FATAL: Server certificate loading failed in production or enforced mode. ` +
 					`Refusing insecure fallback to prevent MITM/eavesdropping: ${error}`,
 			);
 		}
@@ -68,12 +75,17 @@ export function createServerCredentials(
 
 /**
  * Creates gRPC channel credentials from TLS options.
- * In production, refuses to fall back to insecure if TLS loading fails.
+ * In production or when LIOP_ENFORCE_TLS=true, refuses to fall back to insecure.
  */
 export function createChannelCredentials(
 	tls?: LiopTlsOptions,
 ): grpc.ChannelCredentials {
 	if (!tls?.rootCert) {
+		if (isTlsEnforced()) {
+			throw new Error(
+				"[LIOP-TLS] FATAL: TLS root certificate required in production or when LIOP_ENFORCE_TLS=true.",
+			);
+		}
 		log.warn(
 			"[LIOP-TLS] No TLS root certificate configured — using insecure channel credentials",
 		);
@@ -91,9 +103,9 @@ export function createChannelCredentials(
 
 		return grpc.credentials.createSsl(rootCert, privateKey, certChain);
 	} catch (error) {
-		if (isProduction()) {
+		if (isTlsEnforced()) {
 			throw new Error(
-				`[LIOP-TLS] FATAL: Channel certificate loading failed in production mode. ` +
+				`[LIOP-TLS] FATAL: Channel certificate loading failed in production or enforced mode. ` +
 					`Refusing insecure fallback to prevent MITM/eavesdropping: ${error}`,
 			);
 		}

@@ -1,4 +1,5 @@
 import * as grpc from "@grpc/grpc-js";
+import { GRPC_CHANNEL_OPTIONS } from "./channel-options.js";
 import { liopV1 } from "./proto.js";
 import { createChannelCredentials, type LiopTlsOptions } from "./tls.js";
 import type {
@@ -19,7 +20,11 @@ export class LiopRpcClient {
 
 	constructor(address: string, tls?: LiopTlsOptions, token?: string) {
 		const credentials = createChannelCredentials(tls);
-		this.client = new liopV1.LogicMesh(address, credentials);
+		this.client = new liopV1.LogicMesh(
+			address,
+			credentials,
+			GRPC_CHANNEL_OPTIONS,
+		);
 		this.token = token;
 	}
 
