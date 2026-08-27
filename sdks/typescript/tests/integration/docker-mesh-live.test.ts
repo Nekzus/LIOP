@@ -276,7 +276,7 @@ describe("Live Docker Mesh Integration (Global Distributed Hardening)", () => {
 			headers: {
 				"content-type": "application/grpc-web+proto",
 			},
-			body: requestPayload,
+			body: new Uint8Array(requestPayload),
 		});
 
 		expect(res.status).toBe(200);

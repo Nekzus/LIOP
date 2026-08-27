@@ -6,7 +6,7 @@ import { AUTH_DEFAULTS } from "../../../src/security/auth-config.js";
 describe("JwtValidator", () => {
 	const TEST_ISSUER = "https://nexus.liop.io";
 	const TEST_AUDIENCE = "liop-mesh-api";
-	let privateKey: jose.KeyLike;
+	let privateKey: jose.CryptoKey;
 	let publicJwk: jose.JWK;
 	let kid: string;
 
