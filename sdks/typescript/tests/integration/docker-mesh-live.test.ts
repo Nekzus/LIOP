@@ -9,8 +9,20 @@ describe("Live Docker Mesh Integration (Global Distributed Hardening)", () => {
 	let router: LiopMcpRouter;
 	let meshNode: MeshNode;
 	let localServer: LiopServer;
+	let dockerOnline = false;
 
 	beforeAll(async () => {
+		try {
+			const res = await fetch("http://127.0.0.1:13000/health", { signal: AbortSignal.timeout(1500) });
+			dockerOnline = res.ok;
+		} catch {
+			dockerOnline = false;
+		}
+
+		if (!dockerOnline) {
+			return;
+		}
+
 		process.env.LIOP_NEXUS_URL = "http://127.0.0.1:13000";
 		process.env.LIOP_DOCKER_MAP = "true";
 		process.env.LIOP_TOKEN_VAULT = "vault-local-test-token";
@@ -65,7 +77,11 @@ describe("Live Docker Mesh Integration (Global Distributed Hardening)", () => {
 		expect(GRPC_CHANNEL_OPTIONS["grpc.keepalive_permit_without_calls"]).toBe(1);
 	});
 
-	it("should verify P2P NAT Traversal and Relay services are active on the live mesh node", () => {
+	it("should verify P2P NAT Traversal and Relay services are active on the live mesh node", (ctx) => {
+		if (!dockerOnline) {
+			ctx.skip();
+			return;
+		}
 		// biome-ignore lint/suspicious/noExplicitAny: internal libp2p service inspection
 		const services = (meshNode as any).node?.services;
 		expect(services).toBeDefined();
@@ -75,7 +91,11 @@ describe("Live Docker Mesh Integration (Global Distributed Hardening)", () => {
 		expect(services.dht).toBeDefined();
 	});
 
-	it("should discover all 4 Docker mesh tools via Kademlia DHT", async () => {
+	it("should discover all 4 Docker mesh tools via Kademlia DHT", async (ctx) => {
+		if (!dockerOnline) {
+			ctx.skip();
+			return;
+		}
 		const res = await router.dispatch({
 			jsonrpc: "2.0",
 			id: 1,
@@ -92,7 +112,11 @@ describe("Live Docker Mesh Integration (Global Distributed Hardening)", () => {
 		expect(tools).toContain("LiopMeshStatus");
 	});
 
-	it("should execute in-situ logic on Oracle (Analyze_HFT_Market_Data) via PQC & WASI", async () => {
+	it("should execute in-situ logic on Oracle (Analyze_HFT_Market_Data) via PQC & WASI", async (ctx) => {
+		if (!dockerOnline) {
+			ctx.skip();
+			return;
+		}
 		const hftEnvelope = [
 			"@LIOP{wasi_v1,HftAggregation}",
 			"const records = env.records;",
@@ -122,7 +146,11 @@ describe("Live Docker Mesh Integration (Global Distributed Hardening)", () => {
 		expect(data.zk_receipt).toBeDefined();
 	}, 15000);
 
-	it("should execute in-situ logic on Bank (Analyze_Synthetic_Bank_Transactions)", async () => {
+	it("should execute in-situ logic on Bank (Analyze_Synthetic_Bank_Transactions)", async (ctx) => {
+		if (!dockerOnline) {
+			ctx.skip();
+			return;
+		}
 		const bankEnvelope = [
 			"@LIOP{wasi_v1,BankAggregation}",
 			"const records = env.records;",
@@ -152,7 +180,11 @@ describe("Live Docker Mesh Integration (Global Distributed Hardening)", () => {
 		expect(data.zk_receipt).toBeDefined();
 	}, 15000);
 
-	it("should execute in-situ logic on Vault (Analyze_Synthetic_Medical_Records)", async () => {
+	it("should execute in-situ logic on Vault (Analyze_Synthetic_Medical_Records)", async (ctx) => {
+		if (!dockerOnline) {
+			ctx.skip();
+			return;
+		}
 		const vaultEnvelope = [
 			"@LIOP{wasi_v1,VaultAggregation}",
 			"const records = env.records;",
@@ -182,7 +214,11 @@ describe("Live Docker Mesh Integration (Global Distributed Hardening)", () => {
 		expect(data.zk_receipt).toBeDefined();
 	}, 15000);
 
-	it("should return healthy diagnostics from LiopMeshStatus", async () => {
+	it("should return healthy diagnostics from LiopMeshStatus", async (ctx) => {
+		if (!dockerOnline) {
+			ctx.skip();
+			return;
+		}
 		const res = await router.dispatch({
 			jsonrpc: "2.0",
 			id: 5,
