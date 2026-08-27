@@ -9,9 +9,18 @@ import { createMlKem768 } from "mlkem";
 import { FixedQueue, Piscina } from "piscina";
 import { z } from "zod";
 import { type LiopManifest, MeshNode } from "../mesh/node.js";
+import {
+	egressBlocksTotal,
+	fuelConsumed,
+	toolCallsTotal,
+} from "../observability/metrics.js";
 import { Dilithium65Wrapper } from "../rpc/crypto/dilithium.js";
 import { LiopRpcServer } from "../rpc/server.js";
 import type { LogicRequest, LogicResponse } from "../rpc/types.js";
+import {
+	type AuditLogger,
+	globalAuditLogger,
+} from "../security/audit-logger.js";
 import { AUTH_DEFAULTS } from "../security/auth-config.js";
 import { JwtValidator } from "../security/jwt-validator.js";
 import { createOAuthServer } from "../security/oauth-server.js";
@@ -103,6 +112,10 @@ export interface LiopServerOptions {
 	 * Must match SCREAMING_SNAKE_CASE: /^[A-Z][A-Z0-9_]*$/ (e.g., "BANK", "VAULT", "HFT_ORACLE").
 	 */
 	tokenSlug?: string;
+	/**
+	 * SOC 2 Type II / HIPAA immutable audit logger instance.
+	 */
+	auditLogger?: AuditLogger;
 	/**
 	 * Path to a shared JSON file for persistent Query Budget tracking across multiple server instances.
 	 */
@@ -237,6 +250,14 @@ export class LiopServer {
 	private revokedTokenHashes: Set<string> = new Set();
 	private lastRevocationLoadTime = 0;
 	private pqcKeyPair = Dilithium65Wrapper.generateKeyPair();
+	public readonly auditLogger: AuditLogger;
+
+	public getDatasetHash(): string {
+		return crypto
+			.createHash("sha256")
+			.update(JSON.stringify(this.sandboxRecords || []))
+			.digest("hex");
+	}
 
 	// Compact envelope: @LIOP{target,name}\n<code>\n@END
 	private static readonly LIOP_COMPACT_REGEX =
@@ -704,6 +725,7 @@ export class LiopServer {
 		];
 		const sensitiveKeys = this.config?.security?.sensitiveKeys ?? [];
 		this.taintAnalyzer = new TaintAnalyzer(forbiddenKeys, sensitiveKeys);
+		this.auditLogger = this.config?.auditLogger || globalAuditLogger;
 
 		// Initialize Zero-Blocking Worker Pool for Heavy Cryptography & Sandboxing
 		const isTS = import.meta.url.endsWith(".ts");
@@ -2080,7 +2102,8 @@ Protocol Adherence is mandatory for successful execution.`,
 							toolPolicy?.enforceAggregationFirst,
 							this.sandboxRecords?.length,
 						);
-						if (violation || aggregationViolation) {
+						const isBlocked = Boolean(violation || aggregationViolation);
+						if (isBlocked) {
 							// SEC-CRITICAL: Log details server-side, never expose to caller
 							const internalReason =
 								violation || "Aggregation-First Policy Violation";
@@ -2090,7 +2113,35 @@ Protocol Adherence is mandatory for successful execution.`,
 							response.semantic_evidence =
 								"[LIOP] Egress Security Violation. Output blocked due to policy enforcement.";
 							response.is_error = true;
+
+							egressBlocksTotal.inc({
+								reason: violation ? "pii_scanner" : "aggregation_policy",
+							});
 						}
+
+						// [Phase Beta-3] SOC 2 Type II & HIPAA Immutable Audit Trail
+						this.auditLogger.recordExecution({
+							agentDid: session.agent_did || "unknown",
+							peerId: session.tokenHash || "unknown",
+							toolName: toolName || "unknown",
+							datasetHash: this.getDatasetHash(),
+							fuelConsumed: workerResponse.fuel_consumed || 0,
+							outputHash: crypto
+								.createHash("sha256")
+								.update(response.semantic_evidence)
+								.digest("hex"),
+							zkReceiptSig: workerResponse.zk_receipt || "",
+							status: isBlocked ? "BLOCKED_EGRESS" : "SUCCESS",
+						});
+
+						toolCallsTotal.inc({
+							tool: toolName || "unknown",
+							status: isBlocked ? "blocked_egress" : "success",
+						});
+						fuelConsumed.observe(
+							{ tool: toolName || "unknown" },
+							workerResponse.fuel_consumed || 0,
+						);
 
 						call.write(response, () => {
 							call.end();
@@ -2107,6 +2158,25 @@ Protocol Adherence is mandatory for successful execution.`,
 						const errorMessage = isDev
 							? `Execution Error: ${detail}`
 							: "[LIOP] Execution Failed. The injected logic violated runtime constraints or encountered a fatal error.";
+
+						this.auditLogger.recordExecution({
+							agentDid: session.agent_did || "unknown",
+							peerId: session.tokenHash || "unknown",
+							toolName: toolName || "unknown",
+							datasetHash: this.getDatasetHash(),
+							fuelConsumed: 0,
+							outputHash: crypto
+								.createHash("sha256")
+								.update(errorMessage)
+								.digest("hex"),
+							zkReceiptSig: "",
+							status: "ERROR",
+						});
+
+						toolCallsTotal.inc({
+							tool: toolName || "unknown",
+							status: "error",
+						});
 
 						// Send error response before closing, avoiding "stream closed without results"
 						const errorResponse: LogicResponse = {

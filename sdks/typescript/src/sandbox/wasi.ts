@@ -4,6 +4,8 @@ import * as os from "node:os";
 import * as path from "node:path";
 import vm from "node:vm";
 import { WASI } from "node:wasi";
+import * as acorn from "acorn";
+import { simple } from "acorn-walk";
 import { ASTGuardian } from "./guardian.js";
 
 // Silence Node.js ExperimentalWarning for WASI (Industrial console parity)
@@ -58,6 +60,104 @@ export function getDefaultEnvironment(): Record<string, string> {
 	}
 
 	return env;
+}
+
+/**
+ * Calculates deterministic execution fuel units based on AST instruction complexity.
+ * Guarantees identical fuel consumption for the same logic across different hardware.
+ */
+export function calculateAstInstructionFuel(code: string): number {
+	try {
+		const ast = acorn.parse(code, {
+			ecmaVersion: 2022,
+			sourceType: "script",
+			allowReturnOutsideFunction: true,
+		});
+
+		let score = 100; // Base fuel for VM initialization & envelope parsing
+
+		simple(ast, {
+			Identifier() {
+				score += 1;
+			},
+			Literal() {
+				score += 1;
+			},
+			BinaryExpression() {
+				score += 2;
+			},
+			UnaryExpression() {
+				score += 2;
+			},
+			LogicalExpression() {
+				score += 2;
+			},
+			// biome-ignore lint/suspicious/noExplicitAny: ESTree node
+			VariableDeclaration(node: any) {
+				score += 5 * (node.declarations?.length || 1);
+			},
+			AssignmentExpression() {
+				score += 3;
+			},
+			MemberExpression() {
+				score += 3;
+			},
+			// biome-ignore lint/suspicious/noExplicitAny: ESTree node
+			ObjectExpression(node: any) {
+				score += 5 + (node.properties?.length || 0) * 2;
+			},
+			// biome-ignore lint/suspicious/noExplicitAny: ESTree node
+			ArrayExpression(node: any) {
+				score += 5 + (node.elements?.length || 0) * 2;
+			},
+			// biome-ignore lint/suspicious/noExplicitAny: ESTree node
+			CallExpression(node: any) {
+				score += 10 + (node.arguments?.length || 0) * 2;
+			},
+			FunctionDeclaration() {
+				score += 20;
+			},
+			FunctionExpression() {
+				score += 15;
+			},
+			ArrowFunctionExpression() {
+				score += 15;
+			},
+			IfStatement() {
+				score += 5;
+			},
+			SwitchStatement() {
+				score += 10;
+			},
+			ForStatement() {
+				score += 50;
+			},
+			ForInStatement() {
+				score += 50;
+			},
+			ForOfStatement() {
+				score += 50;
+			},
+			WhileStatement() {
+				score += 50;
+			},
+			DoWhileStatement() {
+				score += 50;
+			},
+			TryStatement() {
+				score += 15;
+			},
+			ReturnStatement() {
+				score += 2;
+			},
+		});
+
+		// Normalize to buckets of 100 to prevent timing side-channel inference
+		return Math.ceil(score / 100) * 100;
+	} catch (_e) {
+		// Fallback for non-JS or unparseable code
+		return 500;
+	}
 }
 
 export interface SandboxConfig {
@@ -343,10 +443,12 @@ export class WasiSandbox {
 					displayErrors: true,
 				});
 
-				const duration = performance.now() - startTime;
-				// SEC: Normalize fuel to buckets of 100 to prevent timing side-channel inference
-				const rawFuel = Math.floor(duration * 1500 + 100);
-				const fuelUsed = Math.ceil(rawFuel / 100) * 100;
+				// [Phase Beta-3] Deterministic AST Instruction Fuel Metering (SOC 2 / Zero Hardware Drift)
+				const logicStr =
+					typeof compiledLogic === "string"
+						? compiledLogic
+						: compiledLogic.toString("utf-8");
+				const fuelUsed = calculateAstInstructionFuel(logicStr);
 
 				if (fuelUsed > 1000000) {
 					throw new Error(

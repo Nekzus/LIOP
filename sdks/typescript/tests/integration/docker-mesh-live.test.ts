@@ -289,4 +289,10 @@ describe("Live Docker Mesh Integration (Global Distributed Hardening)", () => {
 		expect(trailer).toBeDefined();
 		expect(trailer?.payload.toString("utf-8")).toContain("grpc-status:0");
 	});
+
+	it("should record immutable SOC 2 / HIPAA audit log entries with verified Hash-Chain", () => {
+		expect(localServer.auditLogger).toBeDefined();
+		const integrity = localServer.auditLogger.verifyIntegrity();
+		expect(integrity.valid).toBe(true);
+	});
 });

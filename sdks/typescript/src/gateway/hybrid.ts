@@ -2,6 +2,7 @@ import * as http from "node:http";
 import * as http2 from "node:http2";
 import * as net from "node:net";
 import type { MeshNode } from "../mesh/index.js";
+import { protocolMetrics } from "../observability/metrics.js";
 import type { AuthInfo, JwtValidator } from "../security/jwt-validator.js";
 import { buildProtectedResourceMetadata } from "../security/prm.js";
 import type { LiopServer } from "../server/index.js";
@@ -30,6 +31,8 @@ export class LiopHybridGateway {
 	// biome-ignore lint/suspicious/noExplicitAny: oidc-provider is loaded in Phase C
 	private oauthProvider?: any;
 	private rateLimiter: InMemoryRateLimiter;
+	private isDraining = false;
+	private activeRequests = 0;
 
 	constructor(
 		private liopServer: LiopServer,
@@ -97,8 +100,100 @@ export class LiopHybridGateway {
 
 	private setupH1Routes() {
 		this.h1Server.on("request", async (req, res) => {
+			this.activeRequests += 1;
+			const onDone = () => {
+				res.removeListener("finish", onDone);
+				res.removeListener("close", onDone);
+				this.activeRequests = Math.max(0, this.activeRequests - 1);
+			};
+			res.on("finish", onDone);
+			res.on("close", onDone);
+
 			const url = req.url || "";
 			const method = req.method;
+
+			// [Phase Beta-3] Prometheus Metrics Endpoint
+			if (method === "GET" && url === "/metrics") {
+				res.writeHead(200, {
+					"Content-Type": "text/plain; version=0.0.4; charset=utf-8",
+				});
+				res.end(protocolMetrics.exportPrometheusText());
+				return;
+			}
+
+			// [Phase Beta-3] K8s Liveness Probe
+			if (method === "GET" && url === "/healthz") {
+				if (this.isDraining) {
+					res.writeHead(503, { "Content-Type": "application/json" });
+					res.end(
+						JSON.stringify({
+							status: "draining",
+							timestamp: new Date().toISOString(),
+						}),
+					);
+					return;
+				}
+				res.writeHead(200, { "Content-Type": "application/json" });
+				res.end(
+					JSON.stringify({
+						status: "ok",
+						uptime: Math.floor(process.uptime()),
+						timestamp: new Date().toISOString(),
+					}),
+				);
+				return;
+			}
+
+			// [Phase Beta-3] K8s Readiness Probe
+			if (method === "GET" && url === "/readyz") {
+				if (this.isDraining) {
+					res.writeHead(503, { "Content-Type": "application/json" });
+					res.end(
+						JSON.stringify({
+							status: "draining",
+							timestamp: new Date().toISOString(),
+						}),
+					);
+					return;
+				}
+				const meshStarted = this.meshNode ? this.meshNode.isStarted() : true;
+				if (!meshStarted) {
+					res.writeHead(503, { "Content-Type": "application/json" });
+					res.end(
+						JSON.stringify({
+							status: "unready",
+							meshStarted: false,
+							timestamp: new Date().toISOString(),
+						}),
+					);
+					return;
+				}
+				res.writeHead(200, { "Content-Type": "application/json" });
+				res.end(
+					JSON.stringify({
+						status: "ready",
+						meshStarted: true,
+						peers: this.meshNode ? this.meshNode.getPeers().length : 0,
+						timestamp: new Date().toISOString(),
+					}),
+				);
+				return;
+			}
+
+			// Reject new MCP requests if draining
+			if (this.isDraining && url === "/mcp") {
+				res.writeHead(503, { "Content-Type": "application/json" });
+				res.end(
+					JSON.stringify({
+						jsonrpc: "2.0",
+						error: {
+							code: -32000,
+							message: "Gateway is draining connections for shutdown",
+						},
+					}),
+				);
+				return;
+			}
 
 			// [Phase Beta-2] gRPC-Web HTTP/1.1 Framing Fallback
 			const contentType = req.headers["content-type"];
@@ -513,6 +608,22 @@ export class LiopHybridGateway {
 				resolve(assignedPort);
 			});
 		});
+	}
+
+	public isDrained(): boolean {
+		return this.isDraining;
+	}
+
+	public async drain(timeoutMs = 5000): Promise<void> {
+		this.isDraining = true;
+		log.info(
+			`[LIOP-Gateway] Draining gateway connections (active: ${this.activeRequests}, timeout: ${timeoutMs}ms)...`,
+		);
+		const start = Date.now();
+		while (this.activeRequests > 0 && Date.now() - start < timeoutMs) {
+			await new Promise((resolve) => setTimeout(resolve, 50));
+		}
+		await this.stop();
 	}
 
 	public async stop() {

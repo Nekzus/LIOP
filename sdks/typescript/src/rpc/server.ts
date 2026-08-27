@@ -59,12 +59,32 @@ export class LiopRpcServer {
 		});
 	}
 
-	public async stop(): Promise<void> {
+	public async gracefulShutdown(timeoutMs = 5000): Promise<void> {
 		return new Promise((resolve) => {
+			let resolved = false;
+			const timer = setTimeout(() => {
+				if (!resolved) {
+					resolved = true;
+					log.warn(
+						`[LIOP-RPC] tryShutdown timed out after ${timeoutMs}ms — forcing shutdown`,
+					);
+					this.server.forceShutdown();
+					resolve();
+				}
+			}, timeoutMs);
+
 			this.server.tryShutdown(() => {
-				log.info("[LIOP-RPC] Server shut down");
-				resolve();
+				if (!resolved) {
+					resolved = true;
+					clearTimeout(timer);
+					log.info("[LIOP-RPC] Server gracefully shut down");
+					resolve();
+				}
 			});
 		});
+	}
+
+	public async stop(): Promise<void> {
+		return this.gracefulShutdown(5000);
 	}
 }

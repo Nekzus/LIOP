@@ -1117,4 +1117,13 @@ export class MeshNode {
 		}
 		return [];
 	}
+
+	public isStarted(): boolean {
+		return !!this.node && this.node.status === "started";
+	}
+
+	public getPeers(): string[] {
+		if (!this.node) return [];
+		return this.node.getConnections().map((c) => c.remotePeer.toString());
+	}
 }
