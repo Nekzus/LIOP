@@ -179,6 +179,41 @@ export class LiopClient {
 	}
 
 	/**
+	 * Selects the optimal IP from an array of multiaddrs.
+	 * Prioritizes routable non-loopback IPv4 addresses (e.g. Docker bridge, LAN, WAN)
+	 * over loopback (127.0.0.1) to prevent inter-container connection failures.
+	 */
+	private selectOptimalIp(addrs: string[]): string | null {
+		// Pass 1: Non-loopback, routable IPv4 addresses
+		for (const maddr of addrs) {
+			const parts = maddr.split("/");
+			const ipIdx = parts.indexOf("ip4");
+			if (ipIdx !== -1 && ipIdx + 1 < parts.length) {
+				const ip = parts[ipIdx + 1];
+				if (
+					ip !== "127.0.0.1" &&
+					!ip.startsWith("127.") &&
+					ip !== "0.0.0.0" &&
+					ip !== "localhost"
+				) {
+					return ip;
+				}
+			}
+		}
+
+		// Pass 2: Fallback to loopback if no external IP is announced
+		for (const maddr of addrs) {
+			const parts = maddr.split("/");
+			const ipIdx = parts.indexOf("ip4");
+			if (ipIdx !== -1 && ipIdx + 1 < parts.length) {
+				return parts[ipIdx + 1];
+			}
+		}
+
+		return null;
+	}
+
+	/**
 	 * Dynamically queries Kademlia DHT to find the optimal PeerID providing the Capability
 	 * and returns the physical gRPC target (host:port) resolved from the provider's manifest.
 	 */
@@ -211,15 +246,13 @@ export class LiopClient {
 		}
 
 		const addrs = await this.meshNode.resolvePeer(providerId);
-		for (const maddr of addrs) {
-			const parts = maddr.split("/");
-			if (parts[1] === "ip4") {
-				const grpcHost = `${parts[2]}:${grpcPort}`;
-				log.info(
-					`[LiopClient] Translated Multiaddr to gRPC Target: ${grpcHost}`,
-				);
-				return grpcHost;
-			}
+		const optimalIp = this.selectOptimalIp(addrs);
+		if (optimalIp) {
+			const grpcHost = `${optimalIp}:${grpcPort}`;
+			log.info(
+				`[LiopClient] Translated Multiaddr to optimal gRPC Target: ${grpcHost}`,
+			);
+			return grpcHost;
 		}
 
 		return `127.0.0.1:${grpcPort}`;
@@ -361,24 +394,36 @@ export class LiopClient {
 
 		// [ALPHA-FIX] Bypass DHT discovery if we are already statically connected to a provider (Enterprise/Test mode)
 		let rpcClient = this.rpcClients.get("static");
+		let targetClientKey = toolName;
 
 		if (!rpcClient) {
-			// Fast-path: Check if capability already exists in cached manifests to bypass DHT walk
+			// 1. If an RPC client was already registered for this toolName, reuse it
+			if (this.rpcClients.has(toolName)) {
+				rpcClient = this.rpcClients.get(toolName);
+				targetClientKey = toolName;
+			}
+		}
+
+		if (!rpcClient) {
+			// 2. Fast-path: Check if capability already exists in cached manifests to bypass DHT walk
 			let resolvedHost: string | null = null;
 			for (const [peerId, manifest] of this.manifests.entries()) {
 				if (manifest.tools.some((t) => t.name === toolName)) {
-					const addrs = await this.meshNode.resolvePeer(peerId);
-					for (const maddr of addrs) {
-						const parts = maddr.split("/");
-						if (parts[1] === "ip4") {
-							resolvedHost = `${parts[2]}:${manifest.grpcPort}`;
-							log.info(
-								`[LiopClient] Fast-path: Resolved ${toolName} from manifest cache to ${resolvedHost}`,
-							);
-							break;
-						}
+					// If we already have a client registered for this peerId, reuse it immediately
+					if (this.rpcClients.has(peerId)) {
+						rpcClient = this.rpcClients.get(peerId);
+						targetClientKey = peerId;
+						break;
 					}
-					if (resolvedHost) {
+
+					const addrs = await this.meshNode.resolvePeer(peerId);
+					const optimalIp = this.selectOptimalIp(addrs);
+					if (optimalIp) {
+						resolvedHost = `${optimalIp}:${manifest.grpcPort}`;
+						log.info(
+							`[LiopClient] Fast-path: Resolved ${toolName} from manifest cache to optimal target ${resolvedHost}`,
+						);
+						targetClientKey = peerId;
 						rpcClient = this.getOrCreateRpcClient(peerId, resolvedHost);
 						break;
 					}
@@ -387,9 +432,11 @@ export class LiopClient {
 
 			if (!rpcClient) {
 				const dynamicAddress = await this.resolveCapability(toolName);
+				targetClientKey = toolName;
 				rpcClient = this.getOrCreateRpcClient(toolName, dynamicAddress);
 			}
 		} else {
+			targetClientKey = "static";
 			log.info(
 				`[LiopClient] Using existing static gRPC connection for ${toolName}.`,
 			);
@@ -535,6 +582,9 @@ export class LiopClient {
 			});
 
 			stream.on("error", (err) => {
+				// Evict faulted client from cache so subsequent requests reconnect cleanly
+				this.rpcClients.delete(targetClientKey);
+				this.rpcClients.delete(toolName);
 				if (resultFulfilled) return;
 				log.error("[LiopClient] Stream Error:", err);
 				reject(err);

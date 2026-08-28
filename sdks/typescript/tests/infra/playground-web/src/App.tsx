@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo } from "react"
 import { 
-  ShieldCheck, 
   Terminal, 
   Play, 
   Waypoints, 
@@ -31,6 +30,26 @@ import { ScrollArea } from "./components/ui/scroll-area"
 import { Alert, AlertTitle, AlertDescription } from "./components/ui/alert"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "./components/ui/tabs"
 
+// Logo oficial del protocolo LIOP (Octogono con nucleo central y 8 ondas sinusoidales de inyeccion)
+function LiopLogo({ className = "h-5 w-5 text-primary" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <g stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" fill="none">
+        <polygon points="100,76.57 76.57,100 43.43,100 20,76.57 20,43.43 43.43,20 76.57,20 100,43.43" />
+        <circle cx="60" cy="60" r="10" fill="currentColor" stroke="none" />
+        <path d="M 60 60 C 60 45, 100 75, 100 60" />
+        <path d="M 60 60 C 60 45, 100 75, 100 60" transform="rotate(45 60 60)" />
+        <path d="M 60 60 C 60 45, 100 75, 100 60" transform="rotate(90 60 60)" />
+        <path d="M 60 60 C 60 45, 100 75, 100 60" transform="rotate(135 60 60)" />
+        <path d="M 60 60 C 60 45, 100 75, 100 60" transform="rotate(180 60 60)" />
+        <path d="M 60 60 C 60 45, 100 75, 100 60" transform="rotate(225 60 60)" />
+        <path d="M 60 60 C 60 45, 100 75, 100 60" transform="rotate(270 60 60)" />
+        <path d="M 60 60 C 60 45, 100 75, 100 60" transform="rotate(315 60 60)" />
+      </g>
+    </svg>
+  )
+}
+
 interface Tool {
   name: string
   description?: string
@@ -48,6 +67,7 @@ interface NetworkInfo {
   peersCount: number
   role: string
   address: string
+  version?: string
 }
 
 interface TimelineStep {
@@ -411,15 +431,15 @@ export default function App() {
       <header className="border-b border-border bg-card/90 backdrop-blur-sm sticky top-0 z-50 transition-colors">
         <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="bg-primary/10 p-1.5 rounded-md border border-primary/25 text-primary">
-              <ShieldCheck className="h-5 w-5" />
+            <div className="bg-primary/10 p-1.5 rounded-md border border-primary/25 text-primary flex items-center justify-center">
+              <LiopLogo className="h-5 w-5 text-primary" />
             </div>
             <div className="flex items-center gap-2">
               <h1 className="text-base font-bold tracking-tight text-white">
                 LIOP Playground
               </h1>
               <span className="text-[10px] font-mono font-medium px-1.5 py-0.5 text-muted-foreground border border-border/80 rounded bg-secondary/50">
-                v2.0.0-alpha
+                v{network?.version || "2.1.0-alpha.14"}
               </span>
             </div>
           </div>
@@ -473,13 +493,13 @@ export default function App() {
       </header>
 
       {/* Main Layout */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         
         {/* Panel Izquierdo: Capacidades y Nodo (4 cols) */}
         <section className="lg:col-span-4 flex flex-col space-y-6">
           {/* Card: Discovery */}
-          <Card className="flex-1 flex flex-col overflow-hidden bg-card border-border shadow-card">
-            <CardHeader className="pb-3">
+          <Card className="flex flex-col h-[460px] overflow-hidden bg-card border-border shadow-card">
+            <CardHeader className="pb-3 shrink-0">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-semibold flex items-center gap-2 text-white">
                   <Waypoints className="h-4 w-4 text-primary" />
@@ -506,8 +526,8 @@ export default function App() {
               </div>
             </CardHeader>
 
-            <CardContent className="flex-1 overflow-hidden p-0">
-              <ScrollArea className="h-[250px] lg:h-[340px] px-5">
+            <CardContent className="flex-1 min-h-0 overflow-hidden p-0">
+              <ScrollArea className="h-full px-5">
                 {loadingTools ? (
                   <div className="flex flex-col items-center justify-center py-12 text-muted-foreground space-y-2">
                     <Loader2 className="h-5 w-5 animate-spin text-primary" />
@@ -568,7 +588,7 @@ export default function App() {
           </Card>
 
           {/* Card: Informacion de Red Local */}
-          <Card className="p-4 bg-card border-border shadow-card">
+          <Card className="p-4 bg-card border-border shadow-card shrink-0">
             <h3 className="text-xs font-semibold text-white mb-3 flex items-center justify-between">
               <span>Nodo Mesh Local</span>
               <span className="font-mono text-[10px] text-muted-foreground font-normal">WASI v29+</span>
@@ -617,7 +637,7 @@ export default function App() {
         {/* Panel Derecho: Editor, Timeline y Resultados (8 cols) */}
         <section className="lg:col-span-8 flex flex-col space-y-6">
           {/* Card: Logic Editor */}
-          <Card className="flex flex-col bg-card border-border shadow-card">
+          <Card className="flex flex-col bg-card border-border shadow-card shrink-0">
             <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
               <div>
                 <CardTitle className="text-sm font-semibold flex items-center gap-2 text-white">
@@ -690,7 +710,7 @@ export default function App() {
                 <textarea
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
-                  className="w-full h-[240px] p-3.5 bg-transparent font-mono text-xs md:text-sm text-[#7dd3fc] focus:outline-none resize-none leading-relaxed"
+                  className="w-full h-[220px] p-3.5 bg-transparent font-mono text-xs md:text-sm text-[#7dd3fc] focus:outline-none resize-none leading-relaxed"
                   style={{ fontFamily: "'JetBrains Mono', monospace" }}
                   placeholder="// Escribe la logica a inyectar..."
                   disabled={isRunning}
@@ -743,20 +763,20 @@ export default function App() {
             </CardContent>
           </Card>
 
-          {/* Fila Inferior: Timeline y Resultados */}
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+          {/* Fila Inferior: Timeline y Resultados con Altura Estable (Cero Layout Shift) */}
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
             
-            {/* Timeline (5 cols) */}
-            <Card className="md:col-span-5 p-4 bg-card border-border shadow-card flex flex-col">
-              <h3 className="text-xs font-semibold text-white mb-3 flex items-center gap-2">
+            {/* Timeline (5 cols) - Altura fija de 350px */}
+            <Card className="md:col-span-5 h-[350px] p-4 bg-card border-border shadow-card flex flex-col">
+              <h3 className="text-xs font-semibold text-white mb-3 flex items-center gap-2 shrink-0">
                 <Activity className="h-4 w-4 text-primary" />
                 Pipeline Criptografico
               </h3>
               
-              <div className="space-y-3 relative before:absolute before:inset-0 before:left-[9px] before:w-[1px] before:bg-border/60 before:-z-10 pb-1 flex-1">
+              <div className="space-y-3 relative before:absolute before:inset-0 before:left-[9px] before:w-[1px] before:bg-border/60 before:-z-10 pb-1 flex-1 overflow-hidden">
                 {timeline.map((step, idx) => (
                   <div key={step.phase} className="flex items-start space-x-2.5 text-xs">
-                    <div className="mt-0.5">
+                    <div className="mt-0.5 shrink-0">
                       {step.status === "success" && (
                         <div className="bg-success/20 p-0.5 rounded-full border border-success/40">
                           <CheckCircle2 className="h-3.5 w-3.5 text-success" />
@@ -805,10 +825,10 @@ export default function App() {
               </div>
             </Card>
 
-            {/* Results (7 cols) with Tabs */}
-            <Card className="md:col-span-7 flex flex-col overflow-hidden bg-card border-border shadow-card">
+            {/* Results (7 cols) with Tabs - Altura fija de 350px */}
+            <Card className="md:col-span-7 h-[350px] flex flex-col overflow-hidden bg-card border-border shadow-card">
               <Tabs defaultValue="output" className="flex flex-col h-full">
-                <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+                <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0 shrink-0">
                   <div className="flex items-center gap-2">
                     <Terminal className="h-4 w-4 text-primary" />
                     <TabsList className="h-8 bg-secondary/60 border border-border">
@@ -829,11 +849,11 @@ export default function App() {
                   )}
                 </CardHeader>
 
-                <CardContent className="flex-1 overflow-hidden p-0">
-                  <ScrollArea className="h-[250px] px-5">
+                <CardContent className="flex-1 min-h-0 overflow-hidden p-0">
+                  <ScrollArea className="h-full px-5">
                     {/* Error or Shield Block alert */}
                     {errorAlert && (
-                      <div className="mb-3">
+                      <div className="mb-3 pt-1">
                         <Alert variant="destructive" className="border-destructive/40 bg-destructive/10">
                           <ShieldBan className="h-4 w-4 text-destructive" />
                           <AlertTitle className="text-xs font-semibold">{errorAlert.title}</AlertTitle>
@@ -932,7 +952,7 @@ export default function App() {
 
                           <div className="p-2.5 rounded-md bg-secondary/40 border border-border flex items-center justify-between">
                             <div className="flex items-center gap-2">
-                              <ShieldCheck className="h-4 w-4 text-success" />
+                              <ShieldBan className="h-4 w-4 text-success" />
                               <div>
                                 <p className="font-semibold text-white text-[11px]">Egress PII Shield Status</p>
                                 <p className="text-[10px] text-muted-foreground">Politica de agregacion obligatoria (K-Anonymity + NER)</p>

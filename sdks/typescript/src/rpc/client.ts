@@ -17,6 +17,7 @@ export class LiopRpcClient {
 	// biome-ignore lint/suspicious/noExplicitAny: internal gRPC client type
 	private client: any;
 	private token?: string;
+	public readonly address: string;
 
 	constructor(address: string, tls?: LiopTlsOptions, token?: string) {
 		const credentials = createChannelCredentials(tls);
@@ -26,6 +27,7 @@ export class LiopRpcClient {
 			GRPC_CHANNEL_OPTIONS,
 		);
 		this.token = token;
+		this.address = address;
 	}
 
 	/**

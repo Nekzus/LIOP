@@ -7,6 +7,7 @@
  * Network: 172.20.0.200 | Ports: HTTP 3000 (mapped to 14000)
  */
 import * as path from "node:path";
+import * as fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
@@ -18,6 +19,18 @@ import { buildEnvelope, extractText } from "../../crossnet/_client-helpers.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Lectura dinamica de la version del paquete
+let packageVersion = "2.1.0-alpha.14";
+try {
+	const pkgPath = path.resolve(__dirname, "../../../package.json");
+	if (fs.existsSync(pkgPath)) {
+		const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
+		if (pkg.version) packageVersion = pkg.version;
+	}
+} catch (_e) {
+	// Fallback
+}
 
 const app = new Hono();
 
@@ -114,6 +127,7 @@ app.get("/api/health", async (c) => {
 			peersCount: connections.length,
 			role: "client",
 			address: "172.20.0.200:3000",
+			version: packageVersion,
 		});
 	} catch (err: any) {
 		return c.json(
