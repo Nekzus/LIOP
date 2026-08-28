@@ -96,20 +96,32 @@ describe("CertManager & Mutual TLS (mTLS)", () => {
 			certChainPath: tempCert,
 			privateKeyPath: tempKey,
 			watchFiles: true,
+			debounceMs: 50,
 		});
 
 		let reloadEmitted = false;
-		activeManager.on("reload", (info) => {
-			reloadEmitted = true;
-			expect(info.subject).toBeDefined();
+		const reloadPromise = new Promise<void>((resolve, reject) => {
+			const timeout = setTimeout(() => {
+				reject(new Error("Timeout waiting for CertManager reload event (5000ms)"));
+			}, 5000);
+
+			activeManager?.on("reload", (info) => {
+				clearTimeout(timeout);
+				reloadEmitted = true;
+				expect(info.subject).toBeDefined();
+				resolve();
+			});
 		});
+
+		// Small delay to ensure file watchers are registered on the OS level
+		await new Promise((resolve) => setTimeout(resolve, 50));
 
 		// Touch the temp certificate file to trigger reload
 		const content = fs.readFileSync(tempCert);
 		fs.writeFileSync(tempCert, content);
 
-		// Await debounced watcher reload
-		await new Promise((resolve) => setTimeout(resolve, 500));
+		// Await event-driven reload
+		await reloadPromise;
 		expect(reloadEmitted).toBe(true);
 	});
 });

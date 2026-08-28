@@ -24,6 +24,8 @@ export interface CertManagerOptions {
 	warningDays?: number;
 	/** Enable file watching for automatic hot-reloading (default: true) */
 	watchFiles?: boolean;
+	/** Debounce delay in ms for hot reloading (default: 150) */
+	debounceMs?: number;
 }
 
 export interface CertInfo {
@@ -44,10 +46,12 @@ export class CertManager extends EventEmitter {
 	private watchers: fs.FSWatcher[] = [];
 	private reloadDebounceTimer: NodeJS.Timeout | null = null;
 	private readonly warningDays: number;
+	private readonly debounceMs: number;
 
 	constructor(private readonly options: CertManagerOptions) {
 		super();
 		this.warningDays = options.warningDays ?? 30;
+		this.debounceMs = options.debounceMs ?? 150;
 		this.loadCertificates();
 
 		if (options.watchFiles !== false) {
@@ -164,7 +168,20 @@ export class CertManager extends EventEmitter {
 				log.error(`[CertManager] Hot reload failed: ${error}`);
 				this.emit("error", error);
 			}
-		}, 300);
+		}, this.debounceMs);
+	}
+
+	/**
+	 * Manually triggers a reload of certificates and emits the 'reload' event.
+	 */
+	public reload(): CertInfo {
+		this.loadCertificates();
+		const certInfo = this.inspectCertificate();
+		log.info(
+			`[CertManager] Hot reload complete. Certificate expires in ${certInfo.daysRemaining} days.`,
+		);
+		this.emit("reload", certInfo);
+		return certInfo;
 	}
 
 	public getRootCert(): Buffer | null {
