@@ -77,9 +77,9 @@ describe("TokenEstimator", () => {
 	});
 
 	describe("createSyncTokenEstimator", () => {
-		it("should return HeuristicTokenEstimator immediately", () => {
+		it("should return RealTokenEstimator immediately", () => {
 			const estimator = createSyncTokenEstimator();
-			expect(estimator.name).toBe("heuristic (chars/4)");
+			expect(estimator.name).toBe("o200k_base");
 		});
 	});
 
