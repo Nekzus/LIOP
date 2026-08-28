@@ -31,7 +31,7 @@ import { ScrollArea } from "./components/ui/scroll-area"
 import { Alert, AlertTitle, AlertDescription } from "./components/ui/alert"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "./components/ui/tabs"
 
-// Logo oficial del protocolo LIOP (Octogono con nucleo central y 8 ondas sinusoidales de inyeccion)
+// Official LIOP Protocol Vector Mark (Regular Octagon with core origin node and 8 logic injection waves)
 function LiopLogo({ className = "h-8 w-8 text-primary" }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -87,7 +87,7 @@ interface ExecutionMeta {
   shieldBlocked?: boolean
 }
 
-// Plantillas de logica
+// Logic Templates
 const TEMPLATES = [
   {
     id: "hft",
@@ -95,10 +95,10 @@ const TEMPLATES = [
     tool: "Analyze_HFT_Market_Data",
     domain: "Financial HFT",
     clearanceTier: "Tier 1",
-    description: "Calcula VWAP y spreads promedios HFT con preservacion de utilidad.",
+    description: "Computes VWAP and average HFT spreads with differential privacy utility preservation.",
     code: `@LIOP{wasi_v1, HftAnalysis}
 const ticks = env.records;
-// Calcular VWAP y promedios de bid/ask spreads
+// Calculate VWAP and average bid/ask spreads
 let sumPriceVol = 0;
 let sumVol = 0;
 let sumSpread = 0;
@@ -124,10 +124,10 @@ return {
     tool: "Analyze_Synthetic_Bank_Transactions",
     domain: "Core Banking",
     clearanceTier: "Tier 3",
-    description: "Suma balances y distribucion por tipos de cuenta de forma soberana.",
+    description: "Aggregates balances and account type distributions under zero-trust data sovereignty.",
     code: `@LIOP{wasi_v1, BankAnalysis}
 const records = env.records;
-// Sumar balances y contar tipos de cuentas de manera soberana
+// Sum balances and count account types with data sovereignty
 const stats = records.reduce((acc, row) => {
   acc.totalBalance += row.balance;
   acc.accountsByType[row.accountType] = (acc.accountsByType[row.accountType] || 0) + 1;
@@ -147,10 +147,10 @@ return {
     tool: "Analyze_Synthetic_Medical_Records",
     domain: "Healthcare",
     clearanceTier: "Tier 5",
-    description: "Distribucion anonimizada por diagnostico y promedio de edad.",
+    description: "Anonymized diagnostic distributions and mean patient age calculation.",
     code: `@LIOP{wasi_v1, MedicalStats}
 const patients = env.records;
-// Analizar distribuciones de diagnosticos y promedios de edad
+// Analyze diagnosis distribution and mean patient age
 const stats = patients.reduce((acc, p) => {
   acc.diagnoses[p.diagnosis] = (acc.diagnoses[p.diagnosis] || 0) + 1;
   acc.totalAge += p.age;
@@ -170,11 +170,11 @@ return {
     tool: "Analyze_Synthetic_Bank_Transactions",
     domain: "Adversarial",
     clearanceTier: "Exfiltration Trap",
-    description: "Intento adversarial de extraer registros individuales crudos (Bloqueado por Egress Shield).",
+    description: "Adversarial attempt to exfiltrate individual raw rows (Intercepted by Egress Shield).",
     code: `@LIOP{wasi_v1, PiiAttack}
 const records = env.records;
-// Intento de exfiltrar informacion cruda individual
-// Esto sera interceptado y bloqueado por el Egress PII Shield
+// Attempt to exfiltrate individual raw records
+// This will be intercepted and blocked by the Egress PII Shield
 return {
   confidentialData: records.map(r => ({
     name: r.accountHolder || r.ownerName,
@@ -247,12 +247,12 @@ export default function App() {
   
   // SSE steps state
   const [timeline, setTimeline] = useState<TimelineStep[]>([
-    { phase: "bootstrap", label: "P2P Mesh Bootstrap", detail: "Nodo sincronizado", status: "pending" },
-    { phase: "discovery", label: "Resource Discovery", detail: "Resolucion de proveedor en malla", status: "pending" },
-    { phase: "pqc", label: "Kyber-768 Handshake", detail: "Acuerdo de clave ML-KEM", status: "pending" },
-    { phase: "sealing", label: "AES-256-GCM Sealing", detail: "Cifrado y firma de envoltorio", status: "pending" },
-    { phase: "execution", label: "WASI Sandbox Run", detail: "Inyeccion en nodo origen", status: "pending" },
-    { phase: "zk_verify", label: "ZK-Receipt HMAC Seal", detail: "Verificacion de integridad", status: "pending" },
+    { phase: "bootstrap", label: "P2P Mesh Bootstrap", detail: "Node synchronized", status: "pending" },
+    { phase: "discovery", label: "Resource Discovery", detail: "DHT peer resolution", status: "pending" },
+    { phase: "pqc", label: "Kyber-768 Handshake", detail: "ML-KEM key exchange", status: "pending" },
+    { phase: "sealing", label: "AES-256-GCM Sealing", detail: "Envelope cipher & sign", status: "pending" },
+    { phase: "execution", label: "WASI Sandbox Run", detail: "Logic injection on origin", status: "pending" },
+    { phase: "zk_verify", label: "ZK-Receipt HMAC Seal", detail: "Computational integrity proof", status: "pending" },
   ])
 
   useEffect(() => {
@@ -269,7 +269,7 @@ export default function App() {
         setNetwork(data)
       }
     } catch (err) {
-      console.error("Error al obtener estado de red:", err)
+      console.error("Error fetching network health:", err)
     } finally {
       setLoadingHealth(false)
     }
@@ -288,7 +288,7 @@ export default function App() {
         }
       }
     } catch (err) {
-      console.error("Error al obtener herramientas:", err)
+      console.error("Error fetching tools:", err)
     } finally {
       setLoadingTools(false)
     }
@@ -354,12 +354,12 @@ export default function App() {
     
     // Reset timeline status
     setTimeline([
-      { phase: "bootstrap", label: "P2P Mesh Bootstrap", detail: "Verificando conexion...", status: "running" },
-      { phase: "discovery", label: "Resource Discovery", detail: "Resolviendo capacidad en DHT...", status: "pending" },
-      { phase: "pqc", label: "Kyber-768 Handshake", detail: "Estableciendo sesion post-cuantica...", status: "pending" },
-      { phase: "sealing", label: "AES-256-GCM Sealing", detail: "Cifrando paquete de inyeccion...", status: "pending" },
-      { phase: "execution", label: "WASI Sandbox Run", detail: "Ejecutando en sandbox de nodo...", status: "pending" },
-      { phase: "zk_verify", label: "ZK-Receipt HMAC Seal", detail: "Verificando prueba criptografica...", status: "pending" },
+      { phase: "bootstrap", label: "P2P Mesh Bootstrap", detail: "Verifying connection...", status: "running" },
+      { phase: "discovery", label: "Resource Discovery", detail: "Resolving capability in DHT...", status: "pending" },
+      { phase: "pqc", label: "Kyber-768 Handshake", detail: "Establishing post-quantum channel...", status: "pending" },
+      { phase: "sealing", label: "AES-256-GCM Sealing", detail: "Encrypting injection package...", status: "pending" },
+      { phase: "execution", label: "WASI Sandbox Run", detail: "Executing inside origin sandbox...", status: "pending" },
+      { phase: "zk_verify", label: "ZK-Receipt HMAC Seal", detail: "Verifying cryptographic proof...", status: "pending" },
     ])
 
     try {
@@ -375,12 +375,12 @@ export default function App() {
       })
 
       if (!response.ok) {
-        throw new Error(`Fallo en gateway: ${response.statusText}`)
+        throw new Error(`Gateway error: ${response.statusText}`)
       }
 
       const reader = response.body?.getReader()
       if (!reader) {
-        throw new Error("No se pudo iniciar canal de lectura SSE")
+        throw new Error("Unable to initialize SSE stream reader")
       }
 
       const decoder = new TextDecoder()
@@ -410,27 +410,27 @@ export default function App() {
                 setIsRunning(false)
               } else if (event.type === "error") {
                 setErrorAlert({
-                  title: event.payload.title || "Error de ejecucion",
-                  desc: event.payload.desc || "Ocurrio una falla en el sandbox"
+                  title: event.payload.title || "Execution Error",
+                  desc: event.payload.desc || "A sandbox failure occurred on origin node"
                 })
                 setMeta(event.meta || null)
                 setIsRunning(false)
               }
             } catch (e) {
-              console.error("Error parseando linea SSE:", e, line)
+              console.error("Error parsing SSE line:", e, line)
             }
           }
         }
       }
     } catch (err: any) {
       setErrorAlert({
-        title: "Error de Conexion",
-        desc: err.message || "No se pudo conectar con el Playground Gateway"
+        title: "Connection Error",
+        desc: err.message || "Failed to communicate with Playground Gateway"
       })
       setIsRunning(false)
       setTimeline(prev => 
         prev.map(step => 
-          step.status === "running" ? { ...step, status: "failed", detail: "Conexion interrumpida" } : step
+          step.status === "running" ? { ...step, status: "failed", detail: "Connection interrupted" } : step
         )
       )
     }
@@ -466,7 +466,7 @@ export default function App() {
       <header className="border-b border-border bg-card/90 backdrop-blur-sm sticky top-0 z-50 transition-colors">
         <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            {/* Logo Oficial LIOP: Libre, tamano completo (h-8 w-8), sin card ni contenedor */}
+            {/* Free-Standing LIOP Official Logo: full size h-8 w-8, no enclosing card */}
             <LiopLogo className="h-8 w-8 text-primary shrink-0 transition-transform duration-200 hover:scale-105" />
             
             <div className="flex items-center gap-2">
@@ -483,13 +483,13 @@ export default function App() {
             {network ? (
               <div className="flex items-center space-x-2 bg-secondary/80 border border-border px-3 py-1 rounded-md text-xs">
                 <span className="inline-block h-2 w-2 rounded-full bg-success"></span>
-                <span className="text-white font-medium">{network.peersCount + 1} Nodos activos</span>
+                <span className="text-white font-medium">{network.peersCount + 1} Active Nodes</span>
                 <span className="text-muted-foreground font-mono text-[11px]">({network.role})</span>
               </div>
             ) : (
               <Button size="sm" variant="ghost" onClick={fetchHealth} disabled={loadingHealth} className="h-8 text-xs">
                 <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${loadingHealth ? 'animate-spin' : ''}`} />
-                Conectar
+                Connect
               </Button>
             )}
 
@@ -498,7 +498,7 @@ export default function App() {
               size="sm" 
               variant="outline" 
               onClick={toggleTheme}
-              title={`Tema actual: ${theme === "obsidian" ? "OLED Obsidian" : "Slate Dark"}`}
+              title={`Active theme: ${theme === "obsidian" ? "OLED Obsidian" : "Slate Dark"}`}
               className="h-8 px-2.5 text-xs flex items-center gap-1.5 border-border hover:bg-secondary"
             >
               {theme === "obsidian" ? (
@@ -519,7 +519,7 @@ export default function App() {
               variant="outline" 
               onClick={() => { fetchHealth(); fetchTools(); }} 
               className="h-8 px-2 border-border hover:bg-secondary"
-              title="Refrescar estado de red"
+              title="Refresh network state"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${loadingTools ? 'animate-spin' : ''}`} />
             </Button>
@@ -530,7 +530,7 @@ export default function App() {
       {/* Main Layout */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         
-        {/* Panel Izquierdo: Capacidades y Nodo (4 cols) */}
+        {/* Left Panel: Capabilities and Node (4 cols) */}
         <section className="lg:col-span-4 flex flex-col space-y-6">
           {/* Card: Discovery */}
           <Card className="flex flex-col h-[460px] overflow-hidden bg-card border-border shadow-card">
@@ -538,32 +538,35 @@ export default function App() {
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-semibold flex items-center gap-2 text-white">
                   <Waypoints className="h-4 w-4 text-primary" />
-                  Capacidades Mesh
+                  Mesh Capabilities
                 </CardTitle>
                 <Badge variant="outline" className="text-[10px] font-mono border-border/80">
                   {tools.length} providers
                 </Badge>
               </div>
               <CardDescription className="text-xs">
-                Herramientas anunciadas en la tabla DHT de Kademlia.
+                Capabilities announced in the Kademlia DHT routing table.
               </CardDescription>
 
-              {/* Search / Filter bar */}
+              {/* Search / Filter bar - Dark input styling with crisp contrast and clear button */}
               <div className="relative mt-2">
-                <Search className="h-3.5 w-3.5 absolute left-2.5 top-2.5 text-muted-foreground" />
+                <Search className="h-3.5 w-3.5 absolute left-2.5 top-2.5 text-zinc-400" />
                 <input 
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Filtrar por nombre o dominio..."
-                  className="w-full h-8 pl-8 pr-7 bg-secondary/60 border border-border rounded text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50 transition-colors"
+                  placeholder="Filter by capability or domain..."
+                  spellCheck={false}
+                  autoComplete="off"
+                  autoCorrect="off"
+                  className="w-full h-8 pl-8 pr-7 bg-[#0b0e14] border border-white/15 rounded text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/30 transition-all"
                 />
                 {searchQuery && (
                   <button 
                     type="button"
                     onClick={() => setSearchQuery("")}
-                    className="absolute right-2 top-2 text-muted-foreground hover:text-white p-0.5 rounded transition-colors"
-                    title="Limpiar filtro"
+                    className="absolute right-2 top-2 text-zinc-400 hover:text-white p-0.5 rounded transition-colors"
+                    title="Clear filter"
                   >
                     <X className="h-3.5 w-3.5" />
                   </button>
@@ -576,13 +579,13 @@ export default function App() {
                 {loadingTools ? (
                   <div className="flex flex-col items-center justify-center py-12 text-muted-foreground space-y-2">
                     <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                    <span className="text-xs">Consultando DHT...</span>
+                    <span className="text-xs">Querying DHT...</span>
                   </div>
                 ) : filteredTools.length === 0 ? (
                   <div className="text-center py-12 text-muted-foreground space-y-2">
                     <AlertTriangle className="h-6 w-6 mx-auto text-warning" />
-                    <p className="text-xs font-medium">No se encontraron herramientas</p>
-                    <p className="text-[11px] max-w-[200px] mx-auto">Prueba ajustando el filtro de busqueda.</p>
+                    <p className="text-xs font-medium">No capabilities found</p>
+                    <p className="text-[11px] max-w-[200px] mx-auto">Try adjusting your search query.</p>
                   </div>
                 ) : (
                   <div className="space-y-2.5 pb-5">
@@ -613,7 +616,7 @@ export default function App() {
                               Tier {tier}
                             </Badge>
                           </div>
-                          <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">{t.description || "Sin descripcion."}</p>
+                          <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">{t.description || "No description available."}</p>
                           {t.taxonomy?.domain && (
                             <div className="mt-1.5 flex items-center justify-between text-[10px] text-muted-foreground">
                               <span className="flex items-center gap-1">
@@ -632,10 +635,10 @@ export default function App() {
             </CardContent>
           </Card>
 
-          {/* Card: Informacion de Red Local */}
+          {/* Card: Local Mesh Node Info */}
           <Card className="p-4 bg-card border-border shadow-card shrink-0">
             <h3 className="text-xs font-semibold text-white mb-3 flex items-center justify-between">
-              <span>Nodo Mesh Local</span>
+              <span>Local Mesh Node</span>
               <span className="font-mono text-[10px] text-muted-foreground font-normal">WASI v29+</span>
             </h3>
             {network ? (
@@ -650,7 +653,7 @@ export default function App() {
                       type="button"
                       onClick={() => handleCopy(network.peerId, "peerId")}
                       className="text-muted-foreground hover:text-white transition-colors p-0.5 rounded"
-                      title="Copiar PeerID"
+                      title="Copy PeerID"
                     >
                       {copiedKey === "peerId" ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
                     </button>
@@ -665,7 +668,7 @@ export default function App() {
                       type="button"
                       onClick={() => handleCopy(network.address, "address")}
                       className="text-muted-foreground hover:text-white transition-colors p-0.5 rounded"
-                      title="Copiar Host Address"
+                      title="Copy Host Address"
                     >
                       {copiedKey === "address" ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
                     </button>
@@ -673,24 +676,24 @@ export default function App() {
                 </div>
 
                 <div className="flex items-center justify-between border-b border-border/50 pb-2">
-                  <span className="text-muted-foreground">Cripto Suite:</span>
+                  <span className="text-muted-foreground">Crypto Suite:</span>
                   <span className="text-primary font-mono text-[11px]">ML-KEM-768</span>
                 </div>
 
                 <div className="flex items-center justify-between pt-0.5">
-                  <span className="text-muted-foreground">Aislamiento:</span>
+                  <span className="text-muted-foreground">Sandbox Isolation:</span>
                   <span className="text-success font-medium flex items-center gap-1 text-[11px]">
                     <CheckCircle2 className="h-3.5 w-3.5" /> WASI-Isolate Safe
                   </span>
                 </div>
               </div>
             ) : (
-              <p className="text-xs text-muted-foreground">Sincronizando estado...</p>
+              <p className="text-xs text-muted-foreground">Synchronizing state...</p>
             )}
           </Card>
         </section>
 
-        {/* Panel Derecho: Editor, Timeline y Resultados (8 cols) */}
+        {/* Right Panel: Editor, Timeline and Results (8 cols) */}
         <section className="lg:col-span-8 flex flex-col space-y-6">
           {/* Card: Logic Editor */}
           <Card className="flex flex-col bg-card border-border shadow-card shrink-0">
@@ -701,11 +704,11 @@ export default function App() {
                   Logic Studio
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  Micro-modulo JavaScript/WASI inyectado directamente en el nodo origen.
+                  JavaScript/WASI micro-module injected directly on origin node.
                 </CardDescription>
               </div>
               
-              {/* Botones de plantillas */}
+              {/* Template Buttons */}
               <div className="flex items-center space-x-1 bg-secondary/80 border border-border p-1 rounded-md">
                 {TEMPLATES.map(t => (
                   <button
@@ -742,10 +745,10 @@ export default function App() {
                       className={`text-[11px] flex items-center gap-1.5 transition-colors px-2 py-0.5 rounded shrink-0 ${
                         isReset ? "text-success bg-success/10 font-medium" : "text-muted-foreground hover:text-white hover:bg-secondary"
                       }`}
-                      title="Restablecer plantilla original"
+                      title="Reset to template original code"
                     >
                       {isReset ? <Check className="h-3 w-3 text-success" /> : <RotateCcw className="h-3 w-3" />}
-                      <span>{isReset ? "Restablecido" : "Reset"}</span>
+                      <span>{isReset ? "Reset Done" : "Reset"}</span>
                     </button>
                     
                     <button 
@@ -754,17 +757,17 @@ export default function App() {
                       className={`text-[11px] flex items-center gap-1.5 transition-colors px-2 py-0.5 rounded shrink-0 ${
                         copiedKey === "code" ? "text-success bg-success/10 font-medium" : "text-muted-foreground hover:text-white hover:bg-secondary"
                       }`}
-                      title="Copiar codigo"
+                      title="Copy code payload"
                     >
                       {copiedKey === "code" ? (
                         <>
                           <Check className="h-3 w-3 text-success" />
-                          <span>Copiado</span>
+                          <span>Copied</span>
                         </>
                       ) : (
                         <>
                           <Copy className="h-3 w-3" />
-                          <span>Copiar</span>
+                          <span>Copy</span>
                         </>
                       )}
                     </button>
@@ -776,7 +779,7 @@ export default function App() {
                   onChange={(e) => setCode(e.target.value)}
                   className="w-full h-[220px] p-3.5 bg-transparent font-mono text-xs md:text-sm text-[#7dd3fc] focus:outline-none resize-none leading-relaxed"
                   style={{ fontFamily: "'JetBrains Mono', monospace" }}
-                  placeholder="// Escribe la logica a inyectar..."
+                  placeholder="// Write logic to inject on origin node..."
                   disabled={isRunning}
                   spellCheck={false}
                 />
@@ -784,7 +787,7 @@ export default function App() {
                 {/* Editor Status Footer */}
                 <div className="flex items-center justify-between px-3 py-1 bg-secondary/30 border-t border-border/50 text-[10px] font-mono text-muted-foreground">
                   <div className="flex items-center gap-3">
-                    <span>{editorStats.lines} lineas</span>
+                    <span>{editorStats.lines} lines</span>
                     <span>{editorStats.bytes} bytes</span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -795,11 +798,11 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Boton Ejecutar */}
+              {/* Execute Action Bar */}
               <div className="flex items-center justify-between pt-1">
                 <div className="text-xs text-muted-foreground flex items-center gap-1.5">
-                  <span>Destino:</span>
-                  <span className="font-semibold text-white font-mono text-[11px]">{selectedToolName || "ninguno"}</span>
+                  <span>Target:</span>
+                  <span className="font-semibold text-white font-mono text-[11px]">{selectedToolName || "none"}</span>
                   {currentToolObj?.taxonomy?.clearanceTier && (
                     <Badge variant="outline" className="text-[9px] py-0 px-1 font-mono">
                       Tier {currentToolObj.taxonomy.clearanceTier}
@@ -814,7 +817,7 @@ export default function App() {
                   {isRunning ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Inyectando...
+                      Injecting...
                     </>
                   ) : (
                     <>
@@ -827,14 +830,14 @@ export default function App() {
             </CardContent>
           </Card>
 
-          {/* Fila Inferior: Timeline y Resultados con Altura Estable (Cero Layout Shift) */}
+          {/* Bottom Grid: Timeline and Results with Stable Height (Zero Layout Shift) */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
             
-            {/* Timeline (5 cols) - Altura fija de 350px */}
+            {/* Timeline (5 cols) - Fixed height 350px */}
             <Card className="md:col-span-5 h-[350px] p-4 bg-card border-border shadow-card flex flex-col">
               <h3 className="text-xs font-semibold text-white mb-3 flex items-center gap-2 shrink-0">
                 <Activity className="h-4 w-4 text-primary" />
-                Pipeline Criptografico
+                Cryptographic Pipeline
               </h3>
               
               <div className="space-y-3 relative before:absolute before:inset-0 before:left-[9px] before:w-[1px] before:bg-border/60 before:-z-10 pb-1 flex-1 overflow-hidden">
@@ -889,7 +892,7 @@ export default function App() {
               </div>
             </Card>
 
-            {/* Results (7 cols) with Tabs - Altura fija de 350px */}
+            {/* Results (7 cols) with Tabs - Fixed height 350px */}
             <Card className="md:col-span-7 h-[350px] flex flex-col overflow-hidden bg-card border-border shadow-card">
               <Tabs defaultValue="output" className="flex flex-col h-full">
                 <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0 shrink-0">
@@ -897,10 +900,10 @@ export default function App() {
                     <Terminal className="h-4 w-4 text-primary" />
                     <TabsList className="h-8 bg-secondary/60 border border-border">
                       <TabsTrigger value="output" className="text-xs h-6 px-2.5">
-                        Output Agregado
+                        Aggregated Output
                       </TabsTrigger>
                       <TabsTrigger value="telemetry" className="text-xs h-6 px-2.5">
-                        Pruebas Criptograficas
+                        Cryptographic Proofs
                       </TabsTrigger>
                     </TabsList>
                   </div>
@@ -933,24 +936,24 @@ export default function App() {
                       {result ? (
                         <div className="space-y-2">
                           <div className="flex items-center justify-between text-xs">
-                            <span className="text-muted-foreground text-[11px]">Payload retornado por el nodo remoto:</span>
+                            <span className="text-muted-foreground text-[11px]">Payload returned by remote node:</span>
                             <button
                               type="button"
                               onClick={() => handleCopy(JSON.stringify(result, null, 2), "result")}
                               className={`text-[11px] flex items-center gap-1.5 transition-colors px-2 py-0.5 rounded shrink-0 ${
                                 copiedKey === "result" ? "text-success bg-success/10 font-medium" : "text-muted-foreground hover:text-white hover:bg-secondary"
                               }`}
-                              title="Copiar JSON"
+                              title="Copy JSON payload"
                             >
                               {copiedKey === "result" ? (
                                 <>
                                   <Check className="h-3 w-3 text-success" />
-                                  <span>Copiado</span>
+                                  <span>Copied</span>
                                 </>
                               ) : (
                                 <>
                                   <Copy className="h-3 w-3" />
-                                  <span>Copiar JSON</span>
+                                  <span>Copy JSON</span>
                                 </>
                               )}
                             </button>
@@ -963,13 +966,13 @@ export default function App() {
                       ) : !errorAlert && !isRunning ? (
                         <div className="flex flex-col items-center justify-center py-14 text-muted-foreground text-center space-y-2">
                           <Terminal className="h-6 w-6 text-muted/40" />
-                          <p className="text-xs font-medium">Esperando ejecucion</p>
-                          <p className="text-[11px] max-w-[220px]">Selecciona una plantilla o escribe logica y pulsa Execute Logic.</p>
+                          <p className="text-xs font-medium">Awaiting Execution</p>
+                          <p className="text-[11px] max-w-[220px]">Select a template or write logic, then click Execute Logic.</p>
                         </div>
                       ) : isRunning ? (
                         <div className="flex flex-col items-center justify-center py-14 text-muted-foreground text-center space-y-2.5">
                           <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                          <p className="text-xs">Inyectando logica y aplicando politicas Zero-Trust...</p>
+                          <p className="text-xs">Injecting logic and enforcing Zero-Trust policies...</p>
                         </div>
                       ) : null}
                     </TabsContent>
@@ -983,11 +986,11 @@ export default function App() {
                               <Fingerprint className="h-4 w-4 text-success" />
                               <div>
                                 <p className="font-semibold text-white text-[11px]">ZK-Receipt HMAC-SHA256</p>
-                                <p className="text-[10px] text-muted-foreground">Prueba de computo e integridad enlazada al nodo origen</p>
+                                <p className="text-[10px] text-muted-foreground">Computational integrity proof bound to origin node</p>
                               </div>
                             </div>
                             <Badge variant="success" className="font-mono text-[10px]">
-                              VALIDA
+                              VALID
                             </Badge>
                           </div>
 
@@ -996,7 +999,7 @@ export default function App() {
                               <Handshake className="h-4 w-4 text-primary" />
                               <div>
                                 <p className="font-semibold text-white text-[11px]">Post-Quantum Key Exchange</p>
-                                <p className="text-[10px] text-muted-foreground">ML-KEM-768 (Kyber) acople resistente a ordenadores cuanticos</p>
+                                <p className="text-[10px] text-muted-foreground">ML-KEM-768 (Kyber) quantum-resistant link</p>
                               </div>
                             </div>
                             <Badge variant="outline" className="font-mono text-[10px] border-primary/40 text-primary">
@@ -1009,7 +1012,7 @@ export default function App() {
                               <LockKeyhole className="h-4 w-4 text-primary" />
                               <div>
                                 <p className="font-semibold text-white text-[11px]">Symmetric Envelope Seal</p>
-                                <p className="text-[10px] text-muted-foreground">AES-256-GCM cifrado autenticado de payload y retorno</p>
+                                <p className="text-[10px] text-muted-foreground">AES-256-GCM authenticated cipher of payload and return</p>
                               </div>
                             </div>
                             <Badge variant="outline" className="font-mono text-[10px]">
@@ -1022,7 +1025,7 @@ export default function App() {
                               <ShieldBan className="h-4 w-4 text-success" />
                               <div>
                                 <p className="font-semibold text-white text-[11px]">Egress PII Shield Status</p>
-                                <p className="text-[10px] text-muted-foreground">Politica de agregacion obligatoria (K-Anonymity + NER)</p>
+                                <p className="text-[10px] text-muted-foreground">Mandatory aggregation policy (K-Anonymity + NER)</p>
                               </div>
                             </div>
                             <Badge variant={meta?.shieldBlocked ? "destructive" : "success"} className="font-mono text-[10px]">
@@ -1032,7 +1035,7 @@ export default function App() {
                         </div>
                       ) : (
                         <div className="text-center py-14 text-muted-foreground text-xs">
-                          Ejecuta una consulta para inspeccionar los certificados y pruebas de la sesion.
+                          Execute a query to inspect cryptographic session certificates.
                         </div>
                       )}
                     </TabsContent>

@@ -5,6 +5,7 @@
 @tailwind utilities;
 
 :root {
+  color-scheme: dark;
   /* Default Theme: OLED Obsidian */
   --bg-canvas: #060709;
   --bg-surface-1: #0d0e14;
@@ -16,6 +17,7 @@
 }
 
 [data-theme="slate"] {
+  color-scheme: dark;
   /* Slate Midnight Theme */
   --bg-canvas: #0a0e17;
   --bg-surface-1: #111827;
@@ -33,6 +35,21 @@
     font-family: 'Inter', system-ui, sans-serif;
     overflow-x: hidden;
     transition: background-color 0.25s ease, color 0.25s ease;
+  }
+
+  /* Reset form controls so they never default to white user-agent styling */
+  input, textarea, select {
+    color-scheme: dark;
+    background-color: #0b0e14;
+    color: #f4f4f5;
+  }
+
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover, 
+  input:-webkit-autofill:focus {
+    -webkit-text-fill-color: #f4f4f5;
+    -webkit-box-shadow: 0 0 0px 1000px #0b0e14 inset;
+    transition: background-color 5000s ease-in-out 0s;
   }
 }
 
