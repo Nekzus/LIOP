@@ -11,7 +11,8 @@
   "files": [
     "dist",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "NOTICE"
   ],
   "exports": {
     ".": {
@@ -88,8 +89,8 @@
     "ai-agent",
     "llm"
   ],
-  "author": "Nekzus",
-  "license": "MIT",
+  "author": "Nekzus Solutions",
+  "license": "Apache-2.0",
   "type": "module",
   "repository": {
     "type": "git",

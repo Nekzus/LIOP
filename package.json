@@ -3,8 +3,8 @@
   "version": "1.4.0-alpha.0",
   "private": true,
   "description": "Logic-Injection-on-Origin Protocol (LIOP) - Official High-Performance WebAssembly Logic-on-Origin Execution Sandbox",
-  "author": "Nekzus",
-  "license": "MIT",
+  "author": "Nekzus Solutions",
+  "license": "Apache-2.0",
   "type": "module",
   "homepage": "https://nekzus-32.mintlify.app/",
   "scripts": {

@@ -176,4 +176,6 @@ We welcome contributions! Please read our [Contributing Guide](./CONTRIBUTING.md
 
 ## License
 
-[MIT](./LICENSE) © [Nekzus](https://github.com/Nekzus)
+Licensed under the [Apache License, Version 2.0](./LICENSE) (the "License"). You may not use this software except in compliance with the License. See the [NOTICE](./NOTICE) file and [TRADEMARKS.md](./TRADEMARKS.md) for attribution and trademark guidelines.
+
+Copyright 2026 [Nekzus Solutions](https://github.com/Nekzus) and contributors.
