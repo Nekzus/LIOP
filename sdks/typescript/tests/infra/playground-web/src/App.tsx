@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react"
+import { motion } from "framer-motion"
 import { 
   Terminal, 
   Play, 
@@ -29,7 +30,7 @@ import { Button } from "./components/ui/button"
 import { Badge } from "./components/ui/badge"
 import { ScrollArea } from "./components/ui/scroll-area"
 import { Alert, AlertTitle, AlertDescription } from "./components/ui/alert"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "./components/ui/tabs"
+import { Tabs, TabsContent } from "./components/ui/tabs"
 
 // Official LIOP Protocol Vector Mark (Regular Octagon with core origin node and 8 logic injection waves)
 function LiopLogo({ className = "h-8 w-8 text-primary" }: { className?: string }) {
@@ -197,16 +198,13 @@ export default function App() {
     localStorage.setItem("liop_playground_theme", theme)
   }, [theme])
 
-  const toggleTheme = () => {
-    setTheme(prev => prev === "obsidian" ? "slate" : "obsidian")
-  }
-
   // Network & tools state
   const [network, setNetwork] = useState<NetworkInfo | null>(null)
   const [tools, setTools] = useState<Tool[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedToolName, setSelectedToolName] = useState("")
   const [selectedTemplateId, setSelectedTemplateId] = useState("hft")
+  const [activeResultsTab, setActiveResultsTab] = useState<"output" | "telemetry">("output")
   const [code, setCode] = useState(TEMPLATES[0].code)
   const [isRunning, setIsRunning] = useState(false)
   const [result, setResult] = useState<Record<string, unknown> | null>(null)
@@ -493,26 +491,45 @@ export default function App() {
               </Button>
             )}
 
-            {/* Theme Toggle (Obsidian vs Slate Dark) */}
-            <Button 
-              size="sm" 
-              variant="outline" 
-              onClick={toggleTheme}
-              title={`Active theme: ${theme === "obsidian" ? "OLED Obsidian" : "Slate Dark"}`}
-              className="h-8 px-2.5 text-xs flex items-center gap-1.5 border-border hover:bg-secondary"
-            >
-              {theme === "obsidian" ? (
-                <>
-                  <Moon className="h-3.5 w-3.5 text-primary" />
-                  <span className="hidden sm:inline text-[11px] font-medium">Obsidian</span>
-                </>
-              ) : (
-                <>
-                  <Layers className="h-3.5 w-3.5 text-accent" />
-                  <span className="hidden sm:inline text-[11px] font-medium">Slate</span>
-                </>
-              )}
-            </Button>
+            {/* Sliding Pill Animated Theme Switcher (Obsidian vs Slate Dark) */}
+            <div className="relative flex items-center bg-[#0b0e14] border border-white/10 p-0.5 rounded-md">
+              <button
+                type="button"
+                onClick={() => setTheme("obsidian")}
+                className="relative z-10 text-[11px] px-2.5 py-1 font-medium flex items-center gap-1.5 transition-colors duration-200"
+                title="OLED Obsidian Theme"
+              >
+                {theme === "obsidian" && (
+                  <motion.div
+                    layoutId="themeActivePill"
+                    className="absolute inset-0 bg-primary/20 border border-primary/40 rounded shadow-sm"
+                    transition={{ type: "spring", stiffness: 450, damping: 35 }}
+                  />
+                )}
+                <Moon className="relative z-20 h-3.5 w-3.5 text-primary" />
+                <span className={`relative z-20 font-medium transition-colors ${theme === "obsidian" ? "text-white" : "text-zinc-400 hover:text-white"}`}>
+                  Obsidian
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setTheme("slate")}
+                className="relative z-10 text-[11px] px-2.5 py-1 font-medium flex items-center gap-1.5 transition-colors duration-200"
+                title="Slate Dark Theme"
+              >
+                {theme === "slate" && (
+                  <motion.div
+                    layoutId="themeActivePill"
+                    className="absolute inset-0 bg-sky-500/20 border border-sky-400/40 rounded shadow-sm"
+                    transition={{ type: "spring", stiffness: 450, damping: 35 }}
+                  />
+                )}
+                <Layers className="relative z-20 h-3.5 w-3.5 text-sky-400" />
+                <span className={`relative z-20 font-medium transition-colors ${theme === "slate" ? "text-white" : "text-zinc-400 hover:text-white"}`}>
+                  Slate
+                </span>
+              </button>
+            </div>
 
             <Button 
               size="sm" 
@@ -708,22 +725,32 @@ export default function App() {
                 </CardDescription>
               </div>
               
-              {/* Template Buttons */}
-              <div className="flex items-center space-x-1 bg-secondary/80 border border-border p-1 rounded-md">
-                {TEMPLATES.map(t => (
-                  <button
-                    key={t.id}
-                    type="button"
-                    onClick={() => handleSelectTemplate(t.id)}
-                    className={`text-[11px] px-2.5 py-1 rounded transition-all font-medium ${
-                      selectedTemplateId === t.id 
-                        ? "bg-primary text-black font-semibold shadow-sm" 
-                        : "text-muted-foreground hover:text-white"
-                    }`}
-                  >
-                    {t.name}
-                  </button>
-                ))}
+              {/* Animated Sliding Pill Template Switcher (Zero Text Jump) */}
+              <div className="relative flex items-center bg-[#0b0e14] border border-white/10 p-0.5 rounded-lg">
+                {TEMPLATES.map(t => {
+                  const isSelected = selectedTemplateId === t.id
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => handleSelectTemplate(t.id)}
+                      className="relative z-10 text-[11px] px-3 py-1 font-medium transition-colors duration-200"
+                    >
+                      {isSelected && (
+                        <motion.div
+                          layoutId="templateActivePill"
+                          className="absolute inset-0 bg-primary rounded-md shadow-sm"
+                          transition={{ type: "spring", stiffness: 450, damping: 35 }}
+                        />
+                      )}
+                      <span className={`relative z-20 font-medium transition-colors duration-200 ${
+                        isSelected ? "text-black" : "text-zinc-400 hover:text-white"
+                      }`}>
+                        {t.name}
+                      </span>
+                    </button>
+                  )
+                })}
               </div>
             </CardHeader>
             
@@ -742,8 +769,8 @@ export default function App() {
                     <button 
                       type="button"
                       onClick={handleResetTemplate} 
-                      className={`text-[11px] flex items-center gap-1.5 transition-colors px-2 py-0.5 rounded shrink-0 ${
-                        isReset ? "text-success bg-success/10 font-medium" : "text-muted-foreground hover:text-white hover:bg-secondary"
+                      className={`text-[11px] flex items-center gap-1.5 transition-colors px-2 py-0.5 rounded shrink-0 font-medium ${
+                        isReset ? "text-success bg-success/10" : "text-muted-foreground hover:text-white hover:bg-secondary"
                       }`}
                       title="Reset to template original code"
                     >
@@ -754,8 +781,8 @@ export default function App() {
                     <button 
                       type="button"
                       onClick={() => handleCopy(code, "code")} 
-                      className={`text-[11px] flex items-center gap-1.5 transition-colors px-2 py-0.5 rounded shrink-0 ${
-                        copiedKey === "code" ? "text-success bg-success/10 font-medium" : "text-muted-foreground hover:text-white hover:bg-secondary"
+                      className={`text-[11px] flex items-center gap-1.5 transition-colors px-2 py-0.5 rounded shrink-0 font-medium ${
+                        copiedKey === "code" ? "text-success bg-success/10" : "text-muted-foreground hover:text-white hover:bg-secondary"
                       }`}
                       title="Copy code payload"
                     >
@@ -892,20 +919,49 @@ export default function App() {
               </div>
             </Card>
 
-            {/* Results (7 cols) with Tabs - Fixed height 350px */}
+            {/* Results (7 cols) with Animated Sliding Pill Tabs - Fixed height 350px */}
             <Card className="md:col-span-7 h-[350px] flex flex-col overflow-hidden bg-card border-border shadow-card">
-              <Tabs defaultValue="output" className="flex flex-col h-full">
+              <Tabs value={activeResultsTab} onValueChange={(val) => setActiveResultsTab(val as "output" | "telemetry")} className="flex flex-col h-full">
                 <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0 shrink-0">
                   <div className="flex items-center gap-2">
                     <Terminal className="h-4 w-4 text-primary" />
-                    <TabsList className="h-8 bg-secondary/60 border border-border">
-                      <TabsTrigger value="output" className="text-xs h-6 px-2.5">
-                        Aggregated Output
-                      </TabsTrigger>
-                      <TabsTrigger value="telemetry" className="text-xs h-6 px-2.5">
-                        Cryptographic Proofs
-                      </TabsTrigger>
-                    </TabsList>
+                    
+                    {/* Animated Sliding Pill Tabs (Zero Text Jump) */}
+                    <div className="relative flex items-center bg-[#0b0e14] border border-white/10 p-0.5 rounded-md">
+                      <button
+                        type="button"
+                        onClick={() => setActiveResultsTab("output")}
+                        className="relative z-10 text-xs px-3 py-1 font-medium transition-colors duration-200"
+                      >
+                        {activeResultsTab === "output" && (
+                          <motion.div
+                            layoutId="resultsTabPill"
+                            className="absolute inset-0 bg-secondary rounded shadow-sm border border-white/10"
+                            transition={{ type: "spring", stiffness: 450, damping: 35 }}
+                          />
+                        )}
+                        <span className={`relative z-20 font-medium transition-colors ${activeResultsTab === "output" ? "text-white" : "text-zinc-400 hover:text-white"}`}>
+                          Aggregated Output
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setActiveResultsTab("telemetry")}
+                        className="relative z-10 text-xs px-3 py-1 font-medium transition-colors duration-200"
+                      >
+                        {activeResultsTab === "telemetry" && (
+                          <motion.div
+                            layoutId="resultsTabPill"
+                            className="absolute inset-0 bg-secondary rounded shadow-sm border border-white/10"
+                            transition={{ type: "spring", stiffness: 450, damping: 35 }}
+                          />
+                        )}
+                        <span className={`relative z-20 font-medium transition-colors ${activeResultsTab === "telemetry" ? "text-white" : "text-zinc-400 hover:text-white"}`}>
+                          Cryptographic Proofs
+                        </span>
+                      </button>
+                    </div>
                   </div>
 
                   {meta?.latencyMs !== undefined && (
@@ -940,8 +996,8 @@ export default function App() {
                             <button
                               type="button"
                               onClick={() => handleCopy(JSON.stringify(result, null, 2), "result")}
-                              className={`text-[11px] flex items-center gap-1.5 transition-colors px-2 py-0.5 rounded shrink-0 ${
-                                copiedKey === "result" ? "text-success bg-success/10 font-medium" : "text-muted-foreground hover:text-white hover:bg-secondary"
+                              className={`text-[11px] flex items-center gap-1.5 transition-colors px-2 py-0.5 rounded shrink-0 font-medium ${
+                                copiedKey === "result" ? "text-success bg-success/10" : "text-muted-foreground hover:text-white hover:bg-secondary"
                               }`}
                               title="Copy JSON payload"
                             >
