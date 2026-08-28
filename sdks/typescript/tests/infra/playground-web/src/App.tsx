@@ -471,7 +471,7 @@ export default function App() {
               <h1 className="text-base font-bold tracking-tight text-white">
                 LIOP Playground
               </h1>
-              <span className="text-[10px] font-mono font-medium px-1.5 py-0.5 text-muted-foreground border border-border/80 rounded bg-secondary/50">
+              <span className="text-[10px] font-mono font-medium px-1.5 py-0.5 text-zinc-300 border border-white/15 rounded bg-secondary/70">
                 v{network?.version || "2.1.0-alpha.14"}
               </span>
             </div>
@@ -479,20 +479,20 @@ export default function App() {
 
           <div className="flex items-center space-x-2.5">
             {network ? (
-              <div className="flex items-center space-x-2 bg-secondary/80 border border-border px-3 py-1 rounded-md text-xs">
+              <div className="flex items-center space-x-2 bg-secondary/80 border border-white/10 px-3 py-1 rounded-md text-xs">
                 <span className="inline-block h-2 w-2 rounded-full bg-success"></span>
                 <span className="text-white font-medium">{network.peersCount + 1} Active Nodes</span>
-                <span className="text-muted-foreground font-mono text-[11px]">({network.role})</span>
+                <span className="text-zinc-400 font-mono text-[11px]">({network.role})</span>
               </div>
             ) : (
-              <Button size="sm" variant="ghost" onClick={fetchHealth} disabled={loadingHealth} className="h-8 text-xs">
+              <Button size="sm" variant="ghost" onClick={fetchHealth} disabled={loadingHealth} className="h-8 text-xs border border-white/15 bg-[#0b0e14] text-zinc-300 hover:text-white">
                 <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${loadingHealth ? 'animate-spin' : ''}`} />
                 Connect
               </Button>
             )}
 
-            {/* Sliding Pill Animated Theme Switcher (Obsidian vs Slate Dark) */}
-            <div className="relative flex items-center bg-[#0b0e14] border border-white/10 p-0.5 rounded-md">
+            {/* Sliding Pill Animated Theme Switcher (Unified Primary Cyan Style) */}
+            <div className="relative flex items-center bg-[#0b0e14] border border-white/15 p-0.5 rounded-md">
               <button
                 type="button"
                 onClick={() => setTheme("obsidian")}
@@ -502,12 +502,16 @@ export default function App() {
                 {theme === "obsidian" && (
                   <motion.div
                     layoutId="themeActivePill"
-                    className="absolute inset-0 bg-primary/20 border border-primary/40 rounded shadow-sm"
+                    className="absolute inset-0 bg-primary rounded shadow-sm"
                     transition={{ type: "spring", stiffness: 450, damping: 35 }}
                   />
                 )}
-                <Moon className="relative z-20 h-3.5 w-3.5 text-primary" />
-                <span className={`relative z-20 font-medium transition-colors ${theme === "obsidian" ? "text-white" : "text-zinc-400 hover:text-white"}`}>
+                <Moon className={`relative z-20 h-3.5 w-3.5 transition-colors duration-200 ${
+                  theme === "obsidian" ? "text-black" : "text-zinc-400"
+                }`} />
+                <span className={`relative z-20 font-medium transition-colors duration-200 ${
+                  theme === "obsidian" ? "text-black" : "text-zinc-300 hover:text-white"
+                }`}>
                   Obsidian
                 </span>
               </button>
@@ -520,12 +524,16 @@ export default function App() {
                 {theme === "slate" && (
                   <motion.div
                     layoutId="themeActivePill"
-                    className="absolute inset-0 bg-sky-500/20 border border-sky-400/40 rounded shadow-sm"
+                    className="absolute inset-0 bg-primary rounded shadow-sm"
                     transition={{ type: "spring", stiffness: 450, damping: 35 }}
                   />
                 )}
-                <Layers className="relative z-20 h-3.5 w-3.5 text-sky-400" />
-                <span className={`relative z-20 font-medium transition-colors ${theme === "slate" ? "text-white" : "text-zinc-400 hover:text-white"}`}>
+                <Layers className={`relative z-20 h-3.5 w-3.5 transition-colors duration-200 ${
+                  theme === "slate" ? "text-black" : "text-zinc-400"
+                }`} />
+                <span className={`relative z-20 font-medium transition-colors duration-200 ${
+                  theme === "slate" ? "text-black" : "text-zinc-300 hover:text-white"
+                }`}>
                   Slate
                 </span>
               </button>
@@ -535,7 +543,7 @@ export default function App() {
               size="sm" 
               variant="outline" 
               onClick={() => { fetchHealth(); fetchTools(); }} 
-              className="h-8 px-2 border-border hover:bg-secondary"
+              className="h-8 px-2 border-white/15 bg-[#0b0e14] text-zinc-300 hover:text-white hover:bg-white/5"
               title="Refresh network state"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${loadingTools ? 'animate-spin' : ''}`} />
@@ -557,11 +565,11 @@ export default function App() {
                   <Waypoints className="h-4 w-4 text-primary" />
                   Mesh Capabilities
                 </CardTitle>
-                <Badge variant="outline" className="text-[10px] font-mono border-border/80">
+                <Badge variant="outline" className="text-[10px] font-mono border-white/15 text-zinc-300">
                   {tools.length} providers
                 </Badge>
               </div>
-              <CardDescription className="text-xs">
+              <CardDescription className="text-xs text-zinc-400">
                 Capabilities announced in the Kademlia DHT routing table.
               </CardDescription>
 
@@ -594,15 +602,15 @@ export default function App() {
             <CardContent className="flex-1 min-h-0 overflow-hidden p-0">
               <ScrollArea className="h-full px-5">
                 {loadingTools ? (
-                  <div className="flex flex-col items-center justify-center py-12 text-muted-foreground space-y-2">
+                  <div className="flex flex-col items-center justify-center py-12 text-zinc-400 space-y-2">
                     <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                    <span className="text-xs">Querying DHT...</span>
+                    <span className="text-xs text-zinc-300">Querying DHT...</span>
                   </div>
                 ) : filteredTools.length === 0 ? (
-                  <div className="text-center py-12 text-muted-foreground space-y-2">
+                  <div className="text-center py-12 text-zinc-400 space-y-2">
                     <AlertTriangle className="h-6 w-6 mx-auto text-warning" />
-                    <p className="text-xs font-medium">No capabilities found</p>
-                    <p className="text-[11px] max-w-[200px] mx-auto">Try adjusting your search query.</p>
+                    <p className="text-xs font-medium text-zinc-200">No capabilities found</p>
+                    <p className="text-[11px] text-zinc-400 max-w-[200px] mx-auto">Try adjusting your search query.</p>
                   </div>
                 ) : (
                   <div className="space-y-2.5 pb-5">
@@ -625,7 +633,7 @@ export default function App() {
                           }`}
                         >
                           <div className="flex items-center justify-between mb-1">
-                            <span className="font-semibold text-xs truncate max-w-[170px]">{t.name}</span>
+                            <span className="font-semibold text-xs text-zinc-100 truncate max-w-[170px]">{t.name}</span>
                             <Badge 
                               variant={tier === "5" ? "destructive" : tier === "3" ? "warning" : "success"}
                               className="text-[10px] py-0 px-1.5 font-normal"
@@ -633,9 +641,9 @@ export default function App() {
                               Tier {tier}
                             </Badge>
                           </div>
-                          <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">{t.description || "No description available."}</p>
+                          <p className="text-[11px] text-zinc-300 line-clamp-2 leading-relaxed">{t.description || "No description available."}</p>
                           {t.taxonomy?.domain && (
-                            <div className="mt-1.5 flex items-center justify-between text-[10px] text-muted-foreground">
+                            <div className="mt-1.5 flex items-center justify-between text-[10px] text-zinc-400">
                               <span className="flex items-center gap-1">
                                 <span className="w-1.5 h-1.5 rounded-full bg-primary/80"></span>
                                 {t.taxonomy.domain}
@@ -656,12 +664,12 @@ export default function App() {
           <Card className="p-4 bg-card border-border shadow-card shrink-0">
             <h3 className="text-xs font-semibold text-white mb-3 flex items-center justify-between">
               <span>Local Mesh Node</span>
-              <span className="font-mono text-[10px] text-muted-foreground font-normal">WASI v29+</span>
+              <span className="font-mono text-[10px] text-zinc-400 font-normal">WASI v29+</span>
             </h3>
             {network ? (
               <div className="space-y-2.5 text-xs">
                 <div className="flex items-center justify-between border-b border-border/50 pb-2">
-                  <span className="text-muted-foreground">Peer ID:</span>
+                  <span className="text-zinc-400">Peer ID:</span>
                   <div className="flex items-center gap-1.5">
                     <span className="text-white font-mono text-[11px] truncate max-w-[140px]" title={network.peerId}>
                       {network.peerId}
@@ -669,7 +677,7 @@ export default function App() {
                     <button 
                       type="button"
                       onClick={() => handleCopy(network.peerId, "peerId")}
-                      className="text-muted-foreground hover:text-white transition-colors p-0.5 rounded"
+                      className="text-zinc-400 hover:text-white transition-colors p-0.5 rounded"
                       title="Copy PeerID"
                     >
                       {copiedKey === "peerId" ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
@@ -678,13 +686,13 @@ export default function App() {
                 </div>
 
                 <div className="flex items-center justify-between border-b border-border/50 pb-2">
-                  <span className="text-muted-foreground">Host Address:</span>
+                  <span className="text-zinc-400">Host Address:</span>
                   <div className="flex items-center gap-1.5">
                     <span className="text-white font-mono text-[11px]">{network.address}</span>
                     <button 
                       type="button"
                       onClick={() => handleCopy(network.address, "address")}
-                      className="text-muted-foreground hover:text-white transition-colors p-0.5 rounded"
+                      className="text-zinc-400 hover:text-white transition-colors p-0.5 rounded"
                       title="Copy Host Address"
                     >
                       {copiedKey === "address" ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
@@ -693,19 +701,19 @@ export default function App() {
                 </div>
 
                 <div className="flex items-center justify-between border-b border-border/50 pb-2">
-                  <span className="text-muted-foreground">Crypto Suite:</span>
+                  <span className="text-zinc-400">Crypto Suite:</span>
                   <span className="text-primary font-mono text-[11px]">ML-KEM-768</span>
                 </div>
 
                 <div className="flex items-center justify-between pt-0.5">
-                  <span className="text-muted-foreground">Sandbox Isolation:</span>
+                  <span className="text-zinc-400">Sandbox Isolation:</span>
                   <span className="text-success font-medium flex items-center gap-1 text-[11px]">
                     <CheckCircle2 className="h-3.5 w-3.5" /> WASI-Isolate Safe
                   </span>
                 </div>
               </div>
             ) : (
-              <p className="text-xs text-muted-foreground">Synchronizing state...</p>
+              <p className="text-xs text-zinc-400">Synchronizing state...</p>
             )}
           </Card>
         </section>
@@ -720,13 +728,13 @@ export default function App() {
                   <Code className="h-4 w-4 text-primary" />
                   Logic Studio
                 </CardTitle>
-                <CardDescription className="text-xs">
+                <CardDescription className="text-xs text-zinc-400">
                   JavaScript/WASI micro-module injected directly on origin node.
                 </CardDescription>
               </div>
               
-              {/* Animated Sliding Pill Template Switcher (Zero Text Jump) */}
-              <div className="relative flex items-center bg-[#0b0e14] border border-white/10 p-0.5 rounded-lg">
+              {/* Animated Sliding Pill Template Switcher (Primary Cyan + High Contrast Text) */}
+              <div className="relative flex items-center bg-[#0b0e14] border border-white/15 p-0.5 rounded-lg">
                 {TEMPLATES.map(t => {
                   const isSelected = selectedTemplateId === t.id
                   return (
@@ -744,7 +752,7 @@ export default function App() {
                         />
                       )}
                       <span className={`relative z-20 font-medium transition-colors duration-200 ${
-                        isSelected ? "text-black" : "text-zinc-400 hover:text-white"
+                        isSelected ? "text-black" : "text-zinc-300 hover:text-white"
                       }`}>
                         {t.name}
                       </span>
@@ -762,33 +770,37 @@ export default function App() {
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] font-mono text-primary font-semibold">@LIOP</span>
                     <span className="text-border-muted">•</span>
-                    <span className="text-[11px] text-muted-foreground font-mono">wasi_v1 sandbox</span>
+                    <span className="text-[11px] text-zinc-400 font-mono">wasi_v1 sandbox</span>
                   </div>
 
                   <div className="flex items-center space-x-2">
                     <button 
                       type="button"
                       onClick={handleResetTemplate} 
-                      className={`text-[11px] flex items-center gap-1.5 transition-colors px-2 py-0.5 rounded shrink-0 font-medium ${
-                        isReset ? "text-success bg-success/10" : "text-muted-foreground hover:text-white hover:bg-secondary"
+                      className={`text-[11px] flex items-center gap-1.5 transition-colors px-2.5 py-0.5 rounded shrink-0 font-medium border ${
+                        isReset 
+                          ? "text-emerald-400 bg-emerald-500/15 border-emerald-500/30" 
+                          : "text-zinc-300 hover:text-white bg-[#0b0e14]/60 hover:bg-white/5 border-white/10"
                       }`}
                       title="Reset to template original code"
                     >
-                      {isReset ? <Check className="h-3 w-3 text-success" /> : <RotateCcw className="h-3 w-3" />}
+                      {isReset ? <Check className="h-3 w-3 text-emerald-400" /> : <RotateCcw className="h-3 w-3" />}
                       <span>{isReset ? "Reset Done" : "Reset"}</span>
                     </button>
                     
                     <button 
                       type="button"
                       onClick={() => handleCopy(code, "code")} 
-                      className={`text-[11px] flex items-center gap-1.5 transition-colors px-2 py-0.5 rounded shrink-0 font-medium ${
-                        copiedKey === "code" ? "text-success bg-success/10" : "text-muted-foreground hover:text-white hover:bg-secondary"
+                      className={`text-[11px] flex items-center gap-1.5 transition-colors px-2.5 py-0.5 rounded shrink-0 font-medium border ${
+                        copiedKey === "code" 
+                          ? "text-emerald-400 bg-emerald-500/15 border-emerald-500/30" 
+                          : "text-zinc-300 hover:text-white bg-[#0b0e14]/60 hover:bg-white/5 border-white/10"
                       }`}
                       title="Copy code payload"
                     >
                       {copiedKey === "code" ? (
                         <>
-                          <Check className="h-3 w-3 text-success" />
+                          <Check className="h-3 w-3 text-emerald-400" />
                           <span>Copied</span>
                         </>
                       ) : (
@@ -812,7 +824,7 @@ export default function App() {
                 />
 
                 {/* Editor Status Footer */}
-                <div className="flex items-center justify-between px-3 py-1 bg-secondary/30 border-t border-border/50 text-[10px] font-mono text-muted-foreground">
+                <div className="flex items-center justify-between px-3 py-1 bg-secondary/30 border-t border-border/50 text-[10px] font-mono text-zinc-400">
                   <div className="flex items-center gap-3">
                     <span>{editorStats.lines} lines</span>
                     <span>{editorStats.bytes} bytes</span>
@@ -827,11 +839,11 @@ export default function App() {
 
               {/* Execute Action Bar */}
               <div className="flex items-center justify-between pt-1">
-                <div className="text-xs text-muted-foreground flex items-center gap-1.5">
+                <div className="text-xs text-zinc-400 flex items-center gap-1.5">
                   <span>Target:</span>
                   <span className="font-semibold text-white font-mono text-[11px]">{selectedToolName || "none"}</span>
                   {currentToolObj?.taxonomy?.clearanceTier && (
-                    <Badge variant="outline" className="text-[9px] py-0 px-1 font-mono">
+                    <Badge variant="outline" className="text-[9px] py-0 px-1 font-mono border-white/15 text-zinc-300">
                       Tier {currentToolObj.taxonomy.clearanceTier}
                     </Badge>
                   )}
@@ -839,7 +851,7 @@ export default function App() {
                 <Button 
                   onClick={handleExecute} 
                   disabled={isRunning || !selectedToolName}
-                  className="h-9 px-6 font-bold tracking-wide"
+                  className="h-9 px-6 font-bold tracking-wide shadow-md transition-all active:scale-[0.98]"
                 >
                   {isRunning ? (
                     <>
@@ -887,7 +899,7 @@ export default function App() {
                         </div>
                       )}
                       {step.status === "pending" && (
-                        <div className="w-4.5 h-4.5 rounded-full bg-secondary border border-border flex items-center justify-center text-[9px] text-muted-foreground font-semibold">
+                        <div className="w-4.5 h-4.5 rounded-full bg-secondary border border-border flex items-center justify-center text-[9px] text-zinc-400 font-semibold">
                           {idx + 1}
                         </div>
                       )}
@@ -902,32 +914,32 @@ export default function App() {
                               ? "text-white" 
                               : step.status === "failed" 
                                 ? "text-destructive" 
-                                : "text-muted-foreground"
+                                : "text-zinc-400"
                         }`}>
                           {step.label}
                         </span>
                         {step.durationMs !== undefined && step.status === "success" && (
-                          <span className="text-[10px] font-mono tabular-nums text-muted-foreground bg-secondary/80 px-1.5 py-0.2 rounded border border-border/40">
+                          <span className="text-[10px] font-mono tabular-nums text-zinc-300 bg-secondary/80 px-1.5 py-0.2 rounded border border-border/40">
                             {step.durationMs === 0 ? "< 1ms" : `${step.durationMs}ms`}
                           </span>
                         )}
                       </div>
-                      <p className="text-[11px] text-muted-foreground truncate">{step.detail}</p>
+                      <p className="text-[11px] text-zinc-400 truncate">{step.detail}</p>
                     </div>
                   </div>
                 ))}
               </div>
             </Card>
 
-            {/* Results (7 cols) with Animated Sliding Pill Tabs - Fixed height 350px */}
+            {/* Results (7 cols) with Animated Sliding Pill Tabs (Primary Cyan + High Contrast) - Fixed height 350px */}
             <Card className="md:col-span-7 h-[350px] flex flex-col overflow-hidden bg-card border-border shadow-card">
               <Tabs value={activeResultsTab} onValueChange={(val) => setActiveResultsTab(val as "output" | "telemetry")} className="flex flex-col h-full">
                 <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0 shrink-0">
                   <div className="flex items-center gap-2">
                     <Terminal className="h-4 w-4 text-primary" />
                     
-                    {/* Animated Sliding Pill Tabs (Zero Text Jump) */}
-                    <div className="relative flex items-center bg-[#0b0e14] border border-white/10 p-0.5 rounded-md">
+                    {/* Animated Sliding Pill Tabs (Unified Primary Cyan Style + WCAG AAA High Contrast) */}
+                    <div className="relative flex items-center bg-[#0b0e14] border border-white/15 p-0.5 rounded-md">
                       <button
                         type="button"
                         onClick={() => setActiveResultsTab("output")}
@@ -936,11 +948,13 @@ export default function App() {
                         {activeResultsTab === "output" && (
                           <motion.div
                             layoutId="resultsTabPill"
-                            className="absolute inset-0 bg-secondary rounded shadow-sm border border-white/10"
+                            className="absolute inset-0 bg-primary rounded shadow-sm"
                             transition={{ type: "spring", stiffness: 450, damping: 35 }}
                           />
                         )}
-                        <span className={`relative z-20 font-medium transition-colors ${activeResultsTab === "output" ? "text-white" : "text-zinc-400 hover:text-white"}`}>
+                        <span className={`relative z-20 font-medium transition-colors duration-200 ${
+                          activeResultsTab === "output" ? "text-black" : "text-zinc-300 hover:text-white"
+                        }`}>
                           Aggregated Output
                         </span>
                       </button>
@@ -953,11 +967,13 @@ export default function App() {
                         {activeResultsTab === "telemetry" && (
                           <motion.div
                             layoutId="resultsTabPill"
-                            className="absolute inset-0 bg-secondary rounded shadow-sm border border-white/10"
+                            className="absolute inset-0 bg-primary rounded shadow-sm"
                             transition={{ type: "spring", stiffness: 450, damping: 35 }}
                           />
                         )}
-                        <span className={`relative z-20 font-medium transition-colors ${activeResultsTab === "telemetry" ? "text-white" : "text-zinc-400 hover:text-white"}`}>
+                        <span className={`relative z-20 font-medium transition-colors duration-200 ${
+                          activeResultsTab === "telemetry" ? "text-black" : "text-zinc-300 hover:text-white"
+                        }`}>
                           Cryptographic Proofs
                         </span>
                       </button>
@@ -965,7 +981,7 @@ export default function App() {
                   </div>
 
                   {meta?.latencyMs !== undefined && (
-                    <Badge variant="outline" className="text-[10px] font-mono flex items-center gap-1 border-border bg-secondary/40">
+                    <Badge variant="outline" className="text-[10px] font-mono flex items-center gap-1 border-white/15 bg-secondary/60 text-zinc-300">
                       <Gauge className="h-3 w-3 text-primary" />
                       {meta.latencyMs}ms total
                     </Badge>
@@ -992,18 +1008,20 @@ export default function App() {
                       {result ? (
                         <div className="space-y-2">
                           <div className="flex items-center justify-between text-xs">
-                            <span className="text-muted-foreground text-[11px]">Payload returned by remote node:</span>
+                            <span className="text-zinc-300 text-[11px]">Payload returned by remote node:</span>
                             <button
                               type="button"
                               onClick={() => handleCopy(JSON.stringify(result, null, 2), "result")}
-                              className={`text-[11px] flex items-center gap-1.5 transition-colors px-2 py-0.5 rounded shrink-0 font-medium ${
-                                copiedKey === "result" ? "text-success bg-success/10" : "text-muted-foreground hover:text-white hover:bg-secondary"
+                              className={`text-[11px] flex items-center gap-1.5 transition-colors px-2.5 py-0.5 rounded shrink-0 font-medium border ${
+                                copiedKey === "result" 
+                                  ? "text-emerald-400 bg-emerald-500/15 border-emerald-500/30" 
+                                  : "text-zinc-300 hover:text-white bg-[#0b0e14]/60 hover:bg-white/5 border-white/10"
                               }`}
                               title="Copy JSON payload"
                             >
                               {copiedKey === "result" ? (
                                 <>
-                                  <Check className="h-3 w-3 text-success" />
+                                  <Check className="h-3 w-3 text-emerald-400" />
                                   <span>Copied</span>
                                 </>
                               ) : (
@@ -1020,15 +1038,15 @@ export default function App() {
                           </div>
                         </div>
                       ) : !errorAlert && !isRunning ? (
-                        <div className="flex flex-col items-center justify-center py-14 text-muted-foreground text-center space-y-2">
-                          <Terminal className="h-6 w-6 text-muted/40" />
-                          <p className="text-xs font-medium">Awaiting Execution</p>
-                          <p className="text-[11px] max-w-[220px]">Select a template or write logic, then click Execute Logic.</p>
+                        <div className="flex flex-col items-center justify-center py-14 text-zinc-400 text-center space-y-2">
+                          <Terminal className="h-6 w-6 text-zinc-500" />
+                          <p className="text-xs font-medium text-zinc-200">Awaiting Execution</p>
+                          <p className="text-[11px] text-zinc-400 max-w-[220px]">Select a template or write logic, then click Execute Logic.</p>
                         </div>
                       ) : isRunning ? (
-                        <div className="flex flex-col items-center justify-center py-14 text-muted-foreground text-center space-y-2.5">
+                        <div className="flex flex-col items-center justify-center py-14 text-zinc-400 text-center space-y-2.5">
                           <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                          <p className="text-xs">Injecting logic and enforcing Zero-Trust policies...</p>
+                          <p className="text-xs text-zinc-300">Injecting logic and enforcing Zero-Trust policies...</p>
                         </div>
                       ) : null}
                     </TabsContent>
@@ -1042,7 +1060,7 @@ export default function App() {
                               <Fingerprint className="h-4 w-4 text-success" />
                               <div>
                                 <p className="font-semibold text-white text-[11px]">ZK-Receipt HMAC-SHA256</p>
-                                <p className="text-[10px] text-muted-foreground">Computational integrity proof bound to origin node</p>
+                                <p className="text-[10px] text-zinc-400">Computational integrity proof bound to origin node</p>
                               </div>
                             </div>
                             <Badge variant="success" className="font-mono text-[10px]">
@@ -1055,7 +1073,7 @@ export default function App() {
                               <Handshake className="h-4 w-4 text-primary" />
                               <div>
                                 <p className="font-semibold text-white text-[11px]">Post-Quantum Key Exchange</p>
-                                <p className="text-[10px] text-muted-foreground">ML-KEM-768 (Kyber) quantum-resistant link</p>
+                                <p className="text-[10px] text-zinc-400">ML-KEM-768 (Kyber) quantum-resistant link</p>
                               </div>
                             </div>
                             <Badge variant="outline" className="font-mono text-[10px] border-primary/40 text-primary">
@@ -1068,10 +1086,10 @@ export default function App() {
                               <LockKeyhole className="h-4 w-4 text-primary" />
                               <div>
                                 <p className="font-semibold text-white text-[11px]">Symmetric Envelope Seal</p>
-                                <p className="text-[10px] text-muted-foreground">AES-256-GCM authenticated cipher of payload and return</p>
+                                <p className="text-[10px] text-zinc-400">AES-256-GCM authenticated cipher of payload and return</p>
                               </div>
                             </div>
-                            <Badge variant="outline" className="font-mono text-[10px]">
+                            <Badge variant="outline" className="font-mono text-[10px] border-white/15 text-zinc-300">
                               SEALED
                             </Badge>
                           </div>
@@ -1081,7 +1099,7 @@ export default function App() {
                               <ShieldBan className="h-4 w-4 text-success" />
                               <div>
                                 <p className="font-semibold text-white text-[11px]">Egress PII Shield Status</p>
-                                <p className="text-[10px] text-muted-foreground">Mandatory aggregation policy (K-Anonymity + NER)</p>
+                                <p className="text-[10px] text-zinc-400">Mandatory aggregation policy (K-Anonymity + NER)</p>
                               </div>
                             </div>
                             <Badge variant={meta?.shieldBlocked ? "destructive" : "success"} className="font-mono text-[10px]">
@@ -1090,7 +1108,7 @@ export default function App() {
                           </div>
                         </div>
                       ) : (
-                        <div className="text-center py-14 text-muted-foreground text-xs">
+                        <div className="text-center py-14 text-zinc-400 text-xs">
                           Execute a query to inspect cryptographic session certificates.
                         </div>
                       )}
@@ -1107,16 +1125,16 @@ export default function App() {
 
       {/* Footer */}
       <footer className="border-t border-border bg-card/60 py-3 mt-auto transition-colors">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between text-[11px] text-muted-foreground gap-2">
+        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between text-[11px] text-zinc-400 gap-2">
           <div>
             © 2026 Nekzus Solutions. Logic-Injection-on-Origin Protocol (LIOP).
           </div>
           <div className="flex items-center space-x-4">
             <span className="flex items-center gap-1 font-mono">
               <span className="inline-block w-1.5 h-1.5 rounded-full bg-success"></span>
-              P2P Mesh: Kademlia DHT
+              <span className="text-zinc-300">P2P Mesh: Kademlia DHT</span>
             </span>
-            <span className="font-mono">Zero-Trust Architecture</span>
+            <span className="font-mono text-zinc-300">Zero-Trust Architecture</span>
           </div>
         </div>
       </footer>
