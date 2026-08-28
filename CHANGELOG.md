@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.1.0-alpha.16](https://github.com/Nekzus/LIOP/compare/v2.1.0-alpha.15...v2.1.0-alpha.16) (2026-08-28)
+
+
+### Features
+
+* **license:** trigger Apache-2.0 package release with legal and trademark updates ([7b8b5a3](https://github.com/Nekzus/LIOP/commit/7b8b5a36c5e35d405f43ff0b0fd8ca55df1fb5fa))
+
 # [2.1.0-alpha.15](https://github.com/Nekzus/LIOP/compare/v2.1.0-alpha.14...v2.1.0-alpha.15) (2026-08-28)
 
 
