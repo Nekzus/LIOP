@@ -2,9 +2,16 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { noise } from "@chainsafe/libp2p-noise";
 import { yamux } from "@chainsafe/libp2p-yamux";
+import { autoNAT } from "@libp2p/autonat";
 import { bootstrap } from "@libp2p/bootstrap";
+import {
+	circuitRelayServer,
+	circuitRelayTransport,
+} from "@libp2p/circuit-relay-v2";
+import { dcutr } from "@libp2p/dcutr";
 import { identify } from "@libp2p/identify";
 import { kadDHT } from "@libp2p/kad-dht";
+import { mdns } from "@libp2p/mdns";
 import { ping } from "@libp2p/ping";
 import { tcp } from "@libp2p/tcp";
 import { webSockets } from "@libp2p/websockets";
@@ -45,6 +52,10 @@ export interface LiopManifest {
 	authRequired?: boolean;
 	/** Canonical slug for deterministic token resolution. Agents resolve LIOP_TOKEN_<tokenSlug>. Must match /^[A-Z][A-Z0-9_]*$/. */
 	tokenSlug?: string;
+	/** ML-DSA-65 (FIPS 204) Post-Quantum Digital Signature for Manifest Attestation (Base64) */
+	pqcSignature?: string;
+	/** ML-DSA-65 (FIPS 204) Post-Quantum Public Key (Base64) */
+	pqcPublicKey?: string;
 }
 
 export interface MeshNodeConfig {
@@ -55,6 +66,14 @@ export interface MeshNodeConfig {
 	dhtStoragePath?: string;
 	/** Optional function to translate multiaddrs (e.g. for Docker NAT traversal). Return null to drop an address. */
 	addressMapper?: (addr: string) => string | null;
+	/** Enable AutoNAT reachability detection (default: true) */
+	enableAutoNAT?: boolean;
+	/** Enable Circuit Relay v2 transport & server for NAT traversal (default: true) */
+	enableRelay?: boolean;
+	/** Enable DCUtR decentralized hole punching (default: true) */
+	enableDcutr?: boolean;
+	/** Enable mDNS peer discovery for local networks (default: false in WAN, true in LAN) */
+	enableMdns?: boolean;
 }
 
 const DEFAULT_BOOTSTRAP_NODES = [
@@ -311,41 +330,71 @@ export class MeshNode {
 			bootNodes = DEFAULT_BOOTSTRAP_NODES;
 		}
 
-		const discovery =
-			bootNodes.length > 0
-				? [
-						bootstrap({
-							list: bootNodes,
-						}),
-					]
-				: undefined;
+		const enableAutoNAT = this.config.enableAutoNAT ?? true;
+		const enableRelay = this.config.enableRelay ?? true;
+		const enableDcutr = this.config.enableDcutr ?? true;
+		const enableMdns = this.config.enableMdns ?? !this.config.enableWAN;
+
+		// biome-ignore lint/suspicious/noExplicitAny: discovery polymorphic list
+		const discoveryList: any[] = [];
+		if (bootNodes.length > 0) {
+			discoveryList.push(
+				bootstrap({
+					list: bootNodes,
+				}),
+			);
+		}
+		if (enableMdns) {
+			discoveryList.push(mdns());
+		}
 
 		const dhtProtocol = this.config.enableWAN
 			? "/ipfs/kad/1.0.0"
 			: "/ipfs/lan/kad/1.0.0";
+
+		// biome-ignore lint/suspicious/noExplicitAny: transports list
+		const transports: any[] = [tcp(), webSockets()];
+		if (enableRelay) {
+			transports.push(circuitRelayTransport());
+		}
+
+		// biome-ignore lint/suspicious/noExplicitAny: services map
+		const services: Record<string, any> = {
+			identify: identify(),
+			ping: ping(),
+			dht: kadDHT({
+				protocol: dhtProtocol,
+				clientMode: false,
+				// Allow local/private IPs in the DHT routing table for development/testing
+				allowQueryWithZeroPeers: true,
+				// By default kadDHT drops local IP addresses. Override the mapper to keep them.
+				peerInfoMapper: (peer) => peer,
+			}),
+		};
+
+		if (enableAutoNAT) {
+			services.autoNAT = autoNAT();
+		}
+		if (enableRelay) {
+			services.relay = circuitRelayServer();
+		}
+		if (enableDcutr) {
+			services.dcutr = dcutr();
+		}
 
 		this.node = await createLibp2p({
 			privateKey,
 			addresses: {
 				listen: this.config.listenAddresses,
 			},
-			transports: [tcp(), webSockets()],
+			transports,
 			connectionEncrypters: [noise()],
 			streamMuxers: [yamux()],
-			services: {
-				identify: identify(),
-				ping: ping(),
-				dht: kadDHT({
-					protocol: dhtProtocol,
-					clientMode: false,
-					// Allow local/private IPs in the DHT routing table for development/testing
-					allowQueryWithZeroPeers: true,
-					// By default kadDHT drops local IP addresses. Override the mapper to keep them.
-					peerInfoMapper: (peer) => peer,
-				}),
-			},
-			// biome-ignore lint/suspicious/noExplicitAny: libp2p discovery type mismatch
-			peerDiscovery: discovery as any,
+			// biome-ignore lint/suspicious/noExplicitAny: services polymorphic definition
+			services: services as any,
+			peerDiscovery:
+				// biome-ignore lint/suspicious/noExplicitAny: discovery polymorphic list casting
+				discoveryList.length > 0 ? (discoveryList as any) : undefined,
 		});
 
 		// Monitor Connectivity Events
@@ -1067,5 +1116,14 @@ export class MeshNode {
 			log.info(`[LIOP-Mesh] Failed to resolve peer ${peerIdStr}: ${error}`);
 		}
 		return [];
+	}
+
+	public isStarted(): boolean {
+		return !!this.node && this.node.status === "started";
+	}
+
+	public getPeers(): string[] {
+		if (!this.node) return [];
+		return this.node.getConnections().map((c) => c.remotePeer.toString());
 	}
 }

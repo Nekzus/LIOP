@@ -1,9 +1,10 @@
 packages:
   - "sdks/typescript"
   - "sdks/typescript/examples/**"
+  - "sdks/typescript/tests/infra/playground-web"
   - "examples/**"
 
-verifyDeps: false
+verifyDepsBeforeRun: false
 
 allowBuilds:
   esbuild: true
@@ -29,6 +30,7 @@ auditConfig:
 
 minimumReleaseAgeExclude:
   - '@libp2p/kad-dht@16.3.0'
+  - '@types/node@26.4.0'
 
 overrides:
   multiformats: "14.0.0"
@@ -68,4 +70,3 @@ packageConfigs:
       - "@neural-mesh/demos"
       - "@neural-mesh/high-fidelity-demo"
     saveExact: true
-

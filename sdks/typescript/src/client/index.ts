@@ -1,5 +1,9 @@
 import { LiopVerifier } from "../crypto/verifier.js";
 import {
+	MCP_LEGACY_SUPPORT_ENABLED,
+	MCP_PROTOCOL_VERSION_LEGACY,
+} from "../gateway/mcp-compat.js";
+import {
 	type LiopManifest,
 	MeshNode,
 	type MeshNodeConfig,
@@ -9,7 +13,12 @@ import { AesGcmWrapper } from "../rpc/crypto/aes.js";
 import { Kyber768Wrapper } from "../rpc/crypto/kyber.js";
 import type { LiopTlsOptions } from "../rpc/tls.js";
 import type { LogicRequest, LogicResponse } from "../rpc/types.js";
-import type { CallToolRequest, CallToolResult } from "../types.js";
+import {
+	type CallToolRequest,
+	type CallToolResult,
+	MCP_PROTOCOL_VERSION,
+	type McpEra,
+} from "../types.js";
 import { log } from "../utils/logger.js";
 
 /**
@@ -24,6 +33,11 @@ export class LiopClient {
 	private serverInfo?: { name: string; version: string };
 	public verifier: LiopVerifier = new LiopVerifier();
 	private oauthToken?: string;
+
+	/** Protocol negotiation era */
+	public era: McpEra = "modern";
+	/** Negotiated protocol version */
+	public protocolVersion: string = MCP_PROTOCOL_VERSION;
 
 	constructor(tls?: LiopTlsOptions) {
 		this.tlsOptions = tls;
@@ -165,6 +179,41 @@ export class LiopClient {
 	}
 
 	/**
+	 * Selects the optimal IP from an array of multiaddrs.
+	 * Prioritizes routable non-loopback IPv4 addresses (e.g. Docker bridge, LAN, WAN)
+	 * over loopback (127.0.0.1) to prevent inter-container connection failures.
+	 */
+	private selectOptimalIp(addrs: string[]): string | null {
+		// Pass 1: Non-loopback, routable IPv4 addresses
+		for (const maddr of addrs) {
+			const parts = maddr.split("/");
+			const ipIdx = parts.indexOf("ip4");
+			if (ipIdx !== -1 && ipIdx + 1 < parts.length) {
+				const ip = parts[ipIdx + 1];
+				if (
+					ip !== "127.0.0.1" &&
+					!ip.startsWith("127.") &&
+					ip !== "0.0.0.0" &&
+					ip !== "localhost"
+				) {
+					return ip;
+				}
+			}
+		}
+
+		// Pass 2: Fallback to loopback if no external IP is announced
+		for (const maddr of addrs) {
+			const parts = maddr.split("/");
+			const ipIdx = parts.indexOf("ip4");
+			if (ipIdx !== -1 && ipIdx + 1 < parts.length) {
+				return parts[ipIdx + 1];
+			}
+		}
+
+		return null;
+	}
+
+	/**
 	 * Dynamically queries Kademlia DHT to find the optimal PeerID providing the Capability
 	 * and returns the physical gRPC target (host:port) resolved from the provider's manifest.
 	 */
@@ -190,45 +239,124 @@ export class LiopClient {
 		const manifest = await this.meshNode.queryManifest(providerId);
 		if (manifest) {
 			grpcPort = manifest.grpcPort;
-			log.info(`[LiopClient] Manifest resolved: gRPC port ${grpcPort}`);
+			this.manifests.set(providerId, manifest);
+			log.info(
+				`[LiopClient] Manifest resolved: gRPC port ${grpcPort}. Cached manifest for PeerID ${providerId}`,
+			);
 		}
 
 		const addrs = await this.meshNode.resolvePeer(providerId);
-		for (const maddr of addrs) {
-			const parts = maddr.split("/");
-			if (parts[1] === "ip4") {
-				const grpcHost = `${parts[2]}:${grpcPort}`;
-				log.info(
-					`[LiopClient] Translated Multiaddr to gRPC Target: ${grpcHost}`,
-				);
-				return grpcHost;
-			}
+		const optimalIp = this.selectOptimalIp(addrs);
+		if (optimalIp) {
+			const grpcHost = `${optimalIp}:${grpcPort}`;
+			log.info(
+				`[LiopClient] Translated Multiaddr to optimal gRPC Target: ${grpcHost}`,
+			);
+			return grpcHost;
 		}
 
 		return `127.0.0.1:${grpcPort}`;
 	}
 
 	/**
-	 * Discovers remote capabilities via the LIOP Manifest Protocol.
+	 * Probes a remote MCP endpoint using 'server/discover' to negotiate protocol era.
+	 * Falls back to legacy initialize handshake if server/discover fails.
 	 */
-	public async discoverTools(): Promise<
-		{ name: string; description?: string }[]
-	> {
+	public async probeServerDiscover(mcpUrl: string): Promise<{
+		era: McpEra;
+		protocolVersion: string;
+		supportedVersions: string[];
+	}> {
+		try {
+			const headers: Record<string, string> = {
+				"Content-Type": "application/json",
+				"Mcp-Method": "server/discover",
+			};
+			if (this.oauthToken) {
+				headers.Authorization = `Bearer ${this.oauthToken}`;
+			}
+
+			const res = await fetch(mcpUrl, {
+				method: "POST",
+				headers,
+				body: JSON.stringify({
+					jsonrpc: "2.0",
+					id: 1,
+					method: "server/discover",
+					params: {},
+				}),
+			});
+
+			if (res.ok) {
+				const json = (await res.json()) as {
+					result?: { supportedVersions?: string[] };
+				};
+				const supported = json.result?.supportedVersions || [];
+				if (supported.includes(MCP_PROTOCOL_VERSION)) {
+					this.era = "modern";
+					this.protocolVersion = MCP_PROTOCOL_VERSION;
+					return {
+						era: "modern",
+						protocolVersion: MCP_PROTOCOL_VERSION,
+						supportedVersions: supported,
+					};
+				}
+			}
+		} catch (_err) {
+			// Ignore discovery network probe failures and fallback to legacy if enabled
+		}
+
+		/** @mcp-legacy Fallback to legacy era. Remove when v1 EOL. */
+		if (MCP_LEGACY_SUPPORT_ENABLED) {
+			this.era = "legacy";
+			this.protocolVersion = MCP_PROTOCOL_VERSION_LEGACY;
+			return {
+				era: "legacy",
+				protocolVersion: MCP_PROTOCOL_VERSION_LEGACY,
+				supportedVersions: [MCP_PROTOCOL_VERSION_LEGACY],
+			};
+		}
+
+		throw new Error(
+			"Server does not support MCP 2026-07-28 and legacy support is disabled.",
+		);
+	}
+
+	/**
+	 * Discovers remote capabilities via the LIOP Manifest Protocol.
+	 * Utilizes a memory cache to avoid redundant network dials against live peers.
+	 */
+	public async discoverTools(
+		forceRefresh = false,
+	): Promise<{ name: string; description?: string }[]> {
 		if (!this.meshNode) {
 			throw new Error("Client must be connected before discovering tools.");
 		}
 
-		log.info(`[LiopClient] Discovery started...`);
+		log.info(
+			`[LiopClient] Discovery started (forceRefresh: ${forceRefresh})...`,
+		);
 		const providerIds = await this.meshNode.discoverManifestProviders();
 		const tools: { name: string; description?: string }[] = [];
 		const seenNames = new Set<string>();
 
 		for (const peerId of providerIds) {
 			try {
-				log.info(`[LiopClient] Querying manifest from: ${peerId}`);
-				const manifest = await this.meshNode.queryManifest(peerId);
+				let manifest: LiopManifest | null | undefined = !forceRefresh
+					? this.manifests.get(peerId)
+					: undefined;
+
+				if (!manifest) {
+					log.info(`[LiopClient] Querying manifest from: ${peerId}`);
+					manifest = await this.meshNode.queryManifest(peerId);
+					if (manifest) {
+						this.manifests.set(peerId, manifest);
+					}
+				} else {
+					log.info(`[LiopClient] Using cached manifest for: ${peerId}`);
+				}
+
 				if (manifest) {
-					this.manifests.set(peerId, manifest);
 					for (const tool of manifest.tools) {
 						if (!seenNames.has(tool.name)) {
 							tools.push({ name: tool.name, description: tool.description });
@@ -266,11 +394,49 @@ export class LiopClient {
 
 		// [ALPHA-FIX] Bypass DHT discovery if we are already statically connected to a provider (Enterprise/Test mode)
 		let rpcClient = this.rpcClients.get("static");
+		let targetClientKey = toolName;
 
 		if (!rpcClient) {
-			const dynamicAddress = await this.resolveCapability(toolName);
-			rpcClient = this.getOrCreateRpcClient(toolName, dynamicAddress);
+			// 1. If an RPC client was already registered for this toolName, reuse it
+			if (this.rpcClients.has(toolName)) {
+				rpcClient = this.rpcClients.get(toolName);
+				targetClientKey = toolName;
+			}
+		}
+
+		if (!rpcClient) {
+			// 2. Fast-path: Check if capability already exists in cached manifests to bypass DHT walk
+			let resolvedHost: string | null = null;
+			for (const [peerId, manifest] of this.manifests.entries()) {
+				if (manifest.tools.some((t) => t.name === toolName)) {
+					// If we already have a client registered for this peerId, reuse it immediately
+					if (this.rpcClients.has(peerId)) {
+						rpcClient = this.rpcClients.get(peerId);
+						targetClientKey = peerId;
+						break;
+					}
+
+					const addrs = await this.meshNode.resolvePeer(peerId);
+					const optimalIp = this.selectOptimalIp(addrs);
+					if (optimalIp) {
+						resolvedHost = `${optimalIp}:${manifest.grpcPort}`;
+						log.info(
+							`[LiopClient] Fast-path: Resolved ${toolName} from manifest cache to optimal target ${resolvedHost}`,
+						);
+						targetClientKey = peerId;
+						rpcClient = this.getOrCreateRpcClient(peerId, resolvedHost);
+						break;
+					}
+				}
+			}
+
+			if (!rpcClient) {
+				const dynamicAddress = await this.resolveCapability(toolName);
+				targetClientKey = toolName;
+				rpcClient = this.getOrCreateRpcClient(toolName, dynamicAddress);
+			}
 		} else {
+			targetClientKey = "static";
 			log.info(
 				`[LiopClient] Using existing static gRPC connection for ${toolName}.`,
 			);
@@ -416,6 +582,9 @@ export class LiopClient {
 			});
 
 			stream.on("error", (err) => {
+				// Evict faulted client from cache so subsequent requests reconnect cleanly
+				this.rpcClients.delete(targetClientKey);
+				this.rpcClients.delete(toolName);
 				if (resultFulfilled) return;
 				log.error("[LiopClient] Stream Error:", err);
 				reject(err);
@@ -442,10 +611,16 @@ export class LiopClient {
 			// If peerId is actually a toolName (which happens when called from callTool),
 			// resolve the real PeerID and its manifest from the manifest cache.
 			if (!manifest) {
+				log.info(
+					`[LiopClient] PeerID "${peerId}" not found in manifest cache as PeerID. Searching tools in cached manifests...`,
+				);
 				for (const [pId, m] of this.manifests.entries()) {
 					if (m.tools.some((t) => t.name === peerId)) {
 						manifest = m;
 						realPeerId = pId;
+						log.info(
+							`[LiopClient] Resolved tool "${peerId}" to provider PeerID "${pId.slice(-8)}" from manifest cache.`,
+						);
 						break;
 					}
 				}
@@ -460,6 +635,17 @@ export class LiopClient {
 				envToken =
 					process.env[`LIOP_TOKEN_${slug}`] ||
 					process.env[`LIOP_OAUTH_TOKEN_${slug}`];
+				log.info(
+					`[LiopClient] Resolved via tokenSlug "${slug}" (LIOP_TOKEN_${slug}) -> found: ${!!envToken}`,
+				);
+			} else {
+				log.info(
+					`[LiopClient] No tokenSlug available for peer ${realPeerId.slice(-8)}. Available cache keys: ${Array.from(
+						this.manifests.keys(),
+					)
+						.map((k) => k.slice(-8))
+						.join(", ")}`,
+				);
 			}
 
 			// 1. PeerID-specific resolution: LIOP_TOKEN_<last 8 chars of PeerID in uppercase>

@@ -26,6 +26,10 @@
     "demo:clean": "pnpm --filter @nekzus/liop demo:clean",
     "demo:claude": "pnpm --filter @nekzus/liop demo:claude",
     "demo:inspector": "pnpm --filter @nekzus/liop demo:inspector",
+    "demo:playground": "pnpm --filter @nekzus/liop demo:playground",
+    "demo:playground:rebuild": "pnpm --filter @nekzus/liop demo:playground:rebuild",
+    "demo:client-sdk": "pnpm --filter @nekzus/liop demo:client-sdk",
+    "demo:playground:build": "pnpm --filter @nekzus/liop demo:playground-web-build",
     "socket:scan": "socket scan create --report .",
     "socket:score": "socket package score npm @nekzus/liop --markdown",
     "socket:fix": "socket fix"
@@ -36,15 +40,16 @@
     }
   },
   "devDependencies": {
-    "@semantic-release/changelog": "6.0.3",
-    "@semantic-release/git": "10.0.1",
-    "@semantic-release/github": "10.3.5",
-    "@semantic-release/npm": "10.0.6",
-    "@semantic-release/release-notes-generator": "14.1.0",
-    "commitizen": "4.3.1",
-    "conventional-changelog-conventionalcommits": "8.0.0",
+    "@biomejs/biome": "2.5.10",
+    "@semantic-release/changelog": "7.0.0",
+    "@semantic-release/git": "11.0.1",
+    "@semantic-release/github": "12.0.9",
+    "@semantic-release/npm": "13.1.5",
+    "@semantic-release/release-notes-generator": "14.1.1",
+    "commitizen": "4.3.2",
+    "conventional-changelog-conventionalcommits": "10.4.0",
     "cz-conventional-changelog": "3.3.0",
-    "semantic-release": "24.2.9"
+    "semantic-release": "25.0.9"
   },
   "overrides": {
     "aggregate-error": "npm:@socketregistry/aggregate-error@^1",
@@ -80,5 +85,5 @@
   "engines": {
     "node": ">=20.0"
   },
-  "packageManager": "pnpm@11.5.1"
+  "packageManager": "pnpm@11.24.0"
 }

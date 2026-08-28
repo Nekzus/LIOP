@@ -1,0 +1,73 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  /* Default Theme: OLED Obsidian */
+  --bg-canvas: #060709;
+  --bg-surface-1: #0d0e14;
+  --bg-surface-2: #13151f;
+  --bg-surface-3: #1a1c2b;
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-muted: rgba(255, 255, 255, 0.14);
+  --card-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.6), 0 2px 6px -1px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="slate"] {
+  color-scheme: dark;
+  /* Slate Midnight Theme */
+  --bg-canvas: #0a0e17;
+  --bg-surface-1: #111827;
+  --bg-surface-2: #1a2234;
+  --bg-surface-3: #222e44;
+  --border-subtle: rgba(255, 255, 255, 0.09);
+  --border-muted: rgba(255, 255, 255, 0.16);
+  --card-shadow: 0 4px 24px -2px rgba(0, 0, 0, 0.7), 0 2px 8px -1px rgba(0, 0, 0, 0.5);
+}
+
+@layer base {
+  body {
+    background-color: var(--bg-canvas);
+    color: #f4f4f5;
+    font-family: 'Inter', system-ui, sans-serif;
+    overflow-x: hidden;
+    transition: background-color 0.25s ease, color 0.25s ease;
+  }
+
+  /* Reset form controls so they never default to white user-agent styling */
+  input, textarea, select {
+    color-scheme: dark;
+    background-color: #0b0e14;
+    color: #f4f4f5;
+  }
+
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover, 
+  input:-webkit-autofill:focus {
+    -webkit-text-fill-color: #f4f4f5;
+    -webkit-box-shadow: 0 0 0px 1000px #0b0e14 inset;
+    transition: background-color 5000s ease-in-out 0s;
+  }
+}
+
+/* Crisp technical scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.25);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.28);
+}

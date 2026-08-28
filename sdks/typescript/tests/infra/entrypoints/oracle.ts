@@ -121,7 +121,7 @@ async function main() {
 			columns: z.array(z.string()).optional(),
 			clientPayload: z.string().optional(),
 		})
-		.catchall(z.number());
+		.catchall(z.union([z.number(), z.string(), z.boolean()]));
 
 	// ── Primary Tool: HFT Market Analysis ───────────────────────────
 	server.tool(
