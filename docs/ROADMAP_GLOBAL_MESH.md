@@ -32,6 +32,12 @@ gantt
     Immutable Append-Only Audit Trail (SOC 2 / HIPAA)    :2026-11, 2027-01
     Deterministic AST-Based Fuel Metering (Acorn)        :2026-11, 2027-01
     
+    section Phase Beta-4: Developer Ecosystem & Interactive Inspector
+    CLI Inspector (npx @nekzus/liop playground)          :2026-12, 2027-02
+    Interactive Cryptographic Pipeline Visualizer        :2026-12, 2027-02
+    Ad-Hoc Process Spawning & Diagnostic Inspector CLI   :2027-01, 2027-03
+    Public Cloud Showcase & Embedded Mintlify Docs       :2027-01, 2027-03
+    
     section Phase RC: Production Resilience & Hardware TEE
     Hardware TEE Remote Attestation (AWS Nitro / SGX)    :2027-02, 2027-04
     Automated Chaos Engineering Test Suite               :2027-03, 2027-05
@@ -128,6 +134,29 @@ gantt
   5. **Deterministic AST-Based Fuel Metering**:
      - Replace execution-time fuel estimation (`duration * 1500`) with deterministic AST operation counting using `acorn` to ensure identical fuel consumption regardless of server CPU load.
      - *Target Files*: `src/sandbox/wasi.ts`.
+
+---
+
+### 🟢 Phase Beta-4: Developer Ecosystem, Interactive Inspector & Global Showcase
+* **Target Window**: Q1-Q2 2027
+* **Key Components**:
+  1. **Official Interactive Inspector (`@modelcontextprotocol/inspector` Paradigm)**:
+     - Standalone developer CLI (`npx @nekzus/liop playground` and `npx @nekzus/liop-inspector`).
+     - Bundles precompiled high-fidelity web assets (`dist/playground-dist/`) inside the published `@nekzus/liop` package.
+     - Dual-binary execution: `liop` for Claude Desktop STDIO agent, `liop-inspector` for visual developer inspector.
+     - *Target Files*: `src/bin/cli.ts`, `src/bin/playground-cli.ts`, `src/playground/server.ts`.
+  2. **Ad-Hoc Process Spawning & Live Inspection**:
+     - Ability to pass child process execution commands (`liop playground node ./server.js`) to spawn, connect, and debug local LIOP servers on the fly with live logging.
+     - *Target Files*: `src/bin/playground-cli.ts`.
+  3. **Cryptographic Pipeline Visualizer**:
+     - Real-time visual timeline mapping post-quantum key exchange (ML-KEM-768), symmetric encryption (AES-256-GCM), WASI sandbox execution, and ZK-Receipt integrity verification.
+     - *Target Files*: `tests/infra/playground-web/src/App.tsx`.
+  4. **Public Cloud Showcase & Embedded Mintlify Documentation**:
+     - Publicly deployed demo instance (`playground.liop.dev`) connected to WAN testnet bootstrap nodes.
+     - Interactive embedded playground component for official documentation at `https://nekzus-32.mintlify.app/`.
+  5. **CLI Diagnostics & Network Verification**:
+     - Subcommands for peer health and network inspection: `liop ping <peerId>`, `liop discover`, `liop health`.
+     - *Target Files*: `src/bin/cli.ts`.
 
 ---
 
