@@ -33,15 +33,17 @@ This fundamentally solves the data privacy, bandwidth, and latency challenges of
 | Feature                             | Description                                                                                                                                |
 | :---------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------- |
 | **Logic-Injection-on-Origin** | LLMs send code, not queries. Data never leaves the origin server.                                                                          |
+| **Dual-Era MCP Compliance**   | Seamless support for modern stateless MCP v2 (2026-07-28) and legacy MCP (2025-11-25) clients (Claude Desktop, Cursor).                    |
+| **Token Economy Engine**      | Inlined BPE `o200k_base` tokenizer with zero runtime dependencies (16.5MB footprint reduction) and OpenTelemetry `gen_ai.*` bridge.       |
+| **Interactive Playground UI** | Real-time Web UI (`:14000`) with live 7-phase SSE execution stream and cryptographic proof inspector.                                    |
 | **MCP Drop-in Replacement**   | `LiopServer` mirrors the Anthropic MCP `Server` API — tools, resources, and prompts with `Zod` schemas.                             |
 | **Guardian AST**              | Zero-time heuristic inspection blocks sandbox escapes (`require`, `fs`, `eval`, `fetch`, prototype pollution).                     |
 | **WASI Sandbox**              | JavaScript payloads execute inside V8 isolates with CPU fuel limits, no Node.js globals, and safe environment isolation (`allowEnv`). |
 | **PII Shield**                | Multi-layer egress filter with Regional Presets, custom keys, and recursive floats sanitization (`sanitizeOutput`). |
 | **ZK-Receipts**               | Cryptographic proof with `output_hash` cross-verification (Replay Mitigation) and balanced-brace proxy extraction. |
 | **Worker Pool**               | Heavy computation (crypto, sandboxing) dispatched to OS threads via `piscina` with background async warmup. |
-| **Cross-AI Adapters**         | Zero-Shot system prompts automatically adapt instructions for Claude (XML-heavy) vs OpenAI/Gemini (JSON-schema). |
-| **MCP Bridge**                | `LiopMcpBridge` adapts any `LiopServer` to the JSON-RPC 2.0 / stdio protocol used by Claude Desktop, Cursor, etc.                      |
-| **Post-Quantum Ready**        | ML-KEM-768 (Kyber) handshake + AES-256-GCM symmetric encryption for transport-layer security.                                              |
+| **Post-Quantum Ready**        | ML-KEM-768 (Kyber) + ML-DSA-65 (Dilithium) with 1-hour session lifetime and AES-256-GCM encryption.                                        |
+| **Enterprise Observability**  | Immutable SOC 2 Hash-Chain audit log (`AuditLogger`), Prometheus metrics (`/metrics`), and Kubernetes probes (`/healthz`, `/readyz`).     |
 | **P2P Mesh**                  | Kademlia DHT discovery via `libp2p` with TCP + WebSocket + Yamux multiplexing and Noise encryption.                                      |
 
 ---
@@ -524,11 +526,63 @@ await server.connectToMesh();
 
 ---
 
+---
+
+## Interactive Web Playground (`:14000`)
+
+The SDK includes an industrial, real-time developer interface to visually test Logic-Injection-on-Origin, trace post-quantum handshakes, and inspect cryptographic proofs:
+
+```bash
+# Launch the full Docker mesh and interactive Web UI
+pnpm run demo:start
+```
+
+Navigate to **`http://localhost:14000`** in your browser:
+
+* **Live 7-Phase Streaming:** Visualizes Bootstrap, DHT Discovery, ML-KEM-768 Handshake, AES-256-GCM Sealing, WASI Sandbox Execution, ZK-Receipt Verification, and Output Aggregation via real-time Server-Sent Events (SSE).
+* **Built-in Industrial Presets:** Ready-to-run micro-modules for High-Frequency Trading (HFT Level 2 order books), Banking transaction analysis, Medical Vault HIPAA records, and PII exfiltration defense.
+* **Cryptographic Proof Inspector:** Validates SHA-256 `ImageID`, HMAC-SHA256 ZK-receipt seals, and dataset integrity digests on the fly.
+* **Dual Dark Modes:** Seamlessly toggle between OLED Obsidian and Slate Midnight interfaces.
+
+---
+
+## Token Economy & Telemetry
+
+The SDK ships with a zero-runtime-dependency **`o200k_base`** BPE token estimation and telemetry engine:
+
+```typescript
+import {
+  createTokenEstimator,
+  createSyncTokenEstimator,
+  TokenTelemetryEngine,
+  LiopOTelBridge
+} from "@nekzus/liop";
+
+// 1. Exact BPE Token Counting (Bundled inlined o200k_base vocab, zero network/disk lag)
+const estimator = createSyncTokenEstimator();
+const tokens = estimator.countTokens("Hello world! Logic-Injection-on-Origin"); // 12
+
+// 2. Operation-Level Token Telemetry
+const telemetry = TokenTelemetryEngine.getInstance();
+telemetry.record({
+  type: "tool_call",
+  method: "tools/call",
+  toolName: "Analyze_HFT_Market_Data",
+  estimatedInputTokens: 120,
+  estimatedOutputTokens: 42
+});
+
+// 3. OpenTelemetry gen_ai.* Bridge
+// Automatically exports gen_ai.client.token.usage and gen_ai.client.operation.duration histograms
+```
+
+---
+
 ## Testing & Quality
 
 This package is continuously tested across multiple platforms and Node.js versions via CI/CD:
 
-- **285+ tests** spanning unit, integration, conformance, adversarial, and crossnet suites
+- **490+ tests** spanning unit, integration, conformance, adversarial, and live Docker mesh suites
 - **Multi-OS matrix:** Ubuntu, Windows, macOS
 - **Node.js versions:** 20.x, 22.x
 - **Code quality:** Enforced by [Biome.js](https://biomejs.dev/) (linting + formatting)

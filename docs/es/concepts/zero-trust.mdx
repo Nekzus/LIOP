@@ -9,11 +9,14 @@ El Logic-Injection-on-Origin Protocol (LIOP) asume que la red es hostil por defe
 
 ## 1. Cifrado de Transporte (P2P & PQC)
 
-LIOP utiliza el **Noise Protocol Framework** (usado por aplicaciones de mensajería segura) para el establecimiento de conexiones P2P, eliminando la dependencia de Autoridades de Certificación (CAs) centralizadas.
+LIOP utiliza el **Noise Protocol Framework** (usado por aplicaciones de mensajería segura) para el establecimiento de conexiones P2P, eliminando la dependencia de Autoridades de Certificación (CAs) centralizadas y reforzado con Criptografía Post-Cuántica:
 
 - **Identidades Ed25519**: Cada Agente y Nodo de Datos genera un par de claves. Tu Clave Pública *es* tu identidad (Peer ID) en la red.
 - **Autenticación Mutua**: Las conexiones se autentican de forma bilateral instantánea. Ambos extremos saben exactamente con quién están transaccionando mediante pruebas de posesión de clave.
-- **Criptografía Post-Cuántica (PQC)**: LIOP emplea **Kyber (ML-KEM-768)** para el intercambio de claves y **AES-256-GCM** para el cifrado del payload. Esto protege la transmisión contra ataques futuros de computación cuántica ("Harvest Now, Decrypt Later").
+- **Acuerdo de Clave Post-Cuántica (ML-KEM-768)**: LIOP emplea **Kyber768 (ML-KEM-768)** para el intercambio de claves y **AES-256-GCM** para el cifrado del payload, protegiendo contra ataques cuánticos ("Harvest Now, Decrypt Later").
+- **Firmas Digitales Post-Cuánticas (ML-DSA-65)**: Manifiestos, capacidades y recibos de revocación se firman mediante Dilithium65 (ML-DSA-65).
+- **Límite Estricto de Sesión de 1 Hora**: Las claves simétricas derivadas vencen automáticamente a los 3600 segundos para minimizar ventanas de exposición y mitigar repeticiones.
+- **TLS Mutuo con CertManager**: Permite autenticación corporativa X.509 de clientes con recarga de certificados en caliente sin interrupciones.
 
 ## 2. Inspección de Carga (Guardian AST Sentinel & Taint Analyzer)
 

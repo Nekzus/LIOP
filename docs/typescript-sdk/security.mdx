@@ -425,6 +425,49 @@ To ensure that LLM clients generate compliant JavaScript code that respects sand
 
 ---
 
+---
+
+## Post-Quantum Cryptography & Session Lifecycle
+
+LIOP combines **ML-KEM-768 (Kyber768)** for quantum-resistant key encapsulation with **ML-DSA-65 (Dilithium65)** for quantum-resistant digital signatures and manifest sealing:
+
+### 1-Hour Strict Session Expiration
+
+To prevent replay attacks and minimize the vulnerability window of derived symmetric keys, all PQC sessions enforce a hard **1-hour lifetime limit**:
+
+- Sessions automatically expire 3600 seconds after the initial ML-KEM-768 key exchange.
+- Expired sessions reject subsequent RPC invocations and trigger an automatic re-negotiation handshake without dropping the underlying P2P connection.
+
+### Mutual TLS (mTLS) & Hot-Reloading (`CertManager`)
+
+For enterprise environments requiring X.509 cryptographic client verification alongside PQC, `CertManager` manages dynamic certificate rotation without service restarts:
+
+- Monitors CA, server, and client certificate paths on disk.
+- Automatically swaps in-memory TLS contexts when renewed certificates are detected.
+- Rejects untrusted client certificates at the transport handshake.
+
+---
+
+## Industrial Compliance & Observability (SOC 2 Type II / HIPAA)
+
+### Immutable Audit Trail (`AuditLogger`)
+
+Every logic execution, schema discovery, and security rejection is committed to an append-only, **cryptographically verifiable Hash-Chain**:
+
+$$\text{Block}_{n}.\text{hash} = \text{SHA-256}(\text{Block}_{n-1}.\text{hash} \parallel \text{Timestamp} \parallel \text{PeerID} \parallel \text{ImageID} \parallel \text{Status})$$
+
+- **Tamper Evidence**: Modifying or deleting any historical log record breaks the SHA-256 chain integrity, instantly flagging compliance auditors.
+- **Data Sovereignty**: Log entries record cryptographic digests and token consumption metrics without ever persisting raw confidential data.
+
+### Deterministic AST Fuel Metering
+
+To defend against CPU exhaustion attacks that execute hidden computational loops, the engine statically analyzes JavaScript Abstract Syntax Trees via `calculateAstInstructionFuel`:
+
+- Analyzes AST complexity (loop depth, branching factor, function declarations) before execution.
+- Injects a strict deterministic fuel budget into the V8 isolate runner.
+
+---
+
 ## Roadmap
 
 The following capabilities are architecturally defined and planned for future releases:

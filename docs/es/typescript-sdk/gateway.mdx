@@ -20,14 +20,41 @@ await gateway.listen(3000);
 await gateway.stop();
 ```
 
-## LiopMcpRouter
+## LiopMcpRouter y Cumplimiento Dual-Era
 
-`LiopMcpRouter` es el despachador de peticiones usado por el gateway y el agente CLI. Maneja:
+`LiopMcpRouter` es el despachador de peticiones utilizado por el gateway y los agentes CLI. Proporciona **Compatibilidad Protocolar Dual-Era MCP** transparente:
 
-- Despacho de métodos MCP (`tools/list`, `tools/call`, `resources/*`, `prompts/*`)
-- Ejecución local de herramientas y resolución de proveedores remotos vía manifests de malla
-- Verificación ZK de respuestas remotas
-- Caché de manifests y descubrimiento adaptativo
+- **Era Moderna MCP v2 (2026-07-28)**: Soporta enrutamiento sin estado (stateless), actualizaciones de recursos sin sondeo mediante `subscriptions/listen`, descubrimiento dinámico de plantillas (`resources/templates/list`), enrutamiento por cabeceras SEP-2243 y ordenamiento determinista de resultados (SEP-2549).
+- **Era Heredada MCP (2025-11-25)**: Negocia automáticamente las capacidades del handshake y purga campos no soportados mediante `adaptResponseForLegacyClient()` para clientes MCP tradicionales (Claude Desktop, Cursor).
+- **Despacho In-Situ**: Enruta invocaciones hacia definiciones locales o descubre proveedores remotos a través de la tabla de enrutamiento DHT Kademlia.
+- **Verificación ZK**: Verifica automáticamente los compromisos criptográficos de los recibos ZK HMAC-SHA256 en respuestas remotas antes de entregar el resultado al LLM.
+
+## Adaptador de Encuadre HTTP/1.1 gRPC-Web
+
+Para redes en el borde (Edge), navegadores web y entornos corporativos donde el encuadre nativo HTTP/2 de gRPC está restringido por cortafuegos o balanceadores de carga, `LiopHybridGateway` integra un **adaptador de encuadre gRPC-Web**:
+
+- Emula tramas binarias gRPC de 5 bytes prefijadas por longitud (`[flags (1B)][length (4B BE)][payload]`) sobre peticiones POST HTTP/1.1 estándar.
+- Codifica los trailers de estado gRPC en cabeceras de respuesta HTTP (`grpc-status`, `grpc-message`).
+
+## Observabilidad Industrial y Sondas de Salud
+
+`LiopHybridGateway` sirve de forma nativa endpoints estándar de Kubernetes y Prometheus:
+
+| Endpoint | Protocolo | Propósito |
+|---|---|---|
+| `GET /healthz` | HTTP/1.1 | Sonda de vida (Liveness) que retorna estado JSON inmediato (`{ status: "ok" }`) |
+| `GET /readyz` | HTTP/1.1 | Sonda de preparación (Readiness) que valida conexiones activas en la malla DHT y sincronización de bootstrap |
+| `GET /metrics` | HTTP/1.1 | Endpoint de recolección de Prometheus con métricas instantáneas de conexiones y latencias |
+| `POST /mcp` | HTTP/1.1 (JSON-RPC) | Interfaz MCP streamable con aislamiento de sesiones y autenticación bearer Zero-Trust |
+
+### Drenado Seguro (Graceful Draining)
+
+Al dar de baja o rotar nodos en clústeres de producción:
+
+```typescript
+// Cierra los sockets de escucha y permite que las RPCs en vuelo finalicen con seguridad
+await gateway.drain(5000); // 5 segundos de tiempo límite de drenado
+```
 
 ## LiopStreamBridge
 
@@ -52,4 +79,4 @@ await stream.stop();
 
 - `LiopStreamBridge` soporta política Zero-Trust bearer mediante `ZERO_TRUST_TOKEN`.
 - Las sesiones se aíslan y se expulsan por inactividad para reducir superficies de ataque persistentes.
-- Los componentes gateway/router mantienen compatibilidad MCP JSON-RPC sin perder enrutamiento nativo de malla.
+- Los componentes gateway/router mantienen compatibilidad total MCP JSON-RPC preservando el enrutamiento nativo de malla.

@@ -7,24 +7,35 @@ El SDK incorpora un módulo de economía de tokens para estimar costo y exponer 
 
 ## Estimadores
 
-`createTokenEstimator()` inicializa el mejor estimador disponible. Por defecto, carga el esquema de codificación BPE **`o200k_base`**, que es el estándar de la industria para los modelos modernos de OpenAI (GPT-4o, o1, o3-mini) y proporciona una línea base muy precisa para modelos de Anthropic y Google.
+El SDK incorpora de forma nativa un tokenizador Byte-Pair Encoding (BPE) **`o200k_base`** con cero dependencias externas en tiempo de ejecución — el esquema de codificación estándar de la industria para los modelos modernos de OpenAI (GPT-4o, o1, o3-mini) y una línea base altamente precisa para proveedores como Anthropic (Claude 3.5/3.7) y Google (Gemini 2.0).
 
-`createSyncTokenEstimator()` ofrece un fallback heurístico inmediato (chars/4) cuando la carga asíncrona del tokenizador BPE no es posible.
+Mediante *inlining* en tiempo de compilación y *tree-shaking* de AST con `tsup`, el vocabulario `o200k_base` se empaqueta directamente en la distribución compilada. Esto eliminó **25.95 MB** de dependencias de tokenizadores heredados en desuso, reduciendo la huella instalada de `node_modules` de **100.95 MB** a **84.43 MB** (reducción neta de -17.1%).
+
+Tanto `createTokenEstimator()` (factoría asíncrona) como `createSyncTokenEstimator()` (factoría síncrona) proporcionan acceso síncrono e inmediato a `RealTokenEstimator` sin ninguna configuración adicional:
 
 ```typescript
 import {
   createTokenEstimator,
   createSyncTokenEstimator,
-  HeuristicTokenEstimator,
-  RealTokenEstimator
+  RealTokenEstimator,
+  HeuristicTokenEstimator
 } from "@nekzus/liop";
 
-// Automáticamente utiliza el tokenizador exacto o200k_base BPE
-const asyncEstimator = await createTokenEstimator();
+// Retorna instantáneamente RealTokenEstimator ("o200k_base") de forma síncrona
 const syncEstimator = createSyncTokenEstimator();
+console.log(syncEstimator.name); // "o200k_base"
 
-const estimated = asyncEstimator.countTokens("hola liop");
+// Conteo BPE exacto sin llamadas de red ni lecturas externas de disco
+const count = syncEstimator.countTokens("Hola mundo! Logic-Injection-on-Origin");
+console.log(count); // 12
+
+// Factoría asíncrona para compatibilidad total con la API
+const asyncEstimator = await createTokenEstimator();
 ```
+
+<Note>
+  `HeuristicTokenEstimator` (que calcula `Math.ceil(chars / 4)`) se mantiene disponible como clase de respaldo algorítmico ligero para casos donde se desee un modelado puramente heurístico.
+</Note>
 
 ## TokenTelemetryEngine
 

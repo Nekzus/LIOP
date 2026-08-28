@@ -425,6 +425,49 @@ Para garantizar que los LLM clientes generen código JavaScript compatible que r
 
 ---
 
+---
+
+## Criptografía Post-Cuántica y Ciclo de Vida de Sesiones
+
+LIOP combina **ML-KEM-768 (Kyber768)** para el encapsulamiento de claves resistente a ataques cuánticos con **ML-DSA-65 (Dilithium65)** para firmas digitales y sellado de manifiestos:
+
+### Límite Estricto de Expiración de Sesión de 1 Hora
+
+Para mitigar ataques de repetición y minimizar la ventana de vulnerabilidad de las claves simétricas derivadas, todas las sesiones PQC imponen un **límite de vida de 1 hora**:
+
+- Las sesiones expiran automáticamente a los 3600 segundos tras el intercambio de claves inicial ML-KEM-768.
+- Las sesiones vencidas rechazan invocaciones RPC subsiguientes y disparan un re-handshake automático transparente sin interrumpir la conexión P2P subyacente.
+
+### TLS Mutuo (mTLS) y Recarga en Caliente (`CertManager`)
+
+Para despliegues empresariales que requieren verificación criptográfica de clientes X.509 en conjunto con PQC, `CertManager` administra la rotación dinámica de certificados sin reinicios de servicio:
+
+- Monitoriza las rutas de certificados de CA, servidor y cliente en disco.
+- Reemplaza automáticamente los contextos TLS en memoria al detectar certificados renovados.
+- Rechaza certificados de cliente no confiables durante el handshake de transporte.
+
+---
+
+## Cumplimiento Industrial y Observabilidad (SOC 2 Tipo II / HIPAA)
+
+### Pista de Auditoría Inmutable (`AuditLogger`)
+
+Cada ejecución de lógica, descubrimiento de esquema y rechazo de seguridad se registra en una **cadena de bloques hash (Hash-Chain)** inmutable y verificable:
+
+$$\text{Bloque}_{n}.\text{hash} = \text{SHA-256}(\text{Bloque}_{n-1}.\text{hash} \parallel \text{Timestamp} \parallel \text{PeerID} \parallel \text{ImageID} \parallel \text{Status})$$
+
+- **Evidencia contra Manipulación**: Modificar o eliminar cualquier registro histórico rompe la integridad de la cadena SHA-256, alertando de inmediato a los auditores de cumplimiento.
+- **Soberanía de Datos**: Los registros almacenan resúmenes criptográficos y métricas de consumo de tokens sin persistir jamás datos confidenciales sin procesar.
+
+### Medición Determinista de Combustible por AST
+
+Para protegerse contra ataques de agotamiento de CPU que ejecutan bucles computacionales ocultos, el motor analiza estáticamente el Árbol de Sintaxis Abstracta (AST) de JavaScript mediante `calculateAstInstructionFuel`:
+
+- Analiza la complejidad del AST (profundidad de bucles, factor de ramificación, declaraciones de funciones) antes de la ejecución.
+- Inyecta un presupuesto estricto y determinista de combustible en el ejecutor del isolate V8.
+
+---
+
 ## Hoja de Ruta
 
 Las siguientes capacidades están definidas arquitectónicamente y planificadas para versiones futuras:
