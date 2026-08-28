@@ -563,4 +563,6 @@ The codebase undergoes regular dependencies audits. As of June 2026, the SDK is 
 
 ## License
 
-[MIT](https://github.com/Nekzus/LIOP/blob/main/LICENSE) © [Nekzus](https://github.com/Nekzus)
+Licensed under the [Apache License, Version 2.0](https://github.com/Nekzus/LIOP/blob/main/LICENSE) (the "License"). You may not use this file except in compliance with the License. See [NOTICE](https://github.com/Nekzus/LIOP/blob/main/NOTICE) and [TRADEMARKS.md](https://github.com/Nekzus/LIOP/blob/main/TRADEMARKS.md) for attribution and trademark details.
+
+Copyright 2026 [Nekzus Solutions](https://github.com/Nekzus) and contributors.
