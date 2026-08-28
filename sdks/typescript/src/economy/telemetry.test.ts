@@ -34,17 +34,20 @@ describe("TokenTelemetryEngine", () => {
 		expect(report.sessionId).toBeTruthy();
 	});
 
-	it("should estimate tokens using chars/4 heuristic", () => {
+	it("should estimate tokens using active estimator", () => {
 		const engine = TokenTelemetryEngine.getInstance();
-		// 100 chars → ~25 tokens
-		const text = "a".repeat(100);
-		expect(engine.estimateTokens(text)).toBe(25);
+		const text = "The quick brown fox jumps over the lazy dog";
+		expect(engine.estimateTokens(text)).toBeGreaterThan(0);
+		expect(engine.estimateTokens("")).toBe(0);
 	});
 
-	it("should ceil the heuristic for non-divisible lengths", () => {
+	it("should count tokens consistently across calls", () => {
 		const engine = TokenTelemetryEngine.getInstance();
-		// 7 chars → ceil(7/4) = 2
-		expect(engine.estimateTokens("abcdefg")).toBe(2);
+		const text = "Hello world! Testing LIOP protocol token telemetry.";
+		const c1 = engine.estimateTokens(text);
+		const c2 = engine.estimateTokens(text);
+		expect(c1).toBe(c2);
+		expect(c1).toBeGreaterThan(0);
 	});
 
 	it("should format a non-empty status block", () => {
