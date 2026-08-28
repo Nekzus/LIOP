@@ -20,7 +20,8 @@ import {
   Layers,
   RotateCcw,
   Handshake,
-  LockKeyhole
+  LockKeyhole,
+  X
 } from "lucide-react"
 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "./components/ui/card"
@@ -31,7 +32,7 @@ import { Alert, AlertTitle, AlertDescription } from "./components/ui/alert"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "./components/ui/tabs"
 
 // Logo oficial del protocolo LIOP (Octogono con nucleo central y 8 ondas sinusoidales de inyeccion)
-function LiopLogo({ className = "h-5 w-5 text-primary" }: { className?: string }) {
+function LiopLogo({ className = "h-8 w-8 text-primary" }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
       <g stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" fill="none">
@@ -214,12 +215,34 @@ export default function App() {
   const [loadingHealth, setLoadingHealth] = useState(false)
   const [loadingTools, setLoadingTools] = useState(false)
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
+  const [isReset, setIsReset] = useState(false)
 
-  // Copy helper
-  const handleCopy = (text: string, key: string) => {
-    navigator.clipboard.writeText(text)
+  // Bulletproof copy helper with fallback
+  const handleCopy = async (text: string, key: string) => {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text)
+      } else {
+        throw new Error("Clipboard API unavailable")
+      }
+    } catch (_err) {
+      const textArea = document.createElement("textarea")
+      textArea.value = text
+      textArea.style.position = "fixed"
+      textArea.style.left = "-999999px"
+      textArea.style.top = "-999999px"
+      document.body.appendChild(textArea)
+      textArea.focus()
+      textArea.select()
+      try {
+        document.execCommand("copy")
+      } catch (e) {
+        console.error("Fallback copy failed", e)
+      }
+      document.body.removeChild(textArea)
+    }
     setCopiedKey(key)
-    setTimeout(() => setCopiedKey(null), 2000)
+    setTimeout(() => setCopiedKey(null), 1500)
   }
   
   // SSE steps state
@@ -280,10 +303,22 @@ export default function App() {
     }
   }
 
+  // Interactively select a tool and automatically load matching template
+  const handleSelectTool = (toolName: string) => {
+    setSelectedToolName(toolName)
+    const matchingTemplate = TEMPLATES.find(t => t.tool === toolName)
+    if (matchingTemplate) {
+      setSelectedTemplateId(matchingTemplate.id)
+      setCode(matchingTemplate.code)
+    }
+  }
+
   const handleResetTemplate = () => {
     const t = TEMPLATES.find(x => x.id === selectedTemplateId)
     if (t) {
       setCode(t.code)
+      setIsReset(true)
+      setTimeout(() => setIsReset(false), 1500)
     }
   }
 
@@ -431,9 +466,9 @@ export default function App() {
       <header className="border-b border-border bg-card/90 backdrop-blur-sm sticky top-0 z-50 transition-colors">
         <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="bg-primary/10 p-1.5 rounded-md border border-primary/25 text-primary flex items-center justify-center">
-              <LiopLogo className="h-5 w-5 text-primary" />
-            </div>
+            {/* Logo Oficial LIOP: Libre, tamano completo (h-8 w-8), sin card ni contenedor */}
+            <LiopLogo className="h-8 w-8 text-primary shrink-0 transition-transform duration-200 hover:scale-105" />
+            
             <div className="flex items-center gap-2">
               <h1 className="text-base font-bold tracking-tight text-white">
                 LIOP Playground
@@ -521,8 +556,18 @@ export default function App() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Filtrar por nombre o dominio..."
-                  className="w-full h-8 pl-8 pr-3 bg-secondary/60 border border-border rounded text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50 transition-colors"
+                  className="w-full h-8 pl-8 pr-7 bg-secondary/60 border border-border rounded text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50 transition-colors"
                 />
+                {searchQuery && (
+                  <button 
+                    type="button"
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-2 top-2 text-muted-foreground hover:text-white p-0.5 rounded transition-colors"
+                    title="Limpiar filtro"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
               </div>
             </CardHeader>
 
@@ -552,7 +597,7 @@ export default function App() {
                       return (
                         <div 
                           key={t.name}
-                          onClick={() => setSelectedToolName(t.name)}
+                          onClick={() => handleSelectTool(t.name)}
                           className={`p-3 rounded-md border transition-all cursor-pointer ${
                             isSelected 
                               ? "bg-primary/10 border-primary/60 text-white shadow-sm ring-1 ring-primary/30" 
@@ -602,6 +647,7 @@ export default function App() {
                       {network.peerId}
                     </span>
                     <button 
+                      type="button"
                       onClick={() => handleCopy(network.peerId, "peerId")}
                       className="text-muted-foreground hover:text-white transition-colors p-0.5 rounded"
                       title="Copiar PeerID"
@@ -613,7 +659,17 @@ export default function App() {
 
                 <div className="flex items-center justify-between border-b border-border/50 pb-2">
                   <span className="text-muted-foreground">Host Address:</span>
-                  <span className="text-white font-mono text-[11px]">{network.address}</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-white font-mono text-[11px]">{network.address}</span>
+                    <button 
+                      type="button"
+                      onClick={() => handleCopy(network.address, "address")}
+                      className="text-muted-foreground hover:text-white transition-colors p-0.5 rounded"
+                      title="Copiar Host Address"
+                    >
+                      {copiedKey === "address" ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
+                    </button>
+                  </div>
                 </div>
 
                 <div className="flex items-center justify-between border-b border-border/50 pb-2">
@@ -654,6 +710,7 @@ export default function App() {
                 {TEMPLATES.map(t => (
                   <button
                     key={t.id}
+                    type="button"
                     onClick={() => handleSelectTemplate(t.id)}
                     className={`text-[11px] px-2.5 py-1 rounded transition-all font-medium ${
                       selectedTemplateId === t.id 
@@ -680,22 +737,29 @@ export default function App() {
 
                   <div className="flex items-center space-x-2">
                     <button 
+                      type="button"
                       onClick={handleResetTemplate} 
-                      className="text-muted-foreground hover:text-white text-[11px] flex items-center gap-1 transition-colors px-1.5 py-0.5 rounded hover:bg-secondary"
+                      className={`text-[11px] flex items-center gap-1.5 transition-colors px-2 py-0.5 rounded shrink-0 ${
+                        isReset ? "text-success bg-success/10 font-medium" : "text-muted-foreground hover:text-white hover:bg-secondary"
+                      }`}
                       title="Restablecer plantilla original"
                     >
-                      <RotateCcw className="h-3 w-3" />
-                      <span>Reset</span>
+                      {isReset ? <Check className="h-3 w-3 text-success" /> : <RotateCcw className="h-3 w-3" />}
+                      <span>{isReset ? "Restablecido" : "Reset"}</span>
                     </button>
+                    
                     <button 
+                      type="button"
                       onClick={() => handleCopy(code, "code")} 
-                      className="text-muted-foreground hover:text-white text-[11px] flex items-center gap-1 transition-colors px-1.5 py-0.5 rounded hover:bg-secondary"
+                      className={`text-[11px] flex items-center gap-1.5 transition-colors px-2 py-0.5 rounded shrink-0 ${
+                        copiedKey === "code" ? "text-success bg-success/10 font-medium" : "text-muted-foreground hover:text-white hover:bg-secondary"
+                      }`}
                       title="Copiar codigo"
                     >
                       {copiedKey === "code" ? (
                         <>
                           <Check className="h-3 w-3 text-success" />
-                          <span className="text-success">Copiado</span>
+                          <span>Copiado</span>
                         </>
                       ) : (
                         <>
@@ -871,14 +935,17 @@ export default function App() {
                           <div className="flex items-center justify-between text-xs">
                             <span className="text-muted-foreground text-[11px]">Payload retornado por el nodo remoto:</span>
                             <button
+                              type="button"
                               onClick={() => handleCopy(JSON.stringify(result, null, 2), "result")}
-                              className="text-muted-foreground hover:text-white text-[11px] flex items-center gap-1 transition-colors px-1.5 py-0.5 rounded hover:bg-secondary"
+                              className={`text-[11px] flex items-center gap-1.5 transition-colors px-2 py-0.5 rounded shrink-0 ${
+                                copiedKey === "result" ? "text-success bg-success/10 font-medium" : "text-muted-foreground hover:text-white hover:bg-secondary"
+                              }`}
                               title="Copiar JSON"
                             >
                               {copiedKey === "result" ? (
                                 <>
                                   <Check className="h-3 w-3 text-success" />
-                                  <span className="text-success">Copiado</span>
+                                  <span>Copiado</span>
                                 </>
                               ) : (
                                 <>
