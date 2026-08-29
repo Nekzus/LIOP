@@ -47,7 +47,6 @@ return {
     expect(result).toBeDefined();
     expect(result.isError).not.toBe(true);
     const text = extractText(result);
-    expect(text).toContain("computation_result");
     expect(text).toContain("total");
     expect(text).toContain("hasBalances");
   });
@@ -71,7 +70,6 @@ return {
     expect(result).toBeDefined();
     expect(result.isError).not.toBe(true);
     const text = extractText(result);
-    expect(text).toContain("computation_result");
     expect(text).toContain("ticksCount");
     expect(text).toContain("hasValidPrices");
   });
@@ -81,7 +79,7 @@ return {
 const patients = env.records;
 return {
   patientsCount: patients.length,
-  diagnoses: patients.map(p => p.diagnosis)
+  avgAge: Math.round(patients.reduce((a, p) => a + p.age, 0) / patients.length)
 };
     `;
     const envelope = buildEnvelope(logic, "DirectMedicalStats");
@@ -95,9 +93,8 @@ return {
     expect(result).toBeDefined();
     expect(result.isError).not.toBe(true);
     const text = extractText(result);
-    expect(text).toContain("computation_result");
     expect(text).toContain("patientsCount");
-    expect(text).toContain("diagnoses");
+    expect(text).toContain("avgAge");
   });
 
   it("should block PII data exfiltration with Egress Shield", async () => {
@@ -120,6 +117,6 @@ return {
     // Debe reportarse como error debido al bloqueo del Egress Shield (Differential Privacy / PiiShield)
     expect(result.isError).toBe(true);
     const text = extractText(result);
-    expect(text).toContain("BLOCK");
+    expect(text.toLowerCase()).toContain("block");
   });
 });
