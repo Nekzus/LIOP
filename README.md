@@ -75,11 +75,14 @@ The developer-facing SDK, published as [`@nekzus/liop`](https://www.npmjs.com/pa
 | `LiopServer` | Register tools, resources, and prompts with Zod schema validation |
 | `LiopClient` | Discover and invoke remote tools via P2P mesh |
 | `LiopMcpBridge` | JSON-RPC 2.0 adapter for legacy MCP clients (Claude Desktop, Cursor) |
+| Dual-Era MCP | Support for modern stateless MCP v2 (2026-07-28) and legacy MCP (2025-11-25) fallback |
+| Token Economy | Inlined BPE `o200k_base` tokenizer with zero runtime dependencies and OpenTelemetry bridge |
+| Interactive Playground | Live Web UI (`:14000`) with SSE streaming timeline and cryptographic proof inspector |
 | Guardian AST | Static analysis of WASM imports to prevent sandbox escapes |
 | PII Shield | Real-time detection and blocking of sensitive data via Customizable Regional Presets (Email, Credit Card, SSN, IBAN, Passport MRZ, custom regex) |
 | Worker Pool | Multi-threaded execution via Piscina for non-blocking cryptography |
-| PQC (Kyber) | Post-Quantum key encapsulation for transport layer security |
-| Security | TLS/mTLS, Rate-Limiting, and QUIC transport support |
+| PQC (Kyber & Dilithium) | ML-KEM-768 key encapsulation + ML-DSA-65 digital signatures with 1-hour session expiry |
+| Security & Compliance | TLS/mTLS with `CertManager` hot-reloading, Rate-Limiting, and SOC 2 Hash-Chain audit log |
 | Cross-AI Prompts | Zero-Shot Adaptors to train models in Real-Time (Claude XML, OpenAI, Gemini) |
 | ZK Receipts | HMAC-SHA256 cryptographic proof of honest computation (ZK-VM roadmap) |
 
@@ -138,6 +141,15 @@ The high-performance Data Node host, written in Rust. This is where injected WAS
 npm install @nekzus/liop@latest
 ```
 
+### Launch the Interactive Web Playground & Local Mesh
+
+Experience in-situ execution, PQC handshakes, and cryptographic ZK-receipts in real-time at `http://localhost:14000`:
+
+```bash
+# Clone and launch the full 5-node mesh + Web UI in Docker
+docker compose up -d
+```
+
 ### Run the Zero-Config Agent (CLI)
 
 For end-users wanting to integrate with **Claude Desktop** instantly:
@@ -176,4 +188,6 @@ We welcome contributions! Please read our [Contributing Guide](./CONTRIBUTING.md
 
 ## License
 
-[MIT](./LICENSE) © [Nekzus](https://github.com/Nekzus)
+Licensed under the [Apache License, Version 2.0](./LICENSE) (the "License"). You may not use this software except in compliance with the License. See the [NOTICE](./NOTICE) file and [TRADEMARKS.md](./TRADEMARKS.md) for attribution and trademark guidelines.
+
+Copyright 2026 [Nekzus Solutions](https://github.com/Nekzus) and contributors.

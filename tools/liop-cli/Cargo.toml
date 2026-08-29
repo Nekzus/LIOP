@@ -3,6 +3,8 @@ name = "liop-cli"
 version = "0.1.0"
 edition = "2021"
 description = "LIOP Developer CLI for zero-trust interactions"
+license = "Apache-2.0"
+authors = ["Nekzus Solutions"]
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }

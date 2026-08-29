@@ -283,4 +283,64 @@ describe("LIOP Persistent Query Budget Integration", () => {
 		const data = JSON.parse(fs.readFileSync(testBudgetPath, "utf-8"));
 		expect(data["full-reset-client"]["t1"]["x"]).toBe(1);
 	});
+
+	it("should block prototype pollution keys in resetFieldBudget and runPreflightPolicy", async () => {
+		const server = new LiopServer(
+			{ name: "Proto-Pollution-Server", version: "1" },
+			{ budgetStorePath: testBudgetPath },
+		);
+
+		// 1. Verify resetFieldBudget returns/bypasses safely without throwing on proto pollution keys
+		expect(() => server.resetFieldBudget("__proto__")).not.toThrow();
+		expect(() => server.resetFieldBudget("client-123", "__proto__")).not.toThrow();
+		expect(() => server.resetFieldBudget("constructor")).not.toThrow();
+		expect(() => server.resetFieldBudget("client-123", "prototype")).not.toThrow();
+
+		// 2. Verify preflight policy blocks prototype pollution keys in callTool
+		server.tool(
+			"query_test",
+			"Query test metrics",
+			{ payload: z.string() },
+			async () => ({ content: [] }),
+			{
+				enforceAggregationFirst: true,
+				queryBudgetPerField: 5,
+				budgetStorePath: testBudgetPath,
+			}
+		);
+		server.setSandboxData([{ val: 10 }]);
+
+		const queryPayload = "@LIOP{wasi_v1,Q}\nreturn { count: env.records.filter(r => r.val > 0).length }\n@END";
+
+		// Malicious clientId
+		const maliciousClientRes = await server.callTool(
+			{ name: "query_test", arguments: { payload: queryPayload } },
+			"__proto__"
+		);
+		expect(maliciousClientRes.isError).toBe(true);
+		expect(maliciousClientRes.content[0].text).toContain("prototype pollution guard");
+
+		// Malicious toolName/capability_hash preflight via standard execution
+		// Note that for callTool, the toolName param to runPreflightPolicy is the tool name itself.
+		// If we register a malicious tool name, preflight should block it
+		server.tool(
+			"__proto__",
+			"Malicious Tool",
+			{ payload: z.string() },
+			async () => ({ content: [] }),
+			{
+				enforceAggregationFirst: true,
+				queryBudgetPerField: 5,
+				budgetStorePath: testBudgetPath,
+			}
+		);
+		server.setSandboxData([{ val: 10 }]);
+
+		const maliciousToolRes = await server.callTool(
+			{ name: "__proto__", arguments: { payload: queryPayload } },
+			"client-123"
+		);
+		expect(maliciousToolRes.isError).toBe(true);
+		expect(maliciousToolRes.content[0].text).toContain("prototype pollution guard");
+	});
 });

@@ -9,8 +9,18 @@ import { createMlKem768 } from "mlkem";
 import { FixedQueue, Piscina } from "piscina";
 import { z } from "zod";
 import { type LiopManifest, MeshNode } from "../mesh/node.js";
+import {
+	egressBlocksTotal,
+	fuelConsumed,
+	toolCallsTotal,
+} from "../observability/metrics.js";
+import { Dilithium65Wrapper } from "../rpc/crypto/dilithium.js";
 import { LiopRpcServer } from "../rpc/server.js";
 import type { LogicRequest, LogicResponse } from "../rpc/types.js";
+import {
+	type AuditLogger,
+	globalAuditLogger,
+} from "../security/audit-logger.js";
 import { AUTH_DEFAULTS } from "../security/auth-config.js";
 import { JwtValidator } from "../security/jwt-validator.js";
 import { createOAuthServer } from "../security/oauth-server.js";
@@ -102,6 +112,10 @@ export interface LiopServerOptions {
 	 * Must match SCREAMING_SNAKE_CASE: /^[A-Z][A-Z0-9_]*$/ (e.g., "BANK", "VAULT", "HFT_ORACLE").
 	 */
 	tokenSlug?: string;
+	/**
+	 * SOC 2 Type II / HIPAA immutable audit logger instance.
+	 */
+	auditLogger?: AuditLogger;
 	/**
 	 * Path to a shared JSON file for persistent Query Budget tracking across multiple server instances.
 	 */
@@ -230,17 +244,28 @@ export class LiopServer {
 			kyber_sk: Uint8Array;
 			agent_did?: string;
 			tokenHash?: string;
+			createdAt: number;
 		}
 	> = new Map();
 	private revokedTokenHashes: Set<string> = new Set();
 	private lastRevocationLoadTime = 0;
+	private pqcKeyPair = Dilithium65Wrapper.generateKeyPair();
+	public readonly auditLogger: AuditLogger;
+
+	public getDatasetHash(): string {
+		return crypto
+			.createHash("sha256")
+			.update(JSON.stringify(this.sandboxRecords || []))
+			.digest("hex");
+	}
 
 	// Compact envelope: @LIOP{target,name}\n<code>\n@END
 	private static readonly LIOP_COMPACT_REGEX =
-		/@LIOP\{(?<target>[^,}]+)(?:,(?<name>[^}]*))?\}\n(?<logic>[\s\S]*?)\n@END/m;
+		/@LIOP\{(?<target>[^,}]+)(?:,\s*(?<name>[^}]*))?\}[\r\n]+(?<logic>[\s\S]*?)[\r\n]+@END/m;
 
 	private extractLogic(payload: string): string | null {
-		const compact = payload.match(LiopServer.LIOP_COMPACT_REGEX);
+		if (!payload || typeof payload !== "string") return null;
+		const compact = payload.trim().match(LiopServer.LIOP_COMPACT_REGEX);
 		return compact?.groups?.logic ? compact.groups.logic.trim() : null;
 	}
 
@@ -307,6 +332,18 @@ export class LiopServer {
 		const extractedFields = this.taintAnalyzer.extractQueriedFields(logic);
 
 		if (extractedFields.length > 0) {
+			// Guard against prototype pollution attacks (CWE-915 / js/prototype-polluting-assignment)
+			if (
+				clientId === "__proto__" ||
+				clientId === "constructor" ||
+				clientId === "prototype" ||
+				_toolName === "__proto__" ||
+				_toolName === "constructor" ||
+				_toolName === "prototype"
+			) {
+				return "Preflight policy rejected: invalid property key names (prototype pollution guard).";
+			}
+
 			const storePath = policy?.budgetStorePath || this.config?.budgetStorePath;
 			if (storePath) {
 				try {
@@ -418,6 +455,7 @@ export class LiopServer {
 					return policy.outputSchema;
 				}
 				const obj = policy.outputSchema as z.ZodObject<z.ZodRawShape>;
+				// biome-ignore lint/suspicious/noExplicitAny: library version compatibility check
 				const def = (obj as any).def || (obj as any)._def;
 				// If schema has an explicit catchall (not ZodNever), respect it.
 				// In Zod v4, default catchall is undefined, so we check for both.
@@ -687,6 +725,7 @@ export class LiopServer {
 		];
 		const sensitiveKeys = this.config?.security?.sensitiveKeys ?? [];
 		this.taintAnalyzer = new TaintAnalyzer(forbiddenKeys, sensitiveKeys);
+		this.auditLogger = this.config?.auditLogger || globalAuditLogger;
 
 		// Initialize Zero-Blocking Worker Pool for Heavy Cryptography & Sandboxing
 		const isTS = import.meta.url.endsWith(".ts");
@@ -1635,7 +1674,7 @@ Protocol Adherence is mandatory for successful execution.`,
 				text: typeof r.content === "string" ? r.content : r.description,
 			}));
 
-			return {
+			const unsignedManifest: LiopManifest = {
 				peerId: meshNodeRef.getPeerId(),
 				grpcPort: port,
 				tools,
@@ -1650,6 +1689,18 @@ Protocol Adherence is mandatory for successful execution.`,
 							executionTypes: this.config.taxonomy.executionTypes || [],
 						}
 					: undefined,
+			};
+
+			const attestation = Dilithium65Wrapper.signManifest(
+				unsignedManifest as unknown as Record<string, unknown>,
+				this.pqcKeyPair.secretKey,
+				this.pqcKeyPair.publicKey,
+			);
+
+			return {
+				...unsignedManifest,
+				pqcSignature: attestation.signature,
+				pqcPublicKey: attestation.publicKey,
 			};
 		});
 
@@ -1725,6 +1776,7 @@ Protocol Adherence is mandatory for successful execution.`,
 										kyber_sk: secretKey,
 										agent_did: request.agent_did,
 										tokenHash,
+										createdAt: Date.now(),
 									});
 
 									callback(null, {
@@ -1773,6 +1825,7 @@ Protocol Adherence is mandatory for successful execution.`,
 										kyber_sk: secretKey,
 										agent_did: request.agent_did,
 										tokenHash,
+										createdAt: Date.now(),
 									});
 
 									callback(null, {
@@ -1801,6 +1854,7 @@ Protocol Adherence is mandatory for successful execution.`,
 							capability_hash: request.capability_hash,
 							kyber_sk: secretKey,
 							agent_did: request.agent_did,
+							createdAt: Date.now(),
 						});
 
 						callback(null, {
@@ -1828,6 +1882,20 @@ Protocol Adherence is mandatory for successful execution.`,
 							details: "Invalid session token",
 						});
 						return;
+					}
+
+					// [PQC Security] Enforce Strict 1-Hour Session Lifetime (NIST SP 800-53 / PCI-DSS)
+					const MAX_SESSION_KEY_LIFETIME_MS = 3600 * 1000;
+					if (session.createdAt) {
+						const sessionAge = Date.now() - session.createdAt;
+						if (sessionAge > MAX_SESSION_KEY_LIFETIME_MS) {
+							this.sessions.delete(request.session_token);
+							call.emit("error", {
+								code: grpc.status.UNAUTHENTICATED,
+								details: `[LIOP-PQC] Session secret expired: Age (${Math.round(sessionAge / 1000)}s) exceeds 3600s TTL limit. Re-handshake required.`,
+							});
+							return;
+						}
 					}
 
 					// Verify if the token associated with this session has been revoked in the meantime
@@ -1926,6 +1994,7 @@ Protocol Adherence is mandatory for successful execution.`,
 							aesNonce: request.aes_nonce,
 							records: this.sandboxRecords,
 							sessionToken: request.session_token,
+							sessionTimestamp: session.createdAt,
 							isEncrypted: true,
 							dpConfig, // Apply DP noise inside worker before ZK-Receipt commitment
 						});
@@ -2033,7 +2102,8 @@ Protocol Adherence is mandatory for successful execution.`,
 							toolPolicy?.enforceAggregationFirst,
 							this.sandboxRecords?.length,
 						);
-						if (violation || aggregationViolation) {
+						const isBlocked = Boolean(violation || aggregationViolation);
+						if (isBlocked) {
 							// SEC-CRITICAL: Log details server-side, never expose to caller
 							const internalReason =
 								violation || "Aggregation-First Policy Violation";
@@ -2043,7 +2113,35 @@ Protocol Adherence is mandatory for successful execution.`,
 							response.semantic_evidence =
 								"[LIOP] Egress Security Violation. Output blocked due to policy enforcement.";
 							response.is_error = true;
+
+							egressBlocksTotal.inc({
+								reason: violation ? "pii_scanner" : "aggregation_policy",
+							});
 						}
+
+						// [Phase Beta-3] SOC 2 Type II & HIPAA Immutable Audit Trail
+						this.auditLogger.recordExecution({
+							agentDid: session.agent_did || "unknown",
+							peerId: session.tokenHash || "unknown",
+							toolName: toolName || "unknown",
+							datasetHash: this.getDatasetHash(),
+							fuelConsumed: workerResponse.fuel_consumed || 0,
+							outputHash: crypto
+								.createHash("sha256")
+								.update(response.semantic_evidence)
+								.digest("hex"),
+							zkReceiptSig: workerResponse.zk_receipt || "",
+							status: isBlocked ? "BLOCKED_EGRESS" : "SUCCESS",
+						});
+
+						toolCallsTotal.inc({
+							tool: toolName || "unknown",
+							status: isBlocked ? "blocked_egress" : "success",
+						});
+						fuelConsumed.observe(
+							{ tool: toolName || "unknown" },
+							workerResponse.fuel_consumed || 0,
+						);
 
 						call.write(response, () => {
 							call.end();
@@ -2060,6 +2158,25 @@ Protocol Adherence is mandatory for successful execution.`,
 						const errorMessage = isDev
 							? `Execution Error: ${detail}`
 							: "[LIOP] Execution Failed. The injected logic violated runtime constraints or encountered a fatal error.";
+
+						this.auditLogger.recordExecution({
+							agentDid: session.agent_did || "unknown",
+							peerId: session.tokenHash || "unknown",
+							toolName: toolName || "unknown",
+							datasetHash: this.getDatasetHash(),
+							fuelConsumed: 0,
+							outputHash: crypto
+								.createHash("sha256")
+								.update(errorMessage)
+								.digest("hex"),
+							zkReceiptSig: "",
+							status: "ERROR",
+						});
+
+						toolCallsTotal.inc({
+							tool: toolName || "unknown",
+							status: "error",
+						});
 
 						// Send error response before closing, avoiding "stream closed without results"
 						const errorResponse: LogicResponse = {
@@ -2439,6 +2556,22 @@ Protocol Adherence is mandatory for successful execution.`,
 	 * Uses file-level locking for safe concurrent access.
 	 */
 	public resetFieldBudget(clientId: string, toolName?: string): void {
+		// Guard against prototype pollution attacks (CWE-915 / js/prototype-polluting-assignment)
+		if (
+			clientId === "__proto__" ||
+			clientId === "constructor" ||
+			clientId === "prototype" ||
+			(toolName &&
+				(toolName === "__proto__" ||
+					toolName === "constructor" ||
+					toolName === "prototype"))
+		) {
+			log.warn(
+				`[LiopServer] Blocked resetFieldBudget call due to prototype pollution keys.`,
+			);
+			return;
+		}
+
 		// 1. Clear in-memory budget
 		if (toolName) {
 			const clientBudget = this.fieldQueryBudget.get(clientId);

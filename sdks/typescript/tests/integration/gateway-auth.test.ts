@@ -7,7 +7,7 @@ import { LiopServer } from "../../src/server/index.js";
 describe("Gateway Authentication Integration", () => {
 	const TEST_ISSUER = "https://nexus.liop.io";
 	const TEST_AUDIENCE = "urn:liop:mesh:api";
-	let privateKey: jose.KeyLike;
+	let privateKey: jose.CryptoKey;
 	let publicJwk: jose.JWK;
 	let kid: string;
 	let server: LiopServer;

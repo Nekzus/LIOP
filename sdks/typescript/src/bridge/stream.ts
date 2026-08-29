@@ -4,6 +4,7 @@ import type { WebStandardStreamableHTTPServerTransport } from "@modelcontextprot
 import type { JSONRPCMessage } from "@modelcontextprotocol/sdk/types.js";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { MCP_LEGACY_SUPPORT_ENABLED } from "../gateway/mcp-compat.js";
 import type { LiopServer } from "../server/index.js";
 import { log } from "../utils/logger.js";
 import { LiopMcpBridge } from "./index.js";
@@ -20,7 +21,10 @@ export interface LiopStreamBridgeOptions {
 	sessionTimeoutMs?: number;
 }
 
-/** Internal metadata for tracked sessions */
+/**
+ * @mcp-legacy Internal metadata for tracked legacy sessions (2025-era).
+ * Remove when v1 EOL.
+ */
 interface SessionEntry {
 	transport: WebStandardStreamableHTTPServerTransport;
 	lastActivity: number;
@@ -225,12 +229,23 @@ export class LiopStreamBridge {
 			);
 		});
 
-		// Multi-Session Streamable HTTP Handler
+		// MCP Streamable HTTP & Stateless Handler
 		this.app.all("/mcp", async (c) => {
 			const sessionId = c.req.header("mcp-session-id");
 
-			// Route to existing session if session ID is present
+			// Route to existing session if legacy session ID is present
 			if (sessionId) {
+				/** @mcp-legacy Route to session if legacy session ID present. Remove when v1 EOL. */
+				if (!MCP_LEGACY_SUPPORT_ENABLED) {
+					return c.json(
+						{
+							error:
+								"Session-based routing is retired. Use stateless MCP 2026-07-28 requests.",
+						},
+						404,
+					);
+				}
+
 				const existing = this.activeSessions.get(sessionId);
 				if (!existing) {
 					return c.json({ error: "Session not found" }, 404);
@@ -250,8 +265,40 @@ export class LiopStreamBridge {
 				return response;
 			}
 
-			// No session ID → New client initializing.
-			// Rate-limit: enforce max sessions per IP
+			// Stateless direct JSON-RPC POST (MCP v2 modern era)
+			const contentType = c.req.header("content-type") || "";
+			if (c.req.method === "POST" && contentType.includes("application/json")) {
+				try {
+					const body = (await c.req.json()) as Record<string, unknown>;
+					// If this is a modern request or non-session JSON-RPC
+					if (
+						body.method === "server/discover" ||
+						(body.params as Record<string, unknown>)?._meta ||
+						!MCP_LEGACY_SUPPORT_ENABLED
+					) {
+						const result = await this.bridgeLogic.handleJsonRpcRequest(body);
+						if (result !== undefined) {
+							return c.json(result);
+						}
+						return c.body(null, 204);
+					}
+				} catch {
+					// Fall through to legacy transport if JSON parsing fails or payload is streaming handshake
+				}
+			}
+
+			// No session ID → Legacy Client initializing via WebStandardStreamableHTTPServerTransport
+			/** @mcp-legacy Create legacy session transport. Remove when v1 EOL. */
+			if (!MCP_LEGACY_SUPPORT_ENABLED) {
+				return c.json(
+					{
+						error:
+							"Stateless MCP 2026-07-28 is active. Direct JSON-RPC POST required.",
+					},
+					400,
+				);
+			}
+
 			const clientIp = this.getClientIp(c);
 			const currentSessions = this.countSessionsByIp(clientIp);
 			if (currentSessions >= this.maxSessionsPerIp) {

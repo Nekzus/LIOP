@@ -20,14 +20,41 @@ await gateway.listen(3000);
 await gateway.stop();
 ```
 
-## LiopMcpRouter
+## LiopMcpRouter & Dual-Era Compliance
 
-`LiopMcpRouter` is the request dispatcher used by the gateway and the CLI agent. It handles:
+`LiopMcpRouter` is the request dispatcher used by the gateway and CLI agents. It provides seamless **Dual-Era MCP Protocol Compliance**:
 
-- MCP method dispatch (`tools/list`, `tools/call`, `resources/*`, `prompts/*`)
-- Local tool execution and remote provider resolution via mesh manifests
-- ZK verification for remote responses
-- Manifest caching and adaptive discovery behavior
+- **Modern MCP v2 Era (2026-07-28)**: Supports stateless routing, non-polling resource updates via `subscriptions/listen`, dynamic resource template discovery (`resources/templates/list`), SEP-2243 header routing, and deterministically sorted results (SEP-2549).
+- **Legacy MCP Era (2025-11-25)**: Automatically negotiates handshake capabilities and strips unsupported fields via `adaptResponseForLegacyClient()` for legacy MCP clients (Claude Desktop, Cursor).
+- **In-Situ Dispatch**: Routes calls to local tool definitions or discovers remote data providers across the Kademlia DHT mesh.
+- **ZK Verification**: Automatically verifies HMAC-SHA256 ZK-Receipt commitments on incoming remote responses before returning results to the LLM.
+
+## HTTP/1.1 gRPC-Web Framing Adapter
+
+For edge networks, web browsers, and environments where native HTTP/2 gRPC framing is restricted by corporate firewalls or reverse proxies, `LiopHybridGateway` integrates an automatic **gRPC-Web framing adapter**:
+
+- Emulates gRPC 5-byte length-prefixed binary frames (`[flags (1B)][length (4B BE)][payload]`) over standard HTTP/1.1 POST streams.
+- Encodes gRPC status trailers in HTTP response headers (`grpc-status`, `grpc-message`).
+
+## Industrial Observability & Health Probes
+
+`LiopHybridGateway` natively serves standard Kubernetes and Prometheus endpoints:
+
+| Endpoint | Protocol | Purpose |
+|---|---|---|
+| `GET /healthz` | HTTP/1.1 | Liveness probe returning immediate JSON status (`{ status: "ok" }`) |
+| `GET /readyz` | HTTP/1.1 | Readiness probe checking active DHT mesh connections and bootstrap sync |
+| `GET /metrics` | HTTP/1.1 | Prometheus scraper endpoint reporting instantaneous connection gauges and latency histograms |
+| `POST /mcp` | HTTP/1.1 (JSON-RPC) | Streamable MCP interface with session isolation and Zero-Trust bearer auth |
+
+### Graceful Draining
+
+When terminating nodes in production clusters:
+
+```typescript
+// Closes active listening sockets and allows in-flight RPCs to complete safely
+await gateway.drain(5000); // 5-second graceful drain timeout
+```
 
 ## LiopStreamBridge
 
@@ -52,4 +79,4 @@ await stream.stop();
 
 - `LiopStreamBridge` supports Zero-Trust bearer enforcement via `ZERO_TRUST_TOKEN`.
 - Sessions are isolated and evicted when idle to reduce long-lived attack surfaces.
-- Gateway/router components preserve MCP JSON-RPC compatibility while keeping mesh-native routing behavior.
+- Gateway/router components preserve full MCP JSON-RPC compatibility while maintaining mesh-native routing behavior.

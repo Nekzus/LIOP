@@ -119,13 +119,30 @@ npx tsx client.ts
 # Salida: Resultado de la consulta: SELECT * FROM massive_table WHERE anomaly = true
 ```
 
+## 5. Experimenta con la UI Interactiva del Playground Web
+
+Para depuración visual, probar lógica WASM/JS in-situ e inspeccionar pruebas criptográficas en tiempo real, inicia el **LIOP Web Playground**:
+
+```bash
+# Iniciar la malla local completa + playground interactivo en Docker
+pnpm run demo:start
+```
+
+Una vez en ejecución, abre **`http://localhost:14000`** en tu navegador:
+
+* **Línea de Tiempo de Streaming en Vivo:** Eventos Server-Sent Events (SSE) en tiempo real que rastrean 7 fases de ejecución (*Bootstrap*, *Discovery*, *Handshake PQC ML-KEM-768*, *Sellado AES-256-GCM*, *Ejecución en Sandbox WASI*, *Verificación de Recibo ZK* y *Resultado Agregado*).
+* **Editor de Código con Plantillas:** Prueba micro-módulos preconfigurados para Trading de Alta Frecuencia (HFT), detección de anomalías bancarias, análisis de historias clínicas o defensa contra exfiltración PII.
+* **Inspector de Pruebas Criptográficas:** Inspecciona `ImageID` SHA-256, sellos de recibo ZK HMAC-SHA256 y resúmenes de integridad de datasets.
+* **Temas Oscuros Duales:** Alterna entre las interfaces Obsidian OLED y Slate Midnight.
+
 ## ¿Qué acaba de ocurrir?
 
-A diferencia de las APIs tradicionales:
-1. Tu Cliente descubrió el Servidor instantáneamente mediante **Kademlia P2P**.
-2. Un handshake **Kyber768 Post-Cuántico** aseguró la comunicación.
-3. La consulta se serializó en un formato **binario Protobuf** ultra compacto.
-4. La ejecución ocurrió dentro de un **sandbox WASI** en el servidor, aislado del host físico.
+A diferencia de las APIs tradicionales o el parsing de strings en MCP:
+1. Tu Cliente descubrió el Servidor instantáneamente mediante la **tabla de enrutamiento Kademlia P2P**.
+2. Un handshake **Post-Cuántico Kyber (ML-KEM-768)** aseguró la sesión.
+3. La consulta se serializó en un formato **binario Protobuf** ultra compacto y se selló con **AES-256-GCM**.
+4. La ejecución ocurrió dentro de un **sandbox WASI** en el servidor, protegido por el **Guardian AST** y el **Egress PII Shield**.
+5. El resultado se selló criptográficamente con un **recibo ZK HMAC-SHA256**.
 
 ## Siguientes Pasos
 

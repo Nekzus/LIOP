@@ -123,13 +123,30 @@ npx tsx client.ts
 # Output: Processed query results for: SELECT * FROM massive_table WHERE anomaly = true
 ```
 
+## 5. Explore with the Interactive Playground Web UI
+
+For visual debugging, testing in-situ WASM/JS logic, and inspecting cryptographic proofs in real-time, launch the **LIOP Web Playground**:
+
+```bash
+# Start the full local mesh + interactive playground in Docker
+pnpm run demo:start
+```
+
+Once running, navigate to **`http://localhost:14000`** in your browser:
+
+* **Live Streaming Timeline:** Real-time Server-Sent Events (SSE) tracking 7 execution phases (*Bootstrap*, *Discovery*, *PQC ML-KEM-768 Handshake*, *AES-256-GCM Sealing*, *WASI Sandbox Execution*, *ZK-Receipt Verification*, and *Aggregated Output*).
+* **Code Editor with Presets:** Test ready-made micro-modules for High-Frequency Trading (HFT), Banking anomaly detection, Medical Records analysis, or PII exfiltration defense.
+* **Cryptographic Proof Inspector:** Inspect SHA-256 `ImageID`, HMAC-SHA256 ZK-receipt seals, and dataset integrity digests.
+* **Dual Dark Themes:** Toggle between OLED Obsidian and Slate Midnight UI themes.
+
 ## What just happened?
 
-Unlike legacy REST APIs or MCP strings parsing:
+Unlike legacy REST APIs or MCP string parsing:
 1. Your Client discovered the Server instantly via a **P2P Kademlia Routing Table**.
-2. A **Post-Quantum Kyber Handshake** secured the intent.
-3. The query was serialized into an ultra-compact **Protobuf Binary**.
-4. The execution happened inside a microscopic **WASI Sandbox** on the server, safely isolated from your physical host.
+2. A **Post-Quantum Kyber Handshake (ML-KEM-768)** secured the session.
+3. The query was serialized into an ultra-compact **Protobuf Binary** and sealed with **AES-256-GCM**.
+4. The execution happened inside an isolated **WASI Sandbox** on the server, protected by the **Guardian AST** and **Egress PII Shield**.
+5. The output was cryptographically sealed with an **HMAC-SHA256 ZK-Receipt**.
 
 ## Next Steps
 

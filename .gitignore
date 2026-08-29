@@ -80,3 +80,6 @@ out2.json
 
 # LIOP Test Infrastructure Runtime data
 **/tests/infra/nexus-data/
+
+# Graphify local output
+graphify-out/

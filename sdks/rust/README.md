@@ -117,4 +117,6 @@ cargo test -p liop-core -p liop-client
 
 ## License
 
-[MIT](./LICENSE) © [Nekzus](https://github.com/Nekzus)
+Licensed under the [Apache License, Version 2.0](./LICENSE) (the "License"). You may not use this file except in compliance with the License. See [NOTICE](./NOTICE) and [TRADEMARKS.md](../../TRADEMARKS.md) for attribution and trademark details.
+
+Copyright 2026 [Nekzus Solutions](https://github.com/Nekzus) and contributors.

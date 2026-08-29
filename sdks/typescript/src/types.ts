@@ -1,6 +1,62 @@
 import { z } from "zod";
 
 /**
+ * Protocol Version Identifiers
+ */
+export const MCP_PROTOCOL_VERSION = "2026-07-28" as const;
+
+export {
+	MCP_LEGACY_SUPPORT_ENABLED,
+	MCP_PROTOCOL_VERSION_LEGACY,
+} from "./gateway/mcp-compat.js";
+
+/**
+ * Protocol Era Classification
+ */
+export type McpEra = "legacy" | "modern";
+
+/**
+ * Caching Hints for MCP 2026-07-28 Spec
+ */
+export interface CacheableResult {
+	ttlMs?: number;
+	cacheScope?: "public" | "private";
+}
+
+/**
+ * Multi-Round-Trip Requests (MRTR) Specification Types
+ */
+export interface InputRequest {
+	id: string;
+	message: string;
+	schema?: Record<string, unknown>;
+}
+
+export interface InputResponse {
+	id: string;
+	value: unknown;
+}
+
+export interface InputRequiredResult {
+	resultType: "input_required";
+	inputRequests: InputRequest[];
+	requestState?: string;
+}
+
+/**
+ * Modern Envelope Metadata (_meta)
+ */
+export interface McpRequestMeta {
+	"io.modelcontextprotocol/protocolVersion"?: string;
+	"io.modelcontextprotocol/clientInfo"?: {
+		name: string;
+		version: string;
+	};
+	"io.modelcontextprotocol/clientCapabilities"?: Record<string, unknown>;
+	[key: string]: unknown;
+}
+
+/**
  * Base Protocol Types representing parity with Model Context Protocol
  */
 
@@ -83,8 +139,17 @@ export interface ServerInfo {
 		prompts?: { listChanged?: boolean };
 		resources?: { subscribe?: boolean; listChanged?: boolean };
 		tools?: { listChanged?: boolean };
+		/** @mcp-legacy @deprecated Deprecated in MCP 2026-07-28 spec */
 		logging?: Record<string, unknown>;
 	};
+}
+
+export interface DiscoverResult {
+	resultType: "complete";
+	supportedVersions: string[];
+	capabilities: ServerInfo["capabilities"];
+	serverInfo: ServerInfo;
+	instructions?: string;
 }
 
 export interface McpRequest {
