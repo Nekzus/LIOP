@@ -81,6 +81,15 @@ Logic-Injection-on-Origin Protocol (LIOP) is the high-performance successor to t
    - In repositories with multi-channel automated releases (`alpha` -> `beta` -> `main`), semantic-release writes channel-specific version tags and changelog headers directly to each release branch.
    - To avoid GitHub PR merge blocks (`Can't automatically merge`), always use an ephemeral promotion branch (e.g. `promote-alpha-to-beta`, `promote-beta-to-main`), merge the target branch locally, resolve the `package.json` `"version"` field to preserve the target channel's baseline version, and verify frozen lockfile installation before pushing.
    - Delete ephemeral promotion branches immediately post-merge to maintain a clean 3-channel topology.
+19. **Strict Alpha-First Workflow (Zero Direct Work on `main`)**:
+   - Under no circumstances should bug fixes, dependency updates, security remediations, or feature development be executed directly on the `main` branch.
+   - All changes must originate and pass 100% of test suites on `alpha`, promote to `beta` for staging/feature freeze, and finally promote to `main` via signed GitHub Pull Requests.
+20. **Workspace Dependency Overrides Location (`pnpm-workspace.yaml`)**:
+   - In pnpm monorepos, transitive dependency overrides and CVE resolutions must be configured strictly in `pnpm-workspace.yaml` under `overrides:`.
+   - Do not configure `pnpm.overrides` inside root `package.json` as pnpm v11 ignores package manifest overrides in favor of workspace settings.
+21. **Verified GPG Release Commits & Channel-Segregated Changelogs**:
+   - Automated releases in CI must use `@semantic-release-extras/verified-git-commit` to create release commits via GitHub REST API, guaranteeing GitHub's verified GPG signature badge (`B5690EEEBB952194`).
+   - Each release branch maintains its own dedicated `CHANGELOG.md` matching only its channel's releases, preventing cross-channel pollution and PR merge conflicts.
 
 ---
 
