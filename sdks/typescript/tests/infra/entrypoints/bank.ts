@@ -88,8 +88,10 @@ async function main() {
 			totalAccounts: z.number().optional(),
 			total_records: z.number().optional(),
 			byType: z.record(z.string(), z.union([z.number(), z.string()])).optional(),
+			distribution: z.record(z.string(), z.union([z.number(), z.string()])).optional(),
 			totalBalance: z.union([z.number(), z.string()]).optional(),
 			avgBalance: z.union([z.number(), z.string()]).optional(),
+			averageBalance: z.union([z.number(), z.string()]).optional(),
 			balanceByCurrency: z.record(z.string(), z.union([z.number(), z.string()])).optional(),
 			columns: z.array(z.string()).optional(),
 			clientPayload: z.string().optional(),
@@ -100,7 +102,7 @@ async function main() {
 		// Security note: .catchall() is a STRUCTURAL choice, not a security boundary.
 		// Defense-in-depth: PII Scanner (Layer 3) blocks names/IDs/emails,
 		// Aggregation-First (Layer 4) blocks arrays of objects.
-		.catchall(z.number());
+		.catchall(z.union([z.number(), z.string(), z.boolean()]));
 
 	liopServer.tool(
 		"Analyze_Synthetic_Bank_Transactions",

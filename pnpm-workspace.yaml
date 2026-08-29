@@ -1,9 +1,10 @@
 packages:
   - "sdks/typescript"
   - "sdks/typescript/examples/**"
+  - "sdks/typescript/tests/infra/playground-web"
   - "examples/**"
 
-verifyDeps: false
+verifyDepsBeforeRun: false
 
 allowBuilds:
   esbuild: true
@@ -29,11 +30,12 @@ auditConfig:
 
 minimumReleaseAgeExclude:
   - '@libp2p/kad-dht@16.3.0'
+  - '@types/node@26.4.0'
 
 overrides:
   multiformats: "14.0.0"
   "@multiformats/multiaddr": "13.0.3"
-  protobufjs: "7.5.8"
+  protobufjs: "^7.6.1"
   content-type: "1.0.5"
   type-is: "2.0.1"
   "@libp2p/interface": "3.2.3"
@@ -41,6 +43,15 @@ overrides:
   uint8arrays: "6.1.1"
   vitest: "4.1.8"
   "@vitest/coverage-v8": "4.1.8"
+  piscina: "5.3.1"
+  ws: "^8.21.0"
+  hono: "4.13.5"
+  fast-uri: "^3.1.5"
+  brace-expansion: "^1.1.18"
+  ip-address: "^10.3.1"
+  js-yaml: "^4.3.1"
+  nanoid: "^3.3.18"
+  postcss: "^8.5.18"
   aggregate-error: "npm:@socketregistry/aggregate-error@^1"
   deep-equal: "npm:@socketregistry/deep-equal@^1"
   es-define-property: "npm:@socketregistry/es-define-property@^1"
@@ -68,4 +79,3 @@ packageConfigs:
       - "@neural-mesh/demos"
       - "@neural-mesh/high-fidelity-demo"
     saveExact: true
-

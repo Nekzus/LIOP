@@ -11,11 +11,14 @@ Every layer of LIOP, from the physical connection to the code execution, integra
 
 ## 1. Transport Encryption (Noise & PQC)
 
-Instead of relying on centralized Certificate Authorities (like TLS/HTTPS), LIOP utilizes the **Noise Protocol Framework**, pioneered by applications like Signal.
+Instead of relying on centralized Certificate Authorities (like TLS/HTTPS), LIOP utilizes the **Noise Protocol Framework**, pioneered by applications like Signal, reinforced with Post-Quantum Cryptography:
 
 - **Ed25519 Identities**: Every Agent and Server generates an Ed25519 keypair. Your Public Key *is* your Peer ID on the internet.
 - **Mutual Authentication**: Connections in the Kademlia Mesh are mutually authenticated instantly. You know symmetrically who is invoking you, and they know who is answering.
-- **Post-Quantum Cryptography (PQC)**: Elicitation Handshakes utilize **Kyber (ML-KEM-768)** to derive the symmetric key for the **AES-256-GCM** payload encapsulation, shielding all AI logic transmission from "Harvest Now, Decrypt Later" quantum supercomputer attacks.
+- **Post-Quantum Key Agreement (ML-KEM-768)**: Handshakes utilize Kyber768 (ML-KEM-768) to derive the symmetric key for **AES-256-GCM** payload encapsulation, shielding logic transmission from "Harvest Now, Decrypt Later" quantum attacks.
+- **Post-Quantum Digital Signatures (ML-DSA-65)**: Manifests, capabilities, and revocation commitments are sealed with Dilithium65 (ML-DSA-65).
+- **1-Hour Strict Session Lifetime**: Derived symmetric keys strictly expire after 3600 seconds to minimize exposure windows and prevent replay attacks.
+- **Mutual TLS with CertManager**: Supports enterprise X.509 client authentication with zero-downtime certificate hot-reloading.
 
 ## 2. Payload Inspection (Zero-Time Guardian & Taint Analyzer)
 

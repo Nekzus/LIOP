@@ -2,10 +2,24 @@ import * as http from "node:http";
 import * as http2 from "node:http2";
 import * as net from "node:net";
 import type { MeshNode } from "../mesh/index.js";
+import {
+	manifestCacheSize,
+	meshPeersConnected,
+	protocolMetrics,
+} from "../observability/metrics.js";
 import type { AuthInfo, JwtValidator } from "../security/jwt-validator.js";
 import { buildProtectedResourceMetadata } from "../security/prm.js";
 import type { LiopServer } from "../server/index.js";
 import { log } from "../utils/logger.js";
+import {
+	dispatchGrpcWebRequest,
+	GRPC_WEB_CONSTANTS,
+	isGrpcWebRequest,
+} from "./grpc-web.js";
+import {
+	InMemoryRateLimiter,
+	type RateLimiterOptions,
+} from "./rate-limiter.js";
 import { LiopMcpRouter } from "./router.js";
 
 /**
@@ -20,14 +34,19 @@ export class LiopHybridGateway {
 	private jwtValidator?: JwtValidator;
 	// biome-ignore lint/suspicious/noExplicitAny: oidc-provider is loaded in Phase C
 	private oauthProvider?: any;
+	private rateLimiter: InMemoryRateLimiter;
+	private isDraining = false;
+	private activeRequests = 0;
 
 	constructor(
 		private liopServer: LiopServer,
 		private meshNode: MeshNode | null = null,
 		rpcPort: number = 50051,
+		rateLimiterOptions?: RateLimiterOptions,
 	) {
 		this.jwtValidator = this.liopServer.jwtValidator;
 		this.oauthProvider = this.liopServer.oauthProvider;
+		this.rateLimiter = new InMemoryRateLimiter(rateLimiterOptions);
 
 		// Initialize the Universal Router
 		this.router = new LiopMcpRouter(this.liopServer, this.meshNode, rpcPort);
@@ -85,8 +104,122 @@ export class LiopHybridGateway {
 
 	private setupH1Routes() {
 		this.h1Server.on("request", async (req, res) => {
+			this.activeRequests += 1;
+			const onDone = () => {
+				res.removeListener("finish", onDone);
+				res.removeListener("close", onDone);
+				this.activeRequests = Math.max(0, this.activeRequests - 1);
+			};
+			res.on("finish", onDone);
+			res.on("close", onDone);
+
 			const url = req.url || "";
 			const method = req.method;
+
+			// [Phase Beta-3] Prometheus Metrics Endpoint
+			if (method === "GET" && url === "/metrics") {
+				if (this.meshNode) {
+					meshPeersConnected.set({}, this.meshNode.getPeers().length);
+				}
+				if (this.router) {
+					manifestCacheSize.set({}, this.router.getManifestCacheSize());
+				}
+				res.writeHead(200, {
+					"Content-Type": "text/plain; version=0.0.4; charset=utf-8",
+				});
+				res.end(protocolMetrics.exportPrometheusText());
+				return;
+			}
+
+			// [Phase Beta-3] K8s Liveness Probe
+			if (method === "GET" && url === "/healthz") {
+				if (this.isDraining) {
+					res.writeHead(503, { "Content-Type": "application/json" });
+					res.end(
+						JSON.stringify({
+							status: "draining",
+							timestamp: new Date().toISOString(),
+						}),
+					);
+					return;
+				}
+				res.writeHead(200, { "Content-Type": "application/json" });
+				res.end(
+					JSON.stringify({
+						status: "ok",
+						uptime: Math.floor(process.uptime()),
+						timestamp: new Date().toISOString(),
+					}),
+				);
+				return;
+			}
+
+			// [Phase Beta-3] K8s Readiness Probe
+			if (method === "GET" && url === "/readyz") {
+				if (this.isDraining) {
+					res.writeHead(503, { "Content-Type": "application/json" });
+					res.end(
+						JSON.stringify({
+							status: "draining",
+							timestamp: new Date().toISOString(),
+						}),
+					);
+					return;
+				}
+				const meshStarted = this.meshNode ? this.meshNode.isStarted() : true;
+				if (!meshStarted) {
+					res.writeHead(503, { "Content-Type": "application/json" });
+					res.end(
+						JSON.stringify({
+							status: "unready",
+							meshStarted: false,
+							timestamp: new Date().toISOString(),
+						}),
+					);
+					return;
+				}
+				res.writeHead(200, { "Content-Type": "application/json" });
+				res.end(
+					JSON.stringify({
+						status: "ready",
+						meshStarted: true,
+						peers: this.meshNode ? this.meshNode.getPeers().length : 0,
+						timestamp: new Date().toISOString(),
+					}),
+				);
+				return;
+			}
+
+			// Reject new MCP requests if draining
+			if (this.isDraining && url === "/mcp") {
+				res.writeHead(503, { "Content-Type": "application/json" });
+				res.end(
+					JSON.stringify({
+						jsonrpc: "2.0",
+						error: {
+							code: -32000,
+							message: "Gateway is draining connections for shutdown",
+						},
+					}),
+				);
+				return;
+			}
+
+			// [Phase Beta-2] gRPC-Web HTTP/1.1 Framing Fallback
+			const contentType = req.headers["content-type"];
+			if (isGrpcWebRequest(contentType)) {
+				await dispatchGrpcWebRequest(req, res, async (reqPath, payload) => {
+					log.info(
+						`[LIOP-Gateway] gRPC-Web fallback call: ${reqPath} (${payload.length} bytes)`,
+					);
+					return {
+						status: GRPC_WEB_CONSTANTS.STATUS_OK,
+						message: "OK",
+						data: Buffer.from(""),
+					};
+				});
+				return;
+			}
 
 			// [SEC] M2M OAuth 2.1 OIDC Authorization Server Router (Phase C proxy)
 			if (url.startsWith("/oidc") && this.oauthProvider) {
@@ -215,8 +348,89 @@ export class LiopHybridGateway {
 				let body = "";
 				req.on("data", (chunk) => (body += chunk.toString()));
 				req.on("end", async () => {
+					// [SEC] Rate limiting per IP or authenticated client (OWASP API4:2023)
+					const clientIp = req.socket.remoteAddress || "127.0.0.1";
+					const rateLimitKey = authInfo?.clientId
+						? `client:${authInfo.clientId}`
+						: `ip:${clientIp}`;
+					const rateStatus = this.rateLimiter.check(rateLimitKey);
+					if (!rateStatus.allowed) {
+						res.writeHead(429, {
+							"Content-Type": "application/json",
+							"Retry-After": Math.ceil(rateStatus.resetMs / 1000).toString(),
+						});
+						res.end(
+							JSON.stringify({
+								jsonrpc: "2.0",
+								id: null,
+								error: {
+									code: -32029,
+									message: "Rate limit exceeded. Too many requests.",
+								},
+							}),
+						);
+						return;
+					}
+
 					try {
 						const jsonRequest = JSON.parse(body);
+
+						// [SEP-2243] Header-based routing validation
+						const mcpMethod = req.headers["mcp-method"] as string | undefined;
+						const mcpName = req.headers["mcp-name"] as string | undefined;
+						const mcpVersion = req.headers["mcp-protocol-version"] as
+							| string
+							| undefined;
+
+						if (mcpMethod && mcpMethod !== jsonRequest.method) {
+							res.writeHead(400, { "Content-Type": "application/json" });
+							res.end(
+								JSON.stringify({
+									jsonrpc: "2.0",
+									id: jsonRequest.id ?? null,
+									error: {
+										code: -32020,
+										message: `HeaderMismatch: 'Mcp-Method' header (${mcpMethod}) does not match JSON-RPC method (${jsonRequest.method})`,
+									},
+								}),
+							);
+							return;
+						}
+
+						if (
+							mcpName &&
+							jsonRequest.params?.name &&
+							mcpName !== jsonRequest.params.name
+						) {
+							res.writeHead(400, { "Content-Type": "application/json" });
+							res.end(
+								JSON.stringify({
+									jsonrpc: "2.0",
+									id: jsonRequest.id ?? null,
+									error: {
+										code: -32020,
+										message: `HeaderMismatch: 'Mcp-Name' header (${mcpName}) does not match target name (${jsonRequest.params.name})`,
+									},
+								}),
+							);
+							return;
+						}
+
+						if (mcpVersion && jsonRequest.params) {
+							if (!jsonRequest.params._meta) {
+								jsonRequest.params._meta = {};
+							}
+							if (
+								!jsonRequest.params._meta[
+									"io.modelcontextprotocol/protocolVersion"
+								]
+							) {
+								jsonRequest.params._meta[
+									"io.modelcontextprotocol/protocolVersion"
+								] = mcpVersion;
+							}
+						}
+
 						const response = await this.router.dispatch(jsonRequest, authInfo);
 						res.writeHead(200, { "Content-Type": "application/json" });
 						res.end(JSON.stringify(response));
@@ -289,7 +503,69 @@ export class LiopHybridGateway {
 					}
 				}
 
-				const response = await this.router.dispatch(JSON.parse(body), authInfo);
+				const jsonRequest = JSON.parse(body);
+
+				// [SEP-2243] Header-based routing validation in HTTP/2
+				const mcpMethod = headers["mcp-method"] as string | undefined;
+				const mcpName = headers["mcp-name"] as string | undefined;
+				const mcpVersion = headers["mcp-protocol-version"] as
+					| string
+					| undefined;
+
+				if (mcpMethod && mcpMethod !== jsonRequest.method) {
+					stream.respond({
+						":status": 400,
+						"content-type": "application/json",
+					});
+					stream.end(
+						JSON.stringify({
+							jsonrpc: "2.0",
+							id: jsonRequest.id ?? null,
+							error: {
+								code: -32020,
+								message: `HeaderMismatch: 'Mcp-Method' header (${mcpMethod}) does not match JSON-RPC method (${jsonRequest.method})`,
+							},
+						}),
+					);
+					return;
+				}
+
+				if (
+					mcpName &&
+					jsonRequest.params?.name &&
+					mcpName !== jsonRequest.params.name
+				) {
+					stream.respond({
+						":status": 400,
+						"content-type": "application/json",
+					});
+					stream.end(
+						JSON.stringify({
+							jsonrpc: "2.0",
+							id: jsonRequest.id ?? null,
+							error: {
+								code: -32020,
+								message: `HeaderMismatch: 'Mcp-Name' header (${mcpName}) does not match target name (${jsonRequest.params.name})`,
+							},
+						}),
+					);
+					return;
+				}
+
+				if (mcpVersion && jsonRequest.params) {
+					if (!jsonRequest.params._meta) {
+						jsonRequest.params._meta = {};
+					}
+					if (
+						!jsonRequest.params._meta["io.modelcontextprotocol/protocolVersion"]
+					) {
+						jsonRequest.params._meta[
+							"io.modelcontextprotocol/protocolVersion"
+						] = mcpVersion;
+					}
+				}
+
+				const response = await this.router.dispatch(jsonRequest, authInfo);
 				if (response) {
 					stream.respond({
 						":status": 200,
@@ -344,10 +620,27 @@ export class LiopHybridGateway {
 		});
 	}
 
+	public isDrained(): boolean {
+		return this.isDraining;
+	}
+
+	public async drain(timeoutMs = 5000): Promise<void> {
+		this.isDraining = true;
+		log.info(
+			`[LIOP-Gateway] Draining gateway connections (active: ${this.activeRequests}, timeout: ${timeoutMs}ms)...`,
+		);
+		const start = Date.now();
+		while (this.activeRequests > 0 && Date.now() - start < timeoutMs) {
+			await new Promise((resolve) => setTimeout(resolve, 50));
+		}
+		await this.stop();
+	}
+
 	public async stop() {
 		if (this.meshNode) {
 			await this.meshNode.stop();
 		}
+		this.rateLimiter.close();
 		this.netServer.close();
 		this.h2Server.close();
 		this.h1Server.close();

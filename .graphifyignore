@@ -1,0 +1,39 @@
+# Rust build artifacts
+target/
+Cargo.lock
+
+# TypeScript / Node build & test outputs
+dist/
+coverage/
+.tsup/
+.vite/
+.nyc_output/
+tsconfig.tsbuildinfo
+
+# Logs y temporales
+*.log
+.eslintcache
+.turbo/
+
+# IDE configurations
+.vscode/
+.idea/
+
+# Package dependencies
+node_modules/
+.pnpm-store/
+
+# AI / Agents internal configurations
+.agents/
+
+# CI/CD Workflows
+.github/
+
+# Credentials and environment secrets
+.env
+.env.*
+*.pem
+*.key
+*-identity.json
+client-id.json
+source-id.json

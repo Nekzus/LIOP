@@ -21,6 +21,8 @@ Goal: production-grade validation for the TypeScript SDK and MCP interoperabilit
 | MCP tool inventory and `tools/call` interoperability                  | `09-mcp-conformance.test.ts`                        | Covered        |
 | Performance signal (`tools/list` p95 + concurrent calls)              | `10-performance.test.ts`                            | Covered        |
 | Adversarial security (disguised exfiltration, deterministic envelope) | `11-adversarial-security.test.ts`                   | Covered        |
+| Native Client SDK direct P2P mesh invocation & PQC                     | `12-client-sdk-e2e.test.ts`                         | Covered        |
+
 
 
 ## Production Readiness Gates (Operational)

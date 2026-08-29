@@ -3,8 +3,8 @@
   "version": "1.4.0-alpha.0",
   "private": true,
   "description": "Logic-Injection-on-Origin Protocol (LIOP) - Official High-Performance WebAssembly Logic-on-Origin Execution Sandbox",
-  "author": "Nekzus",
-  "license": "MIT",
+  "author": "Nekzus Solutions",
+  "license": "Apache-2.0",
   "type": "module",
   "homepage": "https://nekzus-32.mintlify.app/",
   "scripts": {
@@ -26,6 +26,10 @@
     "demo:clean": "pnpm --filter @nekzus/liop demo:clean",
     "demo:claude": "pnpm --filter @nekzus/liop demo:claude",
     "demo:inspector": "pnpm --filter @nekzus/liop demo:inspector",
+    "demo:playground": "pnpm --filter @nekzus/liop demo:playground",
+    "demo:playground:rebuild": "pnpm --filter @nekzus/liop demo:playground:rebuild",
+    "demo:client-sdk": "pnpm --filter @nekzus/liop demo:client-sdk",
+    "demo:playground:build": "pnpm --filter @nekzus/liop demo:playground-web-build",
     "socket:scan": "socket scan create --report .",
     "socket:score": "socket package score npm @nekzus/liop --markdown",
     "socket:fix": "socket fix"
@@ -36,17 +40,28 @@
     }
   },
   "devDependencies": {
-    "@semantic-release/changelog": "6.0.3",
-    "@semantic-release/git": "10.0.1",
-    "@semantic-release/github": "10.3.5",
-    "@semantic-release/npm": "10.0.6",
-    "@semantic-release/release-notes-generator": "14.1.0",
-    "commitizen": "4.3.1",
-    "conventional-changelog-conventionalcommits": "8.0.0",
+    "@biomejs/biome": "2.5.10",
+    "@semantic-release/changelog": "7.0.0",
+    "@semantic-release/git": "11.0.1",
+    "@semantic-release/github": "12.0.9",
+    "@semantic-release/npm": "13.1.5",
+    "@semantic-release/release-notes-generator": "14.1.1",
+    "commitizen": "4.3.2",
+    "conventional-changelog-conventionalcommits": "10.4.0",
     "cz-conventional-changelog": "3.3.0",
-    "semantic-release": "24.2.9"
+    "semantic-release": "25.0.9"
   },
   "overrides": {
+    "protobufjs": "^7.6.1",
+    "piscina": "5.3.1",
+    "ws": "^8.21.0",
+    "hono": "4.13.5",
+    "fast-uri": "^3.1.5",
+    "brace-expansion": "^1.1.18",
+    "ip-address": "^10.3.1",
+    "js-yaml": "^4.3.1",
+    "nanoid": "^3.3.18",
+    "postcss": "^8.5.18",
     "aggregate-error": "npm:@socketregistry/aggregate-error@^1",
     "array-buffer-byte-length": "npm:@socketregistry/array-buffer-byte-length@^1",
     "deep-equal": "npm:@socketregistry/deep-equal@^1",
@@ -80,5 +95,5 @@
   "engines": {
     "node": ">=20.0"
   },
-  "packageManager": "pnpm@11.5.1"
+  "packageManager": "pnpm@11.24.0"
 }

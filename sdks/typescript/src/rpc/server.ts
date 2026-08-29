@@ -14,15 +14,7 @@ import type {
  * Handles intent negotiation and secure logic execution.
  */
 
-/** Production-grade gRPC channel options per official grpc-node recommendations */
-const GRPC_CHANNEL_OPTIONS = {
-	"grpc.keepalive_time_ms": 30_000,
-	"grpc.keepalive_timeout_ms": 10_000,
-	"grpc.keepalive_permit_without_calls": 1,
-	"grpc.max_send_message_length": -1,
-	"grpc.max_receive_message_length": -1,
-	"grpc.enable_retries": 1,
-};
+import { GRPC_CHANNEL_OPTIONS } from "./channel-options.js";
 
 export class LiopRpcServer {
 	private server: grpc.Server;
@@ -67,12 +59,32 @@ export class LiopRpcServer {
 		});
 	}
 
-	public async stop(): Promise<void> {
+	public async gracefulShutdown(timeoutMs = 5000): Promise<void> {
 		return new Promise((resolve) => {
+			let resolved = false;
+			const timer = setTimeout(() => {
+				if (!resolved) {
+					resolved = true;
+					log.warn(
+						`[LIOP-RPC] tryShutdown timed out after ${timeoutMs}ms — forcing shutdown`,
+					);
+					this.server.forceShutdown();
+					resolve();
+				}
+			}, timeoutMs);
+
 			this.server.tryShutdown(() => {
-				log.info("[LIOP-RPC] Server shut down");
-				resolve();
+				if (!resolved) {
+					resolved = true;
+					clearTimeout(timer);
+					log.info("[LIOP-RPC] Server gracefully shut down");
+					resolve();
+				}
 			});
 		});
+	}
+
+	public async stop(): Promise<void> {
+		return this.gracefulShutdown(5000);
 	}
 }

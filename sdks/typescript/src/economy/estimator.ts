@@ -1,3 +1,4 @@
+import { countTokens, setMergeCacheSize } from "gpt-tokenizer/model/gpt-4o";
 import { log } from "../utils/logger.js";
 
 /**
@@ -14,7 +15,7 @@ export interface TokenEstimator {
 }
 
 /**
- * Exact BPE tokenizer using o200k_base encoding.
+ * Exact BPE tokenizer using inlined o200k_base encoding.
  *
  * o200k_base is the standard encoding for all modern OpenAI models
  * (GPT-4o, GPT-4.1, o1, o3, o4) and provides a reasonable baseline
@@ -22,7 +23,7 @@ export interface TokenEstimator {
  *
  * - Synchronous: safe for hot-path usage without async overhead
  * - Merge cache reduced to 10K entries for long-running server processes
- * - Zero runtime dependencies beyond gpt-tokenizer itself
+ * - Inlined at build-time: zero external runtime dependencies in node_modules
  */
 export class RealTokenEstimator implements TokenEstimator {
 	readonly name = "o200k_base";
@@ -36,7 +37,11 @@ export class RealTokenEstimator implements TokenEstimator {
 		this.countFn = countFn;
 		// Reduce merge cache from default 100K to 10K for server processes
 		if (setMergeCacheSizeFn) {
-			setMergeCacheSizeFn(10_000);
+			try {
+				setMergeCacheSizeFn(10_000);
+			} catch {
+				// Non-fatal if merge cache size adjustment is not supported
+			}
 		}
 	}
 
@@ -50,7 +55,7 @@ export class RealTokenEstimator implements TokenEstimator {
  * Fallback heuristic estimator: ~4 characters per token.
  *
  * Industry-standard approximation (±10% for English/code content).
- * Used only when gpt-tokenizer fails to load in constrained environments.
+ * Used only when tokenizer fails in constrained environments.
  */
 export class HeuristicTokenEstimator implements TokenEstimator {
 	readonly name = "heuristic (chars/4)";
@@ -62,34 +67,29 @@ export class HeuristicTokenEstimator implements TokenEstimator {
 }
 
 /**
- * Factory: creates a RealTokenEstimator with gpt-tokenizer,
- * falling back to HeuristicTokenEstimator if the import fails.
- *
- * Uses dynamic import to avoid blocking SDK initialization and to
- * gracefully degrade in environments where gpt-tokenizer is unavailable.
+ * Factory: creates a RealTokenEstimator with inlined o200k_base,
+ * falling back to HeuristicTokenEstimator if an unexpected error occurs.
  */
 export async function createTokenEstimator(): Promise<TokenEstimator> {
 	try {
-		const mod = await import("gpt-tokenizer");
-		const estimator = new RealTokenEstimator(
-			mod.countTokens,
-			mod.setMergeCacheSize,
-		);
+		const estimator = new RealTokenEstimator(countTokens, setMergeCacheSize);
 		log.debug("[LIOP-Economy] Token estimator initialized: o200k_base");
 		return estimator;
 	} catch {
 		log.info(
-			"[LIOP-Economy] gpt-tokenizer unavailable, falling back to heuristic estimator",
+			"[LIOP-Economy] Inlined tokenizer initialization error, falling back to heuristic estimator",
 		);
 		return new HeuristicTokenEstimator();
 	}
 }
 
 /**
- * Synchronous factory: creates a HeuristicTokenEstimator immediately.
- * Used when the async factory cannot be awaited (e.g., constructor contexts).
- * The engine should upgrade to the real estimator via setEstimator() later.
+ * Synchronous factory: creates a RealTokenEstimator immediately.
  */
 export function createSyncTokenEstimator(): TokenEstimator {
-	return new HeuristicTokenEstimator();
+	try {
+		return new RealTokenEstimator(countTokens, setMergeCacheSize);
+	} catch {
+		return new HeuristicTokenEstimator();
+	}
 }

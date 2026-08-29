@@ -7,9 +7,12 @@ on:
       - alpha
       - beta
       - 'feat/*'
+      - 'feature/*'
   pull_request:
     branches:
       - main
+      - alpha
+      - beta
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
