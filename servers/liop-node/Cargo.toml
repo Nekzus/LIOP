@@ -9,7 +9,7 @@ authors = ["Nekzus Solutions"]
 liop-core = { path = "../../sdks/rust/crates/core" }
 
 # gRPC y Async
-tonic = "0.12"
+tonic = "0.14"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "io-util"] }
 
 # Logic-on-Origin Sandbox
