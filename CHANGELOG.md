@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.4.2](https://github.com/Nekzus/LIOP/compare/v2.4.1...v2.4.2) (2026-08-29)
+
+
+### Bug Fixes
+
+* **security:** resolve CodeQL CWE-915 prototype-polluting assignment in resetFieldBudget ([714acc6](https://github.com/Nekzus/LIOP/commit/714acc6b8b91e4f8fda5684daa37b8e6284530df))
+* **security:** resolve CodeQL CWE-915 prototype-polluting assignment in resetFieldBudget ([4816003](https://github.com/Nekzus/LIOP/commit/4816003177cd6aca6d9b1fed9a0aaf1e09b0024c))
+* **security:** resolve Dependabot vulnerabilities via workspace overrides and wasmtime update ([a662006](https://github.com/Nekzus/LIOP/commit/a662006c977489d49fd050599a37d659d6bf8c4e))
+
 ## [2.4.1](https://github.com/Nekzus/LIOP/compare/v2.4.0...v2.4.1) (2026-08-29)
 
 
