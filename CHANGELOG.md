@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.4.1-beta.4](https://github.com/Nekzus/LIOP/compare/v2.4.1-beta.3...v2.4.1-beta.4) (2026-08-29)
+
+
+### Bug Fixes
+
+* **deps:** bump lodash override to >=4.18.1 for CVE-2026-4800 remediation ([c2dc3bd](https://github.com/Nekzus/LIOP/commit/c2dc3bd5be41b69779d33933019299ebfc0e14b3))
+* **deps:** map lodash-es to lodash >=4.18.1 and add dependabot configuration ([3e53097](https://github.com/Nekzus/LIOP/commit/3e53097ec3b2f0f34e9a8de374b9e52f536dda73))
+* **deps:** restore pure ESM lodash-es >=4.17.21 for semantic-release compatibility ([2673b58](https://github.com/Nekzus/LIOP/commit/2673b58b9362c69a6919ae0ead610d0cee2984ba))
+
 ## [2.4.1-beta.3](https://github.com/Nekzus/LIOP/compare/v2.4.1-beta.2...v2.4.1-beta.3) (2026-08-29)
 
 
