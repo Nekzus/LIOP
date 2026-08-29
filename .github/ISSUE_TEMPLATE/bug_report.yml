@@ -1,0 +1,118 @@
+name: Bug Report
+description: Report an issue or unexpected behavior in LIOP runtime, SDK, or nodes.
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting an issue. Please ensure your report is clear, concise, and provides sufficient technical context to reproduce the problem.
+        
+        If you are reporting a security vulnerability or sandbox escape, please use [Private Security Advisory](https://github.com/Nekzus/LIOP/security/advisories/new) instead.
+
+  - type: input
+    id: component
+    attributes:
+      label: Affected Component
+      description: Specify the component (e.g. TypeScript SDK, Rust Node, MCP Gateway, Web Playground, Docker Mesh).
+      placeholder: "e.g. @nekzus/liop, liop-node, MCP Gateway"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: package_version
+    attributes:
+      label: Release Channel / Version
+      description: What version or release channel are you currently running?
+      options:
+        - "latest (v2.4.x / Stable)"
+        - "beta (v2.x.x-beta.x)"
+        - "alpha (v2.x.x-alpha.x)"
+        - "Building from source (main branch)"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of what the bug is.
+      placeholder: Describe what happened and why it deviates from expected behavior.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction_steps
+    attributes:
+      label: Steps to Reproduce
+      description: Detailed, deterministic steps to reproduce the issue.
+      value: |
+        1. 
+        2. 
+        3. 
+    validations:
+      required: true
+
+  - type: textarea
+    id: code_sample
+    attributes:
+      label: Minimal Reproduction Code
+      description: Provide a minimal code snippet or protocol payload reproducing the issue.
+      render: typescript
+      placeholder: |
+        import { LiopClient } from '@nekzus/liop';
+
+        // Minimal reproduction snippet
+    validations:
+      required: false
+
+  - type: textarea
+    id: expected_behavior
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant Logs or Output
+      description: Paste relevant terminal logs, gRPC traces, or browser console output (sanitize any private keys or sensitive information).
+      render: shell
+    validations:
+      required: false
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System
+      description: Which operating system are you running on?
+      options:
+        - Linux (Ubuntu / Debian / Arch)
+        - macOS (Apple Silicon / Intel)
+        - Windows 11 / 10
+        - Docker Container (Linux)
+    validations:
+      required: true
+
+  - type: input
+    id: node_version
+    attributes:
+      label: Node.js / Rust Version
+      description: Runtime version (e.g. Node.js v20.18.0, Rust 1.84.0).
+      placeholder: "e.g. Node.js v22.12.0, pnpm v10.5.0"
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checklists
+    attributes:
+      label: Pre-Submission Verification
+      options:
+        - label: I have searched existing issues to ensure this is not a duplicate.
+          required: true
+        - label: I have verified that this report does not contain sensitive data or credentials.
+          required: true
+        - label: I have tested against the latest version on the corresponding channel.
+          required: true

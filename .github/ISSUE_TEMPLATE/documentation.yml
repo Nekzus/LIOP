@@ -1,0 +1,49 @@
+name: Documentation Improvement
+description: Report missing documentation, broken references, or specification discrepancies.
+title: "[Docs]: "
+labels: ["documentation"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for helping improve LIOP documentation and developer guides.
+
+  - type: input
+    id: page_url
+    attributes:
+      label: Documentation Page / File Path
+      description: Provide the URL or repository file path where the documentation issue is located.
+      placeholder: "e.g. docs/typescript-sdk/security.mdx or README.md"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: issue_type
+    attributes:
+      label: Issue Classification
+      description: What type of documentation issue is this?
+      options:
+        - Outdated content / API mismatch
+        - Missing guide or tutorial
+        - Typo or grammatical error
+        - Broken link or dead reference
+        - Clarification required for complex architecture
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description & Proposed Correction
+      description: Describe the issue and provide the corrected wording, code example, or explanation.
+      placeholder: "Current documentation says X, but the actual implementation requires Y..."
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: contribution_intent
+    attributes:
+      label: Contribution Intent
+      options:
+        - label: I would like to submit a pull request to fix this documentation.
+          required: false

@@ -1,94 +1,96 @@
 # Contributing to Logic-Injection-on-Origin Protocol (LIOP)
-*Para la versión en Español, ver la sección más abajo.* 
+*Para la versión en Español, ver la sección más abajo.*
 
-Thank you for your interest in contributing to the Logic-Injection-on-Origin Protocol (LIOP). We are building the successor to the Model Context Protocol (MCP) by shifting the paradigm from Context-Pulling to **Logic-on-Origin (LoO)**. 
+Thank you for your interest in contributing to the Logic-Injection-on-Origin Protocol (LIOP). We are building the high-performance successor to the Model Context Protocol (MCP) by shifting the paradigm from Context-Pulling to **Logic-on-Origin (LoO)**.
 
-To ensure the highest quality, military-grade security, and a cohesive developer experience, please adhere to the following guidelines.
+To ensure the highest architectural quality, military-grade Zero-Trust security, and a predictable open-source lifecycle, please adhere to the following contribution guidelines.
+
+---
 
 ## 1. Code of Conduct
-By participating in this project, you agree to abide by our Code of Conduct. We expect all contributors to maintain a professional, respectful, and inclusive environment.
+By participating in this project, you agree to abide by our Code of Conduct. All contributors are expected to maintain a professional, technical, respectful, and inclusive environment.
 
 ## 2. Core Philosophy: Logic-on-Origin (LoO)
-LIOP is built on the **Postulate of Origin (Logic-on-Origin)**. All contributions must respect the Zero-Trust architecture. 
+LIOP is built on the **Postulate of Origin (Logic-on-Origin)**. All contributions must respect the Zero-Trust architecture:
 - Agents send logic (WASM/JS); data never leaves the Origin Server without explicit, cryptographically verifiable intent.
-- Ensure any new feature adheres to the Sandboxing (WASI/V8 Guardian AST) and Cryptographic validation (ZK-Receipts) principles.
+- Ensure any new feature adheres to the Sandboxing (WASI/V8 Guardian AST) and Cryptographic validation (ZK-Receipts, ML-KEM-768, ML-DSA-65) principles.
 
 ## 3. Language Policy
-- **Codebase (Strictly English)**: All source code (variables, functions, architectures), internal code comments, and technical specifications must be written in **English**.
-- **Documentation & Community (Bilingual)**: High-level architectural documents (`GEMINI.md`, Issues, Discussions) and Community interactions may be conducted in **Spanish** or **English**.
+- **Codebase (Strictly English)**: All source code (variable names, functions, architectures), internal code comments, and technical specifications must be written in **English**.
+- **Community & Planning (Bilingual)**: High-level architectural documents (`GEMINI.md`, internal planning), Issues, and Discussions may be conducted in **Spanish** or **English**.
 
-## 4. Branching Strategy
-We follow a structured branching model:
-- `main`: Represents the stable, production-ready Tier-0 state.
-- `development`: The active integration branch.
-- Feature branches must branch off `development` and be named using the format `feature/<your-feature-name>`.
-- Bugfix branches should be named `fix/<bug-name>`.
+## 4. Canonical 3-Channel Branching Strategy
+We maintain a strict 3-channel release topology:
+- `main`: Represents the stable, production-ready Tier-0 state (`latest` on npm).
+- `beta`: Represents the staging and feature-freeze channel (`@beta` on npm).
+- `alpha`: Represents the active development channel (`@alpha` on npm).
 
-## 5. Pull Requests (PR)
-- Submit PRs targeting the `development` branch.
-- Include a clear, descriptive title and a comprehensive summary of the changes.
-- Ensure all tests pass (`pnpm test` / `cargo test`). **Do not submit PRs with failing tests or lowered coverage.**
-- Any new features must include their respective unit tests, demonstrating 100% reliability, especially concerning PII detection or logic sandboxing.
+### Branching Rules:
+1. All new feature branches must branch off `alpha` using the format `feature/<descriptive-name>`.
+2. Bug fix branches should be named `fix/<bug-name>`.
+3. Submit Pull Requests targeting the **`alpha`** branch for active development, or **`beta`** for stabilization fixes.
 
-## 6. Security (PII & Zero-Trust)
-- LIOP operates with a **Zero-Tolerance** policy for Personal Identifiable Information (PII) leakage.
-- Never hardcode secrets, tokens, or absolute local paths.
-- If you touch the egress filters or AST validators, you must mathematically prove your changes via tests (e.g., Luhn validation, avoiding catastrophic backtracking).
+## 5. Mandatory GPG Commit Signing
+All git commits must be cryptographically signed with GPG (`git commit -S`). Unsigned commits will not pass automated security checks.
 
-## 7. Style Guidelines
-- **TypeScript**: We use `Biome.js` for strict linting and formatting. Run `pnpm run check` and `pnpm run format` before committing.
-- **Rust**: Use `rustfmt` and `clippy`. Ensure `cargo clippy -- -D warnings` passes without errors.
+## 6. Pull Request Requirements
+- Use the official Pull Request template (`.github/pull_request_template.md`).
+- Ensure all automated checks pass locally before submission:
+  - `pnpm install --frozen-lockfile` (0 lockfile errors).
+  - `pnpm run check` (BiomeJS formatting and linting).
+  - `pnpm test` / `cargo test` (100% test pass rate).
+- All new functionality must include corresponding unit and/or integration tests.
 
-## 8. Continuous Integration & Releases (Trusted Publishing)
-To maintain our strict security standard and avoid credentials leakage:
-- **No Static Tokens**: The `NPM_TOKEN` environment variable has been fully removed from GitHub Secrets and our pipelines. All packages are released using **OIDC (OpenID Connect) / Trusted Publishers** configured on npmjs.com.
-- **Decoupled Publishing**: We utilize a decoupled release pattern. The `semantic-release` configuration has `"npmPublish": false` to prevent it from executing standard `npm publish` (which conflicts with `pnpm workspaces` and virtual links). Instead, after release tags are generated by semantic-release, the CI runs a dedicated `pnpm publish --provenance --no-git-checks --tag alpha` step.
-- **Provenance Certificates**: Every publish step enforces `--provenance` to generate cryptographic signatures of origin linked directly to our GitHub Actions runner context.
+## 7. Security (PII & Zero-Trust)
+- LIOP enforces a **Zero-Tolerance** policy for Personal Identifiable Information (PII) leakage.
+- Never hardcode credentials, secrets, or absolute local paths.
+- For security vulnerabilities, sandbox escapes, or cryptographic weaknesses, use [Private Security Advisories](https://github.com/Nekzus/LIOP/security/advisories/new) instead of public issues.
 
 ---
 
 # Contribuir a Logic-Injection-on-Origin Protocol (LIOP)
 
-Gracias por tu interés en contribuir al Logic-Injection-on-Origin Protocol (LIOP). Estamos construyendo el sucesor del Model Context Protocol (MCP) cambiando el paradigma de la Extracción de Contexto hacia el núcleo de **Logic-on-Origin (LoO)**.
+Gracias por tu interés en contribuir al Logic-Injection-on-Origin Protocol (LIOP). Estamos construyendo el sucesor de alto rendimiento del Model Context Protocol (MCP) cambiando el paradigma de la Extracción de Contexto hacia el núcleo de **Logic-on-Origin (LoO)**.
 
-Para garantizar la más alta calidad, seguridad de grado militar y una experiencia de desarrollo cohesiva, por favor adhiérete a las siguientes directrices.
+Para garantizar la más alta calidad arquitectónica, seguridad Zero-Trust de grado militar y un ciclo de vida predecible, por favor adhiérete a las siguientes directrices.
+
+---
 
 ## 1. Código de Conducta
-Al participar en este proyecto, aceptas cumplir con nuestro Código de Conducta. Esperamos que todos los contribuidores mantengan un ambiente profesional, respetuoso e inclusivo.
+Al participar en este proyecto, aceptas cumplir con nuestro Código de Conducta. Esperamos que todos los contribuidores mantengan un ambiente profesional, técnico, respetuoso e inclusivo.
 
 ## 2. Filosofía Central: Logic-on-Origin (LoO)
-LIOP está construido sobre el **Postulado de Origen (Logic-on-Origin)**. Todas las contribuciones deben respetar la arquitectura Zero-Trust.
+LIOP está construido sobre el **Postulado de Origen (Logic-on-Origin)**. Todas las contribuciones deben respetar la arquitectura Zero-Trust:
 - Los agentes envían lógica (WASM/JS); los datos nunca abandonan el Servidor de Origen sin una intención explícita y criptográficamente verificable.
-- Asegúrate de que cualquier nueva característica se adhiera a los principios de Sandboxing (WASI/V8 Guardian AST) y validación criptográfica (ZK-Receipts).
+- Asegúrate de que cualquier nueva característica se adhiera a los principios de Sandboxing (WASI/V8 Guardian AST) y validación criptográfica (ZK-Receipts, ML-KEM-768, ML-DSA-65).
 
 ## 3. Política de Idioma
-- **Código Fuente (Estrictamente Inglés)**: Todo el código fuente (variables, funciones, arquitecturas), comentarios internos en el código y especificaciones técnicas en el repositorio deben escribirse en **Inglés**.
-- **Documentación y Comunidad (Bilingüe)**: Los documentos arquitectónicos de alto nivel (`GEMINI.md`, Issues, Discusiones) y las interacciones de la comunidad pueden realizarse en **Español** o **Inglés**.
+- **Código Fuente (Estrictamente Inglés)**: Todo el código fuente (variables, funciones, arquitecturas), comentarios internos en el código y especificaciones técnicas deben escribirse en **Inglés**.
+- **Comunidad y Planificación (Bilingüe)**: Los documentos arquitectónicos de alto nivel (`GEMINI.md`, planificación interna), Issues y Discusiones pueden realizarse en **Español** o **Inglés**.
 
-## 4. Estrategia de Ramas (Branching)
-Seguimos un modelo estructurado:
-- `main`: Representa el estado estable, listo para producción (Tier-0).
-- `development`: La rama de integración activa.
-- Las ramas de características deben partir de `development` y nombrarse con el formato `feature/<nombre-de-tu-feature>`.
-- Las ramas de corrección de errores deben nombrarse `fix/<nombre-del-bug>`.
+## 4. Estrategia Canónica de 3 Ramas
+Mantenemos una topología estricta de 3 canales de release:
+- `main`: Representa el estado estable de producción (`latest` en npm).
+- `beta`: Representa el canal de staging y congelamiento de características (`@beta` en npm).
+- `alpha`: Representa el canal de desarrollo activo (`@alpha` en npm).
 
-## 5. Pull Requests (PR)
-- Envía tus PRs apuntando a la rama `development`.
-- Incluye un título claro y descriptivo, y un resumen exhaustivo de los cambios.
-- Asegúrate de que todas las pruebas pasen (`pnpm test` / `cargo test`). **No envíes PRs con pruebas fallando o cobertura disminuida.**
-- Toda nueva funcionalidad debe incluir sus respectivas pruebas unitarias, demostrando 100% de fiabilidad, especialmente en lo relativo a la detección de PII o el sandboxing lógico.
+### Reglas de Ramificación:
+1. Toda nueva rama de característica debe partir de `alpha` con el formato `feature/<nombre-descriptivo>`.
+2. Las ramas de corrección de errores deben nombrarse `fix/<nombre-del-bug>`.
+3. Envía tus Pull Requests apuntando a la rama **`alpha`** para desarrollo activo, o a **`beta`** para estabilización.
 
-## 6. Seguridad (PII y Zero-Trust)
+## 5. Firma GPG Obligatoria en Commits
+Todos los commits deben estar firmados criptográficamente con GPG (`git commit -S`). Los commits sin firma no superarán las comprobaciones de seguridad.
+
+## 6. Requisitos de Pull Requests
+- Utiliza la plantilla oficial de Pull Request (`.github/pull_request_template.md`).
+- Asegúrate de que todas las pruebas y validaciones pasen localmente antes de enviar:
+  - `pnpm install --frozen-lockfile` (0 errores de lockfile).
+  - `pnpm run check` (BiomeJS linting y formateo).
+  - `pnpm test` / `cargo test` (100% de tests aprobados).
+- Toda nueva funcionalidad debe incluir sus pruebas unitarias y/o de integración correspondientes.
+
+## 7. Seguridad (PII y Zero-Trust)
 - LIOP opera con una política de **Cero Tolerancia** para fugas de Información Personal Identificable (PII).
-- Nunca dejes secretos, tokens o rutas locales absolutas en el código.
-- Si modificas los filtros de salida (egress) o los validadores AST, debes probar matemáticamente tus cambios mediante tests (ej. validación Luhn, evitar backtracking catastrófico).
-
-## 7. Guías de Estilo
-- **TypeScript**: Utilizamos `Biome.js` para linting estricto y formato. Ejecuta `pnpm run check` y `pnpm run format` antes de hacer commit.
-- **Rust**: Usa `rustfmt` y `clippy`. Asegúrate de que `cargo clippy -- -D warnings` pase sin errores.
-
-## 8. Integración Continua y Lanzamientos (Trusted Publishing)
-Para mantener nuestro estricto estándar de seguridad y evitar la filtración de credenciales:
-- **Sin Tokens Estáticos**: La variable de entorno `NPM_TOKEN` ha sido eliminada por completo de GitHub Secrets y de nuestros pipelines. Todos los lanzamientos de paquetes se publican utilizando **OIDC (OpenID Connect) / Trusted Publishers** configurado en npmjs.com.
-- **Publicación Desacoplada**: Utilizamos un patrón de publicación desacoplada. La configuración de `semantic-release` tiene `"npmPublish": false` para evitar que ejecute `npm publish` estándar (lo cual genera conflictos con `pnpm workspaces` y enlaces virtuales). En su lugar, después de que semantic-release genera los commits y etiquetas de versión, el CI ejecuta un paso dedicado `pnpm publish --provenance --no-git-checks --tag alpha`.
-- **Certificados de Provenance**: Cada publicación fuerza `--provenance` para generar firmas criptográficas de origen vinculadas directamente al contexto de ejecución de GitHub Actions.
+- Nunca incluyas credenciales, secretos o rutas locales absolutas.
+- Para vulnerabilidades de seguridad, escapes de sandbox o debilidades criptográficas, utiliza las [Asesorías Privadas de Seguridad](https://github.com/Nekzus/LIOP/security/advisories/new) en lugar de issues públicos.
