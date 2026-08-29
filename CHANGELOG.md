@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.4.1-beta.1](https://github.com/Nekzus/LIOP/compare/v2.4.0...v2.4.1-beta.1) (2026-08-29)
+
+
+### Bug Fixes
+
+* **security:** resolve CodeQL CWE-915 prototype-polluting assignment in resetFieldBudget ([4816003](https://github.com/Nekzus/LIOP/commit/4816003177cd6aca6d9b1fed9a0aaf1e09b0024c))
+
 # [2.1.0-beta.6](https://github.com/Nekzus/LIOP/compare/v2.1.0-beta.5...v2.1.0-beta.6) (2026-08-29)
 
 ### Bug Fixes
