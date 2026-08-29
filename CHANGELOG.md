@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.4.0](https://github.com/Nekzus/LIOP/compare/v2.3.0...v2.4.0) (2026-08-29)
+
+
+### Features
+
+* **ci:** implement verified GPG release signatures and clean multi-channel changelog segregation ([2729e1e](https://github.com/Nekzus/LIOP/commit/2729e1e116e6670a58a7821b2e1d2eb4f684e554))
+* **ci:** implement verified GPG release signatures and clean multi-channel changelog segregation ([b980bb2](https://github.com/Nekzus/LIOP/commit/b980bb2ec27939720c50dc87afd223639e835a76))
+
 # [2.3.0](https://github.com/Nekzus/LIOP/compare/v2.2.0...v2.3.0) (2026-08-29)
 
 
