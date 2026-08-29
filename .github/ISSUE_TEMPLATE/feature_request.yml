@@ -1,0 +1,62 @@
+name: Feature Request / RFC
+description: Propose a new feature, protocol invariant, or architectural enhancement for LIOP.
+title: "[Feature]: "
+labels: ["enhancement", "proposal"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for proposing an enhancement to the Logic-Injection-on-Origin Protocol (LIOP). Please provide a thorough technical breakdown of the motivation, API design, and security impact.
+
+  - type: input
+    id: component
+    attributes:
+      label: Target Component
+      description: Specify the component (e.g. Protocol Specification, TypeScript SDK, Rust Node, Gateway, Playground).
+      placeholder: "e.g. Protocol Wire Format, SDK Client, Sandbox AST"
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem_statement
+    attributes:
+      label: Problem Statement / Motivation
+      description: Is your feature request related to a specific problem or architectural limitation? Please describe clearly.
+      placeholder: "Describe the use case, bottleneck, or missing protocol capability..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed_solution
+    attributes:
+      label: Proposed Solution / API Design
+      description: Provide detailed technical design, method signatures, or protocol messages.
+      placeholder: |
+        Describe how the feature should behave, including proposed TypeScript/Rust APIs or Protobuf definitions.
+    validations:
+      required: true
+
+  - type: textarea
+    id: zero_trust_impact
+    attributes:
+      label: Zero-Trust & Sandboxing Impact Assessment
+      description: How does this change affect WASI sandboxing, PII derivation, egress filters, or cryptographic verification?
+      placeholder: "Detail any security considerations, prototype invariants, or AST allowlist adjustments..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives_considered
+    attributes:
+      label: Alternatives Considered
+      description: Detail any alternative designs or workarounds considered.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: contribution_intent
+    attributes:
+      label: Contribution Intent
+      options:
+        - label: I am willing to submit a pull request implementing this feature.
+          required: false
