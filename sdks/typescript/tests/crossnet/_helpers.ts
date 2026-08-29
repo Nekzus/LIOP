@@ -11,10 +11,43 @@ type JsonRpcResponse = {
 	error?: { code: number; message: string };
 };
 
+let cachedAuthToken: string | null = null;
+
+async function getAuthToken(): Promise<string | null> {
+	if (cachedAuthToken) return cachedAuthToken;
+	try {
+		const res = await fetch(`${agentUrl}/oidc/token`, {
+			method: "POST",
+			headers: { "Content-Type": "application/x-www-form-urlencoded" },
+			body: new URLSearchParams({
+				grant_type: "client_credentials",
+				client_id: process.env.LIOP_OAUTH_CLIENT_ID || "liop-mesh-agent",
+				client_secret: process.env.LIOP_OAUTH_CLIENT_SECRET || "dev-secret-change-me",
+			}).toString(),
+		});
+		if (res.ok) {
+			const data = (await res.json()) as { access_token?: string };
+			if (data.access_token) {
+				cachedAuthToken = data.access_token;
+				return cachedAuthToken;
+			}
+		}
+	} catch {
+		// Non-auth fallback
+	}
+	return null;
+}
+
 export async function mcpCall(method: string, params: Record<string, unknown>, id = Date.now()): Promise<JsonRpcResponse> {
+	const token = await getAuthToken();
+	const headers: Record<string, string> = { "Content-Type": "application/json" };
+	if (token) {
+		headers.Authorization = `Bearer ${token}`;
+	}
+
 	const res = await fetchWithRetry(`${agentUrl}/mcp`, {
 		method: "POST",
-		headers: { "Content-Type": "application/json" },
+		headers,
 		body: JSON.stringify({ jsonrpc: "2.0", id, method, params }),
 	});
 
