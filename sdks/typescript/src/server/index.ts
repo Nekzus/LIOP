@@ -2567,7 +2567,7 @@ Protocol Adherence is mandatory for successful execution.`,
 					toolName === "prototype"))
 		) {
 			log.warn(
-				`[LiopServer] Blocked resetFieldBudget call due to prototype pollution keys.`,
+				`[LiopServer] Rejected resetFieldBudget for unsafe clientId/toolName: ${clientId}`,
 			);
 			return;
 		}
@@ -2588,10 +2588,10 @@ Protocol Adherence is mandatory for successful execution.`,
 			try {
 				this.executeWithBudgetLock(storePath, (budget) => {
 					if (toolName) {
-						if (budget[clientId]) {
+						if (Object.hasOwn(budget, clientId) && budget[clientId]) {
 							delete budget[clientId][toolName];
 						}
-					} else {
+					} else if (Object.hasOwn(budget, clientId)) {
 						delete budget[clientId];
 					}
 					return { result: undefined, updatedBudget: budget };
@@ -2614,12 +2614,22 @@ Protocol Adherence is mandatory for successful execution.`,
 	): Record<string, Record<string, Record<string, number>>> {
 		try {
 			if (!fs.existsSync(storePath)) {
-				return {};
+				return Object.create(null);
 			}
 			const content = fs.readFileSync(storePath, "utf-8");
-			return JSON.parse(content || "{}");
+			const parsed = JSON.parse(content || "{}");
+			if (parsed && typeof parsed === "object") {
+				const clean = Object.create(null);
+				for (const [k, v] of Object.entries(parsed)) {
+					if (k !== "__proto__" && k !== "constructor" && k !== "prototype") {
+						clean[k] = v;
+					}
+				}
+				return clean;
+			}
+			return Object.create(null);
 		} catch {
-			return {};
+			return Object.create(null);
 		}
 	}
 
