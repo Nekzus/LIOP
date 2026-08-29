@@ -3,6 +3,19 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.1.0-alpha.17](https://github.com/Nekzus/LIOP/compare/v2.1.0-alpha.16...v2.1.0-alpha.17) (2026-08-29)
+
+
+### Bug Fixes
+
+* **deps:** synchronize pnpm-lock.yaml for devDependencies gpt-tokenizer migration ([64fb550](https://github.com/Nekzus/LIOP/commit/64fb550f7d5fa056b35fc9198530b8094540b005))
+
+
+### Performance Improvements
+
+* **economy:** inline o200k_base tokenizer and reduce package footprint ([1241cd6](https://github.com/Nekzus/LIOP/commit/1241cd60c8ac588b5dc21d5348ed1cc4972ec48c))
+* **economy:** merge inlined o200k_base tokenizer optimization into alpha ([f9531b4](https://github.com/Nekzus/LIOP/commit/f9531b4cb25451b9f11397e6ee3d0306033bdc8c))
+
 # [2.1.0-alpha.16](https://github.com/Nekzus/LIOP/compare/v2.1.0-alpha.15...v2.1.0-alpha.16) (2026-08-28)
 
 
