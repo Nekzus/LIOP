@@ -13,10 +13,10 @@ describe("Security: Prototype Pollution Prevention (CWE-915)", () => {
 		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "liop-proto-test-"));
 		storePath = path.join(tempDir, "budget-store.json");
 
-		server = new LiopServer({
-			nodeId: "test-node",
-			budgetStorePath: storePath,
-		});
+		server = new LiopServer(
+			{ name: "prototype-pollution-test-server", version: "1.0.0" },
+			{ budgetStorePath: storePath },
+		);
 	});
 
 	afterEach(() => {
@@ -34,7 +34,9 @@ describe("Security: Prototype Pollution Prevention (CWE-915)", () => {
 			}).not.toThrow();
 
 			// Verify Object.prototype was NOT polluted
-			expect((Object.prototype as Record<string, unknown>).polluted).toBeUndefined();
+			expect(
+				(Object.prototype as Record<string, unknown>).polluted,
+			).toBeUndefined();
 		}
 	});
 
@@ -46,7 +48,9 @@ describe("Security: Prototype Pollution Prevention (CWE-915)", () => {
 				server.resetFieldBudget("legitimate-client-id", key);
 			}).not.toThrow();
 
-			expect((Object.prototype as Record<string, unknown>).polluted).toBeUndefined();
+			expect(
+				(Object.prototype as Record<string, unknown>).polluted,
+			).toBeUndefined();
 		}
 	});
 
