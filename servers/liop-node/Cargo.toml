@@ -34,4 +34,4 @@ tracing-subscriber = { version = "0.3", features = ["json", "env-filter"] }
 toml = "0.8"
 
 [dev-dependencies]
-wasm-encoder = "0.225"
+wasm-encoder = "0.258"
