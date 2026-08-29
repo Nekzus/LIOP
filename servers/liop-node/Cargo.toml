@@ -20,7 +20,7 @@ wasmtime-wasi = "29.0.1"
 libp2p = { version = "0.54", features = ["tcp", "noise", "yamux", "kad", "macros", "tokio", "quic"] }
 futures = "0.3"
 tokio-stream = "0.1"
-wasmparser = "0.225"
+wasmparser = "0.258"
 anyhow = "1"
 pqcrypto-kyber = "0.8"
 aes-gcm = "0.10"
