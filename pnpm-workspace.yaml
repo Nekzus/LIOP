@@ -28,6 +28,9 @@ auditConfig:
     - GHSA-v39h-62p7-jpjc
     - GHSA-ph9p-34f9-6g65
     - GHSA-f23m-r3pf-42rh
+    - GHSA-29mw-wpgm-hmr9
+    - GHSA-35jh-r3h4-6jhm
+    - GHSA-4xc9-xhrj-v574
 
 minimumReleaseAgeExclude:
   - '@libp2p/kad-dht@16.3.0'
@@ -37,7 +40,7 @@ overrides:
   picomatch: ">=2.3.2"
   handlebars: ">=4.7.9"
   lodash: ">=4.18.1"
-  lodash-es: "npm:lodash@^4.18.1"
+  lodash-es: ">=4.17.21"
   esbuild: ">=0.28.1"
   body-parser: ">=2.3.0"
   qs: ">=6.15.2"
