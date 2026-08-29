@@ -71,7 +71,6 @@ All notable changes to this project will be documented in this file. See
 
 # [2.1.0-alpha.17](https://github.com/Nekzus/LIOP/compare/v2.1.0-alpha.16...v2.1.0-alpha.17) (2026-08-29)
 
-
 ### Bug Fixes
 
 * **deps:** synchronize pnpm-lock.yaml for devDependencies gpt-tokenizer migration ([64fb550](https://github.com/Nekzus/LIOP/commit/64fb550f7d5fa056b35fc9198530b8094540b005))
@@ -85,13 +84,14 @@ All notable changes to this project will be documented in this file. See
 # [2.1.0-beta.5](https://github.com/Nekzus/LIOP/compare/v2.1.0-beta.4...v2.1.0-beta.5) (2026-06-05)
 # [2.1.0-alpha.16](https://github.com/Nekzus/LIOP/compare/v2.1.0-alpha.15...v2.1.0-alpha.16) (2026-08-28)
 
+# [2.1.0-alpha.16](https://github.com/Nekzus/LIOP/compare/v2.1.0-alpha.15...v2.1.0-alpha.16) (2026-08-28)
 
 ### Features
 
 * **license:** trigger Apache-2.0 package release with legal and trademark updates ([7b8b5a3](https://github.com/Nekzus/LIOP/commit/7b8b5a36c5e35d405f43ff0b0fd8ca55df1fb5fa))
 
-# [2.1.0-alpha.15](https://github.com/Nekzus/LIOP/compare/v2.1.0-alpha.14...v2.1.0-alpha.15) (2026-08-28)
 
+# [2.1.0-alpha.15](https://github.com/Nekzus/LIOP/compare/v2.1.0-alpha.14...v2.1.0-alpha.15) (2026-08-28)
 
 ### Bug Fixes
 
@@ -119,8 +119,8 @@ All notable changes to this project will be documented in this file. See
 
 * **playground:** optimize latency to <500ms and revamp ui with impeccable craft-floor ([062a32c](https://github.com/Nekzus/LIOP/commit/062a32cd65ac358c3f187c201ebca50567b9acd9))
 
-# [2.1.0-alpha.14](https://github.com/Nekzus/LIOP/compare/v2.1.0-alpha.13...v2.1.0-alpha.14) (2026-06-05)
 
+# [2.1.0-alpha.14](https://github.com/Nekzus/LIOP/compare/v2.1.0-alpha.13...v2.1.0-alpha.14) (2026-06-05)
 
 ### Bug Fixes
 
@@ -129,6 +129,7 @@ All notable changes to this project will be documented in this file. See
 # [2.1.0-alpha.13](https://github.com/Nekzus/LIOP/compare/v2.1.0-alpha.12...v2.1.0-alpha.13) (2026-06-04)
 # [2.2.0](https://github.com/Nekzus/LIOP/compare/v2.1.0...v2.2.0) (2026-06-05)
 
+# [2.1.0-alpha.13](https://github.com/Nekzus/LIOP/compare/v2.1.0-alpha.12...v2.1.0-alpha.13) (2026-06-04)
 
 ### Bug Fixes
 
@@ -136,6 +137,26 @@ All notable changes to this project will be documented in this file. See
 * **sdk:** bind preflight query budget to agent_did in executeLogic gRPC flow ([d6b3ba1](https://github.com/Nekzus/LIOP/commit/d6b3ba1196b3a64fcadab1532c839a9131147f02))
 * **sdk:** bundle @opentelemetry/api in noExternal to avoid peer dependency resolve errors in npx ([d824222](https://github.com/Nekzus/LIOP/commit/d82422204c58464fa4f5b45334c4e470c82a9f5f))
 * **sdk:** override uint8arrays to resolve ecdsa import error in npx ([a47546b](https://github.com/Nekzus/LIOP/commit/a47546bcdbbbba27a8138c519f7d72f66ce2c2cc))
+
+
+# [2.1.0-alpha.12](https://github.com/Nekzus/LIOP/compare/v2.1.0-alpha.11...v2.1.0-alpha.12) (2026-06-04)
+
+### Bug Fixes
+
+* **sdk:** override uint8arrays to resolve ecdsa import error in npx ([a47546b](https://github.com/Nekzus/LIOP/commit/a47546bcdbbbba27a8138c519f7d72f66ce2c2cc))
+
+
+# [2.1.0-alpha.11](https://github.com/Nekzus/LIOP/compare/v2.1.0-alpha.10...v2.1.0-alpha.11) (2026-06-04)
+
+### Features
+
+* **sdk:** document package audit findings and verify zero-bloat state ([e2a9cbe](https://github.com/Nekzus/LIOP/commit/e2a9cbe5d9a4a1acf29ea44753a735cbe29c58b4))
+
+
+# [2.1.0-alpha.10](https://github.com/Nekzus/LIOP/compare/v2.1.0-alpha.9...v2.1.0-alpha.10) (2026-06-04)
+
+### Bug Fixes
+
 * **tests:** align bank entrypoint with strict zod v4 z.record signature ([55b134e](https://github.com/Nekzus/LIOP/commit/55b134e7718d7bf2bc380fee201898ccdd5ce4ef))
 
 
@@ -151,6 +172,59 @@ All notable changes to this project will be documented in this file. See
 * **socket:** restore noExternal for performance and keep unminified bundle ([729e199](https://github.com/Nekzus/LIOP/commit/729e199b07462091da895a5c24de7f001a2c43e0))
 
 # [2.1.0](https://github.com/Nekzus/LIOP/compare/v2.0.0...v2.1.0) (2026-06-02)
+* **sdk:** document query budgets, isolate store paths per node, and add reset API (fases 148-150) ([162a9e0](https://github.com/Nekzus/LIOP/commit/162a9e0a4aea42a68fbc03e844cea5516839e3ea))
+
+
+# [2.1.0-alpha.9](https://github.com/Nekzus/LIOP/compare/v2.1.0-alpha.8...v2.1.0-alpha.9) (2026-06-04)
+
+### Features
+
+* **deps:** support zod v4 validation engine and uint8arrays v6 runtime ([ec16f34](https://github.com/Nekzus/LIOP/commit/ec16f3457c6e911c4d874f7c18efde1165b370cd))
+
+
+# [2.1.0-alpha.8](https://github.com/Nekzus/LIOP/compare/v2.1.0-alpha.7...v2.1.0-alpha.8) (2026-06-03)
+
+### Features
+
+* **socket:** consolidate unminified bundle and restore performance path ([a28ec70](https://github.com/Nekzus/LIOP/commit/a28ec70b84664c83ec3d7c0df29755008cb165b2))
+
+
+# [2.1.0-alpha.7](https://github.com/Nekzus/LIOP/compare/v2.1.0-alpha.6...v2.1.0-alpha.7) (2026-06-03)
+
+### Features
+
+* **socket:** restore noExternal for performance and keep unminified bundle ([729e199](https://github.com/Nekzus/LIOP/commit/729e199b07462091da895a5c24de7f001a2c43e0))
+
+
+# [2.1.0-alpha.6](https://github.com/Nekzus/LIOP/compare/v2.1.0-alpha.5...v2.1.0-alpha.6) (2026-06-03)
+
+### Features
+
+* **socket:** add opentelemetry/api to noExternal to fix npx ERR_MODULE_NOT_FOUND error ([bac6c2d](https://github.com/Nekzus/LIOP/commit/bac6c2d6a41f216cb58ebd78f66435d17a9ae072))
+
+
+# [2.1.0-alpha.5](https://github.com/Nekzus/LIOP/compare/v2.1.0-alpha.4...v2.1.0-alpha.5) (2026-06-03)
+
+### Features
+
+* **socket:** disable tsup minification to eliminate minifiedFile alerts ([ed6def1](https://github.com/Nekzus/LIOP/commit/ed6def18eb818fa72b8f92ad8c11c4803106875a))
+
+
+# [2.1.0-alpha.4](https://github.com/Nekzus/LIOP/compare/v2.1.0-alpha.3...v2.1.0-alpha.4) (2026-06-03)
+
+### Features
+
+* **socket:** add security auditing tools and document supply chain validation ([77a45b9](https://github.com/Nekzus/LIOP/commit/77a45b9fae2af45241fb4a71809e60052cd5fc7a))
+
+
+# [2.1.0-alpha.3](https://github.com/Nekzus/LIOP/compare/v2.1.0-alpha.2...v2.1.0-alpha.3) (2026-06-02)
+
+### Bug Fixes
+
+* **sdk:** bind preflight query budget to agent_did in executeLogic gRPC flow ([d6b3ba1](https://github.com/Nekzus/LIOP/commit/d6b3ba1196b3a64fcadab1532c839a9131147f02))
+
+
+# [2.1.0-alpha.2](https://github.com/Nekzus/LIOP/compare/v2.1.0-alpha.1...v2.1.0-alpha.2) (2026-06-02)
 
 ### Bug Fixes
 
