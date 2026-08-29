@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.4.1-beta.3](https://github.com/Nekzus/LIOP/compare/v2.4.1-beta.2...v2.4.1-beta.3) (2026-08-29)
+
+
+### Bug Fixes
+
+* **deps:** bump lodash override to >=4.18.1 for CVE-2026-4800 remediation ([e2d830b](https://github.com/Nekzus/LIOP/commit/e2d830b58e9ff9b9263711507cb10735b2867b10))
+
 ## [2.4.1-beta.2](https://github.com/Nekzus/LIOP/compare/v2.4.1-beta.1...v2.4.1-beta.2) (2026-08-29)
 
 
