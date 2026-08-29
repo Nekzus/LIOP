@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.4.0-alpha.5](https://github.com/Nekzus/LIOP/compare/v2.4.0-alpha.4...v2.4.0-alpha.5) (2026-08-29)
+
+
+### Bug Fixes
+
+* **deps:** map lodash-es to lodash >=4.18.1 and add dependabot configuration ([3e53097](https://github.com/Nekzus/LIOP/commit/3e53097ec3b2f0f34e9a8de374b9e52f536dda73))
+* **deps:** restore pure ESM lodash-es >=4.17.21 for semantic-release compatibility ([db1141b](https://github.com/Nekzus/LIOP/commit/db1141bab4a8b33b87fc6b9d1451cc59649a5bbb))
+
 # [2.4.0-alpha.4](https://github.com/Nekzus/LIOP/compare/v2.4.0-alpha.3...v2.4.0-alpha.4) (2026-08-29)
 
 
