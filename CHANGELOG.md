@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.4.0-alpha.3](https://github.com/Nekzus/LIOP/compare/v2.4.0-alpha.2...v2.4.0-alpha.3) (2026-08-29)
+
+
+### Bug Fixes
+
+* **security:** resolve Dependabot vulnerabilities via workspace overrides and wasmtime update ([a662006](https://github.com/Nekzus/LIOP/commit/a662006c977489d49fd050599a37d659d6bf8c4e))
+
 # [2.4.0-alpha.2](https://github.com/Nekzus/LIOP/compare/v2.4.0-alpha.1...v2.4.0-alpha.2) (2026-08-29)
 
 
