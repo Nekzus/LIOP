@@ -2,3 +2,4 @@
 *.bat text eol=crlf
 *.cmd text eol=crlf
 CHANGELOG.md merge=union
+graphify-out/graph.json merge=graphify
