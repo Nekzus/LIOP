@@ -1,6 +1,6 @@
 /**
  * Logic-Injection-on-Origin Protocol (LIOP) - Release Configuration
- * Multi-Channel Clean Changelog & Verified GPG Commit Architecture
+ * Multi-Channel Dedicated Changelog & Verified GPG Commit Architecture
  */
 
 // Detect current active release branch from CI environment
@@ -9,7 +9,6 @@ const branch =
 	process.env.GIT_BRANCH ||
 	process.env.BRANCH_NAME ||
 	"main";
-const isPrerelease = branch === "alpha" || branch === "beta";
 
 const plugins = [
 	[
@@ -28,18 +27,15 @@ const plugins = [
 	"@semantic-release/release-notes-generator",
 ];
 
-// 1. CHANGELOG: Exclusively generated on stable 'main' release branch
-// Prevents cross-channel pollution and eliminates PR merge conflicts
-if (!isPrerelease) {
-	plugins.push([
-		"@semantic-release/changelog",
-		{
-			changelogFile: "CHANGELOG.md",
-			changelogTitle:
-				"# Changelog\n\nAll notable changes to this project will be documented in this file. See\n[Conventional Commits](https://conventionalcommits.org) for commit guidelines.",
-		},
-	]);
-}
+// 1. CHANGELOG: Maintained per branch with branch-specific releases
+plugins.push([
+	"@semantic-release/changelog",
+	{
+		changelogFile: "CHANGELOG.md",
+		changelogTitle:
+			"# Changelog\n\nAll notable changes to this project will be documented in this file. See\n[Conventional Commits](https://conventionalcommits.org) for commit guidelines.",
+	},
+]);
 
 // 2. NPM: Bump version across TypeScript SDK workspace package
 plugins.push([
@@ -55,9 +51,7 @@ plugins.push([
 plugins.push([
 	"@semantic-release-extras/verified-git-commit",
 	{
-		assets: isPrerelease
-			? ["package.json", "sdks/typescript/package.json"]
-			: ["package.json", "CHANGELOG.md", "sdks/typescript/package.json"],
+		assets: ["package.json", "CHANGELOG.md", "sdks/typescript/package.json"],
 		message:
 			"chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}",
 	},
