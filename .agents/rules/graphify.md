@@ -12,3 +12,4 @@ Rules:
 - If graphify-out/wiki/index.md exists, navigate it instead of reading raw files
 - Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context
 - After modifying code files in this session, run `graphify update .` to keep the graph current (AST-only, no API cost)
+- Git hooks (`post-commit` and `post-checkout`) automatically update the graph in background using `CREATE_NO_WINDOW`. If hook errors occur in Windows ConPTY, re-sync via `graphify hook install` or remove with `graphify hook uninstall`.

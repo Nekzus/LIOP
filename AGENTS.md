@@ -74,6 +74,13 @@ Logic-Injection-on-Origin Protocol (LIOP) is the high-performance successor to t
 16. **Mandatory GPG Commit Signing (Strict No-Bypass Invariant)**:
    - All git commits must be cryptographically signed with GPG. Agents are strictly prohibited from using `--no-gpg-sign`.
    - When running `git commit`, provide adequate wait time for the user to unlock the GPG key via the pinentry modal. If GPG agent cache expires (`Vida máxima?`), alert the user to re-authenticate instead of evading signature verification.
+17. **Lockfile Synchronization on Dependency Category Migrations**:
+   - Whenever dependencies are moved between categories (`optionalDependencies`, `dependencies`, `devDependencies`), `pnpm-lock.yaml` must be explicitly refreshed via `pnpm install --no-frozen-lockfile` and committed alongside `package.json`.
+   - Always verify `pnpm install --frozen-lockfile` (Exit code 0) locally before pushing to prevent CI pipeline failures (`ERR_PNPM_OUTDATED_LOCKFILE`).
+18. **Multi-Channel Semantic-Release Promotion Protocol**:
+   - In repositories with multi-channel automated releases (`alpha` -> `beta` -> `main`), semantic-release writes channel-specific version tags and changelog headers directly to each release branch.
+   - To avoid GitHub PR merge blocks (`Can't automatically merge`), always use an ephemeral promotion branch (e.g. `promote-alpha-to-beta`, `promote-beta-to-main`), merge the target branch locally, resolve the `package.json` `"version"` field to preserve the target channel's baseline version, and verify frozen lockfile installation before pushing.
+   - Delete ephemeral promotion branches immediately post-merge to maintain a clean 3-channel topology.
 
 ---
 
@@ -95,6 +102,10 @@ Agents must enforce these six layers of defense:
 - **Docker BuildKit Cache Lock Recovery**:
   - When using Docker BuildKit cache mounts (`--mount=type=cache,target=/pnpm/store`), cancelling builds or interrupting Docker in Windows/WSL2 can wedge BuildKit cache locks.
   - Never attempt single-service hot builds if a previous build was killed. Instead: kill stuck background tasks, run `docker builder prune -f`, execute `docker compose down -v --remove-orphans`, and rebuild cleanly with `docker compose up -d --build`.
+- **Windows ConPTY & Git Hooks Subprocess Flag Invariant**:
+  - Background Python subprocesses spawned from Git hooks (`post-commit`, `post-checkout` such as Graphify) on Windows must use `CREATE_NO_WINDOW` (`0x08000000`) rather than `DETACHED_PROCESS` (`0x00000008`).
+  - Using `DETACHED_PROCESS` causes Win32 error `2147942632` (`0x800700E8` / `ERROR_NO_DATA` - broken pipe) in Windows Terminal / ConPTY when the parent Git shell exits before child pipe binding completes.
+  - If hook errors occur, manage them cleanly via `graphify hook uninstall` or `graphify hook install`.
 
 ---
 
