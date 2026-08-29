@@ -31,7 +31,7 @@ serde = { version = "1", features = ["derive"] }
 sha2 = "0.10"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["json", "env-filter"] }
-toml = "0.8"
+toml = "1.1"
 
 [dev-dependencies]
 wasm-encoder = "0.225"
