@@ -13,8 +13,8 @@ tonic = "0.12"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "io-util"] }
 
 # Logic-on-Origin Sandbox
-wasmtime = "29.0.1"
-wasmtime-wasi = "29.0.1"
+wasmtime = "48.0.1"
+wasmtime-wasi = "48.0.1"
 
 # Networking P2P
 libp2p = { version = "0.54", features = ["tcp", "noise", "yamux", "kad", "macros", "tokio", "quic"] }
