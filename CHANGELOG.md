@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.4.0-alpha.6](https://github.com/Nekzus/LIOP/compare/v2.4.0-alpha.5...v2.4.0-alpha.6) (2026-08-30)
+
+
+### Bug Fixes
+
+* **security:** upgrade wasmtime and wasmtime-wasi to 48.0.1 in liop-node to resolve 17 Dependabot advisories ([f432302](https://github.com/Nekzus/LIOP/commit/f4323026012fb9ef214d41c40cdc4ab914320bee))
+
 # [2.4.0-alpha.5](https://github.com/Nekzus/LIOP/compare/v2.4.0-alpha.4...v2.4.0-alpha.5) (2026-08-29)
 
 
