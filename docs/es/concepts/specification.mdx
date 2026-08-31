@@ -1,63 +1,88 @@
 ---
 title: "Especificación Técnica"
-description: "Las capas arquitectónicas fundamentales del Logic-Injection-on-Origin Protocol."
+description: "Las 8 capas arquitectónicas fundamentales del Logic-Injection-on-Origin Protocol."
 ---
 
-> © 2026 Mauricio Ortega aka. Nekzus & Organización Nekzus Solutions.
-> El **Logic-Injection-on-Origin Protocol (LIOP) Specification** está bajo la licencia [Creative Commons Attribution 4.0 International License (CC BY 4.0)](https://creativecommons.org/licenses/by/4.0/).
+> **Versión de la Especificación:** 1.0
+> **Fecha de Ratificación:** 31 de Agosto de 2026 | **Primera Publicación:** 1 de Marzo de 2026
+> **Estado:** Estándar Ratificado
+> **Autor:** Mauricio Ortega (Nekzus) & Organización Nekzus Solutions
+> **Licencia:** [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
 > **Attribution Required / Atribución Requerida:** Cualquier uso, adaptación o distribución de estos conceptos arquitectónicos debe atribuirse explícitamente a **Mauricio Ortega (Nekzus)** y **Nekzus Solutions**, e incluir un enlace oficial a este proyecto.
 
 ## 1. Introducción
-El Logic-Injection-on-Origin Protocol (LIOP) es un sistema de transporte binario de alto rendimiento y descentralizado, diseñado para una comunicación robusta entre máquinas de Inteligencia Artificial (M2M). Reemplaza la arquitectura clásica de "Context-Pulling" con el paradigma **Logic-Injection-on-Origin (LIO)**.
+El Logic-Injection-on-Origin Protocol (LIOP) es una red de transporte binario descentralizada y de alto rendimiento, diseñada para la comunicación robusta de Inteligencia Artificial Máquina-a-Máquina (M2M). Complementa a los protocolos de agentes a nivel de aplicación reemplazando la arquitectura clásica de "Context-Pulling" por el paradigma **Logic-Injection-on-Origin (LIO)** en cómputo distribuido de alta criticidad.
 
 ## 2. El Postulado Logic-Injection-on-Origin (LIO)
 **Postulado de Origen (Núcleo de Ejecución):** Los datos nunca deben ser extraídos hacia la inteligencia. La inteligencia debe ser inyectada hacia los datos.
 
-Un Agente LIOP interactuando con un Nodo de Datos inyecta una lógica ejecutable dinámica (en forma de módulos `.wasm`). El servidor ejecuta de forma segura esta lógica dentro de un estricto sandbox y retorna únicamente resultados matemáticos agregados o respuestas semánticas, eliminando la posibilidad de exfiltración de información sensible a causa de extracciones masivas de contexto.
+Un Agente LIOP interactuando con un Servidor LIOP inyecta lógica ejecutable (en forma de módulos `.wasm` microscópicos o algoritmos transpilados dinámicamente). El servidor ejecuta de forma segura esta lógica dentro de un estricto sandbox y retorna únicamente resultados matemáticos agregados o listas filtradas, eliminando matemáticamente la posibilidad de exfiltración involuntaria de PII (Información de Identificación Personal) a causa de extracciones masivas de contexto.
 
-## 3. Arquitectura de Red
+## 3. Arquitectura Topográfica
 
-### 3.1 Capa P2P (Malla Descentralizada)
-- LIOP opera sobre una arquitectura superpuesta descentralizada (P2P).
-- Los Nodos de Datos escuchan en puertos TCP/QUIC y se anuncian como servicios de larga duración.
-- Los Agentes se conectan de forma ad-hoc para inyectar lógica.
-- LIOP erradica por completo la necesidad de hubs o puntos de conexión centralizados.
+### 3.1 Capa de Red (libp2p & Malla Descentralizada)
+- LIOP opera sobre una arquitectura superpuesta descentralizada de `libp2p`.
+- Los Servidores (Nodos de Datos) escuchan en puertos TCP/QUIC y se anuncian como servicios de larga duración.
+- Los Clientes (Inyectores Agentes) se conectan de forma ad-hoc en redes locales o WAN pública mediante enrutamiento DHT Kademlia.
+- LIOP erradica por completo la necesidad de intermediarios o hubs centralizados.
 
 ### 3.2 Transporte y Multiplexación
-- Las conexiones utilizan multiplexación vía Yamux, permitiendo cientos de inyecciones `Logic-on-Origin` concurrentes sobre un solo socket TCP abierto sin sufrir bloqueos de cabecera (Head-Of-Line Blocking).
+- Las conexiones utilizan multiplexación vía Yamux, permitiendo cientos de inyecciones `Logic-Injection-on-Origin` concurrentes sobre un solo socket TCP sin sufrir Bloqueos de Cabecera (Head-Of-Line Blocking).
 
-### 3.3 Capa de Datos (Protobuf & gRPC)
+### 3.3 Capa RPC (Tonic / gRPC)
 - Los payloads binarios se encapsulan en definiciones estrictas de Protocol Buffers (`.proto`).
-- Toda la interacción LIOP se basa en gRPC de alta velocidad, eliminando el sobrecoste de JSON/HTTP de forma nativa.
+- Toda la interacción LIOP se basa en Protocol Buffers transmitidos sobre HTTP/2 mediante Tonic, eliminando el sobrecoste de serialización JSON-RPC de forma nativa.
 
 ## 4. Seguridad Criptográfica (El Escudo)
 
-### 4.1 Encapsulamiento de Claves Post-Cuánticas
-- Las conexiones utilizan **ML-KEM-768 (Kyber)** para negociar secretos compartidos de manera segura contra ataques de descifrado informático cuántico futuro ("Harvest Now, Decrypt Later").
+### 4.1 Encapsulamiento de Claves Post-Cuánticas (ML-KEM-768)
+- En la inicialización, las conexiones ejecutan un intercambio Post-Cuántico. LIOP emplea **ML-KEM-768 (Kyber)** para negociar secretos compartidos de manera segura contra ataques de descifrado informático cuántico ("Harvest Now, Decrypt Later").
+- **Ciclo de Vida de Sesión**: Las claves de sesión PQC tienen un tiempo de vida determinístico de 1 hora con renegociación silenciosa automática.
 
-### 4.2 Sellado Simétrico del Payload
-- El secreto negociado se emplea para cifrar el payload con **AES-256-GCM**, envolviendo la ejecución entera dentro de una cápsula zero-trust hermética.
+### 4.2 Firmas Digitales Post-Cuánticas (ML-DSA-65)
+- La identidad de nodo y el no repudio se sellan mediante firmas post-cuánticas **ML-DSA-65 (Dilithium)**, garantizando autenticidad criptográfica en saltos de red no confiables.
 
-### 4.3 Integridad Computacional (ZK-Receipts)
-- El entorno de ejecución puede generar Recibos de Cero Conocimiento (ZK-Receipts). El recibo garantiza matemáticamente que la salida corresponde exactamente a la ejecución de la lógica inyectada sobre los datos originales.
-- **Ancla de Integridad de Datos**: Los recibos ahora incorporan un `dataset_hash`, garantizando que las perturbaciones de Privacidad Diferencial se aplican estrictamente a conjuntos de datos de origen inmutables y no manipulados. Se planea la migración a una ZK-VM nativa (RISC Zero / SP1) para futuras versiones.
+### 4.3 Sellado Simétrico del Payload
+- El secreto simétrico Post-Cuántico acordado se emplea para cifrar el payload mediante **AES-256-GCM**, envolviendo la ejecución entera dentro de una cápsula zero-trust hermética.
+
+### 4.4 Integridad Computacional (ZK-Receipts)
+- El SDK genera **compromisos HMAC-SHA256** que vinculan criptográficamente la salida con la lógica exacta ejecutada, sellados con el secreto de sesión Post-Cuántico.
+- **Ancla de Integridad del Dataset**: Los recibos incorporan un `dataset_hash` SHA-256, garantizando que las perturbaciones de Privacidad Diferencial y la agregación se apliquen estrictamente sobre datos de origen inmutables.
 
 ## 5. Núcleo de Ejecución (El Sandbox)
 
-### 5.1 Instanciación WASI
-- La lógica inyectada se despliega en un motor WebAssembly implementando la interfaz **WASI** (WebAssembly System Interface).
-- No hay ninguna capacidad de sistema o red permitida por defecto; el acceso es otorgado explícitamente mediante el sistema de capacidades.
+### 5.1 Instanciación WASI y Aislamiento de Entorno
+- La lógica inyectada se despliega en una Máquina Virtual `Wasmtime` o Isolate V8 implementando la interfaz WebAssembly System Interface (WASI).
+- **Globals Envenenados**: 25 objetos globales peligrosos (`eval`, `Function`, `process`, `require`, `WebSocket`, `fetch`, etc.) son activamente neutralizados con trampas de seguridad.
+- **Congelamiento de Prototipos**: 11 prototipos nativos de JavaScript (`Object`, `Array`, `Function`, `String`, etc.) son congelados profundamente antes de la ejecución, mitigando Prototype Pollution (CWE-915).
+- **Combustible CPU Determinístico**: La ejecución está acotada por límites de combustible derivados del AST, neutralizando bucles infinitos y ataques de denegación de servicio.
+- **Precalentamiento de Workers**: Los pools de hilos de Piscina pre-calentados eliminan el arranque en frío de V8 (reducción de ~820k de combustible).
 
-### 5.2 Guardián AST (Guardian-TS / Rust Guardian)
-- Antes de la inyección, LIOP analiza el binario (AST). Bloquea instantáneamente payloads que pretendan importar funciones no autorizadas fuera de los límites del sandbox.
+### 5.2 Guardián AST Cero-Tiempo
+- Previo a la ejecución, LIOP analiza el Árbol de Sintaxis Abstracta (AST) del payload. Destruye módulos que pretendan importar funciones fuera de la allowlist estricta de 14 funciones WASI, soportando sentencias `return` en el nivel superior para módulos dinámicos.
 
-### 5.3 Defensa PII de Grado Industrial
-- El SDK inyecta un escudo de inspección de datos en la fase de egreso. Emplea algoritmos de validación y escaneos semánticos para garantizar que el nodo origen jamás sufra exfiltración de información sensible no agregada.
+### 5.3 Defensa PII de Egreso
+- El SDK de LIOP inyecta un Escudo de PII en la fase de egreso mediante un pipeline de 4 etapas: coincidencia exacta de clave → coincidencia difusa → validadores regex (Algoritmo de Luhn para tarjetas de crédito, SSN, emails, teléfonos) → Reconocimiento de Entidades Nombradas (NER).
 
 ### 5.4 Motor de Privacidad Diferencial (NIST SP 800-226)
-- Inyecta automáticamente ruido Laplace query-aware en todos los campos numéricos de egreso para datasets por debajo de los umbrales de configuración.
-- Impone un piso de $\epsilon \ge 1.0$ para $n < 10$ y utiliza por defecto CSPRNG a nivel de SO (`crypto.randomBytes`), neutralizando ataques de reconstrucción de estado determinista.
-- Soporta **Privacidad Diferencial Determinista (DDP)** para reproducibilidad en auditorías, utilizando un PRNG con semilla SHA-256 derivada de `dataset_hash + image_id` para producir Recibos ZK verificables y repetibles.
+- Inyecta automáticamente ruido de Laplace dependiente de la consulta en campos numéricos para datasets reducidos ($n < 10$).
+- Aplica un suelo de privacidad $\epsilon \ge 1.0$ y utiliza CSPRNG a nivel de sistema operativo (`crypto.randomBytes`).
+- **Privacidad Diferencial Determinística (DDP)**: Para reproducibilidad en auditorías, permite PRNG sembrado con SHA-256 (`dataset_hash + image_id`), generando ZK-Receipts verificables y repetibles.
 
-## 6. Autonomía Zero-Shot (Self-Correcting AI)
-LIOP implementa un sistema de guía integrado. Si un Agente intenta interactuar mediante solicitudes tradicionales de extracción (ej. pedir descargar archivos brutos), el protocolo intercepta la petición, la deniega, y devuelve manuales cognitivos para que el Agente pueda auto-corregir su intención y proveer la lógica WebAssembly adecuada.
+### 5.5 Query Budget Estratificado por Sensibilidad (NIST SP 800-226)
+- Rastrea la fuga de información mediante una clasificación de 3 niveles:
+  - `forbidden`: 3 consultas/sesión (identificadores PII, claves directas).
+  - `sensitive`: 8 consultas/sesión (campos biométricos, financieros, diagnósticos).
+  - `public`: 25 consultas/sesión (métricas y categorías generales).
+
+## 6. Autonomía Zero-Shot (Self-Healing AI)
+LIOP implementa un middleware de auto-instrucción integrado. Si un Agente intenta interactuar mediante solicitudes JSON-RPC sobre adaptadores MCP tradicionales violando el paradigma Logic-Injection-on-Origin (ej. solicitar extracción de datos crudos), LIOP intercepta la petición, la bloquea y devuelve un prompt cognitivo para que el Agente auto-corrija dinámicamente su intento reescribiéndolo como lógica inyectada.
+
+## 7. Compatibilidad de Era Dual con MCP y Adaptador Gateway
+- **Soporte MCP v2**: Cumplimiento completo con la especificación `2026-07-28` (`subscriptions/listen` y `resources/templates/list`) sin sobrecoste de sondeo.
+- **Fallback Legacy**: Compatibilidad transparente con clientes JSON-RPC `2025-11-25`.
+- **Framing gRPC-Web**: Adaptador de tramas HTTP/1.1 para navegadores y entornos edge.
+- **Telemetría de Producción**: Endpoints integrados `/healthz`, `/readyz` y métricas Prometheus `/metrics`.
+
+## 8. Gobernanza de la Especificación
+Las enmiendas técnicas a esta especificación se rigen mediante el proceso de **Propuestas de Mejora de LIOP (LEP)**. Toda LEP debe mantener estricta conformidad con los 7 Principios de Diseño definidos en el [Manifiesto de Origen](/es/concepts/manifesto).
