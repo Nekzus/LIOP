@@ -1,17 +1,14 @@
----
-title: "El Manifiesto de Origen"
-description: "Por qué la era del Context-Pulling está rota y Logic-Injection-on-Origin es el futuro de la IA autónoma."
----
+# Logic-Injection-on-Origin Protocol (LIOP): El Manifiesto de Origen
 
 ## Resumen
 
 Una malla de transporte binario descentralizada que invierte el paradigma dominante de integración de IA: en lugar de extraer datos sensibles hacia un modelo remoto, LIOP inyecta lógica WebAssembly aislada en el origen de los datos. Los datos nunca abandonan su frontera física. Los módulos inyectados se ejecutan dentro de sandboxes WASI estrictos, pasan por análisis estático de contaminación de datos (taint analysis), y operan bajo sellado criptográfico post-cuántico (ML-KEM-768). Solo resultados matemáticamente agregados — vinculados a pruebas de integridad criptográfica (ZK-Receipts) — cruzan la red. Esta arquitectura elimina las fallas de privacidad, ancho de banda y cumplimiento normativo inherentes a los protocolos de Context-Pulling. LIOP está diseñado para comunicación Máquina-a-Máquina a escala: analítica sanitaria, telemetría financiera, procesamiento IoT en el borde, y cualquier dominio donde la soberanía de datos no es negociable.
 
+---
+
 ## 1. La Crisis del Context-Pulling
 
-<Note>
-**Definición 1 (Context-Pulling).** Patrón arquitectónico en el cual un agente de IA extrae datos crudos y sin procesar desde su nodo de origen, cruzando una frontera de red hacia un entorno de ejecución remoto para su análisis. Este patrón requiere que el propietario de los datos renuncie a la custodia física de los mismos antes de que ocurra cualquier cómputo.
-</Note>
+> **Definición 1 (Context-Pulling).** Patrón arquitectónico en el cual un agente de IA extrae datos crudos y sin procesar desde su nodo de origen, cruzando una frontera de red hacia un entorno de ejecución remoto para su análisis. Este patrón requiere que el propietario de los datos renuncie a la custodia física de los mismos antes de que ocurra cualquier cómputo.
 
 La generación actual de protocolos de integración de IA — incluyendo el Model Context Protocol (MCP) — estandariza esta extracción. Si bien resulta altamente efectiva para la ergonomía de herramientas de agentes locales, extensiones de IDEs y utilidades de escritorio para desarrolladores, aplicar Context-Pulling sobre datos empresariales distribuidos transfiere megabytes o gigabytes de registros sensibles a través de internet para que un modelo centralizado pueda analizar, razonar y resumir en un servidor remoto.
 
@@ -23,11 +20,11 @@ Este enfoque falla de tres formas medibles:
 
 3. **La Ilusión Zero-Trust.** Cuando extraes datos, pierdes la custodia física. Debes confiar en las políticas de retención del proveedor remoto, en sus controles de acceso internos, y en su postura regulatoria. Para instituciones de defensa, salud y finanzas, este requisito de confianza genera barreras de adopción que ninguna API key ni cifrado en tránsito puede resolver. Los datos abandonaron el edificio.
 
+---
+
 ## 2. El Postulado LIO
 
-<Note>
-**Postulado de Origen (LIO).** Los datos son soberanos. Nunca deben cruzar su frontera física de confianza a menos que el resultado esté matemáticamente agregado o criptográficamente atestiguado. La inteligencia viaja hacia los datos; los datos permanecen en reposo.
-</Note>
+> **Postulado de Origen (LIO).** Los datos son soberanos. Nunca deben cruzar su frontera física de confianza a menos que el resultado esté matemáticamente agregado o criptográficamente atestiguado. La inteligencia viaja hacia los datos; los datos permanecen en reposo.
 
 El Logic-Injection-on-Origin Protocol nace de este postulado:
 
@@ -37,6 +34,8 @@ Un Agente LIOP no solicita registros a un servidor. Inyecta lógica ejecutable �
 
 En lugar de que un Agente pregunte: *"Dame todos los registros de tu base de datos para filtrarlos,"*
 un Agente LIOP dice: *"Aquí está mi lógica. Ejecútala localmente. Devuélveme solo el resultado computado."*
+
+---
 
 ## 3. Principios de Diseño
 
@@ -49,6 +48,8 @@ Estos siete principios gobiernan cada decisión arquitectónica del protocolo. N
 5. **Resiliencia Cuántica** — Todos los intercambios de claves y sellos de sesión utilizan algoritmos post-cuánticos (ML-KEM-768) desde el primer día. No es un camino de actualización futura — es un requisito de lanzamiento, diseñado contra estrategias de cosecha-ahora-descifra-después.
 6. **Huella Mínima** — El protocolo debe operar en dispositivos de borde con recursos limitados. La eficiencia es una restricción dura, no un objetivo de optimización. Los límites de combustible de CPU son determinísticos y derivados del AST.
 7. **Convivencia de Ecosistema y Compatibilidad Retroactiva** — LIOP opera en la capa de cómputo soberano y malla distribuida mientras convive con protocolos de agentes a nivel de aplicación. Mediante un adaptador de gateway de era dual, los clientes MCP consumen servicios LIOP de forma transparente sin fragmentación del ecosistema.
+
+---
 
 ## 4. Los Seis Escudos — Modelo de Amenazas y Capas de Defensa
 
@@ -63,55 +64,42 @@ LIOP implementa seis defensas en capas. Cada capa aborda una clase de ataque esp
 | **Política de Agregación** | Exportación de datos a nivel de registro | Bloquea respuestas a nivel de registro; aplica umbrales de K-Anonimidad en datasets pequeños; aplica ruido Laplace (Privacidad Diferencial) |
 | **ZK-Receipt** | Manipulación de resultados, ataques man-in-the-middle | Prueba HMAC-SHA256 vinculando hash de salida con digest de imagen de lógica, sellada con secreto de sesión PQC |
 
-<Warning>
 **Fuera de alcance.** LIOP no defiende contra sistemas operativos host comprometidos, ataques de canal lateral a nivel de hardware (Spectre/Meltdown), ni propietarios de datos coaccionados. La atestación TEE (AWS Nitro Enclaves, Intel SGX) está planificada para la fase Release Candidate para extender la frontera de confianza al nivel de hardware.
-</Warning>
+
+---
 
 ## 5. Garantías Formales
 
 Estas garantías no son claims de marketing. Cada una se mapea directamente a un mecanismo implementado en el SDK. Si LIOP no puede entregar una garantía, no aparece aquí.
 
-<Info>
-**G1 — Residencia de Datos.** Ningún byte de datos de usuario crudos y sin agregar cruza la frontera de red del nodo de origen durante un ciclo estándar de ejecución LIOP.
-</Info>
+> **G1 — Residencia de Datos.** Ningún byte de datos de usuario crudos y sin agregar cruza la frontera de red del nodo de origen durante un ciclo estándar de ejecución LIOP.
 
-<Info>
-**G2 — Integridad Computacional.** Cada ejecución produce un ZK-Receipt que contiene el hash de salida, el digest de imagen de lógica, y el sello de sesión PQC. Cualquier modificación a la salida, la lógica o la sesión invalida el recibo.
-</Info>
+> **G2 — Integridad Computacional.** Cada ejecución produce un ZK-Receipt que contiene el hash de salida, el digest de imagen de lógica, y el sello de sesión PQC. Cualquier modificación a la salida, la lógica o la sesión invalida el recibo.
 
-<Info>
-**G3 — Aislamiento del Sandbox.** Los módulos inyectados no pueden acceder al sistema de archivos del host, la pila de red ni las variables de entorno más allá de la allowlist estricta WASI. Las violaciones se detectan en tiempo de inspección AST (pre-ejecución) o se terminan en runtime vía agotamiento de combustible.
-</Info>
+> **G3 — Aislamiento del Sandbox.** Los módulos inyectados no pueden acceder al sistema de archivos del host, la pila de red ni las variables de entorno más allá de la allowlist estricta WASI. Las violaciones se detectan en tiempo de inspección AST (pre-ejecución) o se terminan en runtime vía agotamiento de combustible.
 
-<Info>
-**G4 — Sesiones Quantum-Safe.** Todas las claves de sesión se negocian vía ML-KEM-768. Los textos cifrados interceptados proveen cero ventaja computacional a adversarios con acceso a hardware cuántico.
-</Info>
+> **G4 — Sesiones Quantum-Safe.** Todas las claves de sesión se negocian vía ML-KEM-768. Los textos cifrados interceptados proveen cero ventaja computacional a adversarios con acceso a hardware cuántico.
 
-<Info>
-**G5 — Auto-Corrección Autónoma.** Un agente que viola el paradigma LIO (ej: intenta solicitar datos crudos) recibe un prompt de corrección cognitiva estructurado y puede auto-corregirse sin intervención humana.
-</Info>
+> **G5 — Auto-Corrección Autónoma.** Un agente que viola el paradigma LIO (ej: intenta solicitar datos crudos) recibe un prompt de corrección cognitiva estructurado y puede auto-corregirse sin intervención humana.
+
+---
 
 ## 6. Horizontes de Aplicación
 
-<CardGroup cols={2}>
-  <Card title="Analítica Sanitaria" icon="hospital">
-    Un investigador farmacéutico inyecta un módulo de detección de correlaciones en el nodo de base de datos de pacientes de un hospital. El módulo se ejecuta localmente, retorna solo correlaciones estadísticas agregadas con ruido de Privacidad Diferencial aplicado, y los registros de pacientes del hospital nunca abandonan las instalaciones. El cumplimiento HIPAA es arquitectónico, no contractual.
-  </Card>
-  <Card title="Telemetría Financiera" icon="chart-line">
-    Una firma de trading cuantitativo inyecta un algoritmo de escaneo de volatilidad en el nodo del libro de órdenes de un exchange. El algoritmo procesa datos de ticks localmente a granularidad de microsegundos y retorna solo métricas de riesgo computadas — spread, volatilidad implícita, Greeks. Cero datos de trading crudos cruzan el cable.
-  </Card>
-  <Card title="Procesamiento IoT en el Borde" icon="microchip">
-    Un sistema de gestión de flotas inyecta lógica de detección de anomalías en 50,000 nodos de telemetría vehicular. Cada nodo procesa sus propios datos de sensores localmente y reporta solo puntajes de salud agregados. El consumo de ancho de banda cae en órdenes de magnitud comparado con la ingestión centralizada.
-  </Card>
-  <Card title="IA Soberana para Industrias Reguladas" icon="shield-halved">
-    Un organismo regulador inyecta lógica de auditoría en instituciones financieras a través de jurisdicciones. Cada institución ejecuta la auditoría localmente contra su propio libro mayor y retorna solo el resultado de cumplimiento con un ZK-Receipt probando la lógica exacta ejecutada. Ningún dato financiero propietario cruza fronteras organizacionales.
-  </Card>
-</CardGroup>
+**Analítica Sanitaria.** Un investigador farmacéutico inyecta un módulo de detección de correlaciones en el nodo de base de datos de pacientes de un hospital. El módulo se ejecuta localmente, retorna solo correlaciones estadísticas agregadas con ruido de Privacidad Diferencial aplicado, y los registros de pacientes del hospital nunca abandonan las instalaciones. El cumplimiento HIPAA es arquitectónico, no contractual.
+
+**Telemetría Financiera.** Una firma de trading cuantitativo inyecta un algoritmo de escaneo de volatilidad en el nodo del libro de órdenes de un exchange. El algoritmo procesa datos de ticks localmente a granularidad de microsegundos y retorna solo métricas de riesgo computadas — spread, volatilidad implícita, Greeks. Cero datos de trading crudos cruzan el cable.
+
+**Procesamiento IoT en el Borde.** Un sistema de gestión de flotas inyecta lógica de detección de anomalías en 50,000 nodos de telemetría vehicular. Cada nodo procesa sus propios datos de sensores localmente y reporta solo puntajes de salud agregados. El consumo de ancho de banda cae en órdenes de magnitud comparado con la ingestión centralizada.
+
+**IA Soberana para Industrias Reguladas.** Un organismo regulador inyecta lógica de auditoría en instituciones financieras a través de jurisdicciones. Cada institución ejecuta la auditoría localmente contra su propio libro mayor y retorna solo el resultado de cumplimiento con un ZK-Receipt probando la lógica exacta ejecutada. Ningún dato financiero propietario cruza fronteras organizacionales.
+
+---
 
 ## 7. El Contraste
 
 ```
-    CONTEXT-PULLING (Statu Quo)
+    CONTEXT-PULLING (Status Quo)
     ─────────────────────────────────────────────────
 
     ┌──────────────┐                     ┌──────────────┐
@@ -136,16 +124,20 @@ Estas garantías no son claims de marketing. Cada una se mapea directamente a un
        Los datos nunca salen. La prueba viaja.
 ```
 
+---
+
 ## 8. Gobernanza y Evolución del Protocolo
 
 Este manifiesto constituye la base constitucional inmutable del Logic-Injection-on-Origin Protocol. El Postulado LIO y los Principios de Diseño (Sección 3) representan invariantes no negociables establecidas en el génesis del protocolo.
 
-La implementación técnica, las primitivas criptográficas y las capacidades de transporte evolucionan mediante el proceso de **Propuestas de Mejora de LIOP (LEP)** que rige la [Especificación del Protocolo](/es/concepts/specification):
+La implementación técnica, las primitivas criptográficas y las capacidades de transporte evolucionan mediante el proceso de **Propuestas de Mejora de LIOP (LEP)** que rige la [Especificación del Protocolo](./protocol/SPECIFICATION.md):
 
 1. **Presentación de LEP** — Los contribuidores presentan mejoras arquitectónicas o criptográficas mediante Pull Request al directorio `protocol/`.
 2. **Alineación Constitucional** — Toda propuesta debe demostrar adhesión estricta a los 7 Principios de Diseño. Aquellas que vulneren la soberanía de datos o las garantías de agregación son rechazadas por diseño.
 3. **Revisión por Pares y Verificación** — Periodo mínimo de 14 días de auditoría técnica con vectores de prueba empíricos en el SDK de referencia.
-4. **Ratificación en la Especificación** — Las LEPs aprobadas se incorporan a la siguiente versión fechada de la [Especificación del Protocolo](/es/concepts/specification).
+4. **Ratificación en la Especificación** — Las LEPs aprobadas se incorporan a la siguiente versión fechada de la [Especificación del Protocolo](./protocol/SPECIFICATION.md).
+
+---
 
 ## 9. Únete a la Malla
 
@@ -153,8 +145,11 @@ La implementación técnica, las primitivas criptográficas y las capacidades de
 - **Comienza a Inyectar.**
 - **LIO es el futuro de la IA Autónoma.**
 
-Lee la [Especificación del Protocolo](/es/concepts/specification). Ejecuta el [Playground Interactivo](http://localhost:14000). Construye tu primer Servidor LIOP con `npm install @nekzus/liop`. [Únete a la malla](/es/getting-started/quickstart).
+Lee la [Especificación del Protocolo](./protocol/SPECIFICATION.md). Ejecuta el [Playground Interactivo](http://localhost:14000). Construye tu primer Servidor LIOP con `npm install @nekzus/liop`. Únete a la malla.
 
 ---
 
-**Primera Publicación:** 1 de Marzo de 2026 | **Versión:** 1.0 (Ratificado: 31 de Agosto de 2026) | **Autor:** Mauricio Ortega (Nekzus) — Nekzus Solutions | **Licencia:** [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
+**Primera Publicación:** 1 de Marzo de 2026 | **Versión:** 1.0 (Ratificado: 31 de Agosto de 2026)
+**Autor:** Mauricio Ortega (Nekzus) — [Nekzus Solutions](https://nekzus.com)
+**Licencia:** [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) — Este documento puede compartirse y adaptarse con atribución.
+**Licencia del Protocolo:** [Apache 2.0](./LICENSE)

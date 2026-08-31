@@ -1,7 +1,7 @@
 # Contributing to Logic-Injection-on-Origin Protocol (LIOP)
 *Para la versión en Español, ver la sección más abajo.*
 
-Thank you for your interest in contributing to the Logic-Injection-on-Origin Protocol (LIOP). We are building the high-performance successor to the Model Context Protocol (MCP) by shifting the paradigm from Context-Pulling to **Logic-on-Origin (LoO)**.
+Thank you for your interest in contributing to the Logic-Injection-on-Origin Protocol (LIOP). We are building the high-performance sovereign compute mesh that complements application-level agent protocols (such as MCP) by shifting distributed data computation from Context-Pulling to **Logic-Injection-on-Origin (LIO)**.
 
 To ensure the highest architectural quality, military-grade Zero-Trust security, and a predictable open-source lifecycle, please adhere to the following contribution guidelines.
 
@@ -10,16 +10,21 @@ To ensure the highest architectural quality, military-grade Zero-Trust security,
 ## 1. Code of Conduct
 By participating in this project, you agree to abide by our Code of Conduct. All contributors are expected to maintain a professional, technical, respectful, and inclusive environment.
 
-## 2. Core Philosophy: Logic-on-Origin (LoO)
-LIOP is built on the **Postulate of Origin (Logic-on-Origin)**. All contributions must respect the Zero-Trust architecture:
-- Agents send logic (WASM/JS); data never leaves the Origin Server without explicit, cryptographically verifiable intent.
+## 2. Constitutional Foundation & The LEP Process
+LIOP is governed by the [Origin Manifesto](MANIFESTO.md) and its 7 immutable Design Principles:
+- **Constitutional Supremacy**: All contributions, features, and protocol extensions must strictly adhere to the 7 Design Principles (Data Sovereignty, Zero-Trust by Default, Aggregation-First, Cryptographic Verifiability, Quantum Resilience, Minimal Footprint, and Ecosystem Coexistence). Proposals that violate data sovereignty or aggregation guarantees are rejected by design.
+- **LIOP Enhancement Proposals (LEPs)**: Protocol enhancements, new gRPC services, cryptographic primitives, or transport extensions are proposed as LEPs submitted via Pull Request targeting the `protocol/` directory to update the [Protocol Specification](protocol/SPECIFICATION.md).
+
+## 3. Core Philosophy: Logic-Injection-on-Origin (LIO)
+LIOP is built on the **Postulate of Origin (LIO)**. All contributions must respect the Zero-Trust architecture:
+- Agents send logic (WASM/JS); data never leaves the Origin Server without explicit, cryptographically verifiable aggregation.
 - Ensure any new feature adheres to the Sandboxing (WASI/V8 Guardian AST) and Cryptographic validation (ZK-Receipts, ML-KEM-768, ML-DSA-65) principles.
 
-## 3. Language Policy
+## 4. Language Policy
 - **Codebase (Strictly English)**: All source code (variable names, functions, architectures), internal code comments, and technical specifications must be written in **English**.
 - **Community & Planning (Bilingual)**: High-level architectural documents (`GEMINI.md`, internal planning), Issues, and Discussions may be conducted in **Spanish** or **English**.
 
-## 4. Canonical 3-Channel Branching Strategy
+## 5. Canonical 3-Channel Branching Strategy
 We maintain a strict 3-channel release topology:
 - `main`: Represents the stable, production-ready Tier-0 state (`latest` on npm).
 - `beta`: Represents the staging and feature-freeze channel (`@beta` on npm).
@@ -30,10 +35,10 @@ We maintain a strict 3-channel release topology:
 2. Bug fix branches should be named `fix/<bug-name>`.
 3. Submit Pull Requests targeting the **`alpha`** branch for active development, or **`beta`** for stabilization fixes.
 
-## 5. Mandatory GPG Commit Signing
+## 6. Mandatory GPG Commit Signing
 All git commits must be cryptographically signed with GPG (`git commit -S`). Unsigned commits will not pass automated security checks.
 
-## 6. Pull Request Requirements
+## 7. Pull Request Requirements
 - Use the official Pull Request template (`.github/pull_request_template.md`).
 - Ensure all automated checks pass locally before submission:
   - `pnpm install --frozen-lockfile` (0 lockfile errors).
@@ -41,7 +46,7 @@ All git commits must be cryptographically signed with GPG (`git commit -S`). Uns
   - `pnpm test` / `cargo test` (100% test pass rate).
 - All new functionality must include corresponding unit and/or integration tests.
 
-## 7. Security (PII & Zero-Trust)
+## 8. Security (PII & Zero-Trust)
 - LIOP enforces a **Zero-Tolerance** policy for Personal Identifiable Information (PII) leakage.
 - Never hardcode credentials, secrets, or absolute local paths.
 - For security vulnerabilities, sandbox escapes, or cryptographic weaknesses, use [Private Security Advisories](https://github.com/Nekzus/LIOP/security/advisories/new) instead of public issues.
@@ -50,7 +55,7 @@ All git commits must be cryptographically signed with GPG (`git commit -S`). Uns
 
 # Contribuir a Logic-Injection-on-Origin Protocol (LIOP)
 
-Gracias por tu interés en contribuir al Logic-Injection-on-Origin Protocol (LIOP). Estamos construyendo el sucesor de alto rendimiento del Model Context Protocol (MCP) cambiando el paradigma de la Extracción de Contexto hacia el núcleo de **Logic-on-Origin (LoO)**.
+Gracias por tu interés en contribuir al Logic-Injection-on-Origin Protocol (LIOP). Estamos construyendo la malla de cómputo soberano de alto rendimiento que complementa a los protocolos de agentes a nivel de aplicación (como MCP), transformando el cómputo de datos distribuidos desde la Extracción de Contexto hacia **Logic-Injection-on-Origin (LIO)**.
 
 Para garantizar la más alta calidad arquitectónica, seguridad Zero-Trust de grado militar y un ciclo de vida predecible, por favor adhiérete a las siguientes directrices.
 
@@ -59,16 +64,21 @@ Para garantizar la más alta calidad arquitectónica, seguridad Zero-Trust de gr
 ## 1. Código de Conducta
 Al participar en este proyecto, aceptas cumplir con nuestro Código de Conducta. Esperamos que todos los contribuidores mantengan un ambiente profesional, técnico, respetuoso e inclusivo.
 
-## 2. Filosofía Central: Logic-on-Origin (LoO)
-LIOP está construido sobre el **Postulado de Origen (Logic-on-Origin)**. Todas las contribuciones deben respetar la arquitectura Zero-Trust:
-- Los agentes envían lógica (WASM/JS); los datos nunca abandonan el Servidor de Origen sin una intención explícita y criptográficamente verificable.
+## 2. Base Constitucional y Proceso LEP
+LIOP se rige por el [Manifiesto de Origen](MANIFESTO_ES.md) y sus 7 Principios de Diseño inmutables:
+- **Supremacía Constitucional**: Toda contribución, característica o extensión debe adherirse estrictamente a los 7 Principios de Diseño (Soberanía de Datos, Zero-Trust por Defecto, Agregación Primero, Verificabilidad Criptográfica, Resiliencia Cuántica, Huella Mínima y Convivencia de Ecosistema). Aquellas que vulneren la soberanía o la agregación son rechazadas por diseño.
+- **Propuestas de Mejora de LIOP (LEPs)**: Las mejoras arquitectónicas, nuevos servicios gRPC, primitivas criptográficas o extensiones de transporte se proponen mediante LEPs enviadas por Pull Request al directorio `protocol/` para actualizar la [Especificación del Protocolo](protocol/SPECIFICATION.md).
+
+## 3. Filosofía Central: Logic-Injection-on-Origin (LIO)
+LIOP está construido sobre el **Postulado de Origen (LIO)**. Todas las contribuciones deben respetar la arquitectura Zero-Trust:
+- Los agentes envían lógica (WASM/JS); los datos nunca abandonan el Servidor de Origen sin una agregación explícita y criptográficamente verificable.
 - Asegúrate de que cualquier nueva característica se adhiera a los principios de Sandboxing (WASI/V8 Guardian AST) y validación criptográfica (ZK-Receipts, ML-KEM-768, ML-DSA-65).
 
-## 3. Política de Idioma
+## 4. Política de Idioma
 - **Código Fuente (Estrictamente Inglés)**: Todo el código fuente (variables, funciones, arquitecturas), comentarios internos en el código y especificaciones técnicas deben escribirse en **Inglés**.
-- **Comunidad y Planificación (Bilingüe)**: Los documentos arquitectónicos de alto nivel (`GEMINI.md`, planificación interna), Issues y Discusiones pueden realizarse en **Español** o **Inglés**.
+- **Comunidad y Planificación (Bilingual)**: Los documentos arquitectónicos de alto nivel (`GEMINI.md`, planificación interna), Issues y Discusiones pueden realizarse en **Español** o **Inglés**.
 
-## 4. Estrategia Canónica de 3 Ramas
+## 5. Estrategia Canónica de 3 Ramas
 Mantenemos una topología estricta de 3 canales de release:
 - `main`: Representa el estado estable de producción (`latest` en npm).
 - `beta`: Representa el canal de staging y congelamiento de características (`@beta` en npm).
@@ -79,10 +89,10 @@ Mantenemos una topología estricta de 3 canales de release:
 2. Las ramas de corrección de errores deben nombrarse `fix/<nombre-del-bug>`.
 3. Envía tus Pull Requests apuntando a la rama **`alpha`** para desarrollo activo, o a **`beta`** para estabilización.
 
-## 5. Firma GPG Obligatoria en Commits
+## 6. Firma GPG Obligatoria en Commits
 Todos los commits deben estar firmados criptográficamente con GPG (`git commit -S`). Los commits sin firma no superarán las comprobaciones de seguridad.
 
-## 6. Requisitos de Pull Requests
+## 7. Requisitos de Pull Requests
 - Utiliza la plantilla oficial de Pull Request (`.github/pull_request_template.md`).
 - Asegúrate de que todas las pruebas y validaciones pasen localmente antes de enviar:
   - `pnpm install --frozen-lockfile` (0 errores de lockfile).
@@ -90,7 +100,7 @@ Todos los commits deben estar firmados criptográficamente con GPG (`git commit 
   - `pnpm test` / `cargo test` (100% de tests aprobados).
 - Toda nueva funcionalidad debe incluir sus pruebas unitarias y/o de integración correspondientes.
 
-## 7. Seguridad (PII y Zero-Trust)
+## 8. Seguridad (PII y Zero-Trust)
 - LIOP opera con una política de **Cero Tolerancia** para fugas de Información Personal Identificable (PII).
 - Nunca incluyas credenciales, secretos o rutas locales absolutas.
 - Para vulnerabilidades de seguridad, escapes de sandbox o debilidades criptográficas, utiliza las [Asesorías Privadas de Seguridad](https://github.com/Nekzus/LIOP/security/advisories/new) en lugar de issues públicos.
