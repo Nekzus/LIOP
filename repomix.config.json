@@ -1,0 +1,39 @@
+{
+  "$schema": "https://repomix.com/schemas/latest/schema.json",
+  "output": {
+    "filePath": "repomix-output.md",
+    "style": "markdown",
+    "headerText": "LIOP (Logic-Injection-on-Origin Protocol) Codebase Snapshot",
+    "removeComments": false,
+    "removeEmptyLines": false,
+    "showLineNumbers": false,
+    "topFilesLength": 5
+  },
+  "include": [
+    "sdks/typescript/src/**",
+    "servers/liop-node/src/**",
+    "protocol/**",
+    "docs/**/*.mdx",
+    "AGENTS.md",
+    "MANIFESTO.md",
+    "llms.txt"
+  ],
+  "ignore": {
+    "useGitignore": true,
+    "useDefaultPatterns": true,
+    "customPatterns": [
+      "**/node_modules/**",
+      "**/dist/**",
+      "**/target/**",
+      "**/*.lock",
+      "**/pnpm-lock.yaml",
+      "**/graphify-out/**",
+      "**/*.log",
+      "**/coverage/**",
+      "**/.git/**"
+    ]
+  },
+  "security": {
+    "enableSecurityCheck": true
+  }
+}

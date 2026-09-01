@@ -1,0 +1,30 @@
+# LIOP — Logic-Injection-on-Origin Protocol
+
+> LIOP is a high-performance, Zero-Trust binary transport mesh for AI Agent communication. Instead of pulling gigabytes of raw data to a central AI node, LIOP injects sandboxed WebAssembly (WASM) logic directly into data sources, reducing network bandwidth and token consumption by orders of magnitude. Results are returned with ZK-Receipts (HMAC-SHA256 cryptographic proofs) guaranteeing computational integrity. The TypeScript SDK (@nekzus/liop on NPM) provides a drop-in MCP-compatible gateway with Post-Quantum Cryptography (ML-KEM-768 + ML-DSA-65), a 6-layer security pipeline, and a Differential Privacy engine compliant with NIST SP 800-226.
+
+LIOP complements the Model Context Protocol (MCP) through a Hybrid Gateway that bridges both standards transparently. The SDK supports dual-era MCP compatibility (2026-07-28 stateless and 2025-11-25 legacy).
+
+## Documentation
+- [Introduction](https://nekzus-32.mintlify.app/getting-started/intro): Project overview and paradigm explanation
+- [Quickstart](https://nekzus-32.mintlify.app/getting-started/quickstart): Installation, Docker mesh, and Web Playground at :14000
+- [Protocol Specification](https://nekzus-32.mintlify.app/concepts/specification): Formal technical specification with all cryptographic primitives
+- [Manifesto](https://nekzus-32.mintlify.app/concepts/manifesto): 7 immutable design principles and governance model
+- [Architecture](https://nekzus-32.mintlify.app/concepts/architecture): Logic-on-Origin paradigm and Zero-Trust mesh topology
+
+## TypeScript SDK
+- [SDK Overview](https://nekzus-32.mintlify.app/typescript-sdk/overview): Feature matrix and public API
+- [Server API](https://nekzus-32.mintlify.app/typescript-sdk/server): LiopServer, tool registration, Zod schemas
+- [Client API](https://nekzus-32.mintlify.app/typescript-sdk/client): LiopClient, P2P mesh discovery, DHT routing
+- [Hybrid Gateway](https://nekzus-32.mintlify.app/typescript-sdk/gateway): MCP bridge, HTTP adapter, Kubernetes probes
+- [Token Economy](https://nekzus-32.mintlify.app/typescript-sdk/economy): BPE o200k_base inlined estimator, OpenTelemetry
+- [Security](https://nekzus-32.mintlify.app/typescript-sdk/security): 6-layer shield, PQC sessions, PII detection, mTLS
+
+## Source Code
+- [GitHub Repository](https://github.com/Nekzus/LIOP): Polyglot monorepo (TypeScript + Rust)
+- [NPM Package](https://www.npmjs.com/package/@nekzus/liop): @nekzus/liop — install with npm install @nekzus/liop
+- [DeepWiki](https://deepwiki.com/Nekzus/LIOP): AI-powered interactive documentation
+
+## Optional
+- [CHANGELOG](https://github.com/Nekzus/LIOP/blob/main/CHANGELOG.md): Release history
+- [Contributing](https://github.com/Nekzus/LIOP/blob/main/CONTRIBUTING.md): Contribution guidelines and LEP process
+- [Security Policy](https://github.com/Nekzus/LIOP/blob/main/SECURITY.md): Vulnerability disclosure (48h SLA)
