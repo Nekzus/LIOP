@@ -87,7 +87,13 @@
     "kyber",
     "post-quantum",
     "ai-agent",
-    "llm"
+    "llm",
+    "webassembly",
+    "grpc",
+    "decentralized",
+    "privacy",
+    "zk-proofs",
+    "differential-privacy"
   ],
   "author": "Nekzus Solutions",
   "license": "Apache-2.0",
