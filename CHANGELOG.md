@@ -3,6 +3,37 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.4.1-beta.6](https://github.com/Nekzus/LIOP/compare/v2.4.1-beta.5...v2.4.1-beta.6) (2026-08-31)
+
+
+### Bug Fixes
+
+* **deps:** restore pure ESM lodash-es >=4.17.21 for semantic-release compatibility ([db1141b](https://github.com/Nekzus/LIOP/commit/db1141bab4a8b33b87fc6b9d1451cc59649a5bbb))
+* **security:** upgrade wasmtime and wasmtime-wasi to 48.0.1 in liop-node to resolve 17 Dependabot advisories ([f432302](https://github.com/Nekzus/LIOP/commit/f4323026012fb9ef214d41c40cdc4ab914320bee))
+
+## [2.4.1-beta.5](https://github.com/Nekzus/LIOP/compare/v2.4.1-beta.4...v2.4.1-beta.5) (2026-08-30)
+
+
+### Bug Fixes
+
+* **security:** upgrade wasmtime and wasmtime-wasi to 48.0.1 in liop-node to resolve 17 Dependabot advisories ([7e98fb3](https://github.com/Nekzus/LIOP/commit/7e98fb35fa9d430540401bc6da74bd31efc57f77))
+
+## [2.4.1-beta.4](https://github.com/Nekzus/LIOP/compare/v2.4.1-beta.3...v2.4.1-beta.4) (2026-08-29)
+
+
+### Bug Fixes
+
+* **deps:** bump lodash override to >=4.18.1 for CVE-2026-4800 remediation ([c2dc3bd](https://github.com/Nekzus/LIOP/commit/c2dc3bd5be41b69779d33933019299ebfc0e14b3))
+* **deps:** map lodash-es to lodash >=4.18.1 and add dependabot configuration ([3e53097](https://github.com/Nekzus/LIOP/commit/3e53097ec3b2f0f34e9a8de374b9e52f536dda73))
+* **deps:** restore pure ESM lodash-es >=4.17.21 for semantic-release compatibility ([2673b58](https://github.com/Nekzus/LIOP/commit/2673b58b9362c69a6919ae0ead610d0cee2984ba))
+
+## [2.4.1-beta.3](https://github.com/Nekzus/LIOP/compare/v2.4.1-beta.2...v2.4.1-beta.3) (2026-08-29)
+
+
+### Bug Fixes
+
+* **deps:** bump lodash override to >=4.18.1 for CVE-2026-4800 remediation ([e2d830b](https://github.com/Nekzus/LIOP/commit/e2d830b58e9ff9b9263711507cb10735b2867b10))
+
 ## [2.4.1-beta.2](https://github.com/Nekzus/LIOP/compare/v2.4.1-beta.1...v2.4.1-beta.2) (2026-08-29)
 
 
