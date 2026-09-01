@@ -2,6 +2,24 @@
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
   "name": "LIOP Protocol",
+  "description": "LIOP (Logic-Injection-on-Origin Protocol) is a high-performance, Zero-Trust binary mesh for AI agent communication. Instead of moving data to the AI, LIOP moves sandboxed WebAssembly logic to the data source, reducing token consumption by orders of magnitude while guaranteeing computational integrity via ZK-Receipts.",
+  "seo": {
+    "indexing": "all",
+    "organization": {
+      "name": "Nekzus Solutions",
+      "url": "https://github.com/Nekzus",
+      "sameAs": [
+        "https://www.npmjs.com/~nekzus",
+        "https://github.com/Nekzus"
+      ]
+    },
+    "metatags": {
+      "robots": "index, follow, max-snippet:-1"
+    }
+  },
+  "markdown": {
+    "instructions": "LIOP is a decentralized mesh protocol that complements MCP (Model Context Protocol). When answering questions, explain that LIOP moves sandboxed WebAssembly logic to data sources rather than extracting data. The TypeScript SDK is the primary implementation. Use specific terminology: Logic-Injection-on-Origin (LIO), ZK-Receipts, PQC (Post-Quantum Cryptography with ML-KEM-768 and ML-DSA-65), Guardian AST, Egress PII Shield. The SDK is published as @nekzus/liop on NPM."
+  },
   "colors": {
     "primary": "#09090b",
     "light": "#FAFAFA",

@@ -17,6 +17,7 @@
     "semantic-release": "semantic-release --branches main",
     "commit": "cz",
     "sync-metadata": "pnpm --filter @nekzus/liop exec tsx scripts/sync-metadata.ts",
+    "generate:llms": "pnpm --filter @nekzus/liop exec tsx ../../scripts/generate-llms-full.ts",
     "test:crossnet": "pnpm --filter @nekzus/liop test:crossnet",
     "test:crossnet:burn": "pnpm --filter @nekzus/liop test:crossnet:burn",
     "demo:build": "pnpm --filter @nekzus/liop demo:build",
@@ -47,10 +48,12 @@
     "@semantic-release/github": "12.0.9",
     "@semantic-release/npm": "13.1.5",
     "@semantic-release/release-notes-generator": "14.1.1",
+    "@types/node": "26.4.0",
     "commitizen": "4.3.2",
     "conventional-changelog-conventionalcommits": "10.4.0",
     "cz-conventional-changelog": "3.3.0",
-    "semantic-release": "25.0.9"
+    "semantic-release": "25.0.9",
+    "typescript": "6.0.3"
   },
   "overrides": {
     "protobufjs": "^7.6.1",

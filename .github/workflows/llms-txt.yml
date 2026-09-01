@@ -1,0 +1,59 @@
+name: Sync LLMs Documentation Corpus
+
+on:
+  push:
+    branches:
+      - main
+      - alpha
+      - beta
+    paths:
+      - 'docs/**'
+      - 'scripts/generate-llms-full.ts'
+      - 'llms.txt'
+
+jobs:
+  sync-llms:
+    name: Regenerate llms-full.txt
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24.x
+          cache: 'pnpm'
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate LLMs Corpus
+        run: pnpm generate:llms
+
+      - name: Check for Changes
+        id: git-check
+        run: |
+          git status --porcelain llms-full.txt
+          if [ -n "$(git status --porcelain llms-full.txt)" ]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Commit and Push if Changed
+        if: steps.git-check.outputs.changed == 'true'
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add llms-full.txt
+          git commit -m "docs(llms): regenerate llms-full.txt corpus [skip ci]"
+          git push

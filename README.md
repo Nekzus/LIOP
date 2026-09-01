@@ -174,13 +174,20 @@ cargo test
 ## Documentation
 
 - [Official Documentation Portal (Mintlify)](https://nekzus-32.mintlify.app/)
+- [LLM Navigation Index (`llms.txt`)](./llms.txt) & [Full Corpus (`llms-full.txt`)](./llms-full.txt)
 - [Ask DeepWiki about LIOP](https://deepwiki.com/Nekzus/LIOP)
 - [Protocol Specification](./protocol/SPECIFICATION.md)
 - [Project Manifesto](./MANIFESTO.md)
 
-## 🤖 AI Agent Support
+## 🤖 AI Agent & LLM Readiness
 
-This project includes a native [AGENTS.md](./AGENTS.md) file to provide optimized context and rules for AI-assisted development (Google Antigravity, Claude, Cursor). It ensures architectural alignment and security compliance during autonomous tasks.
+LIOP implements the complete 2026 AI-readiness stack for coding agents, LLMs, and search engines:
+- **`AGENTS.md`**: Cross-tool standard instructions, architectural invariants, and security guardrails (Antigravity, Cursor, Windsurf, Aider).
+- **`CLAUDE.md`**: Direct pointer to `AGENTS.md` for Claude Code and Anthropic tooling.
+- **`.github/copilot-instructions.md`**: Workspace conventions for GitHub Copilot.
+- **`llms.txt` / `llms-full.txt`**: Machine-readable documentation corpus adhering to the [llmstxt.org](https://llmstxt.org) standard.
+- **`repomix.config.json`**: LLM-friendly codebase packing with integrated security checks.
+
 
 ## Contributing
 
