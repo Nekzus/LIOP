@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.4.0-alpha.7](https://github.com/Nekzus/LIOP/compare/v2.4.0-alpha.6...v2.4.0-alpha.7) (2026-09-01)
+
+
+### Features
+
+* **llm:** implement full llms.txt standard, agent context files and GEO metadata ([5181ba0](https://github.com/Nekzus/LIOP/commit/5181ba0c482628e9706817a642c4ad9507dd4298))
+
 # [2.4.0-alpha.6](https://github.com/Nekzus/LIOP/compare/v2.4.0-alpha.5...v2.4.0-alpha.6) (2026-08-30)
 
 
