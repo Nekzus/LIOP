@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.5.0-beta.1](https://github.com/Nekzus/LIOP/compare/v2.4.1-beta.6...v2.5.0-beta.1) (2026-09-01)
+
+
+### Bug Fixes
+
+* **deps:** bump lodash override to >=4.18.1 for CVE-2026-4800 remediation ([62bffb3](https://github.com/Nekzus/LIOP/commit/62bffb35deac3eaf9e36e0e4ba828af703bb2390))
+
+
+### Features
+
+* **llm:** implement full llms.txt standard, agent context files and GEO metadata ([5181ba0](https://github.com/Nekzus/LIOP/commit/5181ba0c482628e9706817a642c4ad9507dd4298))
+
 ## [2.4.1-beta.6](https://github.com/Nekzus/LIOP/compare/v2.4.1-beta.5...v2.4.1-beta.6) (2026-08-31)
 
 
