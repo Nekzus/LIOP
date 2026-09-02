@@ -9,6 +9,7 @@ GEMINI.md
 TASK.md
 WALKTHROUGH.md
 IMPLEMENTATION_PLAN.md
+hardware_requirements_report.md
 .gemini
 .env
 .env.*
