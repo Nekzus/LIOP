@@ -105,7 +105,7 @@ describe("LIOP Studio: Transport Factory & Implementations", () => {
 	it("should instantiate HttpTransport and validate configuration", () => {
 		const transport = new HttpTransport({
 			url: "http://127.0.0.1:15000/mcp",
-			token: "test-token",
+			authToken: "test-token",
 		});
 		expect(transport.type).toBe("http");
 		expect(transport.isConnected()).toBe(false);
@@ -127,7 +127,9 @@ describe("LIOP Studio: Transport Factory & Implementations", () => {
 	});
 
 	it("should instantiate MeshTransport for sovereign P2P", () => {
-		const transport = new MeshTransport({});
+		const transport = new MeshTransport({
+			bootstrapNodes: [],
+		});
 		expect(transport.type).toBe("mesh");
 		expect(transport.isConnected()).toBe(false);
 	});

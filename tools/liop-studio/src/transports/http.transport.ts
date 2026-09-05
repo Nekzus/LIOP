@@ -18,6 +18,7 @@ import type {
 export interface HttpTransportOptions {
 	url: string;
 	authToken?: string;
+	token?: string;
 }
 
 export class HttpTransport implements StudioTransport {
@@ -31,7 +32,7 @@ export class HttpTransport implements StudioTransport {
 	constructor(options: HttpTransportOptions) {
 		const parsed = validateHttpTarget(options.url);
 		this.targetUrl = parsed.toString().replace(/\/$/, "");
-		this.authToken = options.authToken;
+		this.authToken = options.authToken || options.token;
 	}
 
 	public isConnected(): boolean {

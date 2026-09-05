@@ -17,7 +17,7 @@ import type {
 } from "./transport.interface.js";
 
 export interface MeshTransportOptions {
-	bootstrapNodes: string[];
+	bootstrapNodes?: string[];
 	swarmKey?: string | Uint8Array;
 	nexusUrl?: string;
 	clientId?: string;
@@ -31,7 +31,7 @@ export class MeshTransport implements StudioTransport {
 	private options: MeshTransportOptions;
 	private cachedTools: EnrichedTool[] = [];
 
-	constructor(options: MeshTransportOptions) {
+	constructor(options: MeshTransportOptions = {}) {
 		this.options = options;
 		this.client = new LiopClient();
 	}
@@ -53,7 +53,7 @@ export class MeshTransport implements StudioTransport {
 
 		await this.client.connect(undefined, {
 			meshConfig: {
-				bootstrapNodes: this.options.bootstrapNodes,
+				bootstrapNodes: this.options.bootstrapNodes || [],
 				listenAddresses: ["/ip4/0.0.0.0/tcp/0"],
 				swarmKey: pskBytes,
 				enableWAN: false,
@@ -113,7 +113,10 @@ export class MeshTransport implements StudioTransport {
 
 			return {
 				targetType: "mesh",
-				targetAddress: this.options.bootstrapNodes.join(", "),
+				targetAddress:
+					this.options.bootstrapNodes && this.options.bootstrapNodes.length > 0
+						? this.options.bootstrapNodes.join(", ")
+						: "p2p-mesh",
 				status: "online",
 				latencyMs,
 				serverInfo: { name: "LIOP Decentralized Mesh", version: "2.5.0" },
@@ -125,7 +128,10 @@ export class MeshTransport implements StudioTransport {
 		} catch (err) {
 			return {
 				targetType: "mesh",
-				targetAddress: this.options.bootstrapNodes.join(", "),
+				targetAddress:
+					this.options.bootstrapNodes && this.options.bootstrapNodes.length > 0
+						? this.options.bootstrapNodes.join(", ")
+						: "p2p-mesh",
 				status: "offline",
 				latencyMs: Math.round(performance.now() - tStart),
 				totalTools: 0,
