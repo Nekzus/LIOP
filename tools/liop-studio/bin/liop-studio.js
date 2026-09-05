@@ -4,18 +4,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Check if running compiled or tsx in development
 async function run() {
-	const isDist = import.meta.url.includes("/dist/") || !import.meta.url.endsWith(".ts");
-	
 	try {
 		// Prefer compiled CLI entrypoint if available
 		const cliPath = path.resolve(__dirname, "../dist/cli/index.js");
-		const mod = await import(cliPath);
+		const mod = await import(pathToFileURL(cliPath).href);
 		if (mod.main) {
 			await mod.main();
 		}
@@ -23,7 +21,7 @@ async function run() {
 		// Fallback to tsx for direct source execution in monorepo
 		try {
 			const srcCliPath = path.resolve(__dirname, "../src/cli/index.ts");
-			const mod = await import(srcCliPath);
+			const mod = await import(pathToFileURL(srcCliPath).href);
 			if (mod.main) {
 				await mod.main();
 			}
