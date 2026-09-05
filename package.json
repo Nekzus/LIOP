@@ -38,7 +38,11 @@
     "audit:prod:clean": "pnpm --filter @nekzus/liop audit:prod:clean",
     "socket:scan": "socket scan create --report .",
     "socket:score": "socket package score npm @nekzus/liop --markdown",
-    "socket:fix": "socket fix"
+    "socket:fix": "socket fix",
+    "studio": "pnpm --filter @nekzus/liop-studio start",
+    "studio:scan": "pnpm --filter @nekzus/liop-studio scan",
+    "studio:build": "pnpm --filter @nekzus/liop-studio build:all",
+    "studio:test": "pnpm --filter @nekzus/liop-studio test"
   },
   "config": {
     "commitizen": {

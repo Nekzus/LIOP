@@ -66,6 +66,8 @@ const workspacePackagePaths = [
   'examples/demos/package.json',
   'examples/demos/high-fidelity-demo/package.json',
   'examples/demos/sentinel-mesh/package.json',
+  'tools/liop-studio/package.json',
+  'tools/liop-studio/ui/package.json',
 ];
 
 for (const relPath of workspacePackagePaths) {

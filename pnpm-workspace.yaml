@@ -3,6 +3,8 @@ packages:
   - "sdks/typescript/examples/**"
   - "sdks/typescript/tests/infra/playground-web"
   - "examples/**"
+  - "tools/liop-studio"
+  - "tools/liop-studio/ui"
 
 verifyDepsBeforeRun: false
 
