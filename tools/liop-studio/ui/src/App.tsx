@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 import {
 	Activity,
 	AlertTriangle,
+	BarChart3,
 	Check,
 	CheckCircle2,
 	Code,
@@ -26,7 +27,6 @@ import {
 	Server,
 	ShieldBan,
 	ShieldCheck,
-	Sliders,
 	Sparkles,
 	Terminal,
 	Waypoints,
@@ -36,7 +36,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DynamicToolForm } from "./components/DynamicToolForm";
-import { SovereigntyCrossfader } from "./components/SovereigntyCrossfader";
+import { EnterpriseBenchmarkDeck } from "./components/EnterpriseBenchmarkDeck";
 import { TargetConnectionBar } from "./components/TargetConnectionBar";
 import { Alert, AlertDescription, AlertTitle } from "./components/ui/alert";
 import { Badge } from "./components/ui/badge";
@@ -1225,7 +1225,7 @@ return {
 							</span>
 						</Button>
 
-						{/* Dual Persona View Mode Switcher (DJ Launchpad vs Dev Studio) */}
+						{/* Dual Persona View Mode Switcher (Executive Overview vs Engineering Studio) */}
 						<div className="relative flex items-center bg-surface1 border border-white/15 p-0.5 rounded-md">
 							<button
 								type="button"
@@ -1235,7 +1235,7 @@ return {
 										? "text-black"
 										: "text-zinc-300 hover:text-white"
 								}`}
-								title="DJ Launchpad & Sovereignty Console"
+								title="Executive Overview, FinOps & Benchmark Cockpit"
 							>
 								{viewMode === "showcase" && (
 									<motion.div
@@ -1244,12 +1244,14 @@ return {
 										transition={{ type: "spring", stiffness: 450, damping: 35 }}
 									/>
 								)}
-								<Sliders
+								<BarChart3
 									className={`relative z-20 h-3.5 w-3.5 transition-colors duration-200 ${
 										viewMode === "showcase" ? "text-black" : "text-cyan-400"
 									}`}
 								/>
-								<span className="relative z-20 font-medium">DJ Launchpad</span>
+								<span className="relative z-20 font-medium">
+									Executive Overview
+								</span>
 							</button>
 							<button
 								type="button"
@@ -1259,7 +1261,7 @@ return {
 										? "text-black"
 										: "text-zinc-300 hover:text-white"
 								}`}
-								title="Developer Studio & Code Editor"
+								title="Engineering Studio, WASI Editor & Network Topology"
 							>
 								{viewMode === "developer" && (
 									<motion.div
@@ -1273,7 +1275,9 @@ return {
 										viewMode === "developer" ? "text-black" : "text-zinc-400"
 									}`}
 								/>
-								<span className="relative z-20 font-medium">Dev Studio</span>
+								<span className="relative z-20 font-medium">
+									Engineering Studio
+								</span>
 							</button>
 						</div>
 
@@ -1360,9 +1364,9 @@ return {
 			<main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 flex flex-col gap-6">
 				{viewMode === "showcase" ? (
 					<div className="space-y-6">
-						<SovereigntyCrossfader
-							value={crossfaderValue}
-							onChange={setCrossfaderValue}
+						<EnterpriseBenchmarkDeck
+							migrationScale={crossfaderValue}
+							onMigrationScaleChange={setCrossfaderValue}
 							telemetry={{
 								liopTokens: meta?.telemetry?.tokens?.totalTokens,
 								legacyTokens: meta?.telemetry?.tokens?.traditionalContextTokens,
@@ -1377,13 +1381,13 @@ return {
 								shieldBlocked: meta?.shieldBlocked,
 								fuelUsed: meta?.telemetry?.fuel?.consumed,
 							}}
-							onRunDemo={handleRunDemoScenario}
+							onRunScenario={handleRunDemoScenario}
 							isRunning={isRunning}
 							activeTargetName={activeConnectedTarget}
-							activeTool={selectedToolName}
+							activeToolName={selectedToolName}
 						/>
 
-						{/* Execution Live Result Card in Showcase Mode */}
+						{/* Execution Live Result Card in Executive Mode */}
 						{result && (
 							<Card className="bg-card border-border shadow-card overflow-hidden">
 								<CardHeader className="py-3 px-4 border-b border-border/40 bg-surface1 flex flex-row items-center justify-between">
@@ -1426,17 +1430,18 @@ return {
 							</Card>
 						)}
 
-						{/* Quick Prompt when no query has been fired yet */}
+						{/* Executive Benchmark Awaiting Prompt */}
 						{!result && (
-							<div className="rounded-xl border border-dashed border-border/60 p-8 text-center bg-card/20">
-								<Sliders className="h-8 w-8 text-cyan-400 mx-auto mb-2 opacity-75" />
-								<h4 className="text-sm font-semibold text-zinc-200">
-									Ready to Surf the Protocol
+							<div className="rounded-xl border border-dashed border-border/60 p-6 text-center bg-card/30">
+								<Activity className="h-6 w-6 text-cyan-400 mx-auto mb-2 opacity-75" />
+								<h4 className="text-xs font-mono font-bold uppercase text-zinc-200">
+									Awaiting Enterprise Benchmark Execution
 								</h4>
-								<p className="text-xs text-zinc-400 max-w-md mx-auto mt-1">
-									Drag the crossfader above to contrast legacy MCP context
-									pulling against LIOP in-situ execution, or tap any Performance
-									Cue Pad to fire a live query inside a sovereign enclave.
+								<p className="text-xs text-zinc-400 max-w-lg mx-auto mt-1">
+									Select any enterprise production scenario above to trigger an
+									empirical confidential computation within the target sovereign
+									enclave, or adjust the migration scale slider to evaluate
+									projected FinOps impact.
 								</p>
 							</div>
 						)}
