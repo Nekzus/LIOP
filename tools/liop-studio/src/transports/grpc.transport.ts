@@ -73,19 +73,7 @@ export class GrpcTransport implements StudioTransport {
 			});
 
 			const latencyMs = Math.max(1, Math.round(performance.now() - tStart));
-
-			// Standard capabilities supported on LIOP origin nodes
-			const tools: EnrichedTool[] = [
-				{
-					name: "Execute_WASI_Logic",
-					description:
-						"Injects WASI WebAssembly micro-module down into origin for compute.",
-					providerNode: this.serverInfo?.name || "LIOP Native Node",
-					tier: 1,
-					domain: "Core Origin Execution",
-					isLiopEnabled: true,
-				},
-			];
+			const tools = this.resolveToolsForTarget();
 
 			return {
 				targetType: "grpc",
@@ -111,10 +99,74 @@ export class GrpcTransport implements StudioTransport {
 		}
 	}
 
-	public async listTools(): Promise<EnrichedTool[]> {
-		if (!this.isConnected()) {
-			await this.connect();
+	public resolveToolsForTarget(): EnrichedTool[] {
+		const targetStr = this.target;
+		if (targetStr.includes("15021") || targetStr.includes("bank")) {
+			return [
+				{
+					name: "Analyze_Synthetic_Bank_Transactions",
+					description:
+						"Tier 1 Sovereign Enclave: Securely analyzes 1,500 synthetic financial accounts ($148M) via Logic-on-Origin under SOX/PCI-DSS DP rules.",
+					providerNode: "LIOP Bank Sovereign Enclave (127.0.0.1:15021)",
+					tier: 1,
+					domain: "Banking & Finance",
+					isLiopEnabled: true,
+				},
+			];
 		}
+		if (targetStr.includes("15011") || targetStr.includes("vault")) {
+			return [
+				{
+					name: "Analyze_Synthetic_Medical_Records",
+					description:
+						"Tier 1 Sovereign Enclave: Securely analyzes 2,500 EHR patient records under HIPAA Expert Determination privacy.",
+					providerNode: "LIOP Vault Sovereign Enclave (127.0.0.1:15011)",
+					tier: 1,
+					domain: "Clinical Healthcare",
+					isLiopEnabled: true,
+				},
+			];
+		}
+		if (targetStr.includes("15031") || targetStr.includes("oracle")) {
+			return [
+				{
+					name: "Analyze_HFT_Market_Data",
+					description:
+						"Tier 2 Consortium Node: Real-time high frequency trading market simulator (8 instruments + L2 orderbook).",
+					providerNode: "LIOP HFT Oracle Node (127.0.0.1:15031)",
+					tier: 2,
+					domain: "Financial Markets",
+					isLiopEnabled: true,
+				},
+			];
+		}
+		if (targetStr.includes("15041") || targetStr.includes("edge")) {
+			return [
+				{
+					name: "Analyze_Edge_IoT_Telemetry",
+					description:
+						"Tier 3 Edge Backbone: Industrial IoT sensor telemetry stream (Pressure, RPM, Temperature).",
+					providerNode: "LIOP Edge Industrial IoT (127.0.0.1:15041)",
+					tier: 3,
+					domain: "Industrial IoT",
+					isLiopEnabled: true,
+				},
+			];
+		}
+		if (targetStr.includes("15051") || targetStr.includes("blg")) {
+			return [
+				{
+					name: "Inspect_Enclave_Perimeter",
+					description:
+						"Tier 2 Perimeter Security: Inspects physical and cryptographic defense metrics of Tier 1 Enclaves.",
+					providerNode: "Border LIO Gateway (127.0.0.1:15051)",
+					tier: 2,
+					domain: "Perimeter Security",
+					isLiopEnabled: false,
+				},
+			];
+		}
+
 		return [
 			{
 				name: "Execute_WASI_Logic",
@@ -126,6 +178,13 @@ export class GrpcTransport implements StudioTransport {
 				isLiopEnabled: true,
 			},
 		];
+	}
+
+	public async listTools(): Promise<EnrichedTool[]> {
+		if (!this.isConnected()) {
+			await this.connect();
+		}
+		return this.resolveToolsForTarget();
 	}
 
 	public async callTool(
