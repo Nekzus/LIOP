@@ -12,6 +12,7 @@ import {
 import type {
 	EnrichedTool,
 	ExecutionResult,
+	ScannedTargetNode,
 	ScanReport,
 	StudioTransport,
 	TargetTransportType,
@@ -74,29 +75,159 @@ export class GrpcTransport implements StudioTransport {
 
 			const latencyMs = Math.max(1, Math.round(performance.now() - tStart));
 			const tools = this.resolveToolsForTarget();
+			const status = intentRes.accepted ? "online" : "degraded";
+			const nodes = this.resolveScannedNodesForTarget(latencyMs, status);
 
 			return {
 				targetType: "grpc",
 				targetAddress: this.target,
-				status: intentRes.accepted ? "online" : "degraded",
+				status,
 				latencyMs,
 				serverInfo: this.serverInfo,
 				totalTools: tools.length,
 				tools,
+				nodes,
 				timestamp: new Date().toISOString(),
 			};
 		} catch (err) {
+			const latencyMs = Math.round(performance.now() - tStart);
+			const nodes = this.resolveScannedNodesForTarget(latencyMs, "offline");
 			return {
 				targetType: "grpc",
 				targetAddress: this.target,
 				status: "offline",
-				latencyMs: Math.round(performance.now() - tStart),
+				latencyMs,
 				totalTools: 0,
 				tools: [],
+				nodes,
 				timestamp: new Date().toISOString(),
 				error: err instanceof Error ? err.message : String(err),
 			};
 		}
+	}
+
+	public resolveScannedNodesForTarget(
+		latencyMs: number,
+		status: "online" | "offline" | "degraded",
+	): ScannedTargetNode[] {
+		const targetStr = this.target;
+		if (targetStr.includes("15021") || targetStr.includes("bank")) {
+			return [
+				{
+					id: "bank",
+					name: "The Bank (Enclave)",
+					tier: 1,
+					tierLabel: "Tier 1: Sovereign Enclaves (In-Situ Origin)",
+					host: "127.0.0.1",
+					ports: { grpc: 15021, http: 15020 },
+					status,
+					rttMs: latencyMs,
+					peerId: "12D3KooWBankEnclave",
+					version: this.serverInfo?.version || "2.5.0",
+					tools: ["Analyze_Synthetic_Bank_Transactions"],
+					role: "Core Banking & Financial Settlement",
+					isolation: "pnet Swarm Key (PSK) + Differential Privacy",
+					dataset: "1,500 synthetic accounts ($148M balance)",
+				},
+			];
+		}
+		if (targetStr.includes("15011") || targetStr.includes("vault")) {
+			return [
+				{
+					id: "vault",
+					name: "The Vault (Enclave)",
+					tier: 1,
+					tierLabel: "Tier 1: Sovereign Enclaves (In-Situ Origin)",
+					host: "127.0.0.1",
+					ports: { grpc: 15011, http: 15010 },
+					status,
+					rttMs: latencyMs,
+					peerId: "12D3KooWVaultEnclave",
+					version: this.serverInfo?.version || "2.5.0",
+					tools: ["Analyze_Synthetic_Medical_Records"],
+					role: "Clinical Healthcare & EHR Records",
+					isolation: "pnet Swarm Key (PSK) + HIPAA Strict Mode",
+					dataset: "2,500 clinical EHR patient records",
+				},
+			];
+		}
+		if (targetStr.includes("15031") || targetStr.includes("oracle")) {
+			return [
+				{
+					id: "oracle",
+					name: "The Oracle (HFT)",
+					tier: 2,
+					tierLabel: "Tier 2: Consortium Routing & Gateways",
+					host: "127.0.0.1",
+					ports: { grpc: 15031, http: 15030 },
+					status,
+					rttMs: latencyMs,
+					peerId: "12D3KooWOracleNode",
+					version: this.serverInfo?.version || "2.5.0",
+					tools: ["Analyze_HFT_Market_Data"],
+					role: "Real-time High Frequency Trading Market Simulator",
+					isolation: "Consortium Node + 50ms Tick Streaming Buffer",
+					dataset: "8 Instruments + L2 Orderbook",
+				},
+			];
+		}
+		if (targetStr.includes("15041") || targetStr.includes("edge")) {
+			return [
+				{
+					id: "edge",
+					name: "Edge Industrial IoT",
+					tier: 3,
+					tierLabel: "Tier 3: Public Backbone & Client Edge",
+					host: "127.0.0.1",
+					ports: { grpc: 15041, http: 15040 },
+					status,
+					rttMs: latencyMs,
+					peerId: "12D3KooWEdgeNode",
+					version: this.serverInfo?.version || "2.5.0",
+					tools: ["Analyze_Edge_IoT_Telemetry"],
+					role: "Edge Telemetry & Hostile 3G WAN Industrial Node",
+					isolation: "WAN Jitter/Loss Resistant Client",
+					dataset: "Edge Telemetry Sensors (Pressure, RPM, Temp)",
+				},
+			];
+		}
+		if (targetStr.includes("15051") || targetStr.includes("blg")) {
+			return [
+				{
+					id: "blg",
+					name: "Border LIO Gateway (BLG)",
+					tier: 2,
+					tierLabel: "Tier 2: Consortium Routing & Gateways",
+					host: "127.0.0.1",
+					ports: { grpc: 15051, http: 15050 },
+					status,
+					rttMs: latencyMs,
+					peerId: "12D3KooWBLGGateway",
+					version: this.serverInfo?.version || "2.5.0",
+					tools: ["Inspect_Enclave_Perimeter"],
+					role: "Dual-NIC Perimeter Security Bridge (Tier 1 <-> Tier 2)",
+					isolation: "6-Layer Zero-Trust + AST Guardian + Egress Shield",
+				},
+			];
+		}
+
+		const parsedPort = Number(targetStr.split(":")[1]) || 13011;
+		return [
+			{
+				id: "custom-grpc",
+				name: this.serverInfo?.name || `gRPC Target (${this.target})`,
+				tier: 1,
+				tierLabel: "Tier 1: Sovereign Enclaves (In-Situ Origin)",
+				host: this.target.split(":")[0] || "127.0.0.1",
+				ports: { grpc: parsedPort, http: parsedPort - 1 },
+				status,
+				rttMs: latencyMs,
+				tools: ["Execute_WASI_Logic"],
+				version: this.serverInfo?.version || "2.5.0",
+				role: "Direct Native gRPC Compute Node",
+				isolation: "Native Sandbox Isolation",
+			},
+		];
 	}
 
 	public resolveToolsForTarget(): EnrichedTool[] {

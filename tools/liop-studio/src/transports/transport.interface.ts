@@ -58,6 +58,8 @@ export interface ScannedTargetNode {
 	role?: string;
 	isolation?: string;
 	dataset?: string;
+	ports?: { http?: number; p2p?: number; grpc?: number };
+	multiaddrs?: string[];
 	error?: string;
 }
 

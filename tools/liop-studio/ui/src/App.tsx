@@ -32,7 +32,7 @@ import {
 	X,
 	XCircle,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { DynamicToolForm } from "./components/DynamicToolForm";
 import { TargetConnectionBar } from "./components/TargetConnectionBar";
 import { Alert, AlertDescription, AlertTitle } from "./components/ui/alert";
@@ -658,6 +658,63 @@ export default function App() {
 		return nodes.filter((n) => n.tier === filterTier);
 	}, [nodes, filterTier]);
 
+	// Capability support verification against current target
+	const isToolSupported = useCallback(
+		(toolName?: string): boolean => {
+			if (!toolName) return false;
+			if (tools.length === 0) return true;
+			const cleanTarget = toolName.toLowerCase().replace(/_/g, "");
+			return tools.some(
+				(t) =>
+					t.name.toLowerCase() === toolName.toLowerCase() ||
+					t.name.toLowerCase().replace(/_/g, "") === cleanTarget,
+			);
+		},
+		[tools],
+	);
+
+	const currentTemplate = useMemo(() => {
+		return TEMPLATES.find((t) => t.id === selectedTemplateId);
+	}, [selectedTemplateId]);
+
+	const isCurrentToolSupported = useMemo(() => {
+		const toolToTest =
+			executionMode === "form"
+				? selectedToolName
+				: currentTemplate?.tool || selectedToolName;
+		return isToolSupported(toolToTest);
+	}, [executionMode, selectedToolName, currentTemplate, isToolSupported]);
+
+	const isConnectedToNode = (n: ScannedNode): boolean => {
+		if (targetType === "grpc") {
+			const targetPort = grpcTarget.split(":")[1] || "";
+			const activePort = activeConnectedTarget.split(":")[1] || "";
+			return Boolean(
+				(n.ports?.grpc &&
+					(String(n.ports.grpc) === targetPort ||
+						String(n.ports.grpc) === activePort)) ||
+					(n.host &&
+						(grpcTarget.includes(n.host) ||
+							activeConnectedTarget.includes(n.host)) &&
+						targetPort === String(n.ports?.grpc)) ||
+					grpcTarget.toLowerCase().includes(n.id.toLowerCase()) ||
+					activeConnectedTarget.toLowerCase().includes(n.id.toLowerCase()),
+			);
+		}
+		if (targetType === "http") {
+			const portMatch =
+				httpUrl.match(/:(\d+)/)?.[1] ||
+				activeConnectedTarget.match(/:(\d+)/)?.[1] ||
+				"";
+			return Boolean(
+				(n.ports?.http && String(n.ports.http) === portMatch) ||
+					httpUrl.toLowerCase().includes(n.id.toLowerCase()) ||
+					activeConnectedTarget.toLowerCase().includes(n.id.toLowerCase()),
+			);
+		}
+		return n.id === "bank" || n.status === "online";
+	};
+
 	// Code editor metadata
 	const editorStats = useMemo(() => {
 		const lines = code.split("\n").length;
@@ -1239,6 +1296,18 @@ export default function App() {
 								) : (
 									/* Multi-Layer Server Scan View */
 									<div className="space-y-4 pb-4">
+										{nodes.length === 0 ? (
+											<div className="text-center py-10 px-4 bg-surface1/20 rounded-lg border border-white/5 space-y-2">
+												<Server className="h-7 w-7 text-cyan-400 mx-auto opacity-70 animate-pulse" />
+												<p className="text-xs font-semibold text-zinc-200">
+													Scanning Network Nodes...
+												</p>
+												<p className="text-[11px] text-zinc-400 font-mono">
+													Querying {activeConnectedTarget}
+												</p>
+											</div>
+										) : null}
+
 										{/* Tier 1 Group: Sovereign Enclaves */}
 										{(filterTier === "all" || filterTier === 1) && (
 											<div className="space-y-2">
@@ -1252,53 +1321,86 @@ export default function App() {
 													</span>
 												</div>
 
-												{tier1Nodes.map((n) => (
-													<div
-														key={n.id}
-														className="p-2.5 rounded-md border border-emerald-500/30 bg-tier1 hover:brightness-110 transition-all"
-													>
-														<div className="flex items-center justify-between mb-1">
-															<span className="text-xs font-semibold text-zinc-100 flex items-center gap-1.5">
-																<Database className="h-3 w-3 text-emerald-400" />
-																{n.name}
-															</span>
-															<div className="flex items-center gap-1.5">
-																<span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
-																<span className="text-[10px] font-mono text-emerald-400">
-																	{n.rttMs}ms
-																</span>
-															</div>
-														</div>
-														<p className="text-[10px] text-zinc-400 mb-1">
-															{n.role}
-														</p>
-														<div className="text-[10px] font-mono text-zinc-400 flex items-center justify-between">
-															<span>
-																{n.host}:{n.ports.http}
-															</span>
-															{n.dataset && (
-																<span className="text-emerald-300 text-[9px]">
-																	{n.dataset}
-																</span>
-															)}
-														</div>
-														{n.tools.length > 0 && (
-															<div className="mt-1.5 flex flex-wrap gap-1">
-																{n.tools.map((tool) => (
-																	<button
-																		key={tool}
-																		type="button"
-																		onClick={() => handleSelectTool(tool)}
-																		className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/15 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-200 transition-colors"
-																		title={`Load ${tool} in Logic Studio`}
-																	>
-																		+ {tool}
-																	</button>
-																))}
-															</div>
-														)}
+												{tier1Nodes.length === 0 ? (
+													<div className="text-[10px] text-zinc-500 italic py-2 px-2.5 bg-surface1/30 rounded border border-white/5 flex items-center gap-1.5">
+														<AlertTriangle className="h-3 w-3 text-zinc-500" />
+														No Tier 1 enclaves active on scanned target
 													</div>
-												))}
+												) : (
+													tier1Nodes.map((n) => {
+														const isConnected = isConnectedToNode(n);
+														return (
+															<div
+																key={n.id}
+																className={`p-2.5 rounded-md border transition-all ${
+																	isConnected
+																		? "border-cyan-500/60 bg-tier1 ring-1 ring-cyan-500/30 shadow-sm"
+																		: "border-emerald-500/30 bg-tier1 hover:brightness-110"
+																}`}
+															>
+																<div className="flex items-center justify-between mb-1">
+																	<div className="flex items-center gap-1.5">
+																		<Database className="h-3 w-3 text-emerald-400" />
+																		<span className="text-xs font-semibold text-zinc-100">
+																			{n.name}
+																		</span>
+																		{isConnected && (
+																			<span className="text-[8px] font-mono px-1.5 py-0.2 rounded bg-cyan-500/25 border border-cyan-500/40 text-cyan-200 font-bold flex items-center gap-1">
+																				<span className="inline-block h-1.5 w-1.5 rounded-full bg-cyan-400 animate-ping"></span>
+																				ACTIVE TARGET
+																			</span>
+																		)}
+																	</div>
+																	<div className="flex items-center gap-1.5">
+																		<span
+																			className={`inline-block h-1.5 w-1.5 rounded-full ${
+																				n.status === "online"
+																					? "bg-emerald-400"
+																					: "bg-red-400"
+																			}`}
+																		></span>
+																		<span className="text-[10px] font-mono text-emerald-400">
+																			{n.rttMs}ms
+																		</span>
+																	</div>
+																</div>
+																<p className="text-[10px] text-zinc-400 mb-1">
+																	{n.role}
+																</p>
+																<div className="text-[10px] font-mono text-zinc-400 flex items-center justify-between">
+																	<span>
+																		{n.host}:
+																		{n.ports?.grpc ??
+																			n.ports?.http ??
+																			(targetType === "grpc"
+																				? grpcTarget.split(":")[1] || "15021"
+																				: "3000")}
+																	</span>
+																	{n.dataset && (
+																		<span className="text-emerald-300 text-[9px] truncate max-w-[180px]">
+																			{n.dataset}
+																		</span>
+																	)}
+																</div>
+																{n.tools.length > 0 && (
+																	<div className="mt-1.5 flex flex-wrap gap-1">
+																		{n.tools.map((tool) => (
+																			<button
+																				key={tool}
+																				type="button"
+																				onClick={() => handleSelectTool(tool)}
+																				className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/15 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-200 transition-colors cursor-pointer"
+																				title={`Load ${tool} in Logic Studio`}
+																			>
+																				+ {tool}
+																			</button>
+																		))}
+																	</div>
+																)}
+															</div>
+														);
+													})
+												)}
 											</div>
 										)}
 
@@ -1315,51 +1417,85 @@ export default function App() {
 													</span>
 												</div>
 
-												{tier2Nodes.map((n) => (
-													<div
-														key={n.id}
-														className="p-2.5 rounded-md border border-cyan-500/30 bg-tier2 hover:brightness-110 transition-all"
-													>
-														<div className="flex items-center justify-between mb-1">
-															<span className="text-xs font-semibold text-zinc-100 flex items-center gap-1.5">
-																<Globe className="h-3 w-3 text-cyan-400" />
-																{n.name}
-															</span>
-															<div className="flex items-center gap-1.5">
-																<span className="inline-block h-1.5 w-1.5 rounded-full bg-cyan-400"></span>
-																<span className="text-[10px] font-mono text-cyan-400">
-																	{n.rttMs}ms
-																</span>
-															</div>
-														</div>
-														<p className="text-[10px] text-zinc-400 mb-1">
-															{n.role}
-														</p>
-														<div className="text-[10px] font-mono text-zinc-400 flex items-center justify-between">
-															<span>
-																{n.host}:{n.ports.http}
-															</span>
-															<span className="text-cyan-300 text-[9px]">
-																{n.isolation.split("+")[0]}
-															</span>
-														</div>
-														{n.tools.length > 0 && (
-															<div className="mt-1.5 flex flex-wrap gap-1">
-																{n.tools.map((tool) => (
-																	<button
-																		key={tool}
-																		type="button"
-																		onClick={() => handleSelectTool(tool)}
-																		className="text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/15 hover:bg-cyan-500/30 border border-cyan-500/30 text-cyan-200 transition-colors"
-																		title={`Load ${tool} in Logic Studio`}
-																	>
-																		+ {tool}
-																	</button>
-																))}
-															</div>
-														)}
+												{tier2Nodes.length === 0 ? (
+													<div className="text-[10px] text-zinc-500 italic py-2 px-2.5 bg-surface1/30 rounded border border-white/5 flex items-center gap-1.5">
+														<AlertTriangle className="h-3 w-3 text-zinc-500" />
+														No Tier 2 gateways active on scanned target
 													</div>
-												))}
+												) : (
+													tier2Nodes.map((n) => {
+														const isConnected = isConnectedToNode(n);
+														return (
+															<div
+																key={n.id}
+																className={`p-2.5 rounded-md border transition-all ${
+																	isConnected
+																		? "border-cyan-500/60 bg-tier2 ring-1 ring-cyan-500/30 shadow-sm"
+																		: "border-cyan-500/30 bg-tier2 hover:brightness-110"
+																}`}
+															>
+																<div className="flex items-center justify-between mb-1">
+																	<div className="flex items-center gap-1.5">
+																		<Globe className="h-3 w-3 text-cyan-400" />
+																		<span className="text-xs font-semibold text-zinc-100">
+																			{n.name}
+																		</span>
+																		{isConnected && (
+																			<span className="text-[8px] font-mono px-1.5 py-0.2 rounded bg-cyan-500/25 border border-cyan-500/40 text-cyan-200 font-bold flex items-center gap-1">
+																				<span className="inline-block h-1.5 w-1.5 rounded-full bg-cyan-400 animate-ping"></span>
+																				ACTIVE TARGET
+																			</span>
+																		)}
+																	</div>
+																	<div className="flex items-center gap-1.5">
+																		<span
+																			className={`inline-block h-1.5 w-1.5 rounded-full ${
+																				n.status === "online"
+																					? "bg-cyan-400"
+																					: "bg-red-400"
+																			}`}
+																		></span>
+																		<span className="text-[10px] font-mono text-cyan-400">
+																			{n.rttMs}ms
+																		</span>
+																	</div>
+																</div>
+																<p className="text-[10px] text-zinc-400 mb-1">
+																	{n.role}
+																</p>
+																<div className="text-[10px] font-mono text-zinc-400 flex items-center justify-between">
+																	<span>
+																		{n.host}:
+																		{n.ports?.grpc ??
+																			n.ports?.http ??
+																			(targetType === "grpc"
+																				? grpcTarget.split(":")[1] || "15031"
+																				: "3000")}
+																	</span>
+																	<span className="text-cyan-300 text-[9px]">
+																		{n.isolation?.split("+")[0] ||
+																			"Consortium Node"}
+																	</span>
+																</div>
+																{n.tools.length > 0 && (
+																	<div className="mt-1.5 flex flex-wrap gap-1">
+																		{n.tools.map((tool) => (
+																			<button
+																				key={tool}
+																				type="button"
+																				onClick={() => handleSelectTool(tool)}
+																				className="text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/15 hover:bg-cyan-500/30 border border-cyan-500/30 text-cyan-200 transition-colors cursor-pointer"
+																				title={`Load ${tool} in Logic Studio`}
+																			>
+																				+ {tool}
+																			</button>
+																		))}
+																	</div>
+																)}
+															</div>
+														);
+													})
+												)}
 											</div>
 										)}
 
@@ -1376,53 +1512,86 @@ export default function App() {
 													</span>
 												</div>
 
-												{tier3Nodes.map((n) => (
-													<div
-														key={n.id}
-														className="p-2.5 rounded-md border border-purple-500/30 bg-tier3 hover:brightness-110 transition-all"
-													>
-														<div className="flex items-center justify-between mb-1">
-															<span className="text-xs font-semibold text-zinc-100 flex items-center gap-1.5">
-																<Cpu className="h-3 w-3 text-purple-400" />
-																{n.name}
-															</span>
-															<div className="flex items-center gap-1.5">
-																<span className="inline-block h-1.5 w-1.5 rounded-full bg-purple-400"></span>
-																<span className="text-[10px] font-mono text-purple-400">
-																	{n.rttMs}ms
-																</span>
-															</div>
-														</div>
-														<p className="text-[10px] text-zinc-400 mb-1">
-															{n.role}
-														</p>
-														<div className="text-[10px] font-mono text-zinc-400 flex items-center justify-between">
-															<span>
-																{n.host}:{n.ports.http}
-															</span>
-															<span className="text-purple-300 text-[9px]">
-																{n.id === "playground"
-																	? "Client Runner"
-																	: "IoT / WAN"}
-															</span>
-														</div>
-														{n.tools.length > 0 && (
-															<div className="mt-1.5 flex flex-wrap gap-1">
-																{n.tools.map((tool) => (
-																	<button
-																		key={tool}
-																		type="button"
-																		onClick={() => handleSelectTool(tool)}
-																		className="text-[9px] px-1.5 py-0.5 rounded bg-purple-500/15 hover:bg-purple-500/30 border border-purple-500/30 text-purple-200 transition-colors"
-																		title={`Load ${tool} in Logic Studio`}
-																	>
-																		+ {tool}
-																	</button>
-																))}
-															</div>
-														)}
+												{tier3Nodes.length === 0 ? (
+													<div className="text-[10px] text-zinc-500 italic py-2 px-2.5 bg-surface1/30 rounded border border-white/5 flex items-center gap-1.5">
+														<AlertTriangle className="h-3 w-3 text-zinc-500" />
+														No Tier 3 edge nodes active on scanned target
 													</div>
-												))}
+												) : (
+													tier3Nodes.map((n) => {
+														const isConnected = isConnectedToNode(n);
+														return (
+															<div
+																key={n.id}
+																className={`p-2.5 rounded-md border transition-all ${
+																	isConnected
+																		? "border-cyan-500/60 bg-tier3 ring-1 ring-cyan-500/30 shadow-sm"
+																		: "border-purple-500/30 bg-tier3 hover:brightness-110"
+																}`}
+															>
+																<div className="flex items-center justify-between mb-1">
+																	<div className="flex items-center gap-1.5">
+																		<Cpu className="h-3 w-3 text-purple-400" />
+																		<span className="text-xs font-semibold text-zinc-100">
+																			{n.name}
+																		</span>
+																		{isConnected && (
+																			<span className="text-[8px] font-mono px-1.5 py-0.2 rounded bg-cyan-500/25 border border-cyan-500/40 text-cyan-200 font-bold flex items-center gap-1">
+																				<span className="inline-block h-1.5 w-1.5 rounded-full bg-cyan-400 animate-ping"></span>
+																				ACTIVE TARGET
+																			</span>
+																		)}
+																	</div>
+																	<div className="flex items-center gap-1.5">
+																		<span
+																			className={`inline-block h-1.5 w-1.5 rounded-full ${
+																				n.status === "online"
+																					? "bg-purple-400"
+																					: "bg-red-400"
+																			}`}
+																		></span>
+																		<span className="text-[10px] font-mono text-purple-400">
+																			{n.rttMs}ms
+																		</span>
+																	</div>
+																</div>
+																<p className="text-[10px] text-zinc-400 mb-1">
+																	{n.role}
+																</p>
+																<div className="text-[10px] font-mono text-zinc-400 flex items-center justify-between">
+																	<span>
+																		{n.host}:
+																		{n.ports?.grpc ??
+																			n.ports?.http ??
+																			(targetType === "grpc"
+																				? grpcTarget.split(":")[1] || "15041"
+																				: "3000")}
+																	</span>
+																	<span className="text-purple-300 text-[9px]">
+																		{n.id === "playground"
+																			? "Client Runner"
+																			: "IoT / WAN"}
+																	</span>
+																</div>
+																{n.tools.length > 0 && (
+																	<div className="mt-1.5 flex flex-wrap gap-1">
+																		{n.tools.map((tool) => (
+																			<button
+																				key={tool}
+																				type="button"
+																				onClick={() => handleSelectTool(tool)}
+																				className="text-[9px] px-1.5 py-0.5 rounded bg-purple-500/15 hover:bg-purple-500/30 border border-purple-500/30 text-purple-200 transition-colors cursor-pointer"
+																				title={`Load ${tool} in Logic Studio`}
+																			>
+																				+ {tool}
+																			</button>
+																		))}
+																	</div>
+																)}
+															</div>
+														);
+													})
+												)}
 											</div>
 										)}
 									</div>
@@ -1581,17 +1750,27 @@ export default function App() {
 								<div className="relative flex items-center bg-surface1 border border-white/15 p-0.5 rounded-lg flex-wrap gap-0.5">
 									{TEMPLATES.map((t) => {
 										const isSelected = selectedTemplateId === t.id;
+										const isSupported = isToolSupported(t.tool);
 										return (
 											<button
 												key={t.id}
 												type="button"
 												onClick={() => handleSelectTemplate(t.id)}
-												className="relative z-10 text-[11px] px-2.5 py-1 font-medium transition-colors duration-200"
+												className={`relative z-10 text-[11px] px-2.5 py-1 font-medium transition-colors duration-200 flex items-center gap-1.5 ${
+													!isSupported ? "opacity-60 hover:opacity-100" : ""
+												}`}
+												title={
+													!isSupported
+														? `Requires ${t.tool} (not available on current target)`
+														: t.description
+												}
 											>
 												{isSelected && (
 													<motion.div
 														layoutId="templateActivePill"
-														className="absolute inset-0 bg-primary rounded-md shadow-sm"
+														className={`absolute inset-0 rounded-md shadow-sm ${
+															isSupported ? "bg-primary" : "bg-amber-500/80"
+														}`}
 														transition={{
 															type: "spring",
 															stiffness: 450,
@@ -1600,13 +1779,18 @@ export default function App() {
 													/>
 												)}
 												<span
-													className={`relative z-20 font-medium transition-colors duration-200 ${
+													className={`relative z-20 font-medium transition-colors duration-200 flex items-center gap-1 ${
 														isSelected
 															? "text-black"
-															: "text-zinc-300 hover:text-white"
+															: isSupported
+																? "text-zinc-300 hover:text-white"
+																: "text-zinc-400 hover:text-amber-300"
 													}`}
 												>
-													{t.name}
+													{!isSupported && (
+														<LockKeyhole className="h-2.5 w-2.5 text-amber-400 shrink-0" />
+													)}
+													<span>{t.name}</span>
 												</span>
 											</button>
 										);
@@ -1616,6 +1800,54 @@ export default function App() {
 						</CardHeader>
 
 						<CardContent className="space-y-3">
+							{/* Capability Mismatch / Execution Blocked Banner */}
+							{executionMode === "logic" && !isCurrentToolSupported && (
+								<div className="p-3 rounded-lg bg-red-950/30 border border-red-500/40 text-red-200 flex items-start gap-3 animate-in fade-in duration-200">
+									<ShieldBan className="h-5 w-5 text-red-400 shrink-0 mt-0.5" />
+									<div className="space-y-1">
+										<div className="flex items-center gap-2">
+											<h4 className="text-xs font-bold text-red-300">
+												Capability Mismatch — Execution Blocked
+											</h4>
+											<span className="text-[9px] px-1.5 py-0.2 rounded bg-red-500/20 font-mono text-red-200 border border-red-500/30 font-semibold">
+												ZERO-TRUST POLICY
+											</span>
+										</div>
+										<p className="text-[11px] text-zinc-300 leading-relaxed">
+											The active template targets capability{" "}
+											<span className="font-mono text-cyan-300 font-semibold">
+												{currentTemplate?.tool || selectedToolName}
+											</span>
+											, which is{" "}
+											<span className="text-red-400 font-semibold">
+												not available
+											</span>{" "}
+											on the connected target (
+											<span className="font-mono text-white">
+												{activeConnectedTarget}
+											</span>
+											). Code execution is blocked to protect node integrity.
+										</p>
+										<div className="text-[10px] text-zinc-400 font-mono pt-0.5 flex items-center gap-1.5 flex-wrap">
+											<span>Available on target:</span>
+											{tools.length > 0 ? (
+												tools.map((avail) => (
+													<button
+														key={avail.name}
+														type="button"
+														onClick={() => handleSelectTool(avail.name)}
+														className="px-1.5 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/30 transition-colors cursor-pointer"
+													>
+														+ Switch to {avail.name}
+													</button>
+												))
+											) : (
+												<span className="text-amber-400">None detected</span>
+											)}
+										</div>
+									</div>
+								</div>
+							)}
 							{executionMode === "form" ? (
 								<DynamicToolForm
 									toolName={selectedToolName}
@@ -1721,9 +1953,23 @@ export default function App() {
 							<div className="flex items-center justify-between pt-1">
 								<div className="text-xs text-zinc-400 flex items-center gap-1.5 flex-wrap">
 									<span>Target:</span>
-									<span className="font-semibold text-white font-mono text-[11px]">
+									<span
+										className={`font-semibold font-mono text-[11px] ${
+											isCurrentToolSupported
+												? "text-white"
+												: "text-red-400 line-through"
+										}`}
+									>
 										{selectedToolName || "none"}
 									</span>
+									{!isCurrentToolSupported && (
+										<Badge
+											variant="outline"
+											className="text-[9px] py-0 px-1 font-mono border-red-500/40 text-red-400 bg-red-500/10"
+										>
+											Unavailable on Target
+										</Badge>
+									)}
 									{currentToolObj?.providerNode && (
 										<Badge
 											variant="outline"
@@ -1743,8 +1989,14 @@ export default function App() {
 								</div>
 								<Button
 									onClick={handleExecute}
-									disabled={isRunning || !selectedToolName}
-									className="h-9 px-6 font-bold tracking-wide shadow-md transition-all active:scale-[0.98]"
+									disabled={
+										isRunning || !selectedToolName || !isCurrentToolSupported
+									}
+									className={`h-9 px-6 font-bold tracking-wide shadow-md transition-all active:scale-[0.98] ${
+										!isCurrentToolSupported
+											? "opacity-60 cursor-not-allowed bg-zinc-800 hover:bg-zinc-800 text-zinc-400 border border-zinc-700"
+											: ""
+									}`}
 								>
 									{isRunning ? (
 										<>
@@ -1752,6 +2004,11 @@ export default function App() {
 											{executionMode === "logic"
 												? "Injecting..."
 												: "Calling..."}
+										</>
+									) : !isCurrentToolSupported ? (
+										<>
+											<ShieldBan className="mr-2 h-4 w-4 text-red-400" />
+											Blocked on Target
 										</>
 									) : (
 										<>

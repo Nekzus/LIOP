@@ -136,16 +136,34 @@ export function createStudioServer(options: ServerOptions = {}) {
 	});
 
 	app.get("/api/nodes", async (c) => {
-		if (!lastReport) {
+		const force = c.req.query("force") === "true";
+		if (force || !lastReport) {
 			lastReport = await activeTransport.scan().catch(() => null);
 		}
+		const nodes = lastReport?.nodes || [];
+		const onlineNodes = nodes.filter((n) => n.status === "online").length;
+		const tier1Count = nodes.filter(
+			(n) => n.tier === 1 && n.status === "online",
+		).length;
+		const tier2Count = nodes.filter(
+			(n) => n.tier === 2 && n.status === "online",
+		).length;
+		const tier3Count = nodes.filter(
+			(n) => n.tier === 3 && n.status === "online",
+		).length;
 		return c.json({
 			summary: {
-				totalNodes: lastReport?.nodes?.length || 1,
-				onlineNodes: lastReport?.status === "online" ? 1 : 0,
+				totalNodes: nodes.length,
+				onlineNodes,
+				offlineNodes: nodes.length - onlineNodes,
 				avgLatencyMs: lastReport?.latencyMs || 0,
+				byTier: {
+					tier1: tier1Count,
+					tier2: tier2Count,
+					tier3: tier3Count,
+				},
 			},
-			nodes: lastReport?.nodes || [],
+			nodes,
 		});
 	});
 
@@ -210,6 +228,38 @@ export function createStudioServer(options: ServerOptions = {}) {
 			};
 
 			try {
+				const availableTools = await activeTransport.listTools();
+				const isSupported =
+					availableTools.length === 0 ||
+					availableTools.some(
+						(t) =>
+							t.name.toLowerCase() === tool?.toLowerCase() ||
+							t.name.toLowerCase().replace(/_/g, "") ===
+								tool?.toLowerCase().replace(/_/g, ""),
+					);
+
+				if (!isSupported) {
+					const supportedNames = availableTools.map((t) => t.name).join(", ");
+					await sendStep(
+						"discovery",
+						`Capability '${tool}' rejected: not exposed by target`,
+						"failed",
+						0,
+					);
+					await stream.writeSSE({
+						data: JSON.stringify({
+							type: "error",
+							payload: {
+								title: "Capability Mismatch (Execution Discarded)",
+								desc: `Tool '${tool}' is not available on the active target. Available capabilities on target: [${supportedNames}]. Execution was discarded to maintain zero-trust integrity.`,
+							},
+							meta: { latencyMs: 0, tool },
+						}),
+						event: "message",
+					});
+					return;
+				}
+
 				const result = await activeTransport.callTool(
 					tool,
 					args,
