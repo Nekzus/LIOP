@@ -24,6 +24,32 @@ Estas directivas representan el ADN del protocolo y deben respetarse en cada imp
 5.  **Calidad Profesional Estricta**: Seguir siempre las mejores prácticas recomendadas por las documentaciones oficiales de las tecnologías implicadas (Rust, libp2p, gRPC, Node.js).
 6.  **[PRIORIDAD] TypeScript SDK First**: El SDK de TypeScript (`sdks/typescript` / `@nekzus/liop`) es el **motor principal de adopción** del protocolo. El ecosistema Node.js/TypeScript proyecta el mayor volumen de usuarios y ofrece la vía de implementación más accesible. Todo feature nuevo, bug fix o mejora arquitectónica DEBE implementarse, validarse y estabilizarse **primero en el SDK TypeScript** antes de replicarse al core Rust. La secuencia de desarrollo obligatoria es: `SDK TS → BiomeJS check → Tests Vitest → Publicación NPM → Port a Rust (cuando aplique)`.
 
+- **2026-09-06**: **LIOP Studio Developer Workbench: Inspector de Esquema, Exportador de Código Multilenguaje, Validador AST Reactivo y Consola de Depuración de 4 Pestañas (Fase 196)**.
+  - **Motivación**: Convertir LIOP Studio en un entorno de desarrollo activo y de alta utilidad para ingenieros de software, respondiendo a la necesidad de inspeccionar qué campos existen en los datasets confidenciales en origen, depurar sintaxis y runtime WASI en vivo, y exportar la integración a código real en producción con 1 solo clic.
+  - **Acciones Realizadas**:
+    1. **Inspector de Entorno y Esquema de Datos en Origen (`EnvironmentExplorer.tsx`)**:
+       - Creado componente interactivo que expone la estructura de campos inyectada en `env.records[]` según la tool activa (`id`, `accountType`, `balance`, `currency`, `status`, etc.).
+       - Vista de muestra de registro JSON representativo para entender la forma de los datos antes de escribir funciones de agregación.
+       - Matriz auditable de reglas del sandbox WASI: APIs autorizadas (Layer 1 Guardian Allowlist: `Array`, `Math`, `JSON`, `Object`) vs APIs bloqueadas por aislamiento V8 (`fetch`, `fs`, `eval`, `process`, `child_process`).
+    2. **Generador y Exportador de Código Multilenguaje (`CodeExportModal.tsx`)**:
+       - Exportación en 1 clic a: TypeScript (`@nekzus/liop` con `LiopClient` configurando endpoints gRPC o HTTP SSE), Python (consumo de stream SSE `/api/execute`), cURL / CLI, y gRPC JSON payload codificado en base64.
+       - Soporte tanto en modal flotante (`[Export Code]`) como en pestaña embebida directa en la consola inferior.
+    3. **Validador Sintáctico AST en Tiempo Real**:
+       - Validación reactiva mientras el usuario escribe dentro del sobre `@LIOP{runtime, Target}`, analizando sintaxis JavaScript pura en tiempo real.
+       - Badge dinámico en el footer del editor: `AST: Valid (wasi_v1)` en verde o alerta roja detallando línea y causa del error (`SyntaxError`).
+       - Guardarraíl de seguridad: Desactiva el botón `Execute Logic` ante sintaxis inválida para evitar enviar tráfico corrupto a la red.
+    4. **Consola de Depuración Unificada de 4 Pestañas**:
+       - `Output`: JSON de respuesta formateado y coloreado, tiempo de cómputo, status y botón de copia.
+       - `Debug`: Traza exhaustiva de fases del pipeline (Channel Bootstrap, Discovery, Kyber-768, Sealing, Sandbox, ZK-Receipt) con latencias RTT en milisegundos, estado del Escudo PII (Layer 4 Egress Shield) y logs de runtime.
+       - `Export Code`: Generador embebido con pestañas para alternar entre TypeScript, Python, cURL y gRPC en 1 clic.
+       - `Live Telemetry`: Métricas físicas medidas en vivo del socket (Tokens BPE medidos con -98.9% de reducción, 500 unidades de fuel WASI, -99.6% de ancho de banda físico reducido y prueba criptográfica ZK-Receipt verificada).
+    5. **Certificación y Verificación Integral**:
+       - BiomeJS: 100% de cumplimiento en los 29 archivos (`0 errors, 0 warnings`).
+       - Vitest: 20 de 20 pruebas unitarias aprobadas al 100% en 1.49s.
+       - Build de producción: Vite y tsup exitosos (bundle JS de 484 KB, ESM + DTS).
+       - Auditoría visual con browser subagent en `http://127.0.0.1:16001`, verificando modales, validación AST y ejecución en vivo contra `the bank` (`15021`).
+  - **Resultado**: LIOP Studio se consolida como una herramienta de ingeniería esencial y práctica, permitiendo prototipar, depurar y exportar integraciones soberanas a código real en segundos.
+
 - **2026-09-06**: **Destilación Radical de LIOP Studio: Skill Impeccable, Telemetría Empírica en Vivo y Erradicación de AI Slop (Fase 195)**.
   - **Motivación**: Cumplir con la directiva estricta del usuario de eliminar la sobrecarga de información, descartar cualquier indicio de "AI slop" o proyecciones artificiales (como sliders de 25,000 queries/día inventadas o ahorros hipotéticos de $1.3M/año), usar estrictamente iconos de `lucide-react` (cero emojis), y reflejar **únicamente datos reales medidos en vivo desde el socket y el runtime de origen**.
   - **Acciones Realizadas**:

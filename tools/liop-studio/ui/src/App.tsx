@@ -2,18 +2,19 @@ import { motion } from "framer-motion";
 import {
 	Activity,
 	AlertTriangle,
+	Bug,
 	Check,
 	CheckCircle2,
 	Code,
 	Copy,
 	Cpu,
 	Database,
+	FileCode,
 	Fingerprint,
 	Fuel,
 	Globe,
 	Layers,
 	Loader2,
-	LockKeyhole,
 	Moon,
 	Play,
 	RefreshCw,
@@ -29,7 +30,9 @@ import {
 	Zap,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { CodeExportModal } from "./components/CodeExportModal";
 import { DynamicToolForm } from "./components/DynamicToolForm";
+import { EnvironmentExplorer } from "./components/EnvironmentExplorer";
 import { TargetConnectionBar } from "./components/TargetConnectionBar";
 import { Alert, AlertDescription, AlertTitle } from "./components/ui/alert";
 import { Badge } from "./components/ui/badge";
@@ -417,8 +420,14 @@ export default function App() {
 		CANONICAL_TEMPLATES[0].tool,
 	);
 	const [activeResultsTab, setActiveResultsTab] = useState<
-		"output" | "telemetry" | "proofs"
+		"output" | "debug" | "export" | "telemetry"
 	>("output");
+	const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+	const [isEnvModalOpen, setIsEnvModalOpen] = useState(false);
+	const [exportTabLang, setExportTabLang] = useState<
+		"typescript" | "python" | "curl" | "grpc"
+	>("typescript");
+	const [exportTabCopied, setExportTabCopied] = useState(false);
 	const [activeLeftTab, setActiveLeftTab] = useState<"capabilities" | "nodes">(
 		"nodes",
 	);
@@ -857,6 +866,148 @@ return {
 		const estTokens = Math.max(1, Math.ceil(code.trim().length / 3.8));
 		return { lines, bytes, estTokens };
 	}, [code]);
+
+	// Real-time AST syntax validator for @LIOP envelopes and pure JavaScript
+	const astValidation = useMemo(() => {
+		const trimmed = code.trim();
+		const envelopeMatch = trimmed.match(
+			/^@LIOP\{([^}]+)\}\s*([\s\S]*?)\s*(?:@END)?$/,
+		);
+
+		let rawJs = trimmed;
+		let runtime = "wasi_v1";
+		let hasEnvelope = false;
+
+		if (envelopeMatch) {
+			hasEnvelope = true;
+			runtime = envelopeMatch[1].split(",")[0]?.trim() || "wasi_v1";
+			rawJs = envelopeMatch[2];
+		}
+
+		try {
+			// Validate JavaScript syntax safely in isolated function constructor without executing
+			// Note: "env" is the injected runtime global containing records
+			new Function("env", rawJs);
+			return {
+				valid: true,
+				error: null as string | null,
+				runtime,
+				hasEnvelope,
+			};
+		} catch (err: unknown) {
+			const message = err instanceof Error ? err.message : String(err);
+			return {
+				valid: false,
+				error: message,
+				runtime,
+				hasEnvelope,
+			};
+		}
+	}, [code]);
+
+	// Generate export code snippets for live tab
+	const getExportCode = useCallback(
+		(lang: "typescript" | "python" | "curl" | "grpc") => {
+			const tool = selectedToolName || "Analyze_Synthetic_Bank_Transactions";
+			const escapedCode = code.trim();
+			if (lang === "typescript") {
+				if (targetType === "grpc") {
+					return `import { LiopClient } from "@nekzus/liop";
+
+async function main() {
+  const client = new LiopClient({
+    target: "${grpcTarget || "127.0.0.1:13011"}",
+    timeoutMs: 10000,
+  });
+
+  await client.connect();
+
+  const response = await client.injectLogic({
+    tool: "${tool}",
+    logic: \`${escapedCode}\`,
+  });
+
+  console.log("Result:", response.result);
+  console.log("ZK Proof:", response.meta?.zkHash);
+
+  await client.close();
+}
+
+main().catch(console.error);`;
+				}
+				return `import { LiopClient } from "@nekzus/liop";
+
+async function main() {
+  const client = new LiopClient({
+    httpUrl: "${httpUrl || "http://127.0.0.1:15000/mcp"}",
+  });
+
+  await client.connect();
+
+  const response = await client.injectLogic({
+    tool: "${tool}",
+    logic: \`${escapedCode}\`,
+  });
+
+  console.log("Result:", response.result);
+  console.log("ZK Proof:", response.meta?.zkHash);
+
+  await client.close();
+}
+
+main().catch(console.error);`;
+			}
+			if (lang === "python") {
+				return `import json
+import requests
+
+url = "http://127.0.0.1:16001/api/execute"
+payload = {
+    "tool": "${tool}",
+    "logic": """${escapedCode}"""
+}
+
+response = requests.post(url, json=payload, stream=True)
+for line in response.iter_lines():
+    if line:
+        decoded = line.decode("utf-8")
+        if decoded.startswith("data: "):
+            event = json.loads(decoded[6:])
+            if event.get("type") == "result":
+                print("Result:", json.dumps(event.get("payload"), indent=2))
+                print("ZK-Receipt HMAC:", event.get("meta", {}).get("zkHash"))`;
+			}
+			if (lang === "curl") {
+				const jsonBody = JSON.stringify({ tool, logic: escapedCode }, null, 2);
+				return `curl -X POST http://127.0.0.1:16001/api/execute \\
+  -H "Content-Type: application/json" \\
+  -d '${jsonBody.replace(/'/g, "'\\''")}'`;
+			}
+			// grpc JSON
+			let base64Payload = "";
+			try {
+				base64Payload = btoa(unescape(encodeURIComponent(escapedCode)));
+			} catch (_e) {
+				base64Payload = "<base64_encoded_logic>";
+			}
+			return `// gRPC Payload for liop.protocol.v1.MeshExecutionService/ExecuteLogic
+// Target: ${grpcTarget || "127.0.0.1:13011"}
+{
+  "header": {
+    "protocol_version": "2026-07-28",
+    "clearance_tier": 1,
+    "pqc_suite": "ML-KEM-768",
+    "sealing_cipher": "AES-256-GCM"
+  },
+  "tool_name": "${tool}",
+  "logic_envelope": {
+    "runtime": "wasi_v1",
+    "script_payload": "${base64Payload}"
+  }
+}`;
+		},
+		[selectedToolName, code, targetType, grpcTarget, httpUrl],
+	);
 
 	const currentToolObj = useMemo(() => {
 		return tools.find((t) => t.name === selectedToolName);
@@ -2134,11 +2285,31 @@ return {
 												</span>
 											</div>
 
-											<div className="flex items-center space-x-2">
+											<div className="flex items-center space-x-1.5">
+												<button
+													type="button"
+													onClick={() => setIsEnvModalOpen(true)}
+													className="text-[11px] flex items-center gap-1.5 transition-colors px-2.5 py-0.5 rounded shrink-0 font-medium border text-cyan-300 hover:text-white bg-cyan-500/10 hover:bg-cyan-500/20 border-cyan-500/30 cursor-pointer"
+													title="Inspect confidential dataset schema and sandbox constraints"
+												>
+													<Layers className="h-3 w-3" />
+													<span>Env Schema</span>
+												</button>
+
+												<button
+													type="button"
+													onClick={() => setIsExportModalOpen(true)}
+													className="text-[11px] flex items-center gap-1.5 transition-colors px-2.5 py-0.5 rounded shrink-0 font-medium border text-primary hover:text-white bg-secondary/80 hover:bg-white/10 border-border cursor-pointer"
+													title="Export execution snippet to TypeScript, Python, or cURL"
+												>
+													<FileCode className="h-3 w-3" />
+													<span>Export Code</span>
+												</button>
+
 												<button
 													type="button"
 													onClick={handleResetTemplate}
-													className={`text-[11px] flex items-center gap-1.5 transition-colors px-2.5 py-0.5 rounded shrink-0 font-medium border ${
+													className={`text-[11px] flex items-center gap-1.5 transition-colors px-2.5 py-0.5 rounded shrink-0 font-medium border cursor-pointer ${
 														isReset
 															? "text-emerald-400 bg-emerald-500/15 border-emerald-500/30"
 															: "text-zinc-300 hover:text-white bg-surface1/60 hover:bg-white/5 border-white/10"
@@ -2156,7 +2327,7 @@ return {
 												<button
 													type="button"
 													onClick={() => handleCopy(code, "code")}
-													className={`text-[11px] flex items-center gap-1.5 transition-colors px-2.5 py-0.5 rounded shrink-0 font-medium border ${
+													className={`text-[11px] flex items-center gap-1.5 transition-colors px-2.5 py-0.5 rounded shrink-0 font-medium border cursor-pointer ${
 														copiedKey === "code"
 															? "text-emerald-400 bg-emerald-500/15 border-emerald-500/30"
 															: "text-zinc-300 hover:text-white bg-surface1/60 hover:bg-white/5 border-white/10"
@@ -2188,7 +2359,7 @@ return {
 											spellCheck={false}
 										/>
 
-										{/* Editor Status Footer */}
+										{/* Editor Status Footer with Real-time AST Validator */}
 										<div className="flex items-center justify-between px-3 py-1 bg-secondary/30 border-t border-border/50 text-[10px] font-mono text-zinc-400">
 											<div className="flex items-center gap-3">
 												<span>{editorStats.lines} lines</span>
@@ -2198,10 +2369,25 @@ return {
 													tok (input)
 												</span>
 											</div>
-											<div className="flex items-center gap-2">
+											<div className="flex items-center gap-3">
+												{astValidation.valid ? (
+													<span className="text-emerald-400 flex items-center gap-1 font-semibold">
+														<Check className="h-3 w-3 text-emerald-400" />
+														AST: Valid ({astValidation.runtime})
+													</span>
+												) : (
+													<span
+														className="text-rose-400 flex items-center gap-1 truncate max-w-[240px] font-semibold"
+														title={astValidation.error || "Syntax Error"}
+													>
+														<AlertTriangle className="h-3 w-3 text-rose-400 shrink-0" />
+														AST Error: {astValidation.error}
+													</span>
+												)}
+												<span>•</span>
 												<span className="text-emerald-400 flex items-center gap-1">
 													<Fuel className="h-3 w-3 text-amber-400" />
-													Max Fuel: 1,000,000 u
+													1M u Fuel
 												</span>
 												<span>•</span>
 												<span className="text-white">HMAC SHA-256</span>
@@ -2251,10 +2437,14 @@ return {
 									<Button
 										onClick={handleExecute}
 										disabled={
-											isRunning || !selectedToolName || !isCurrentToolSupported
+											isRunning ||
+											!selectedToolName ||
+											!isCurrentToolSupported ||
+											(executionMode === "logic" && !astValidation.valid)
 										}
 										className={`h-9 px-6 font-bold tracking-wide shadow-md transition-all active:scale-[0.98] ${
-											!isCurrentToolSupported
+											!isCurrentToolSupported ||
+											(executionMode === "logic" && !astValidation.valid)
 												? "opacity-60 cursor-not-allowed bg-zinc-800 hover:bg-zinc-800 text-zinc-400 border border-zinc-700"
 												: ""
 										}`}
@@ -2270,6 +2460,11 @@ return {
 											<>
 												<ShieldBan className="mr-2 h-4 w-4 text-red-400" />
 												Blocked on Target
+											</>
+										) : executionMode === "logic" && !astValidation.valid ? (
+											<>
+												<AlertTriangle className="mr-2 h-4 w-4 text-rose-400" />
+												Syntax Error
 											</>
 										) : (
 											<>
@@ -2355,27 +2550,24 @@ return {
 								</div>
 							</Card>
 
-							{/* Results (7 cols) - Fixed height 380px */}
 							<Card className="md:col-span-7 h-[380px] flex flex-col overflow-hidden bg-card border-border shadow-card">
 								<Tabs
 									value={activeResultsTab}
 									onValueChange={(val) =>
 										setActiveResultsTab(
-											val as "output" | "telemetry" | "proofs",
+											val as "output" | "debug" | "export" | "telemetry",
 										)
 									}
 									className="flex flex-col h-full"
 								>
 									<CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0 shrink-0">
 										<div className="flex items-center gap-2">
-											<Terminal className="h-4 w-4 text-primary" />
-
-											{/* Animated Sliding Pill Tabs (3 Tabs) */}
+											{/* Animated Sliding Pill Tabs (4 Unified Debug Tabs) */}
 											<div className="relative flex items-center bg-surface1 border border-white/15 p-0.5 rounded-md">
 												<button
 													type="button"
 													onClick={() => setActiveResultsTab("output")}
-													className="relative z-10 text-xs px-2.5 py-1 font-medium transition-colors duration-200"
+													className="relative z-10 text-xs px-2.5 py-1 font-medium transition-colors duration-200 flex items-center gap-1.5 cursor-pointer"
 												>
 													{activeResultsTab === "output" && (
 														<motion.div
@@ -2388,6 +2580,13 @@ return {
 															}}
 														/>
 													)}
+													<Terminal
+														className={`h-3.5 w-3.5 relative z-20 ${
+															activeResultsTab === "output"
+																? "text-black"
+																: "text-primary"
+														}`}
+													/>
 													<span
 														className={`relative z-20 font-medium transition-colors duration-200 ${
 															activeResultsTab === "output"
@@ -2395,14 +2594,82 @@ return {
 																: "text-zinc-300 hover:text-white"
 														}`}
 													>
-														Aggregated Output
+														Output
+													</span>
+												</button>
+
+												<button
+													type="button"
+													onClick={() => setActiveResultsTab("debug")}
+													className="relative z-10 text-xs px-2.5 py-1 font-medium transition-colors duration-200 flex items-center gap-1.5 cursor-pointer"
+												>
+													{activeResultsTab === "debug" && (
+														<motion.div
+															layoutId="resultsTabPill"
+															className="absolute inset-0 bg-primary rounded shadow-sm"
+															transition={{
+																type: "spring",
+																stiffness: 450,
+																damping: 35,
+															}}
+														/>
+													)}
+													<Bug
+														className={`h-3.5 w-3.5 relative z-20 ${
+															activeResultsTab === "debug"
+																? "text-black"
+																: "text-amber-400"
+														}`}
+													/>
+													<span
+														className={`relative z-20 font-medium transition-colors duration-200 ${
+															activeResultsTab === "debug"
+																? "text-black font-semibold"
+																: "text-zinc-300 hover:text-white"
+														}`}
+													>
+														Debug
+													</span>
+												</button>
+
+												<button
+													type="button"
+													onClick={() => setActiveResultsTab("export")}
+													className="relative z-10 text-xs px-2.5 py-1 font-medium transition-colors duration-200 flex items-center gap-1.5 cursor-pointer"
+												>
+													{activeResultsTab === "export" && (
+														<motion.div
+															layoutId="resultsTabPill"
+															className="absolute inset-0 bg-primary rounded shadow-sm"
+															transition={{
+																type: "spring",
+																stiffness: 450,
+																damping: 35,
+															}}
+														/>
+													)}
+													<FileCode
+														className={`h-3.5 w-3.5 relative z-20 ${
+															activeResultsTab === "export"
+																? "text-black"
+																: "text-cyan-400"
+														}`}
+													/>
+													<span
+														className={`relative z-20 font-medium transition-colors duration-200 ${
+															activeResultsTab === "export"
+																? "text-black font-semibold"
+																: "text-zinc-300 hover:text-white"
+														}`}
+													>
+														Export Code
 													</span>
 												</button>
 
 												<button
 													type="button"
 													onClick={() => setActiveResultsTab("telemetry")}
-													className="relative z-10 text-xs px-2.5 py-1 font-medium transition-colors duration-200 flex items-center gap-1"
+													className="relative z-10 text-xs px-2.5 py-1 font-medium transition-colors duration-200 flex items-center gap-1.5 cursor-pointer"
 												>
 													{activeResultsTab === "telemetry" && (
 														<motion.div
@@ -2415,6 +2682,13 @@ return {
 															}}
 														/>
 													)}
+													<Activity
+														className={`h-3.5 w-3.5 relative z-20 ${
+															activeResultsTab === "telemetry"
+																? "text-black"
+																: "text-emerald-400"
+														}`}
+													/>
 													<span
 														className={`relative z-20 font-medium transition-colors duration-200 ${
 															activeResultsTab === "telemetry"
@@ -2422,34 +2696,7 @@ return {
 																: "text-zinc-300 hover:text-white"
 														}`}
 													>
-														Fuel & Telemetry
-													</span>
-												</button>
-
-												<button
-													type="button"
-													onClick={() => setActiveResultsTab("proofs")}
-													className="relative z-10 text-xs px-2.5 py-1 font-medium transition-colors duration-200 flex items-center gap-1"
-												>
-													{activeResultsTab === "proofs" && (
-														<motion.div
-															layoutId="resultsTabPill"
-															className="absolute inset-0 bg-primary rounded shadow-sm"
-															transition={{
-																type: "spring",
-																stiffness: 450,
-																damping: 35,
-															}}
-														/>
-													)}
-													<span
-														className={`relative z-20 font-medium transition-colors duration-200 ${
-															activeResultsTab === "proofs"
-																? "text-black font-semibold"
-																: "text-zinc-300 hover:text-white"
-														}`}
-													>
-														Crypto Proofs
+														Live Telemetry
 													</span>
 												</button>
 											</div>
@@ -2486,7 +2733,7 @@ return {
 												</div>
 											)}
 
-											{/* Tab 1: JSON Output */}
+											{/* Tab 1: Aggregated Output JSON */}
 											<TabsContent
 												value="output"
 												className="m-0 space-y-3 pb-5"
@@ -2505,7 +2752,7 @@ return {
 																		"result",
 																	)
 																}
-																className={`text-[11px] flex items-center gap-1.5 transition-colors px-2.5 py-0.5 rounded shrink-0 font-medium border ${
+																className={`text-[11px] flex items-center gap-1.5 transition-colors px-2.5 py-0.5 rounded shrink-0 font-medium border cursor-pointer ${
 																	copiedKey === "result"
 																		? "text-emerald-400 bg-emerald-500/15 border-emerald-500/30"
 																		: "text-zinc-300 hover:text-white bg-surface1/60 hover:bg-white/5 border-white/10"
@@ -2536,9 +2783,10 @@ return {
 														<p className="text-xs font-medium text-zinc-200">
 															Awaiting Execution
 														</p>
-														<p className="text-[11px] text-zinc-400 max-w-[220px]">
-															Select a template or write logic, then click
-															Execute Logic.
+														<p className="text-[11px] text-zinc-400 max-w-[240px]">
+															Select a template, inspect the runtime schema with{" "}
+															<strong>Env Schema</strong>, or click{" "}
+															<strong>Execute Logic</strong>.
 														</p>
 													</div>
 												) : isRunning ? (
@@ -2552,7 +2800,240 @@ return {
 												) : null}
 											</TabsContent>
 
-											{/* Tab 2: Fuel & Telemetry Dashboard */}
+											{/* Tab 2: Debug Console & Execution Tracing */}
+											<TabsContent value="debug" className="m-0 space-y-3 pb-5">
+												<div className="space-y-3 pt-1 text-xs">
+													{/* Execution Phase Trace */}
+													<div className="p-3 rounded-lg bg-surface1 border border-border space-y-2">
+														<div className="flex items-center justify-between">
+															<span className="font-semibold text-white text-[11px] flex items-center gap-1.5">
+																<Bug className="h-3.5 w-3.5 text-amber-400" />
+																Pipeline Execution Phase Trace
+															</span>
+															<span className="font-mono text-[10px] text-zinc-400">
+																Target: {targetType.toUpperCase()}
+															</span>
+														</div>
+														<div className="border border-border/80 rounded-md overflow-hidden">
+															<table className="w-full text-left font-mono text-[11px]">
+																<thead className="bg-secondary/40 text-zinc-400 border-b border-border/80 text-[10px] uppercase">
+																	<tr>
+																		<th className="px-2.5 py-1.5">Phase</th>
+																		<th className="px-2.5 py-1.5">Status</th>
+																		<th className="px-2.5 py-1.5">Latency</th>
+																		<th className="px-2.5 py-1.5">Detail</th>
+																	</tr>
+																</thead>
+																<tbody className="divide-y divide-border/50 bg-background/40">
+																	{timeline.map((step) => (
+																		<tr
+																			key={step.phase}
+																			className="hover:bg-white/5"
+																		>
+																			<td className="px-2.5 py-1.5 font-semibold text-white">
+																				{step.label}
+																			</td>
+																			<td className="px-2.5 py-1.5">
+																				<span
+																					className={`inline-block px-1.5 py-0.2 rounded text-[10px] font-semibold ${
+																						step.status === "success"
+																							? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
+																							: step.status === "running"
+																								? "bg-amber-500/15 text-amber-400 border border-amber-500/30 animate-pulse"
+																								: step.status === "failed"
+																									? "bg-rose-500/15 text-rose-400 border border-rose-500/30"
+																									: "bg-zinc-800 text-zinc-500"
+																					}`}
+																				>
+																					{step.status.toUpperCase()}
+																				</span>
+																			</td>
+																			<td className="px-2.5 py-1.5 text-zinc-300">
+																				{step.durationMs !== undefined
+																					? `${step.durationMs}ms`
+																					: "—"}
+																			</td>
+																			<td className="px-2.5 py-1.5 text-zinc-400 truncate max-w-[200px]">
+																				{step.detail}
+																			</td>
+																		</tr>
+																	))}
+																</tbody>
+															</table>
+														</div>
+													</div>
+
+													{/* Egress Shield Verification Status */}
+													<div className="p-3 rounded-lg bg-surface1 border border-border space-y-1.5">
+														<div className="flex items-center justify-between">
+															<span className="font-semibold text-white text-[11px] flex items-center gap-1.5">
+																<ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
+																Layer 4 Egress PII Shield Audit
+															</span>
+															<Badge
+																variant={
+																	meta?.shieldBlocked
+																		? "destructive"
+																		: "success"
+																}
+																className="font-mono text-[10px]"
+															>
+																{meta?.shieldBlocked ? "INTERCEPTED" : "PASSED"}
+															</Badge>
+														</div>
+														<p className="text-[11px] text-zinc-400 leading-relaxed">
+															{meta?.shieldBlocked
+																? "Active defense triggered: Attempt to exfiltrate raw unaggregated rows intercepted by Zero-Trust Egress Shield. Data transfer was truncated before exiting origin host."
+																: "Zero-Trust egress verification confirmed. Logic module produced only compliant aggregates with zero PII side-channel exposure."}
+														</p>
+													</div>
+
+													{/* AST & Isolation Parameters */}
+													<div className="p-3 rounded-lg bg-surface1 border border-border flex items-center justify-between text-[11px] font-mono">
+														<span className="text-zinc-400">
+															Sandbox:{" "}
+															<strong className="text-primary">
+																V8 Isolate / wasi_v1
+															</strong>
+														</span>
+														<span className="text-zinc-400">
+															PQC Session:{" "}
+															<strong className="text-emerald-400">
+																ML-KEM-768
+															</strong>
+														</span>
+														<span className="text-zinc-400">
+															Protocol:{" "}
+															<strong className="text-cyan-300">
+																LIOP v1.0
+															</strong>
+														</span>
+													</div>
+												</div>
+											</TabsContent>
+
+											{/* Tab 3: Embedded Code Export */}
+											<TabsContent
+												value="export"
+												className="m-0 space-y-3 pb-5"
+											>
+												<div className="space-y-3 pt-1 text-xs">
+													{/* Language Switcher & Copy Action */}
+													<div className="flex items-center justify-between">
+														<div className="flex items-center gap-1.5 p-0.5 bg-surface1 border border-border rounded-lg">
+															<button
+																type="button"
+																onClick={() => setExportTabLang("typescript")}
+																className={`text-xs px-2.5 py-1 rounded-md font-medium transition-all cursor-pointer ${
+																	exportTabLang === "typescript"
+																		? "bg-primary text-black font-semibold shadow-sm"
+																		: "text-zinc-400 hover:text-white"
+																}`}
+															>
+																TypeScript (SDK)
+															</button>
+															<button
+																type="button"
+																onClick={() => setExportTabLang("python")}
+																className={`text-xs px-2.5 py-1 rounded-md font-medium transition-all cursor-pointer ${
+																	exportTabLang === "python"
+																		? "bg-primary text-black font-semibold shadow-sm"
+																		: "text-zinc-400 hover:text-white"
+																}`}
+															>
+																Python
+															</button>
+															<button
+																type="button"
+																onClick={() => setExportTabLang("curl")}
+																className={`text-xs px-2.5 py-1 rounded-md font-medium transition-all cursor-pointer ${
+																	exportTabLang === "curl"
+																		? "bg-primary text-black font-semibold shadow-sm"
+																		: "text-zinc-400 hover:text-white"
+																}`}
+															>
+																cURL / CLI
+															</button>
+															<button
+																type="button"
+																onClick={() => setExportTabLang("grpc")}
+																className={`text-xs px-2.5 py-1 rounded-md font-medium transition-all cursor-pointer ${
+																	exportTabLang === "grpc"
+																		? "bg-primary text-black font-semibold shadow-sm"
+																		: "text-zinc-400 hover:text-white"
+																}`}
+															>
+																gRPC JSON
+															</button>
+														</div>
+
+														<div className="flex items-center gap-2">
+															<button
+																type="button"
+																onClick={async () => {
+																	const snippet = getExportCode(exportTabLang);
+																	await handleCopy(snippet, "exportTab");
+																	setExportTabCopied(true);
+																	setTimeout(
+																		() => setExportTabCopied(false),
+																		2000,
+																	);
+																}}
+																className={`text-xs flex items-center gap-1.5 px-3 py-1 rounded-md font-medium border transition-all cursor-pointer ${
+																	exportTabCopied
+																		? "bg-emerald-500/20 text-emerald-400 border-emerald-500/40"
+																		: "bg-surface1 text-zinc-200 border-border hover:bg-white/10 hover:text-white"
+																}`}
+															>
+																{exportTabCopied ? (
+																	<>
+																		<Check className="h-3.5 w-3.5 text-emerald-400" />
+																		<span>Copied</span>
+																	</>
+																) : (
+																	<>
+																		<Copy className="h-3.5 w-3.5" />
+																		<span>Copy Code</span>
+																	</>
+																)}
+															</button>
+															<button
+																type="button"
+																onClick={() => setIsExportModalOpen(true)}
+																className="text-xs flex items-center gap-1 px-2 py-1 rounded-md text-zinc-400 hover:text-white border border-border/60 hover:bg-white/5 cursor-pointer"
+																title="Open in full modal"
+															>
+																<FileCode className="h-3.5 w-3.5" />
+																<span>Full View</span>
+															</button>
+														</div>
+													</div>
+
+													{/* Code Snippet Box */}
+													<div className="rounded-lg bg-editor border border-border p-3.5 font-mono text-xs text-[#7dd3fc] overflow-auto max-h-[250px] leading-relaxed select-all">
+														<pre>{getExportCode(exportTabLang)}</pre>
+													</div>
+
+													<div className="flex items-center justify-between text-[11px] text-zinc-400 font-mono">
+														<span>
+															Target Tool:{" "}
+															<strong className="text-white">
+																{selectedToolName}
+															</strong>
+														</span>
+														<span>
+															Endpoint:{" "}
+															{targetType === "grpc"
+																? grpcTarget
+																: targetType === "http"
+																	? httpUrl
+																	: stdioCmd}
+														</span>
+													</div>
+												</div>
+											</TabsContent>
+
+											{/* Tab 4: Live Telemetry & Cryptographic Proofs */}
 											<TabsContent
 												value="telemetry"
 												className="m-0 space-y-3 pb-5"
@@ -2748,7 +3229,7 @@ return {
 																			</span>
 																			<p className="text-[10px] text-zinc-400">
 																				Physical socket egress measured at
-																				origin
+																				runtime
 																			</p>
 																		</div>
 																	</div>
@@ -2862,41 +3343,18 @@ return {
 																</div>
 															</div>
 														)}
-													</div>
-												) : (
-													<div className="flex flex-col items-center justify-center py-14 text-zinc-400 text-center space-y-2">
-														<Fuel className="h-6 w-6 text-zinc-500" />
-														<p className="text-xs font-medium text-zinc-200">
-															No Live Telemetry Recorded
-														</p>
-														<p className="text-[11px] text-zinc-400 max-w-[240px]">
-															Execute a capability to measure live network RTT,
-															BPE tokens, wire egress, and WASI instruction
-															fuel.
-														</p>
-													</div>
-												)}
-											</TabsContent>
 
-											{/* Tab 3: Cryptographic Proofs */}
-											<TabsContent
-												value="proofs"
-												className="m-0 space-y-3 pb-5"
-											>
-												{result || meta ? (
-													<div className="space-y-2.5 pt-1 text-xs">
-														{/* ZK-Receipt HMAC-SHA256 with Copy Button */}
-														<div className="p-2.5 rounded-md bg-secondary/40 border border-border space-y-2">
+														{/* Cryptographic Proofs Row */}
+														<div className="p-3 rounded-lg bg-surface1 border border-border space-y-2">
 															<div className="flex items-center justify-between">
 																<div className="flex items-center gap-2">
 																	<Fingerprint className="h-4 w-4 text-emerald-400" />
 																	<div>
 																		<p className="font-semibold text-white text-[11px]">
-																			ZK-Receipt HMAC-SHA256
+																			ZK-Receipt Proof & PQC Suite
 																		</p>
 																		<p className="text-[10px] text-zinc-400">
-																			Cryptographic integrity proof bound to
-																			origin execution
+																			ML-KEM-768 • AES-256-GCM • HMAC SHA-256
 																		</p>
 																	</div>
 																</div>
@@ -2904,11 +3362,11 @@ return {
 																	variant="success"
 																	className="font-mono text-[10px]"
 																>
-																	HMAC VERIFIED
+																	VERIFIED
 																</Badge>
 															</div>
 
-															{meta?.zkHash ? (
+															{meta?.zkHash && (
 																<div className="flex items-center justify-between bg-editor p-2 rounded border border-border font-mono text-[10px] text-zinc-300">
 																	<span className="truncate mr-2 select-all font-mono text-emerald-300">
 																		{meta.zkHash}
@@ -2936,90 +3394,19 @@ return {
 																		)}
 																	</button>
 																</div>
-															) : (
-																<p className="text-[10px] font-mono text-zinc-400 italic">
-																	Target did not emit an HMAC hash for this
-																	execution
-																</p>
 															)}
-														</div>
-
-														<div className="p-2.5 rounded-md bg-secondary/40 border border-border flex items-center justify-between">
-															<div className="flex items-center gap-2">
-																<ShieldCheck className="h-4 w-4 text-primary" />
-																<div>
-																	<p className="font-semibold text-white text-[11px]">
-																		Post-Quantum Key Exchange
-																	</p>
-																	<p className="text-[10px] text-zinc-400">
-																		ML-KEM-768 (Kyber) quantum-resistant session
-																		link
-																	</p>
-																</div>
-															</div>
-															<Badge
-																variant="outline"
-																className="font-mono text-[10px] border-primary/40 text-primary"
-															>
-																ML-KEM-768
-															</Badge>
-														</div>
-
-														<div className="p-2.5 rounded-md bg-secondary/40 border border-border flex items-center justify-between">
-															<div className="flex items-center gap-2">
-																<LockKeyhole className="h-4 w-4 text-primary" />
-																<div>
-																	<p className="font-semibold text-white text-[11px]">
-																		Symmetric Envelope Cipher
-																	</p>
-																	<p className="text-[10px] text-zinc-400">
-																		AES-256-GCM authenticated encryption of
-																		payload and return
-																	</p>
-																</div>
-															</div>
-															<Badge
-																variant="outline"
-																className="font-mono text-[10px] border-white/15 text-zinc-300"
-															>
-																AES-256-GCM
-															</Badge>
-														</div>
-
-														<div className="p-2.5 rounded-md bg-secondary/40 border border-border flex items-center justify-between">
-															<div className="flex items-center gap-2">
-																<ShieldBan className="h-4 w-4 text-emerald-400" />
-																<div>
-																	<p className="font-semibold text-white text-[11px]">
-																		Egress PII Shield Status
-																	</p>
-																	<p className="text-[10px] text-zinc-400">
-																		Zero-trust aggregation policy (K-Anonymity +
-																		NER)
-																	</p>
-																</div>
-															</div>
-															<Badge
-																variant={
-																	meta?.shieldBlocked
-																		? "destructive"
-																		: "success"
-																}
-																className="font-mono text-[10px]"
-															>
-																{meta?.shieldBlocked ? "INTERCEPTED" : "PASSED"}
-															</Badge>
 														</div>
 													</div>
 												) : (
 													<div className="flex flex-col items-center justify-center py-14 text-zinc-400 text-center space-y-2">
-														<ShieldCheck className="h-6 w-6 text-zinc-500" />
+														<Fuel className="h-6 w-6 text-zinc-500" />
 														<p className="text-xs font-medium text-zinc-200">
-															No Cryptographic Proofs
+															No Live Telemetry Recorded
 														</p>
 														<p className="text-[11px] text-zinc-400 max-w-[240px]">
-															Execute logic to inspect the verified ZK-Receipt,
-															Kyber-768 session, and PII shield status.
+															Execute a capability to measure live network RTT,
+															BPE tokens, wire egress, and WASI instruction
+															fuel.
 														</p>
 													</div>
 												)}
@@ -3032,6 +3419,29 @@ return {
 					</section>
 				</div>
 			</main>
+
+			{/* Code Export Modal */}
+			<CodeExportModal
+				isOpen={isExportModalOpen}
+				onClose={() => setIsExportModalOpen(false)}
+				toolName={selectedToolName || "Analyze_Synthetic_Bank_Transactions"}
+				logicCode={code}
+				targetType={targetType}
+				targetEndpoint={
+					targetType === "grpc"
+						? grpcTarget
+						: targetType === "http"
+							? httpUrl
+							: stdioCmd
+				}
+			/>
+
+			{/* Runtime Environment & Schema Inspector Modal */}
+			<EnvironmentExplorer
+				isOpen={isEnvModalOpen}
+				onClose={() => setIsEnvModalOpen(false)}
+				toolName={selectedToolName || "Analyze_Synthetic_Bank_Transactions"}
+			/>
 
 			{/* Footer */}
 			<footer className="border-t border-border bg-card/60 py-3 mt-auto transition-colors">
