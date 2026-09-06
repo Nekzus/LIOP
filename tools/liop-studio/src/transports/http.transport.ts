@@ -6,6 +6,7 @@ import {
 	calculateAstInstructionFuel,
 	TokenTelemetryEngine,
 } from "@nekzus/liop";
+import { NetworkDiscoveryEngine } from "../discovery/network-scanner.js";
 import { validateHttpTarget } from "../security/sanitizer.js";
 import type {
 	EnrichedTool,
@@ -64,11 +65,21 @@ export class HttpTransport implements StudioTransport {
 
 	public async scan(): Promise<ScanReport> {
 		const tStart = performance.now();
+		let host = "127.0.0.1";
+		try {
+			const parsed = new URL(this.targetUrl);
+			host = parsed.hostname || "127.0.0.1";
+		} catch {
+			// Fallback
+		}
+		const discovery = NetworkDiscoveryEngine.getInstance();
+
 		try {
 			// Try health endpoint first if available, otherwise direct initialize
 			try {
 				const healthUrl = this.targetUrl.replace(/\/mcp$/, "/health");
 				const healthRes = await fetch(healthUrl, {
+					headers: { Accept: "application/json" },
 					signal: AbortSignal.timeout(3000),
 				});
 				if (healthRes.ok) {
@@ -92,6 +103,7 @@ export class HttpTransport implements StudioTransport {
 
 			const tools = await this.listTools();
 			const latencyMs = Math.max(1, Math.round(performance.now() - tStart));
+			const nodes = await discovery.scanNetwork(host);
 
 			return {
 				targetType: "http",
@@ -101,9 +113,11 @@ export class HttpTransport implements StudioTransport {
 				serverInfo: this.serverInfo,
 				totalTools: tools.length,
 				tools,
+				nodes,
 				timestamp: new Date().toISOString(),
 			};
 		} catch (err) {
+			const nodes = await discovery.scanNetwork(host).catch(() => []);
 			return {
 				targetType: "http",
 				targetAddress: this.targetUrl,
@@ -111,6 +125,7 @@ export class HttpTransport implements StudioTransport {
 				latencyMs: Math.round(performance.now() - tStart),
 				totalTools: 0,
 				tools: [],
+				nodes,
 				timestamp: new Date().toISOString(),
 				error: err instanceof Error ? err.message : String(err),
 			};

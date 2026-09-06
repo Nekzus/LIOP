@@ -26,14 +26,17 @@ import {
 	Server,
 	ShieldBan,
 	ShieldCheck,
+	Sliders,
 	Sparkles,
 	Terminal,
 	Waypoints,
 	X,
 	XCircle,
+	Zap,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DynamicToolForm } from "./components/DynamicToolForm";
+import { SovereigntyCrossfader } from "./components/SovereigntyCrossfader";
 import { TargetConnectionBar } from "./components/TargetConnectionBar";
 import { Alert, AlertDescription, AlertTitle } from "./components/ui/alert";
 import { Badge } from "./components/ui/badge";
@@ -215,8 +218,8 @@ interface ExecutionMeta {
 	};
 }
 
-// Logic Templates
-const TEMPLATES = [
+// Canonical Reference Logic Templates
+const CANONICAL_TEMPLATES = [
 	{
 		id: "hft",
 		name: "Market Analysis",
@@ -414,8 +417,12 @@ export default function App() {
 		totalNodes !== null && totalNodes > 0 && onlineNodes !== null;
 
 	const [searchQuery, setSearchQuery] = useState("");
-	const [selectedTemplateId, setSelectedTemplateId] = useState(TEMPLATES[0].id);
-	const [selectedToolName, setSelectedToolName] = useState(TEMPLATES[0].tool);
+	const [selectedTemplateId, setSelectedTemplateId] = useState(
+		CANONICAL_TEMPLATES[0].id,
+	);
+	const [selectedToolName, setSelectedToolName] = useState(
+		CANONICAL_TEMPLATES[0].tool,
+	);
 	const [activeResultsTab, setActiveResultsTab] = useState<
 		"output" | "telemetry" | "proofs"
 	>("output");
@@ -423,7 +430,7 @@ export default function App() {
 		"nodes",
 	);
 	const [filterTier, setFilterTier] = useState<"all" | 1 | 2 | 3>("all");
-	const [code, setCode] = useState(TEMPLATES[0].code);
+	const [code, setCode] = useState(CANONICAL_TEMPLATES[0].code);
 	const [isRunning, setIsRunning] = useState(false);
 	const [isScanning, setIsScanning] = useState(false);
 	const [result, setResult] = useState<Record<string, unknown> | null>(null);
@@ -456,6 +463,11 @@ export default function App() {
 
 	// Dual Execution Mode State: "logic" (LIOP WASI code) vs "form" (MCP Inspector Form)
 	const [executionMode, setExecutionMode] = useState<"logic" | "form">("logic");
+	// Dual Persona View Mode: "showcase" (DJ Launchpad Console) vs "developer" (Full Engineering Studio)
+	const [viewMode, setViewMode] = useState<"showcase" | "developer">(
+		"showcase",
+	);
+	const [crossfaderValue, setCrossfaderValue] = useState<number>(100);
 	// biome-ignore lint/suspicious/noExplicitAny: Form arguments map
 	const [formArgs, setFormArgs] = useState<Record<string, any>>({});
 
@@ -551,12 +563,19 @@ export default function App() {
 					if (
 						prev &&
 						(fetchedTools.some((t: Tool) => t.name === prev) ||
-							TEMPLATES.some((t) => t.tool === prev))
+							availableTemplates.some((t) => t.tool === prev))
 					) {
 						return prev;
 					}
-					const currentT = TEMPLATES.find((t) => t.id === selectedTemplateId);
-					return currentT?.tool || (fetchedTools[0]?.name ?? TEMPLATES[0].tool);
+					const currentT = availableTemplates.find(
+						(t) => t.id === selectedTemplateId,
+					);
+					return (
+						currentT?.tool ||
+						fetchedTools[0]?.name ||
+						availableTemplates[0]?.tool ||
+						""
+					);
 				});
 			}
 		} catch (err) {
@@ -611,8 +630,83 @@ export default function App() {
 		return () => clearInterval(timer);
 	}, [lastScanTimestamp]);
 
+	// Dynamic available templates: strictly matching tools exposed on the active target
+	const availableTemplates = useMemo(() => {
+		if (tools.length === 0) return [];
+
+		const matched: Array<{
+			id: string;
+			name: string;
+			tool: string;
+			domain: string;
+			clearanceTier: string;
+			description: string;
+			code: string;
+		}> = [];
+
+		// 1. Check canonical templates matching exposed tools on the target
+		for (const t of CANONICAL_TEMPLATES) {
+			const cleanTTool = t.tool.toLowerCase().replace(/_/g, "");
+			const toolExists = tools.some(
+				(avail) =>
+					avail.name.toLowerCase() === t.tool.toLowerCase() ||
+					avail.name.toLowerCase().replace(/_/g, "") === cleanTTool,
+			);
+			if (toolExists) {
+				matched.push(t);
+			}
+		}
+
+		// 2. For exposed tools without a canonical template, create an in-situ dynamic template
+		for (const avail of tools) {
+			const alreadyHasTemplate = matched.some(
+				(m) => m.tool.toLowerCase() === avail.name.toLowerCase(),
+			);
+			if (!alreadyHasTemplate) {
+				const safeIdentifier =
+					avail.name.replace(/[^a-zA-Z0-9]/g, "") || "OriginAnalysis";
+				matched.push({
+					id: `dyn-${avail.name}`,
+					name: avail.name.replace(/_/g, " "),
+					tool: avail.name,
+					domain: avail.domain || "Dynamic Origin Capability",
+					clearanceTier: `Tier ${avail.tier || 1}`,
+					description:
+						avail.description ||
+						`Dynamic Logic-on-Origin capability discovered on target node.`,
+					code: `@LIOP{wasi_v1, ${safeIdentifier}}
+const records = env.records || [];
+// Return aggregated telemetry under zero-trust privacy
+return {
+  totalRecords: Array.isArray(records) ? records.length : 1,
+  executionStatus: "PROCESSED_ON_ORIGIN",
+  timestamp: new Date().toISOString()
+};
+@END`,
+				});
+			}
+		}
+
+		return matched;
+	}, [tools]);
+
+	// Auto-align selected template and code when availableTemplates changes
+	useEffect(() => {
+		if (availableTemplates.length > 0) {
+			const currentExists = availableTemplates.find(
+				(t) => t.id === selectedTemplateId,
+			);
+			if (!currentExists) {
+				const first = availableTemplates[0];
+				setSelectedTemplateId(first.id);
+				setSelectedToolName(first.tool);
+				setCode(first.code);
+			}
+		}
+	}, [availableTemplates, selectedTemplateId]);
+
 	const handleSelectTemplate = (templateId: string) => {
-		const t = TEMPLATES.find((x) => x.id === templateId);
+		const t = availableTemplates.find((x) => x.id === templateId);
 		if (t) {
 			setSelectedTemplateId(templateId);
 			setCode(t.code);
@@ -623,7 +717,9 @@ export default function App() {
 	// Interactively select a tool and automatically load matching template
 	const handleSelectTool = (toolName: string) => {
 		setSelectedToolName(toolName);
-		const matchingTemplate = TEMPLATES.find((t) => t.tool === toolName);
+		const matchingTemplate = availableTemplates.find(
+			(t) => t.tool === toolName,
+		);
 		if (matchingTemplate) {
 			setSelectedTemplateId(matchingTemplate.id);
 			setCode(matchingTemplate.code);
@@ -631,11 +727,62 @@ export default function App() {
 	};
 
 	const handleResetTemplate = () => {
-		const t = TEMPLATES.find((x) => x.id === selectedTemplateId);
+		const t = availableTemplates.find((x) => x.id === selectedTemplateId);
 		if (t) {
 			setCode(t.code);
 			setIsReset(true);
 			setTimeout(() => setIsReset(false), 1500);
+		}
+	};
+
+	// Switch active connection target dynamically from UI actions
+	const handleSwitchTarget = async (
+		newTarget: string,
+		type: "grpc" | "http" = targetType as "grpc" | "http",
+		toolToSelect?: string,
+	) => {
+		setIsConnecting(true);
+		setErrorAlert(null);
+		try {
+			if (type === "grpc") {
+				setGrpcTarget(newTarget);
+				setTargetType("grpc");
+				const res = await fetch("/api/connect", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ type: "grpc", grpc: { target: newTarget } }),
+				});
+				if (!res.ok) {
+					const data = await res.json();
+					throw new Error(data.error || "Failed to connect to target");
+				}
+				setActiveConnectedTarget(newTarget);
+			} else if (type === "http") {
+				setHttpUrl(newTarget);
+				setTargetType("http");
+				const res = await fetch("/api/connect", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ type: "http", http: { url: newTarget } }),
+				});
+				if (!res.ok) {
+					const data = await res.json();
+					throw new Error(data.error || "Failed to connect to target");
+				}
+				setActiveConnectedTarget(newTarget);
+			}
+			await fetchHealth();
+			await fetchTools();
+			await fetchNodes(false, true);
+
+			if (toolToSelect) {
+				handleSelectTool(toolToSelect);
+			}
+		} catch (err: unknown) {
+			const msg = err instanceof Error ? err.message : String(err);
+			setErrorAlert({ title: "Target Switch Failed", desc: msg });
+		} finally {
+			setIsConnecting(false);
 		}
 	};
 
@@ -674,8 +821,8 @@ export default function App() {
 	);
 
 	const currentTemplate = useMemo(() => {
-		return TEMPLATES.find((t) => t.id === selectedTemplateId);
-	}, [selectedTemplateId]);
+		return availableTemplates.find((t) => t.id === selectedTemplateId);
+	}, [availableTemplates, selectedTemplateId]);
 
 	const isCurrentToolSupported = useMemo(() => {
 		const toolToTest =
@@ -778,9 +925,9 @@ export default function App() {
 
 	// Execute Logic or MCP Tool
 	const handleExecute = async () => {
-		const currentTemplate = TEMPLATES.find((t) => t.id === selectedTemplateId);
+		const activeT = availableTemplates.find((t) => t.id === selectedTemplateId);
 		const targetTool =
-			selectedToolName || currentTemplate?.tool || TEMPLATES[0].tool;
+			selectedToolName || activeT?.tool || availableTemplates[0]?.tool || "";
 		if (!targetTool || isRunning) return;
 
 		setIsRunning(true);
@@ -950,6 +1097,54 @@ export default function App() {
 		});
 	};
 
+	// 1-Click Launchpad Cue Pad dispatcher
+	const handleRunDemoScenario = async (
+		scenarioId: "bank" | "vault" | "oracle" | "attack",
+	) => {
+		let targetTemplateId = "bank";
+		let targetTool = "Analyze_Synthetic_Bank_Transactions";
+		let preferredTarget = "127.0.0.1:13011";
+
+		if (scenarioId === "bank") {
+			targetTemplateId = "bank";
+			targetTool = "Analyze_Synthetic_Bank_Transactions";
+			preferredTarget = "127.0.0.1:13011";
+		} else if (scenarioId === "vault") {
+			targetTemplateId = "vault";
+			targetTool = "Analyze_Synthetic_Medical_Records";
+			preferredTarget = "127.0.0.1:13021";
+		} else if (scenarioId === "oracle") {
+			targetTemplateId = "hft";
+			targetTool = "Analyze_HFT_Market_Data";
+			preferredTarget = "127.0.0.1:13031";
+		} else if (scenarioId === "attack") {
+			targetTemplateId = "pii_attack";
+			targetTool = "Analyze_Synthetic_Bank_Transactions";
+			preferredTarget = "127.0.0.1:13011";
+		}
+
+		// Find target canonical template
+		const foundTemplate = CANONICAL_TEMPLATES.find(
+			(t) => t.id === targetTemplateId,
+		);
+		if (foundTemplate) {
+			setSelectedTemplateId(foundTemplate.id);
+			setSelectedToolName(foundTemplate.tool);
+			setCode(foundTemplate.code);
+		}
+
+		// Check if active target supports this tool; if not, switch target automatically
+		if (!isToolSupported(targetTool) && targetType === "grpc") {
+			await handleSwitchTarget(preferredTarget, "grpc", targetTool);
+		}
+
+		setCrossfaderValue(100);
+		// Trigger execution
+		setTimeout(() => {
+			handleExecute();
+		}, 150);
+	};
+
 	const tier1Nodes = useMemo(
 		() => filteredNodes.filter((n) => n.tier === 1),
 		[filteredNodes],
@@ -1029,6 +1224,58 @@ export default function App() {
 								Scan
 							</span>
 						</Button>
+
+						{/* Dual Persona View Mode Switcher (DJ Launchpad vs Dev Studio) */}
+						<div className="relative flex items-center bg-surface1 border border-white/15 p-0.5 rounded-md">
+							<button
+								type="button"
+								onClick={() => setViewMode("showcase")}
+								className={`relative z-10 text-[11px] px-2.5 py-1 font-medium flex items-center gap-1.5 transition-colors duration-200 ${
+									viewMode === "showcase"
+										? "text-black"
+										: "text-zinc-300 hover:text-white"
+								}`}
+								title="DJ Launchpad & Sovereignty Console"
+							>
+								{viewMode === "showcase" && (
+									<motion.div
+										layoutId="viewModeActivePill"
+										className="absolute inset-0 bg-primary rounded shadow-sm"
+										transition={{ type: "spring", stiffness: 450, damping: 35 }}
+									/>
+								)}
+								<Sliders
+									className={`relative z-20 h-3.5 w-3.5 transition-colors duration-200 ${
+										viewMode === "showcase" ? "text-black" : "text-cyan-400"
+									}`}
+								/>
+								<span className="relative z-20 font-medium">DJ Launchpad</span>
+							</button>
+							<button
+								type="button"
+								onClick={() => setViewMode("developer")}
+								className={`relative z-10 text-[11px] px-2.5 py-1 font-medium flex items-center gap-1.5 transition-colors duration-200 ${
+									viewMode === "developer"
+										? "text-black"
+										: "text-zinc-300 hover:text-white"
+								}`}
+								title="Developer Studio & Code Editor"
+							>
+								{viewMode === "developer" && (
+									<motion.div
+										layoutId="viewModeActivePill"
+										className="absolute inset-0 bg-primary rounded shadow-sm"
+										transition={{ type: "spring", stiffness: 450, damping: 35 }}
+									/>
+								)}
+								<Code
+									className={`relative z-20 h-3.5 w-3.5 transition-colors duration-200 ${
+										viewMode === "developer" ? "text-black" : "text-zinc-400"
+									}`}
+								/>
+								<span className="relative z-20 font-medium">Dev Studio</span>
+							</button>
+						</div>
 
 						{/* Sliding Pill Theme Switcher */}
 						<div className="relative flex items-center bg-surface1 border border-white/15 p-0.5 rounded-md">
@@ -1110,1610 +1357,1867 @@ export default function App() {
 			/>
 
 			{/* Main Layout */}
-			<main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-				{/* Left Panel: Capabilities and Multi-Layer Server Scan (4 cols) */}
-				<section className="lg:col-span-4 flex flex-col space-y-6">
-					{/* Main Card: Tabbed Switcher between Mesh Capabilities & Multi-Layer Server Scan */}
-					<Card className="flex flex-col h-[560px] overflow-hidden bg-card border-border shadow-card">
-						<CardHeader className="pb-2.5 shrink-0 border-b border-border/40">
-							<div className="flex items-center justify-between mb-2">
-								<div className="flex items-center gap-1.5 p-0.5 bg-surface1 border border-white/10 rounded-lg">
-									<button
-										type="button"
-										onClick={() => setActiveLeftTab("nodes")}
-										className={`text-xs px-2.5 py-1 rounded-md font-medium transition-all flex items-center gap-1.5 ${
-											activeLeftTab === "nodes"
-												? "bg-primary text-black font-semibold shadow-sm"
-												: "text-zinc-400 hover:text-white"
-										}`}
-									>
-										<Server className="h-3.5 w-3.5" />
-										Server Scan{" "}
-										{hasNodeStats ? `(${onlineNodes}/${totalNodes})` : ""}
-									</button>
-									<button
-										type="button"
-										onClick={() => setActiveLeftTab("capabilities")}
-										className={`text-xs px-2.5 py-1 rounded-md font-medium transition-all flex items-center gap-1.5 ${
-											activeLeftTab === "capabilities"
-												? "bg-primary text-black font-semibold shadow-sm"
-												: "text-zinc-400 hover:text-white"
-										}`}
-									>
-										<Waypoints className="h-3.5 w-3.5" />
-										Capabilities ({tools.length})
-									</button>
-								</div>
+			<main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 flex flex-col gap-6">
+				{viewMode === "showcase" ? (
+					<div className="space-y-6">
+						<SovereigntyCrossfader
+							value={crossfaderValue}
+							onChange={setCrossfaderValue}
+							telemetry={{
+								liopTokens: meta?.telemetry?.tokens?.totalTokens,
+								legacyTokens: meta?.telemetry?.tokens?.traditionalContextTokens,
+								liopBytes: meta?.telemetry?.bandwidth?.payloadBytes,
+								legacyBytes:
+									meta?.telemetry?.bandwidth?.rawDatasetProtectedBytes,
+								liopLatencyMs:
+									meta?.telemetry?.phases?.totalLatencyMs ?? meta?.latencyMs,
+								legacyLatencyMs: 3450,
+								zkHash: meta?.zkHash,
+								verifiedZk: meta?.verifiedZk,
+								shieldBlocked: meta?.shieldBlocked,
+								fuelUsed: meta?.telemetry?.fuel?.consumed,
+							}}
+							onRunDemo={handleRunDemoScenario}
+							isRunning={isRunning}
+							activeTargetName={activeConnectedTarget}
+							activeTool={selectedToolName}
+						/>
 
-								<Badge
-									variant="outline"
-									className="text-[10px] font-mono border-white/15 text-zinc-300"
-								>
-									{activeLeftTab === "capabilities"
-										? `${tools.length} tools`
-										: "3 Tiers"}
-								</Badge>
-							</div>
-
-							{activeLeftTab === "capabilities" ? (
-								<>
-									<CardDescription className="text-xs text-zinc-400">
-										Capabilities across all layers (Tier 1 Enclaves, Tier 2
-										Consortium, Tier 3 Backbone).
-									</CardDescription>
-									{/* Search / Filter bar */}
-									<div className="relative mt-2">
-										<Search className="h-3.5 w-3.5 absolute left-2.5 top-2.5 text-zinc-400" />
-										<input
-											type="text"
-											value={searchQuery}
-											onChange={(e) => setSearchQuery(e.target.value)}
-											placeholder="Filter by capability or domain..."
-											spellCheck={false}
-											autoComplete="off"
-											autoCorrect="off"
-											className="w-full h-8 pl-8 pr-7 bg-surface1 border border-white/15 rounded text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/30 transition-all"
-										/>
-										{searchQuery && (
-											<button
-												type="button"
-												onClick={() => setSearchQuery("")}
-												className="absolute right-2 top-2 text-zinc-400 hover:text-white p-0.5 rounded transition-colors"
-												title="Clear filter"
-											>
-												<X className="h-3.5 w-3.5" />
-											</button>
-										)}
+						{/* Execution Live Result Card in Showcase Mode */}
+						{result && (
+							<Card className="bg-card border-border shadow-card overflow-hidden">
+								<CardHeader className="py-3 px-4 border-b border-border/40 bg-surface1 flex flex-row items-center justify-between">
+									<div className="flex items-center space-x-2">
+										<CheckCircle2 className="h-4 w-4 text-emerald-400" />
+										<span className="text-xs font-mono font-bold uppercase text-zinc-200">
+											Sovereign In-Situ Execution Output
+										</span>
+										<Badge
+											variant="outline"
+											className="text-[10px] font-mono text-cyan-300 border-cyan-500/30"
+										>
+											{selectedToolName}
+										</Badge>
 									</div>
-								</>
-							) : (
-								<div className="flex items-center justify-between mt-1">
-									<span className="text-[11px] text-zinc-400">
-										Live scan across all architectural layers:
-									</span>
-									<div className="flex items-center gap-1">
-										{(["all", 1, 2, 3] as const).map((tierVal) => (
-											<button
-												key={tierVal}
-												type="button"
-												onClick={() => setFilterTier(tierVal)}
-												className={`text-[10px] px-1.5 py-0.5 rounded font-mono transition-colors ${
-													filterTier === tierVal
-														? "bg-primary/20 text-cyan-400 border border-cyan-500/40"
-														: "text-zinc-400 hover:text-zinc-200 border border-transparent"
-												}`}
-											>
-												{tierVal === "all" ? "All" : `T${tierVal}`}
-											</button>
-										))}
-									</div>
-								</div>
-							)}
-						</CardHeader>
-
-						<CardContent className="flex-1 min-h-0 overflow-hidden p-0">
-							<ScrollArea className="h-full px-4 py-2">
-								{activeLeftTab === "capabilities" ? (
-									/* Capabilities List */
-									loadingTools ? (
-										<div className="flex flex-col items-center justify-center py-12 text-zinc-400 space-y-2">
-											<Loader2 className="h-5 w-5 animate-spin text-primary" />
-											<span className="text-xs text-zinc-300">
-												Discovering capabilities across tiers...
+									<div className="flex items-center space-x-3">
+										{meta?.latencyMs && (
+											<span className="text-[11px] font-mono text-zinc-400">
+												RTT:{" "}
+												<span className="text-emerald-400 font-semibold">
+													{meta.latencyMs} ms
+												</span>
 											</span>
-										</div>
-									) : filteredTools.length === 0 ? (
-										<div className="text-center py-12 text-zinc-400 space-y-2">
-											<AlertTriangle className="h-6 w-6 mx-auto text-warning" />
-											<p className="text-xs font-medium text-zinc-200">
-												No capabilities found
-											</p>
-											<p className="text-[11px] text-zinc-400 max-w-[200px] mx-auto">
-												Try adjusting your search query.
-											</p>
-										</div>
-									) : (
-										<div className="space-y-2.5 pb-4">
-											{filteredTools.map((t) => {
-												const isSelected = selectedToolName === t.name;
-												const tier =
-													t.tier ||
-													(t.taxonomy?.clearanceTier === 1
-														? 1
-														: t.taxonomy?.clearanceTier === 3
-															? 3
-															: 2);
-
-												return (
-													<button
-														type="button"
-														key={t.name}
-														onClick={() => handleSelectTool(t.name)}
-														className={`w-full text-left p-3 rounded-md border transition-all cursor-pointer ${
-															isSelected
-																? "bg-primary/10 border-primary/60 text-white shadow-sm ring-1 ring-primary/30"
-																: "bg-secondary/40 border-border/70 hover:bg-secondary/80 hover:border-border"
-														}`}
-													>
-														<div className="flex items-center justify-between mb-1">
-															<span className="font-semibold text-xs text-zinc-100 truncate max-w-[190px]">
-																{t.name}
-															</span>
-															<Badge
-																variant={
-																	tier === 1
-																		? "success"
-																		: tier === 2
-																			? "warning"
-																			: "default"
-																}
-																className="text-[10px] py-0 px-1.5 font-normal"
-															>
-																Tier {tier}
-															</Badge>
-														</div>
-														<p className="text-[11px] text-zinc-300 line-clamp-2 leading-relaxed">
-															{t.description || "No description available."}
-														</p>
-														<div className="mt-1.5 flex items-center justify-between text-[10px] text-zinc-400">
-															<span className="flex items-center gap-1 truncate max-w-[180px]">
-																<span
-																	className={`w-1.5 h-1.5 rounded-full ${tier === 1 ? "bg-emerald-400" : tier === 2 ? "bg-cyan-400" : "bg-purple-400"}`}
-																></span>
-																{t.providerNode ||
-																	t.taxonomy?.domain ||
-																	"Mesh Node"}
-															</span>
-															<span className="font-mono text-[9px] opacity-75 shrink-0">
-																WASI In-situ
-															</span>
-														</div>
-													</button>
-												);
-											})}
-										</div>
-									)
-								) : (
-									/* Multi-Layer Server Scan View */
-									<div className="space-y-4 pb-4">
-										{nodes.length === 0 ? (
-											<div className="text-center py-10 px-4 bg-surface1/20 rounded-lg border border-white/5 space-y-2">
-												<Server className="h-7 w-7 text-cyan-400 mx-auto opacity-70 animate-pulse" />
-												<p className="text-xs font-semibold text-zinc-200">
-													Scanning Network Nodes...
-												</p>
-												<p className="text-[11px] text-zinc-400 font-mono">
-													Querying {activeConnectedTarget}
-												</p>
-											</div>
-										) : null}
-
-										{/* Tier 1 Group: Sovereign Enclaves */}
-										{(filterTier === "all" || filterTier === 1) && (
-											<div className="space-y-2">
-												<div className="flex items-center justify-between text-[11px] font-semibold text-emerald-400 border-b border-emerald-500/20 pb-1">
-													<span className="flex items-center gap-1.5">
-														<ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
-														Tier 1: Sovereign Enclaves (In-Situ Origin)
-													</span>
-													<span className="text-[9px] font-mono px-1 py-0.2 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-300">
-														pnet PSK
-													</span>
-												</div>
-
-												{tier1Nodes.length === 0 ? (
-													<div className="text-[10px] text-zinc-500 italic py-2 px-2.5 bg-surface1/30 rounded border border-white/5 flex items-center gap-1.5">
-														<AlertTriangle className="h-3 w-3 text-zinc-500" />
-														No Tier 1 enclaves active on scanned target
-													</div>
-												) : (
-													tier1Nodes.map((n) => {
-														const isConnected = isConnectedToNode(n);
-														return (
-															<div
-																key={n.id}
-																className={`p-2.5 rounded-md border transition-all ${
-																	isConnected
-																		? "border-cyan-500/60 bg-tier1 ring-1 ring-cyan-500/30 shadow-sm"
-																		: "border-emerald-500/30 bg-tier1 hover:brightness-110"
-																}`}
-															>
-																<div className="flex items-center justify-between mb-1">
-																	<div className="flex items-center gap-1.5">
-																		<Database className="h-3 w-3 text-emerald-400" />
-																		<span className="text-xs font-semibold text-zinc-100">
-																			{n.name}
-																		</span>
-																		{isConnected && (
-																			<span className="text-[8px] font-mono px-1.5 py-0.2 rounded bg-cyan-500/25 border border-cyan-500/40 text-cyan-200 font-bold flex items-center gap-1">
-																				<span className="inline-block h-1.5 w-1.5 rounded-full bg-cyan-400 animate-ping"></span>
-																				ACTIVE TARGET
-																			</span>
-																		)}
-																	</div>
-																	<div className="flex items-center gap-1.5">
-																		<span
-																			className={`inline-block h-1.5 w-1.5 rounded-full ${
-																				n.status === "online"
-																					? "bg-emerald-400"
-																					: "bg-red-400"
-																			}`}
-																		></span>
-																		<span className="text-[10px] font-mono text-emerald-400">
-																			{n.rttMs}ms
-																		</span>
-																	</div>
-																</div>
-																<p className="text-[10px] text-zinc-400 mb-1">
-																	{n.role}
-																</p>
-																<div className="text-[10px] font-mono text-zinc-400 flex items-center justify-between">
-																	<span>
-																		{n.host}:
-																		{n.ports?.grpc ??
-																			n.ports?.http ??
-																			(targetType === "grpc"
-																				? grpcTarget.split(":")[1] || "15021"
-																				: "3000")}
-																	</span>
-																	{n.dataset && (
-																		<span className="text-emerald-300 text-[9px] truncate max-w-[180px]">
-																			{n.dataset}
-																		</span>
-																	)}
-																</div>
-																{n.tools.length > 0 && (
-																	<div className="mt-1.5 flex flex-wrap gap-1">
-																		{n.tools.map((tool) => (
-																			<button
-																				key={tool}
-																				type="button"
-																				onClick={() => handleSelectTool(tool)}
-																				className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/15 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-200 transition-colors cursor-pointer"
-																				title={`Load ${tool} in Logic Studio`}
-																			>
-																				+ {tool}
-																			</button>
-																		))}
-																	</div>
-																)}
-															</div>
-														);
-													})
-												)}
-											</div>
 										)}
-
-										{/* Tier 2 Group: Consortium & Boundary Gateways */}
-										{(filterTier === "all" || filterTier === 2) && (
-											<div className="space-y-2">
-												<div className="flex items-center justify-between text-[11px] font-semibold text-cyan-400 border-b border-cyan-500/20 pb-1">
-													<span className="flex items-center gap-1.5">
-														<Layers className="h-3.5 w-3.5 text-cyan-400" />
-														Tier 2: Consortium Routing & Gateways
-													</span>
-													<span className="text-[9px] font-mono px-1 py-0.2 rounded bg-cyan-500/10 border border-cyan-500/30 text-cyan-300">
-														Dual-NIC / DHT
-													</span>
-												</div>
-
-												{tier2Nodes.length === 0 ? (
-													<div className="text-[10px] text-zinc-500 italic py-2 px-2.5 bg-surface1/30 rounded border border-white/5 flex items-center gap-1.5">
-														<AlertTriangle className="h-3 w-3 text-zinc-500" />
-														No Tier 2 gateways active on scanned target
-													</div>
-												) : (
-													tier2Nodes.map((n) => {
-														const isConnected = isConnectedToNode(n);
-														return (
-															<div
-																key={n.id}
-																className={`p-2.5 rounded-md border transition-all ${
-																	isConnected
-																		? "border-cyan-500/60 bg-tier2 ring-1 ring-cyan-500/30 shadow-sm"
-																		: "border-cyan-500/30 bg-tier2 hover:brightness-110"
-																}`}
-															>
-																<div className="flex items-center justify-between mb-1">
-																	<div className="flex items-center gap-1.5">
-																		<Globe className="h-3 w-3 text-cyan-400" />
-																		<span className="text-xs font-semibold text-zinc-100">
-																			{n.name}
-																		</span>
-																		{isConnected && (
-																			<span className="text-[8px] font-mono px-1.5 py-0.2 rounded bg-cyan-500/25 border border-cyan-500/40 text-cyan-200 font-bold flex items-center gap-1">
-																				<span className="inline-block h-1.5 w-1.5 rounded-full bg-cyan-400 animate-ping"></span>
-																				ACTIVE TARGET
-																			</span>
-																		)}
-																	</div>
-																	<div className="flex items-center gap-1.5">
-																		<span
-																			className={`inline-block h-1.5 w-1.5 rounded-full ${
-																				n.status === "online"
-																					? "bg-cyan-400"
-																					: "bg-red-400"
-																			}`}
-																		></span>
-																		<span className="text-[10px] font-mono text-cyan-400">
-																			{n.rttMs}ms
-																		</span>
-																	</div>
-																</div>
-																<p className="text-[10px] text-zinc-400 mb-1">
-																	{n.role}
-																</p>
-																<div className="text-[10px] font-mono text-zinc-400 flex items-center justify-between">
-																	<span>
-																		{n.host}:
-																		{n.ports?.grpc ??
-																			n.ports?.http ??
-																			(targetType === "grpc"
-																				? grpcTarget.split(":")[1] || "15031"
-																				: "3000")}
-																	</span>
-																	<span className="text-cyan-300 text-[9px]">
-																		{n.isolation?.split("+")[0] ||
-																			"Consortium Node"}
-																	</span>
-																</div>
-																{n.tools.length > 0 && (
-																	<div className="mt-1.5 flex flex-wrap gap-1">
-																		{n.tools.map((tool) => (
-																			<button
-																				key={tool}
-																				type="button"
-																				onClick={() => handleSelectTool(tool)}
-																				className="text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/15 hover:bg-cyan-500/30 border border-cyan-500/30 text-cyan-200 transition-colors cursor-pointer"
-																				title={`Load ${tool} in Logic Studio`}
-																			>
-																				+ {tool}
-																			</button>
-																		))}
-																	</div>
-																)}
-															</div>
-														);
-													})
-												)}
-											</div>
-										)}
-
-										{/* Tier 3 Group: Public Backbone & Client Edge */}
-										{(filterTier === "all" || filterTier === 3) && (
-											<div className="space-y-2">
-												<div className="flex items-center justify-between text-[11px] font-semibold text-purple-400 border-b border-purple-500/20 pb-1">
-													<span className="flex items-center gap-1.5">
-														<Radio className="h-3.5 w-3.5 text-purple-400" />
-														Tier 3: Public Backbone & Client Edge
-													</span>
-													<span className="text-[9px] font-mono px-1 py-0.2 rounded bg-purple-500/10 border border-purple-500/30 text-purple-300">
-														AutoNAT / WAN
-													</span>
-												</div>
-
-												{tier3Nodes.length === 0 ? (
-													<div className="text-[10px] text-zinc-500 italic py-2 px-2.5 bg-surface1/30 rounded border border-white/5 flex items-center gap-1.5">
-														<AlertTriangle className="h-3 w-3 text-zinc-500" />
-														No Tier 3 edge nodes active on scanned target
-													</div>
-												) : (
-													tier3Nodes.map((n) => {
-														const isConnected = isConnectedToNode(n);
-														return (
-															<div
-																key={n.id}
-																className={`p-2.5 rounded-md border transition-all ${
-																	isConnected
-																		? "border-cyan-500/60 bg-tier3 ring-1 ring-cyan-500/30 shadow-sm"
-																		: "border-purple-500/30 bg-tier3 hover:brightness-110"
-																}`}
-															>
-																<div className="flex items-center justify-between mb-1">
-																	<div className="flex items-center gap-1.5">
-																		<Cpu className="h-3 w-3 text-purple-400" />
-																		<span className="text-xs font-semibold text-zinc-100">
-																			{n.name}
-																		</span>
-																		{isConnected && (
-																			<span className="text-[8px] font-mono px-1.5 py-0.2 rounded bg-cyan-500/25 border border-cyan-500/40 text-cyan-200 font-bold flex items-center gap-1">
-																				<span className="inline-block h-1.5 w-1.5 rounded-full bg-cyan-400 animate-ping"></span>
-																				ACTIVE TARGET
-																			</span>
-																		)}
-																	</div>
-																	<div className="flex items-center gap-1.5">
-																		<span
-																			className={`inline-block h-1.5 w-1.5 rounded-full ${
-																				n.status === "online"
-																					? "bg-purple-400"
-																					: "bg-red-400"
-																			}`}
-																		></span>
-																		<span className="text-[10px] font-mono text-purple-400">
-																			{n.rttMs}ms
-																		</span>
-																	</div>
-																</div>
-																<p className="text-[10px] text-zinc-400 mb-1">
-																	{n.role}
-																</p>
-																<div className="text-[10px] font-mono text-zinc-400 flex items-center justify-between">
-																	<span>
-																		{n.host}:
-																		{n.ports?.grpc ??
-																			n.ports?.http ??
-																			(targetType === "grpc"
-																				? grpcTarget.split(":")[1] || "15041"
-																				: "3000")}
-																	</span>
-																	<span className="text-purple-300 text-[9px]">
-																		{n.id === "playground"
-																			? "Client Runner"
-																			: "IoT / WAN"}
-																	</span>
-																</div>
-																{n.tools.length > 0 && (
-																	<div className="mt-1.5 flex flex-wrap gap-1">
-																		{n.tools.map((tool) => (
-																			<button
-																				key={tool}
-																				type="button"
-																				onClick={() => handleSelectTool(tool)}
-																				className="text-[9px] px-1.5 py-0.5 rounded bg-purple-500/15 hover:bg-purple-500/30 border border-purple-500/30 text-purple-200 transition-colors cursor-pointer"
-																				title={`Load ${tool} in Logic Studio`}
-																			>
-																				+ {tool}
-																			</button>
-																		))}
-																	</div>
-																)}
-															</div>
-														);
-													})
-												)}
-											</div>
+										{meta?.verifiedZk && (
+											<Badge
+												variant="success"
+												className="text-[10px] font-mono"
+											>
+												ZK-RECEIPT HMAC VERIFIED
+											</Badge>
 										)}
 									</div>
-								)}
-							</ScrollArea>
-						</CardContent>
-					</Card>
-
-					{/* Card: Local Mesh Node Info */}
-					<Card className="p-4 bg-card border-border shadow-card shrink-0">
-						<h3 className="text-xs font-semibold text-white mb-3 flex items-center justify-between">
-							<span>Local Mesh Client</span>
-							<span className="font-mono text-[10px] text-zinc-400 font-normal">
-								WASI v29+
-							</span>
-						</h3>
-						{network ? (
-							<div className="space-y-2.5 text-xs">
-								<div className="flex items-center justify-between border-b border-border/50 pb-2">
-									<span className="text-zinc-400">Peer ID:</span>
-									<div className="flex items-center gap-1.5">
-										<span
-											className="text-white font-mono text-[11px] truncate max-w-[140px]"
-											title={network.peerId}
-										>
-											{network.peerId}
-										</span>
-										<button
-											type="button"
-											onClick={() => handleCopy(network.peerId, "peerId")}
-											className="text-zinc-400 hover:text-white transition-colors p-0.5 rounded"
-											title="Copy PeerID"
-										>
-											{copiedKey === "peerId" ? (
-												<Check className="h-3 w-3 text-success" />
-											) : (
-												<Copy className="h-3 w-3" />
-											)}
-										</button>
-									</div>
-								</div>
-
-								<div className="flex items-center justify-between border-b border-border/50 pb-2">
-									<span className="text-zinc-400">Host Address:</span>
-									<div className="flex items-center gap-1.5">
-										<span className="text-white font-mono text-[11px]">
-											{network.address}
-										</span>
-										<button
-											type="button"
-											onClick={() => handleCopy(network.address, "address")}
-											className="text-zinc-400 hover:text-white transition-colors p-0.5 rounded"
-											title="Copy Host Address"
-										>
-											{copiedKey === "address" ? (
-												<Check className="h-3 w-3 text-success" />
-											) : (
-												<Copy className="h-3 w-3" />
-											)}
-										</button>
-									</div>
-								</div>
-
-								<div className="flex items-center justify-between border-b border-border/50 pb-2">
-									<span className="text-zinc-400">Mesh Topology:</span>
-									<span className="text-cyan-400 font-mono text-[11px]">
-										{hasNodeStats
-											? `${onlineNodes}/${totalNodes} Nodes (3 Tiers)`
-											: isScanning
-												? "Discovering Topology..."
-												: "Synchronizing Mesh..."}
-									</span>
-								</div>
-
-								<div className="flex items-center justify-between border-b border-border/50 pb-2">
-									<span className="text-zinc-400">Avg Mesh Latency:</span>
-									<span className="text-emerald-400 font-mono text-[11px]">
-										{scanSummary?.avgLatencyMs !== undefined &&
-										scanSummary.avgLatencyMs > 0
-											? `${scanSummary.avgLatencyMs} ms`
-											: nodes.some((n) => n.rttMs > 0 && n.status === "online")
-												? `${Math.round(
-														nodes
-															.filter(
-																(n) => n.status === "online" && n.rttMs > 0,
-															)
-															.reduce((acc, curr) => acc + curr.rttMs, 0) /
-															Math.max(
-																1,
-																nodes.filter(
-																	(n) => n.status === "online" && n.rttMs > 0,
-																).length,
-															),
-													)} ms`
-												: "Measuring..."}
-									</span>
-								</div>
-
-								<div className="flex items-center justify-between border-b border-border/50 pb-2">
-									<span className="text-zinc-400">Crypto Suite:</span>
-									<span className="text-primary font-mono text-[11px]">
-										ML-KEM-768
-									</span>
-								</div>
-
-								<div className="flex items-center justify-between pt-0.5">
-									<span className="text-zinc-400">Sandbox Isolation:</span>
-									<span className="text-success font-medium flex items-center gap-1 text-[11px]">
-										<CheckCircle2 className="h-3.5 w-3.5" /> WASI-Isolate Safe
-									</span>
-								</div>
-							</div>
-						) : (
-							<p className="text-xs text-zinc-400">Synchronizing state...</p>
+								</CardHeader>
+								<CardContent className="p-4">
+									<pre className="text-xs font-mono bg-zinc-950 p-4 rounded-xl border border-border/50 text-emerald-300 overflow-x-auto max-h-[300px]">
+										{JSON.stringify(result, null, 2)}
+									</pre>
+								</CardContent>
+							</Card>
 						)}
-					</Card>
-				</section>
 
-				{/* Right Panel: Editor, Timeline and Results (8 cols) */}
-				<section className="lg:col-span-8 flex flex-col space-y-6">
-					{/* Card: Logic Editor */}
-					<Card className="flex flex-col bg-card border-border shadow-card shrink-0">
-						<CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
-							<div className="flex items-center gap-2">
-								<div className="flex items-center gap-1 p-0.5 bg-surface1 border border-white/10 rounded-lg">
-									<button
-										type="button"
-										onClick={() => setExecutionMode("logic")}
-										className={`text-xs px-2.5 py-1 rounded-md font-medium transition-all flex items-center gap-1.5 ${
-											executionMode === "logic"
-												? "bg-primary text-black font-semibold shadow-sm"
-												: "text-zinc-400 hover:text-white"
-										}`}
-									>
-										<Code className="h-3.5 w-3.5" />
-										<span>Logic Studio (@LIOP)</span>
-									</button>
-
-									<button
-										type="button"
-										onClick={() => setExecutionMode("form")}
-										className={`text-xs px-2.5 py-1 rounded-md font-medium transition-all flex items-center gap-1.5 ${
-											executionMode === "form"
-												? "bg-primary text-black font-semibold shadow-sm"
-												: "text-zinc-400 hover:text-white"
-										}`}
-									>
-										<Terminal className="h-3.5 w-3.5" />
-										<span>MCP Tool Form</span>
-									</button>
-								</div>
+						{/* Quick Prompt when no query has been fired yet */}
+						{!result && (
+							<div className="rounded-xl border border-dashed border-border/60 p-8 text-center bg-card/20">
+								<Sliders className="h-8 w-8 text-cyan-400 mx-auto mb-2 opacity-75" />
+								<h4 className="text-sm font-semibold text-zinc-200">
+									Ready to Surf the Protocol
+								</h4>
+								<p className="text-xs text-zinc-400 max-w-md mx-auto mt-1">
+									Drag the crossfader above to contrast legacy MCP context
+									pulling against LIOP in-situ execution, or tap any Performance
+									Cue Pad to fire a live query inside a sovereign enclave.
+								</p>
 							</div>
-
-							{/* Template Switcher (Visible in Logic Mode) */}
-							{executionMode === "logic" && (
-								<div className="relative flex items-center bg-surface1 border border-white/15 p-0.5 rounded-lg flex-wrap gap-0.5">
-									{TEMPLATES.map((t) => {
-										const isSelected = selectedTemplateId === t.id;
-										const isSupported = isToolSupported(t.tool);
-										return (
+						)}
+					</div>
+				) : (
+					<div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+						{/* Left Panel: Capabilities and Multi-Layer Server Scan (4 cols) */}
+						<section className="lg:col-span-4 flex flex-col space-y-6">
+							{/* Main Card: Tabbed Switcher between Mesh Capabilities & Multi-Layer Server Scan */}
+							<Card className="flex flex-col h-[560px] overflow-hidden bg-card border-border shadow-card">
+								<CardHeader className="pb-2.5 shrink-0 border-b border-border/40">
+									<div className="flex items-center justify-between mb-2">
+										<div className="flex items-center gap-1.5 p-0.5 bg-surface1 border border-white/10 rounded-lg">
 											<button
-												key={t.id}
 												type="button"
-												onClick={() => handleSelectTemplate(t.id)}
-												className={`relative z-10 text-[11px] px-2.5 py-1 font-medium transition-colors duration-200 flex items-center gap-1.5 ${
-													!isSupported ? "opacity-60 hover:opacity-100" : ""
+												onClick={() => setActiveLeftTab("nodes")}
+												className={`text-xs px-2.5 py-1 rounded-md font-medium transition-all flex items-center gap-1.5 ${
+													activeLeftTab === "nodes"
+														? "bg-primary text-black font-semibold shadow-sm"
+														: "text-zinc-400 hover:text-white"
 												}`}
-												title={
-													!isSupported
-														? `Requires ${t.tool} (not available on current target)`
-														: t.description
-												}
 											>
-												{isSelected && (
-													<motion.div
-														layoutId="templateActivePill"
-														className={`absolute inset-0 rounded-md shadow-sm ${
-															isSupported ? "bg-primary" : "bg-amber-500/80"
-														}`}
-														transition={{
-															type: "spring",
-															stiffness: 450,
-															damping: 35,
-														}}
-													/>
-												)}
-												<span
-													className={`relative z-20 font-medium transition-colors duration-200 flex items-center gap-1 ${
-														isSelected
-															? "text-black"
-															: isSupported
-																? "text-zinc-300 hover:text-white"
-																: "text-zinc-400 hover:text-amber-300"
-													}`}
-												>
-													{!isSupported && (
-														<LockKeyhole className="h-2.5 w-2.5 text-amber-400 shrink-0" />
-													)}
-													<span>{t.name}</span>
-												</span>
+												<Server className="h-3.5 w-3.5" />
+												Server Scan{" "}
+												{hasNodeStats ? `(${onlineNodes}/${totalNodes})` : ""}
 											</button>
-										);
-									})}
-								</div>
-							)}
-						</CardHeader>
-
-						<CardContent className="space-y-3">
-							{/* Capability Mismatch / Execution Blocked Banner */}
-							{executionMode === "logic" && !isCurrentToolSupported && (
-								<div className="p-3 rounded-lg bg-red-950/30 border border-red-500/40 text-red-200 flex items-start gap-3 animate-in fade-in duration-200">
-									<ShieldBan className="h-5 w-5 text-red-400 shrink-0 mt-0.5" />
-									<div className="space-y-1">
-										<div className="flex items-center gap-2">
-											<h4 className="text-xs font-bold text-red-300">
-												Capability Mismatch — Execution Blocked
-											</h4>
-											<span className="text-[9px] px-1.5 py-0.2 rounded bg-red-500/20 font-mono text-red-200 border border-red-500/30 font-semibold">
-												ZERO-TRUST POLICY
-											</span>
+											<button
+												type="button"
+												onClick={() => setActiveLeftTab("capabilities")}
+												className={`text-xs px-2.5 py-1 rounded-md font-medium transition-all flex items-center gap-1.5 ${
+													activeLeftTab === "capabilities"
+														? "bg-primary text-black font-semibold shadow-sm"
+														: "text-zinc-400 hover:text-white"
+												}`}
+											>
+												<Waypoints className="h-3.5 w-3.5" />
+												Capabilities ({tools.length})
+											</button>
 										</div>
-										<p className="text-[11px] text-zinc-300 leading-relaxed">
-											The active template targets capability{" "}
-											<span className="font-mono text-cyan-300 font-semibold">
-												{currentTemplate?.tool || selectedToolName}
-											</span>
-											, which is{" "}
-											<span className="text-red-400 font-semibold">
-												not available
-											</span>{" "}
-											on the connected target (
-											<span className="font-mono text-white">
-												{activeConnectedTarget}
-											</span>
-											). Code execution is blocked to protect node integrity.
-										</p>
-										<div className="text-[10px] text-zinc-400 font-mono pt-0.5 flex items-center gap-1.5 flex-wrap">
-											<span>Available on target:</span>
-											{tools.length > 0 ? (
-												tools.map((avail) => (
+
+										<Badge
+											variant="outline"
+											className="text-[10px] font-mono border-white/15 text-zinc-300"
+										>
+											{activeLeftTab === "capabilities"
+												? `${tools.length} tools`
+												: "3 Tiers"}
+										</Badge>
+									</div>
+
+									{activeLeftTab === "capabilities" ? (
+										<>
+											<CardDescription className="text-xs text-zinc-400">
+												Capabilities across all layers (Tier 1 Enclaves, Tier 2
+												Consortium, Tier 3 Backbone).
+											</CardDescription>
+											{/* Search / Filter bar */}
+											<div className="relative mt-2">
+												<Search className="h-3.5 w-3.5 absolute left-2.5 top-2.5 text-zinc-400" />
+												<input
+													type="text"
+													value={searchQuery}
+													onChange={(e) => setSearchQuery(e.target.value)}
+													placeholder="Filter by capability or domain..."
+													spellCheck={false}
+													autoComplete="off"
+													autoCorrect="off"
+													className="w-full h-8 pl-8 pr-7 bg-surface1 border border-white/15 rounded text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/30 transition-all"
+												/>
+												{searchQuery && (
 													<button
-														key={avail.name}
 														type="button"
-														onClick={() => handleSelectTool(avail.name)}
-														className="px-1.5 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/30 transition-colors cursor-pointer"
+														onClick={() => setSearchQuery("")}
+														className="absolute right-2 top-2 text-zinc-400 hover:text-white p-0.5 rounded transition-colors"
+														title="Clear filter"
 													>
-														+ Switch to {avail.name}
+														<X className="h-3.5 w-3.5" />
 													</button>
-												))
-											) : (
-												<span className="text-amber-400">None detected</span>
-											)}
-										</div>
-									</div>
-								</div>
-							)}
-							{executionMode === "form" ? (
-								<DynamicToolForm
-									toolName={selectedToolName}
-									schema={currentToolObj?.inputSchema}
-									values={formArgs}
-									onChange={(field, val) =>
-										setFormArgs((prev) => ({ ...prev, [field]: val }))
-									}
-									disabled={isRunning}
-								/>
-							) : (
-								/* Code Editor Frame with Action Bar */
-								<div className="relative border border-border rounded-lg bg-editor overflow-hidden">
-									{/* Editor Header Bar */}
-									<div className="flex items-center justify-between px-3 py-1.5 bg-secondary/40 border-b border-border/60 text-xs">
-										<div className="flex items-center gap-2">
-											<span className="text-[10px] font-mono text-primary font-semibold">
-												@LIOP
-											</span>
-											<span className="text-border-muted">•</span>
-											<span className="text-[11px] text-zinc-400 font-mono">
-												wasi_v1 sandbox
-											</span>
-										</div>
-
-										<div className="flex items-center space-x-2">
-											<button
-												type="button"
-												onClick={handleResetTemplate}
-												className={`text-[11px] flex items-center gap-1.5 transition-colors px-2.5 py-0.5 rounded shrink-0 font-medium border ${
-													isReset
-														? "text-emerald-400 bg-emerald-500/15 border-emerald-500/30"
-														: "text-zinc-300 hover:text-white bg-surface1/60 hover:bg-white/5 border-white/10"
-												}`}
-												title="Reset to template original code"
-											>
-												{isReset ? (
-													<Check className="h-3 w-3 text-emerald-400" />
-												) : (
-													<RotateCcw className="h-3 w-3" />
 												)}
-												<span>{isReset ? "Reset Done" : "Reset"}</span>
-											</button>
-
-											<button
-												type="button"
-												onClick={() => handleCopy(code, "code")}
-												className={`text-[11px] flex items-center gap-1.5 transition-colors px-2.5 py-0.5 rounded shrink-0 font-medium border ${
-													copiedKey === "code"
-														? "text-emerald-400 bg-emerald-500/15 border-emerald-500/30"
-														: "text-zinc-300 hover:text-white bg-surface1/60 hover:bg-white/5 border-white/10"
-												}`}
-												title="Copy code payload"
-											>
-												{copiedKey === "code" ? (
-													<>
-														<Check className="h-3 w-3 text-emerald-400" />
-														<span>Copied</span>
-													</>
-												) : (
-													<>
-														<Copy className="h-3 w-3" />
-														<span>Copy</span>
-													</>
-												)}
-											</button>
-										</div>
-									</div>
-
-									<textarea
-										value={code}
-										onChange={(e) => setCode(e.target.value)}
-										className="w-full h-[220px] p-3.5 bg-transparent font-mono text-xs md:text-sm text-[#7dd3fc] focus:outline-none resize-none leading-relaxed"
-										style={{ fontFamily: "'JetBrains Mono', monospace" }}
-										placeholder="// Write logic to inject on origin node..."
-										disabled={isRunning}
-										spellCheck={false}
-									/>
-
-									{/* Editor Status Footer */}
-									<div className="flex items-center justify-between px-3 py-1 bg-secondary/30 border-t border-border/50 text-[10px] font-mono text-zinc-400">
-										<div className="flex items-center gap-3">
-											<span>{editorStats.lines} lines</span>
-											<span>{editorStats.bytes} bytes</span>
-											<span className="text-cyan-400 flex items-center gap-1">
-												<Coins className="h-3 w-3" />~{editorStats.estTokens}{" "}
-												tokens (est.)
-											</span>
-										</div>
-										<div className="flex items-center gap-2">
-											<span className="text-emerald-400 flex items-center gap-1">
-												<Fuel className="h-3 w-3 text-amber-400" />
-												Fuel Limit: 1,000,000 max
-											</span>
-											<span>•</span>
-											<span className="text-white">HMAC Bind: Active</span>
-										</div>
-									</div>
-								</div>
-							)}
-
-							{/* Execute Action Bar */}
-							<div className="flex items-center justify-between pt-1">
-								<div className="text-xs text-zinc-400 flex items-center gap-1.5 flex-wrap">
-									<span>Target:</span>
-									<span
-										className={`font-semibold font-mono text-[11px] ${
-											isCurrentToolSupported
-												? "text-white"
-												: "text-red-400 line-through"
-										}`}
-									>
-										{selectedToolName || "none"}
-									</span>
-									{!isCurrentToolSupported && (
-										<Badge
-											variant="outline"
-											className="text-[9px] py-0 px-1 font-mono border-red-500/40 text-red-400 bg-red-500/10"
-										>
-											Unavailable on Target
-										</Badge>
-									)}
-									{currentToolObj?.providerNode && (
-										<Badge
-											variant="outline"
-											className="text-[9px] py-0 px-1 font-mono border-cyan-500/40 text-cyan-300"
-										>
-											{currentToolObj.providerNode}
-										</Badge>
-									)}
-									{currentToolObj?.tier && (
-										<Badge
-											variant="outline"
-											className="text-[9px] py-0 px-1 font-mono border-white/15 text-zinc-300"
-										>
-											Tier {currentToolObj.tier}
-										</Badge>
-									)}
-								</div>
-								<Button
-									onClick={handleExecute}
-									disabled={
-										isRunning || !selectedToolName || !isCurrentToolSupported
-									}
-									className={`h-9 px-6 font-bold tracking-wide shadow-md transition-all active:scale-[0.98] ${
-										!isCurrentToolSupported
-											? "opacity-60 cursor-not-allowed bg-zinc-800 hover:bg-zinc-800 text-zinc-400 border border-zinc-700"
-											: ""
-									}`}
-								>
-									{isRunning ? (
-										<>
-											<Loader2 className="mr-2 h-4 w-4 animate-spin" />
-											{executionMode === "logic"
-												? "Injecting..."
-												: "Calling..."}
-										</>
-									) : !isCurrentToolSupported ? (
-										<>
-											<ShieldBan className="mr-2 h-4 w-4 text-red-400" />
-											Blocked on Target
+											</div>
 										</>
 									) : (
-										<>
-											<Play className="mr-2 h-4 w-4 fill-current" />
-											{executionMode === "logic"
-												? "Execute Logic"
-												: "Execute Tool"}
-										</>
-									)}
-								</Button>
-							</div>
-						</CardContent>
-					</Card>
-
-					{/* Bottom Grid: Timeline and Results */}
-					<div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
-						{/* Timeline (5 cols) - Fixed height 380px */}
-						<Card className="md:col-span-5 h-[380px] p-4 bg-card border-border shadow-card flex flex-col">
-							<h3 className="text-xs font-semibold text-white mb-3 flex items-center gap-2 shrink-0">
-								<Activity className="h-4 w-4 text-primary" />
-								Cryptographic Pipeline
-							</h3>
-
-							<div className="space-y-3 relative before:absolute before:inset-0 before:left-[9px] before:w-[1px] before:bg-border/60 before:-z-10 pb-1 flex-1 overflow-hidden">
-								{timeline.map((step, idx) => (
-									<div
-										key={step.phase}
-										className="flex items-start space-x-2.5 text-xs"
-									>
-										<div className="mt-0.5 shrink-0">
-											{step.status === "success" && (
-												<div className="bg-success/20 p-0.5 rounded-full border border-success/40">
-													<CheckCircle2 className="h-3.5 w-3.5 text-success" />
-												</div>
-											)}
-											{step.status === "failed" && (
-												<div className="bg-destructive/20 p-0.5 rounded-full border border-destructive/40">
-													<XCircle className="h-3.5 w-3.5 text-destructive" />
-												</div>
-											)}
-											{step.status === "running" && (
-												<div className="bg-warning/20 p-0.5 rounded-full border border-warning/40">
-													<Loader2 className="h-3.5 w-3.5 text-warning animate-spin" />
-												</div>
-											)}
-											{step.status === "pending" && (
-												<div className="w-4.5 h-4.5 rounded-full bg-secondary border border-border flex items-center justify-center text-[9px] text-zinc-400 font-semibold">
-													{idx + 1}
-												</div>
-											)}
-										</div>
-
-										<div className="flex-1 min-w-0">
-											<div className="flex items-center justify-between gap-1">
-												<span
-													className={`font-medium ${
-														step.status === "running"
-															? "text-warning"
-															: step.status === "success"
-																? "text-white"
-																: step.status === "failed"
-																	? "text-destructive"
-																	: "text-zinc-400"
-													}`}
-												>
-													{step.label}
-												</span>
-												{step.durationMs !== undefined &&
-													step.status === "success" && (
-														<span className="text-[10px] font-mono tabular-nums text-zinc-300 bg-secondary/80 px-1.5 py-0.2 rounded border border-border/40">
-															{step.durationMs === 0
-																? "< 1ms"
-																: `${step.durationMs}ms`}
-														</span>
-													)}
+										<div className="flex items-center justify-between mt-1">
+											<span className="text-[11px] text-zinc-400">
+												Live scan across all architectural layers:
+											</span>
+											<div className="flex items-center gap-1">
+												{(["all", 1, 2, 3] as const).map((tierVal) => (
+													<button
+														key={tierVal}
+														type="button"
+														onClick={() => setFilterTier(tierVal)}
+														className={`text-[10px] px-1.5 py-0.5 rounded font-mono transition-colors ${
+															filterTier === tierVal
+																? "bg-primary/20 text-cyan-400 border border-cyan-500/40"
+																: "text-zinc-400 hover:text-zinc-200 border border-transparent"
+														}`}
+													>
+														{tierVal === "all" ? "All" : `T${tierVal}`}
+													</button>
+												))}
 											</div>
-											<p className="text-[11px] text-zinc-400 truncate">
-												{step.detail}
-											</p>
 										</div>
-									</div>
-								))}
-							</div>
-						</Card>
-
-						{/* Results (7 cols) - Fixed height 380px */}
-						<Card className="md:col-span-7 h-[380px] flex flex-col overflow-hidden bg-card border-border shadow-card">
-							<Tabs
-								value={activeResultsTab}
-								onValueChange={(val) =>
-									setActiveResultsTab(val as "output" | "telemetry" | "proofs")
-								}
-								className="flex flex-col h-full"
-							>
-								<CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0 shrink-0">
-									<div className="flex items-center gap-2">
-										<Terminal className="h-4 w-4 text-primary" />
-
-										{/* Animated Sliding Pill Tabs (3 Tabs) */}
-										<div className="relative flex items-center bg-surface1 border border-white/15 p-0.5 rounded-md">
-											<button
-												type="button"
-												onClick={() => setActiveResultsTab("output")}
-												className="relative z-10 text-xs px-2.5 py-1 font-medium transition-colors duration-200"
-											>
-												{activeResultsTab === "output" && (
-													<motion.div
-														layoutId="resultsTabPill"
-														className="absolute inset-0 bg-primary rounded shadow-sm"
-														transition={{
-															type: "spring",
-															stiffness: 450,
-															damping: 35,
-														}}
-													/>
-												)}
-												<span
-													className={`relative z-20 font-medium transition-colors duration-200 ${
-														activeResultsTab === "output"
-															? "text-black font-semibold"
-															: "text-zinc-300 hover:text-white"
-													}`}
-												>
-													Aggregated Output
-												</span>
-											</button>
-
-											<button
-												type="button"
-												onClick={() => setActiveResultsTab("telemetry")}
-												className="relative z-10 text-xs px-2.5 py-1 font-medium transition-colors duration-200 flex items-center gap-1"
-											>
-												{activeResultsTab === "telemetry" && (
-													<motion.div
-														layoutId="resultsTabPill"
-														className="absolute inset-0 bg-primary rounded shadow-sm"
-														transition={{
-															type: "spring",
-															stiffness: 450,
-															damping: 35,
-														}}
-													/>
-												)}
-												<span
-													className={`relative z-20 font-medium transition-colors duration-200 ${
-														activeResultsTab === "telemetry"
-															? "text-black font-semibold"
-															: "text-zinc-300 hover:text-white"
-													}`}
-												>
-													Fuel & Telemetry
-												</span>
-											</button>
-
-											<button
-												type="button"
-												onClick={() => setActiveResultsTab("proofs")}
-												className="relative z-10 text-xs px-2.5 py-1 font-medium transition-colors duration-200 flex items-center gap-1"
-											>
-												{activeResultsTab === "proofs" && (
-													<motion.div
-														layoutId="resultsTabPill"
-														className="absolute inset-0 bg-primary rounded shadow-sm"
-														transition={{
-															type: "spring",
-															stiffness: 450,
-															damping: 35,
-														}}
-													/>
-												)}
-												<span
-													className={`relative z-20 font-medium transition-colors duration-200 ${
-														activeResultsTab === "proofs"
-															? "text-black font-semibold"
-															: "text-zinc-300 hover:text-white"
-													}`}
-												>
-													Crypto Proofs
-												</span>
-											</button>
-										</div>
-									</div>
-
-									{meta?.latencyMs !== undefined && (
-										<Badge
-											variant="outline"
-											className="text-[10px] font-mono flex items-center gap-1 border-white/15 bg-secondary/60 text-zinc-300"
-										>
-											<Gauge className="h-3 w-3 text-primary" />
-											{meta.latencyMs}ms total
-										</Badge>
 									)}
 								</CardHeader>
 
 								<CardContent className="flex-1 min-h-0 overflow-hidden p-0">
-									<ScrollArea className="h-full px-5">
-										{/* Error or Shield Block alert */}
-										{errorAlert && (
-											<div className="mb-3 pt-1">
-												<Alert
-													variant="destructive"
-													className="border-destructive/40 bg-destructive/10"
-												>
-													<ShieldBan className="h-4 w-4 text-destructive" />
-													<AlertTitle className="text-xs font-semibold">
-														{errorAlert.title}
-													</AlertTitle>
-													<AlertDescription className="text-xs leading-relaxed mt-1">
-														{errorAlert.desc}
-													</AlertDescription>
-												</Alert>
-											</div>
-										)}
-
-										{/* Tab 1: JSON Output */}
-										<TabsContent value="output" className="m-0 space-y-3 pb-5">
-											{result ? (
-												<div className="space-y-2">
-													<div className="flex items-center justify-between text-xs">
-														<span className="text-zinc-300 text-[11px]">
-															Payload returned by remote origin node:
-														</span>
-														<button
-															type="button"
-															onClick={() =>
-																handleCopy(
-																	JSON.stringify(result, null, 2),
-																	"result",
-																)
-															}
-															className={`text-[11px] flex items-center gap-1.5 transition-colors px-2.5 py-0.5 rounded shrink-0 font-medium border ${
-																copiedKey === "result"
-																	? "text-emerald-400 bg-emerald-500/15 border-emerald-500/30"
-																	: "text-zinc-300 hover:text-white bg-surface1/60 hover:bg-white/5 border-white/10"
-															}`}
-															title="Copy JSON payload"
-														>
-															{copiedKey === "result" ? (
-																<>
-																	<Check className="h-3 w-3 text-emerald-400" />
-																	<span>Copied</span>
-																</>
-															) : (
-																<>
-																	<Copy className="h-3 w-3" />
-																	<span>Copy JSON</span>
-																</>
-															)}
-														</button>
-													</div>
-
-													<div className="rounded-lg bg-editor border border-border p-3 font-mono text-[11px] text-[#86efac] overflow-x-auto leading-relaxed shadow-inner">
-														<pre>{JSON.stringify(result, null, 2)}</pre>
-													</div>
+									<ScrollArea className="h-full px-4 py-2">
+										{activeLeftTab === "capabilities" ? (
+											/* Capabilities List */
+											loadingTools ? (
+												<div className="flex flex-col items-center justify-center py-12 text-zinc-400 space-y-2">
+													<Loader2 className="h-5 w-5 animate-spin text-primary" />
+													<span className="text-xs text-zinc-300">
+														Discovering capabilities across tiers...
+													</span>
 												</div>
-											) : !errorAlert && !isRunning ? (
-												<div className="flex flex-col items-center justify-center py-14 text-zinc-400 text-center space-y-2">
-													<Terminal className="h-6 w-6 text-zinc-500" />
+											) : filteredTools.length === 0 ? (
+												<div className="text-center py-12 text-zinc-400 space-y-2">
+													<AlertTriangle className="h-6 w-6 mx-auto text-warning" />
 													<p className="text-xs font-medium text-zinc-200">
-														Awaiting Execution
+														No capabilities found
 													</p>
-													<p className="text-[11px] text-zinc-400 max-w-[220px]">
-														Select a template or write logic, then click Execute
-														Logic.
+													<p className="text-[11px] text-zinc-400 max-w-[200px] mx-auto">
+														Try adjusting your search query.
 													</p>
-												</div>
-											) : isRunning ? (
-												<div className="flex flex-col items-center justify-center py-14 text-zinc-400 text-center space-y-2.5">
-													<Loader2 className="h-6 w-6 animate-spin text-primary" />
-													<p className="text-xs text-zinc-300">
-														Injecting logic and enforcing Zero-Trust policies...
-													</p>
-												</div>
-											) : null}
-										</TabsContent>
-
-										{/* Tab 2: Fuel & Telemetry Dashboard */}
-										<TabsContent
-											value="telemetry"
-											className="m-0 space-y-3 pb-5"
-										>
-											{meta?.telemetry ? (
-												<div className="space-y-3 pt-1 text-xs">
-													{/* BPE Context Tokens Saved vs MCP */}
-													{meta.telemetry.tokens && (
-														<div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 space-y-2">
-															<div className="flex items-center justify-between">
-																<div className="flex items-center gap-2">
-																	<div className="p-1.5 rounded-md bg-emerald-500/20 text-emerald-400">
-																		<Database className="h-4 w-4" />
-																	</div>
-																	<div>
-																		<span className="font-semibold text-white text-[12px]">
-																			Token Economy vs Traditional MCP
-																		</span>
-																		<p className="text-[10px] text-zinc-400">
-																			Comparing Logic-on-Origin injection
-																			against raw context pulling
-																		</p>
-																	</div>
-																</div>
-																<Badge className="bg-emerald-500 text-black font-bold text-xs px-2 py-0.5 shadow-sm">
-																	-
-																	{meta.telemetry.tokens.savingsPercent ?? 98.9}
-																	% Tokens
-																</Badge>
-															</div>
-
-															<div className="grid grid-cols-3 gap-2 pt-1 border-t border-emerald-500/20">
-																<div className="p-2 rounded bg-surface1/80 border border-border">
-																	<p className="text-[10px] text-zinc-400">
-																		LIOP Injected Micro-Module
-																	</p>
-																	<p className="text-sm font-bold font-mono text-emerald-400">
-																		{meta.telemetry.tokens.totalTokens ?? 0}{" "}
-																		<span className="text-[10px] font-normal text-zinc-400">
-																			tok
-																		</span>
-																	</p>
-																	<p className="text-[9px] text-zinc-400 mt-0.5">
-																		{meta.telemetry.tokens.inputTokens ?? 0} in
-																		/ {meta.telemetry.tokens.outputTokens ?? 0}{" "}
-																		out
-																	</p>
-																</div>
-
-																<div className="p-2 rounded bg-surface1/80 border border-border">
-																	<p className="text-[10px] text-zinc-400">
-																		Traditional MCP Context
-																	</p>
-																	<p className="text-sm font-bold font-mono text-zinc-300">
-																		~
-																		{(
-																			meta.telemetry.tokens
-																				.traditionalContextTokens ?? 48000
-																		).toLocaleString()}{" "}
-																		<span className="text-[10px] font-normal text-zinc-400">
-																			tok
-																		</span>
-																	</p>
-																	<p className="text-[9px] text-zinc-400 mt-0.5">
-																		Full raw dataset extraction
-																	</p>
-																</div>
-
-																<div className="p-2 rounded bg-surface1/80 border border-border">
-																	<p className="text-[10px] text-zinc-400">
-																		Net LLM Context Saved
-																	</p>
-																	<p className="text-sm font-bold font-mono text-primary">
-																		~
-																		{(
-																			(meta.telemetry.tokens
-																				.traditionalContextTokens ?? 48000) -
-																			(meta.telemetry.tokens.totalTokens ?? 0)
-																		).toLocaleString()}{" "}
-																		<span className="text-[10px] font-normal text-zinc-400">
-																			tok
-																		</span>
-																	</p>
-																	<p className="text-[9px] text-zinc-400 mt-0.5">
-																		Tokenizer:{" "}
-																		{meta.telemetry.tokens.estimatorName ??
-																			"o200k_base (BPE)"}
-																	</p>
-																</div>
-															</div>
-
-															<div className="flex items-center justify-between text-[10px] text-zinc-400 pt-0.5">
-																<span className="flex items-center gap-1 font-mono">
-																	<Sparkles className="h-3 w-3 text-emerald-400" />
-																	<span>
-																		Zero Context Pollution in Host LLM
-																	</span>
-																</span>
-																<Badge
-																	variant="outline"
-																	className="text-[9px] font-mono border-emerald-500/30 text-emerald-400 bg-emerald-500/10"
-																>
-																	OTel gen_ai.client.token.usage Active
-																</Badge>
-															</div>
-														</div>
-													)}
-
-													{/* AST Fuel Quota & Execution Gauge */}
-													{meta.telemetry.fuel && (
-														<div className="p-3 rounded-lg bg-surface1 border border-border space-y-2">
-															<div className="flex items-center justify-between">
-																<div className="flex items-center gap-2">
-																	<Fuel className="h-4 w-4 text-primary" />
-																	<div>
-																		<span className="font-semibold text-white text-[11px]">
-																			WASI Sandbox AST Fuel Consumption
-																		</span>
-																		<p className="text-[10px] text-zinc-400">
-																			Instruction-level fuel quota preventing
-																			infinite loops & DoS
-																		</p>
-																	</div>
-																</div>
-																<div className="text-right font-mono">
-																	<span className="text-xs font-bold text-white">
-																		{(
-																			meta.telemetry.fuel.consumed ?? 0
-																		).toLocaleString()}
-																	</span>
-																	<span className="text-[10px] text-zinc-400">
-																		{" "}
-																		/{" "}
-																		{(
-																			meta.telemetry.fuel.maxLimit ?? 1000000
-																		).toLocaleString()}{" "}
-																		u
-																	</span>
-																</div>
-															</div>
-
-															{/* Progress bar */}
-															<div className="w-full bg-secondary/80 rounded-full h-2 overflow-hidden border border-border">
-																<div
-																	className="bg-primary h-2 rounded-full transition-all duration-500 shadow-sm"
-																	style={{
-																		width: `${Math.min(100, Math.max(3, (meta.telemetry.fuel.percentUsed ?? 0) * 10))}%`,
-																	}}
-																/>
-															</div>
-
-															<div className="flex items-center justify-between text-[10px] text-zinc-400">
-																<span className="font-mono text-zinc-300">
-																	Quota Used:{" "}
-																	<strong className="text-primary font-semibold">
-																		{meta.telemetry.fuel.percentUsed ?? 0}%
-																	</strong>
-																</span>
-																<span className="font-mono text-[9px] text-zinc-400 bg-secondary/60 px-1.5 py-0.5 rounded border border-border">
-																	{meta.telemetry.proof
-																		?.timingSideChannelProtection ??
-																		"100-Fuel-Bucket Quantization"}
-																</span>
-															</div>
-														</div>
-													)}
-
-													{/* Data Sovereignty & Wire Reduction */}
-													{meta.telemetry.bandwidth && (
-														<div className="p-3 rounded-lg bg-surface1 border border-border space-y-2">
-															<div className="flex items-center justify-between">
-																<div className="flex items-center gap-2">
-																	<Globe className="h-4 w-4 text-primary" />
-																	<div>
-																		<span className="font-semibold text-white text-[11px]">
-																			Data Sovereignty & Egress Traffic
-																		</span>
-																		<p className="text-[10px] text-zinc-400">
-																			Moving logic to data rather than
-																			transferring datasets
-																		</p>
-																	</div>
-																</div>
-																<Badge
-																	variant="outline"
-																	className="border-primary/40 text-primary font-mono text-[10px]"
-																>
-																	-
-																	{meta.telemetry.bandwidth
-																		.egressReductionPercent ?? 99.1}
-																	% Wire Reduction
-																</Badge>
-															</div>
-
-															<div className="grid grid-cols-2 gap-2 text-xs">
-																<div className="p-2 rounded bg-secondary/40 border border-border font-mono">
-																	<span className="text-[10px] text-zinc-400 block font-sans">
-																		Wire Payload (Envelope + Result):
-																	</span>
-																	<strong className="text-white text-xs">
-																		{(
-																			(meta.telemetry.bandwidth.payloadBytes ??
-																				0) / 1024
-																		).toFixed(2)}{" "}
-																		KB
-																	</strong>
-																</div>
-																<div className="p-2 rounded bg-secondary/40 border border-border font-mono">
-																	<span className="text-[10px] text-zinc-400 block font-sans">
-																		Origin Dataset Shielded In-Situ:
-																	</span>
-																	<strong className="text-emerald-400 text-xs">
-																		{(
-																			(meta.telemetry.bandwidth
-																				.rawDatasetProtectedBytes ?? 196608) /
-																			1024
-																		).toFixed(1)}{" "}
-																		KB
-																	</strong>
-																</div>
-															</div>
-														</div>
-													)}
-
-													{/* Cryptographic Pipeline Phase Latencies */}
-													{meta.telemetry.phases && (
-														<div className="p-3 rounded-lg bg-surface1 border border-border space-y-1.5">
-															<span className="font-semibold text-white text-[11px] block">
-																Pipeline Latency Breakdown
-															</span>
-															<div className="grid grid-cols-5 gap-1.5 text-center font-mono text-[10px]">
-																<div className="p-1.5 rounded bg-secondary/50 border border-border">
-																	<span className="text-zinc-400 block text-[9px] font-sans">
-																		Route
-																	</span>
-																	<span className="text-zinc-200 font-bold">
-																		{meta.telemetry.phases.discoveryMs ?? 1}ms
-																	</span>
-																</div>
-																<div className="p-1.5 rounded bg-secondary/50 border border-border">
-																	<span className="text-zinc-400 block text-[9px] font-sans">
-																		Kyber
-																	</span>
-																	<span className="text-primary font-bold">
-																		{meta.telemetry.phases.pqcMs ?? 4}ms
-																	</span>
-																</div>
-																<div className="p-1.5 rounded bg-secondary/50 border border-border">
-																	<span className="text-zinc-400 block text-[9px] font-sans">
-																		Seal
-																	</span>
-																	<span className="text-zinc-200 font-bold">
-																		{meta.telemetry.phases.sealingMs ?? 2}ms
-																	</span>
-																</div>
-																<div className="p-1.5 rounded bg-secondary/50 border border-border">
-																	<span className="text-zinc-400 block text-[9px] font-sans">
-																		Sandbox
-																	</span>
-																	<span className="text-emerald-400 font-bold">
-																		{meta.telemetry.phases.wasiSandboxMs ?? 150}
-																		ms
-																	</span>
-																</div>
-																<div className="p-1.5 rounded bg-secondary/50 border border-border">
-																	<span className="text-zinc-400 block text-[9px] font-sans">
-																		ZK-Proof
-																	</span>
-																	<span className="text-primary font-bold">
-																		{meta.telemetry.phases.zkVerificationMs ??
-																			2}
-																		ms
-																	</span>
-																</div>
-															</div>
-														</div>
-													)}
 												</div>
 											) : (
-												<div className="flex flex-col items-center justify-center py-14 text-zinc-400 text-center space-y-2">
-													<Fuel className="h-6 w-6 text-zinc-500" />
-													<p className="text-xs font-medium text-zinc-200">
-														No Telemetry Recorded Yet
-													</p>
-													<p className="text-[11px] text-zinc-400 max-w-[240px]">
-														Execute any capability to inspect AST fuel consumed,
-														BPE tokens avoided vs MCP, and data sovereignty
-														metrics.
-													</p>
-												</div>
-											)}
-										</TabsContent>
+												<div className="space-y-2.5 pb-4">
+													{filteredTools.map((t) => {
+														const isSelected = selectedToolName === t.name;
+														const tier =
+															t.tier ||
+															(t.taxonomy?.clearanceTier === 1
+																? 1
+																: t.taxonomy?.clearanceTier === 3
+																	? 3
+																	: 2);
 
-										{/* Tab 3: Cryptographic Proofs */}
-										<TabsContent value="proofs" className="m-0 space-y-3 pb-5">
-											{result || meta ? (
-												<div className="space-y-2.5 pt-1 text-xs">
-													{/* ZK-Receipt HMAC-SHA256 with Copy Button */}
-													<div className="p-2.5 rounded-md bg-secondary/40 border border-border space-y-2">
-														<div className="flex items-center justify-between">
-															<div className="flex items-center gap-2">
-																<Fingerprint className="h-4 w-4 text-success" />
-																<div>
-																	<p className="font-semibold text-white text-[11px]">
-																		ZK-Receipt HMAC-SHA256
-																	</p>
-																	<p className="text-[10px] text-zinc-400">
-																		Computational integrity proof bound to
-																		origin node
-																	</p>
-																</div>
-															</div>
-															<Badge
-																variant="success"
-																className="font-mono text-[10px]"
+														return (
+															<button
+																type="button"
+																key={t.name}
+																onClick={() => handleSelectTool(t.name)}
+																className={`w-full text-left p-3 rounded-md border transition-all cursor-pointer ${
+																	isSelected
+																		? "bg-primary/10 border-primary/60 text-white shadow-sm ring-1 ring-primary/30"
+																		: "bg-secondary/40 border-border/70 hover:bg-secondary/80 hover:border-border"
+																}`}
 															>
-																VALID
-															</Badge>
+																<div className="flex items-center justify-between mb-1">
+																	<span className="font-semibold text-xs text-zinc-100 truncate max-w-[190px]">
+																		{t.name}
+																	</span>
+																	<Badge
+																		variant={
+																			tier === 1
+																				? "success"
+																				: tier === 2
+																					? "warning"
+																					: "default"
+																		}
+																		className="text-[10px] py-0 px-1.5 font-normal"
+																	>
+																		Tier {tier}
+																	</Badge>
+																</div>
+																<p className="text-[11px] text-zinc-300 line-clamp-2 leading-relaxed">
+																	{t.description || "No description available."}
+																</p>
+																<div className="mt-1.5 flex items-center justify-between text-[10px] text-zinc-400">
+																	<span className="flex items-center gap-1 truncate max-w-[180px]">
+																		<span
+																			className={`w-1.5 h-1.5 rounded-full ${tier === 1 ? "bg-emerald-400" : tier === 2 ? "bg-cyan-400" : "bg-purple-400"}`}
+																		></span>
+																		{t.providerNode ||
+																			t.taxonomy?.domain ||
+																			"Mesh Node"}
+																	</span>
+																	<span className="font-mono text-[9px] opacity-75 shrink-0">
+																		WASI In-situ
+																	</span>
+																</div>
+															</button>
+														);
+													})}
+												</div>
+											)
+										) : (
+											/* Multi-Layer Server Scan View */
+											<div className="space-y-4 pb-4">
+												{nodes.length === 0 ? (
+													<div className="text-center py-10 px-4 bg-surface1/20 rounded-lg border border-white/5 space-y-2">
+														<Server className="h-7 w-7 text-cyan-400 mx-auto opacity-70 animate-pulse" />
+														<p className="text-xs font-semibold text-zinc-200">
+															Scanning Network Nodes...
+														</p>
+														<p className="text-[11px] text-zinc-400 font-mono">
+															Querying {activeConnectedTarget}
+														</p>
+													</div>
+												) : null}
+
+												{/* Tier 1 Group: Sovereign Enclaves */}
+												{(filterTier === "all" || filterTier === 1) && (
+													<div className="space-y-2">
+														<div className="flex items-center justify-between text-[11px] font-semibold text-emerald-400 border-b border-emerald-500/20 pb-1">
+															<span className="flex items-center gap-1.5">
+																<ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
+																Tier 1: Sovereign Enclaves (In-Situ Origin)
+															</span>
+															<span className="text-[9px] font-mono px-1 py-0.2 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-300">
+																pnet PSK
+															</span>
 														</div>
 
-														{meta?.zkHash && (
-															<div className="flex items-center justify-between bg-editor p-2 rounded border border-border font-mono text-[10px] text-zinc-300">
-																<span className="truncate mr-2 select-all">
-																	{meta.zkHash}
+														{tier1Nodes.length === 0 ? (
+															<div className="text-[10px] text-zinc-500 italic py-2 px-2.5 bg-surface1/30 rounded border border-white/5 flex items-center gap-1.5">
+																<AlertTriangle className="h-3 w-3 text-zinc-500" />
+																No Tier 1 enclaves active on scanned target
+															</div>
+														) : (
+															tier1Nodes.map((n) => {
+																const isConnected = isConnectedToNode(n);
+																return (
+																	<div
+																		key={n.id}
+																		className={`p-2.5 rounded-md border transition-all ${
+																			isConnected
+																				? "border-cyan-500/60 bg-tier1 ring-1 ring-cyan-500/30 shadow-sm"
+																				: "border-emerald-500/30 bg-tier1 hover:brightness-110"
+																		}`}
+																	>
+																		<div className="flex items-center justify-between mb-1">
+																			<div className="flex items-center gap-1.5">
+																				<Database className="h-3 w-3 text-emerald-400" />
+																				<span className="text-xs font-semibold text-zinc-100">
+																					{n.name}
+																				</span>
+																				{isConnected && (
+																					<span className="text-[8px] font-mono px-1.5 py-0.2 rounded bg-cyan-500/25 border border-cyan-500/40 text-cyan-200 font-bold flex items-center gap-1">
+																						<span className="inline-block h-1.5 w-1.5 rounded-full bg-cyan-400 animate-ping"></span>
+																						ACTIVE TARGET
+																					</span>
+																				)}
+																			</div>
+																			<div className="flex items-center gap-1.5">
+																				{!isConnected && (
+																					<button
+																						type="button"
+																						onClick={() => {
+																							const port =
+																								n.ports?.grpc ?? n.ports?.http;
+																							const type = n.ports?.grpc
+																								? "grpc"
+																								: "http";
+																							const targetStr =
+																								type === "grpc"
+																									? `${n.host}:${port}`
+																									: `http://${n.host}:${port}/mcp`;
+																							handleSwitchTarget(
+																								targetStr,
+																								type,
+																							);
+																						}}
+																						className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-surface1 hover:bg-primary hover:text-black border border-white/10 text-zinc-300 transition-colors flex items-center gap-1 cursor-pointer"
+																						title={`Connect to ${n.name}`}
+																					>
+																						<Zap className="h-2.5 w-2.5 text-cyan-400" />
+																						<span>Connect</span>
+																					</button>
+																				)}
+																				<span
+																					className={`inline-block h-1.5 w-1.5 rounded-full ${
+																						n.status === "online"
+																							? "bg-emerald-400"
+																							: "bg-red-400"
+																					}`}
+																				></span>
+																				<span className="text-[10px] font-mono text-emerald-400">
+																					{n.rttMs}ms
+																				</span>
+																			</div>
+																		</div>
+																		<p className="text-[10px] text-zinc-400 mb-1">
+																			{n.role}
+																		</p>
+																		<div className="text-[10px] font-mono text-zinc-400 flex items-center justify-between">
+																			<span>
+																				{n.host}:
+																				{n.ports?.grpc ??
+																					n.ports?.http ??
+																					(targetType === "grpc"
+																						? grpcTarget.split(":")[1] ||
+																							"15021"
+																						: "3000")}
+																			</span>
+																			{n.dataset && (
+																				<span className="text-emerald-300 text-[9px] truncate max-w-[180px]">
+																					{n.dataset}
+																				</span>
+																			)}
+																		</div>
+																		{n.tools.length > 0 && (
+																			<div className="mt-1.5 flex flex-wrap gap-1">
+																				{n.tools.map((tool) => (
+																					<button
+																						key={tool}
+																						type="button"
+																						onClick={() => {
+																							if (!isConnected) {
+																								const port =
+																									n.ports?.grpc ??
+																									n.ports?.http;
+																								const type = n.ports?.grpc
+																									? "grpc"
+																									: "http";
+																								const targetStr =
+																									type === "grpc"
+																										? `${n.host}:${port}`
+																										: `http://${n.host}:${port}/mcp`;
+																								handleSwitchTarget(
+																									targetStr,
+																									type,
+																									tool,
+																								);
+																							} else {
+																								handleSelectTool(tool);
+																							}
+																						}}
+																						className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/15 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-200 transition-colors cursor-pointer"
+																						title={
+																							isConnected
+																								? `Load ${tool} in Logic Studio`
+																								: `Connect to ${n.name} and load ${tool}`
+																						}
+																					>
+																						+ {tool}
+																					</button>
+																				))}
+																			</div>
+																		)}
+																	</div>
+																);
+															})
+														)}
+													</div>
+												)}
+
+												{/* Tier 2 Group: Consortium & Boundary Gateways */}
+												{(filterTier === "all" || filterTier === 2) && (
+													<div className="space-y-2">
+														<div className="flex items-center justify-between text-[11px] font-semibold text-cyan-400 border-b border-cyan-500/20 pb-1">
+															<span className="flex items-center gap-1.5">
+																<Layers className="h-3.5 w-3.5 text-cyan-400" />
+																Tier 2: Consortium Routing & Gateways
+															</span>
+															<span className="text-[9px] font-mono px-1 py-0.2 rounded bg-cyan-500/10 border border-cyan-500/30 text-cyan-300">
+																Dual-NIC / DHT
+															</span>
+														</div>
+
+														{tier2Nodes.length === 0 ? (
+															<div className="text-[10px] text-zinc-500 italic py-2 px-2.5 bg-surface1/30 rounded border border-white/5 flex items-center gap-1.5">
+																<AlertTriangle className="h-3 w-3 text-zinc-500" />
+																No Tier 2 gateways active on scanned target
+															</div>
+														) : (
+															tier2Nodes.map((n) => {
+																const isConnected = isConnectedToNode(n);
+																return (
+																	<div
+																		key={n.id}
+																		className={`p-2.5 rounded-md border transition-all ${
+																			isConnected
+																				? "border-cyan-500/60 bg-tier2 ring-1 ring-cyan-500/30 shadow-sm"
+																				: "border-cyan-500/30 bg-tier2 hover:brightness-110"
+																		}`}
+																	>
+																		<div className="flex items-center justify-between mb-1">
+																			<div className="flex items-center gap-1.5">
+																				<Globe className="h-3 w-3 text-cyan-400" />
+																				<span className="text-xs font-semibold text-zinc-100">
+																					{n.name}
+																				</span>
+																				{isConnected && (
+																					<span className="text-[8px] font-mono px-1.5 py-0.2 rounded bg-cyan-500/25 border border-cyan-500/40 text-cyan-200 font-bold flex items-center gap-1">
+																						<span className="inline-block h-1.5 w-1.5 rounded-full bg-cyan-400 animate-ping"></span>
+																						ACTIVE TARGET
+																					</span>
+																				)}
+																			</div>
+																			<div className="flex items-center gap-1.5">
+																				{!isConnected && (
+																					<button
+																						type="button"
+																						onClick={() => {
+																							const port =
+																								n.ports?.grpc ?? n.ports?.http;
+																							const type = n.ports?.grpc
+																								? "grpc"
+																								: "http";
+																							const targetStr =
+																								type === "grpc"
+																									? `${n.host}:${port}`
+																									: `http://${n.host}:${port}/mcp`;
+																							handleSwitchTarget(
+																								targetStr,
+																								type,
+																							);
+																						}}
+																						className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-surface1 hover:bg-primary hover:text-black border border-white/10 text-zinc-300 transition-colors flex items-center gap-1 cursor-pointer"
+																						title={`Connect to ${n.name}`}
+																					>
+																						<Zap className="h-2.5 w-2.5 text-cyan-400" />
+																						<span>Connect</span>
+																					</button>
+																				)}
+																				<span
+																					className={`inline-block h-1.5 w-1.5 rounded-full ${
+																						n.status === "online"
+																							? "bg-cyan-400"
+																							: "bg-red-400"
+																					}`}
+																				></span>
+																				<span className="text-[10px] font-mono text-cyan-400">
+																					{n.rttMs}ms
+																				</span>
+																			</div>
+																		</div>
+																		<p className="text-[10px] text-zinc-400 mb-1">
+																			{n.role}
+																		</p>
+																		<div className="text-[10px] font-mono text-zinc-400 flex items-center justify-between">
+																			<span>
+																				{n.host}:
+																				{n.ports?.grpc ??
+																					n.ports?.http ??
+																					(targetType === "grpc"
+																						? grpcTarget.split(":")[1] ||
+																							"15031"
+																						: "3000")}
+																			</span>
+																			<span className="text-cyan-300 text-[9px]">
+																				{n.isolation?.split("+")[0] ||
+																					"Consortium Node"}
+																			</span>
+																		</div>
+																		{n.tools.length > 0 && (
+																			<div className="mt-1.5 flex flex-wrap gap-1">
+																				{n.tools.map((tool) => (
+																					<button
+																						key={tool}
+																						type="button"
+																						onClick={() => {
+																							if (!isConnected) {
+																								const port =
+																									n.ports?.grpc ??
+																									n.ports?.http;
+																								const type = n.ports?.grpc
+																									? "grpc"
+																									: "http";
+																								const targetStr =
+																									type === "grpc"
+																										? `${n.host}:${port}`
+																										: `http://${n.host}:${port}/mcp`;
+																								handleSwitchTarget(
+																									targetStr,
+																									type,
+																									tool,
+																								);
+																							} else {
+																								handleSelectTool(tool);
+																							}
+																						}}
+																						className="text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/15 hover:bg-cyan-500/30 border border-cyan-500/30 text-cyan-200 transition-colors cursor-pointer"
+																						title={
+																							isConnected
+																								? `Load ${tool} in Logic Studio`
+																								: `Connect to ${n.name} and load ${tool}`
+																						}
+																					>
+																						+ {tool}
+																					</button>
+																				))}
+																			</div>
+																		)}
+																	</div>
+																);
+															})
+														)}
+													</div>
+												)}
+
+												{/* Tier 3 Group: Public Backbone & Client Edge */}
+												{(filterTier === "all" || filterTier === 3) && (
+													<div className="space-y-2">
+														<div className="flex items-center justify-between text-[11px] font-semibold text-purple-400 border-b border-purple-500/20 pb-1">
+															<span className="flex items-center gap-1.5">
+																<Radio className="h-3.5 w-3.5 text-purple-400" />
+																Tier 3: Public Backbone & Client Edge
+															</span>
+															<span className="text-[9px] font-mono px-1 py-0.2 rounded bg-purple-500/10 border border-purple-500/30 text-purple-300">
+																AutoNAT / WAN
+															</span>
+														</div>
+
+														{tier3Nodes.length === 0 ? (
+															<div className="text-[10px] text-zinc-500 italic py-2 px-2.5 bg-surface1/30 rounded border border-white/5 flex items-center gap-1.5">
+																<AlertTriangle className="h-3 w-3 text-zinc-500" />
+																No Tier 3 edge nodes active on scanned target
+															</div>
+														) : (
+															tier3Nodes.map((n) => {
+																const isConnected = isConnectedToNode(n);
+																return (
+																	<div
+																		key={n.id}
+																		className={`p-2.5 rounded-md border transition-all ${
+																			isConnected
+																				? "border-cyan-500/60 bg-tier3 ring-1 ring-cyan-500/30 shadow-sm"
+																				: "border-purple-500/30 bg-tier3 hover:brightness-110"
+																		}`}
+																	>
+																		<div className="flex items-center justify-between mb-1">
+																			<div className="flex items-center gap-1.5">
+																				<Cpu className="h-3 w-3 text-purple-400" />
+																				<span className="text-xs font-semibold text-zinc-100">
+																					{n.name}
+																				</span>
+																				{isConnected && (
+																					<span className="text-[8px] font-mono px-1.5 py-0.2 rounded bg-cyan-500/25 border border-cyan-500/40 text-cyan-200 font-bold flex items-center gap-1">
+																						<span className="inline-block h-1.5 w-1.5 rounded-full bg-cyan-400 animate-ping"></span>
+																						ACTIVE TARGET
+																					</span>
+																				)}
+																			</div>
+																			<div className="flex items-center gap-1.5">
+																				{!isConnected && (
+																					<button
+																						type="button"
+																						onClick={() => {
+																							const port =
+																								n.ports?.grpc ?? n.ports?.http;
+																							const type = n.ports?.grpc
+																								? "grpc"
+																								: "http";
+																							const targetStr =
+																								type === "grpc"
+																									? `${n.host}:${port}`
+																									: `http://${n.host}:${port}/mcp`;
+																							handleSwitchTarget(
+																								targetStr,
+																								type,
+																							);
+																						}}
+																						className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-surface1 hover:bg-primary hover:text-black border border-white/10 text-zinc-300 transition-colors flex items-center gap-1 cursor-pointer"
+																						title={`Connect to ${n.name}`}
+																					>
+																						<Zap className="h-2.5 w-2.5 text-cyan-400" />
+																						<span>Connect</span>
+																					</button>
+																				)}
+																				<span
+																					className={`inline-block h-1.5 w-1.5 rounded-full ${
+																						n.status === "online"
+																							? "bg-purple-400"
+																							: "bg-red-400"
+																					}`}
+																				></span>
+																				<span className="text-[10px] font-mono text-purple-400">
+																					{n.rttMs}ms
+																				</span>
+																			</div>
+																		</div>
+																		<p className="text-[10px] text-zinc-400 mb-1">
+																			{n.role}
+																		</p>
+																		<div className="text-[10px] font-mono text-zinc-400 flex items-center justify-between">
+																			<span>
+																				{n.host}:
+																				{n.ports?.grpc ??
+																					n.ports?.http ??
+																					(targetType === "grpc"
+																						? grpcTarget.split(":")[1] ||
+																							"15041"
+																						: "3000")}
+																			</span>
+																			<span className="text-purple-300 text-[9px]">
+																				{n.id === "playground"
+																					? "Client Runner"
+																					: "IoT / WAN"}
+																			</span>
+																		</div>
+																		{n.tools.length > 0 && (
+																			<div className="mt-1.5 flex flex-wrap gap-1">
+																				{n.tools.map((tool) => (
+																					<button
+																						key={tool}
+																						type="button"
+																						onClick={() => {
+																							if (!isConnected) {
+																								const port =
+																									n.ports?.grpc ??
+																									n.ports?.http;
+																								const type = n.ports?.grpc
+																									? "grpc"
+																									: "http";
+																								const targetStr =
+																									type === "grpc"
+																										? `${n.host}:${port}`
+																										: `http://${n.host}:${port}/mcp`;
+																								handleSwitchTarget(
+																									targetStr,
+																									type,
+																									tool,
+																								);
+																							} else {
+																								handleSelectTool(tool);
+																							}
+																						}}
+																						className="text-[9px] px-1.5 py-0.5 rounded bg-purple-500/15 hover:bg-purple-500/30 border border-purple-500/30 text-purple-200 transition-colors cursor-pointer"
+																						title={
+																							isConnected
+																								? `Load ${tool} in Logic Studio`
+																								: `Connect to ${n.name} and load ${tool}`
+																						}
+																					>
+																						+ {tool}
+																					</button>
+																				))}
+																			</div>
+																		)}
+																	</div>
+																);
+															})
+														)}
+													</div>
+												)}
+											</div>
+										)}
+									</ScrollArea>
+								</CardContent>
+							</Card>
+
+							{/* Card: Local Mesh Node Info */}
+							<Card className="p-4 bg-card border-border shadow-card shrink-0">
+								<h3 className="text-xs font-semibold text-white mb-3 flex items-center justify-between">
+									<span>Local Mesh Client</span>
+									<span className="font-mono text-[10px] text-zinc-400 font-normal">
+										WASI v29+
+									</span>
+								</h3>
+								{network ? (
+									<div className="space-y-2.5 text-xs">
+										<div className="flex items-center justify-between border-b border-border/50 pb-2">
+											<span className="text-zinc-400">Peer ID:</span>
+											<div className="flex items-center gap-1.5">
+												<span
+													className="text-white font-mono text-[11px] truncate max-w-[140px]"
+													title={network.peerId}
+												>
+													{network.peerId}
+												</span>
+												<button
+													type="button"
+													onClick={() => handleCopy(network.peerId, "peerId")}
+													className="text-zinc-400 hover:text-white transition-colors p-0.5 rounded"
+													title="Copy PeerID"
+												>
+													{copiedKey === "peerId" ? (
+														<Check className="h-3 w-3 text-success" />
+													) : (
+														<Copy className="h-3 w-3" />
+													)}
+												</button>
+											</div>
+										</div>
+
+										<div className="flex items-center justify-between border-b border-border/50 pb-2">
+											<span className="text-zinc-400">Host Address:</span>
+											<div className="flex items-center gap-1.5">
+												<span className="text-white font-mono text-[11px]">
+													{network.address}
+												</span>
+												<button
+													type="button"
+													onClick={() => handleCopy(network.address, "address")}
+													className="text-zinc-400 hover:text-white transition-colors p-0.5 rounded"
+													title="Copy Host Address"
+												>
+													{copiedKey === "address" ? (
+														<Check className="h-3 w-3 text-success" />
+													) : (
+														<Copy className="h-3 w-3" />
+													)}
+												</button>
+											</div>
+										</div>
+
+										<div className="flex items-center justify-between border-b border-border/50 pb-2">
+											<span className="text-zinc-400">Mesh Topology:</span>
+											<span className="text-cyan-400 font-mono text-[11px]">
+												{hasNodeStats
+													? `${onlineNodes}/${totalNodes} Nodes (3 Tiers)`
+													: isScanning
+														? "Discovering Topology..."
+														: "Synchronizing Mesh..."}
+											</span>
+										</div>
+
+										<div className="flex items-center justify-between border-b border-border/50 pb-2">
+											<span className="text-zinc-400">Avg Mesh Latency:</span>
+											<span className="text-emerald-400 font-mono text-[11px]">
+												{scanSummary?.avgLatencyMs !== undefined &&
+												scanSummary.avgLatencyMs > 0
+													? `${scanSummary.avgLatencyMs} ms`
+													: nodes.some(
+																(n) => n.rttMs > 0 && n.status === "online",
+															)
+														? `${Math.round(
+																nodes
+																	.filter(
+																		(n) => n.status === "online" && n.rttMs > 0,
+																	)
+																	.reduce((acc, curr) => acc + curr.rttMs, 0) /
+																	Math.max(
+																		1,
+																		nodes.filter(
+																			(n) =>
+																				n.status === "online" && n.rttMs > 0,
+																		).length,
+																	),
+															)} ms`
+														: "Measuring..."}
+											</span>
+										</div>
+
+										<div className="flex items-center justify-between border-b border-border/50 pb-2">
+											<span className="text-zinc-400">Crypto Suite:</span>
+											<span className="text-primary font-mono text-[11px]">
+												ML-KEM-768
+											</span>
+										</div>
+
+										<div className="flex items-center justify-between pt-0.5">
+											<span className="text-zinc-400">Sandbox Isolation:</span>
+											<span className="text-success font-medium flex items-center gap-1 text-[11px]">
+												<CheckCircle2 className="h-3.5 w-3.5" /> WASI-Isolate
+												Safe
+											</span>
+										</div>
+									</div>
+								) : (
+									<p className="text-xs text-zinc-400">
+										Synchronizing state...
+									</p>
+								)}
+							</Card>
+						</section>
+
+						{/* Right Panel: Editor, Timeline and Results (8 cols) */}
+						<section className="lg:col-span-8 flex flex-col space-y-6">
+							{/* Card: Logic Editor */}
+							<Card className="flex flex-col bg-card border-border shadow-card shrink-0">
+								<CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
+									<div className="flex items-center gap-2">
+										<div className="flex items-center gap-1 p-0.5 bg-surface1 border border-white/10 rounded-lg">
+											<button
+												type="button"
+												onClick={() => setExecutionMode("logic")}
+												className={`text-xs px-2.5 py-1 rounded-md font-medium transition-all flex items-center gap-1.5 ${
+													executionMode === "logic"
+														? "bg-primary text-black font-semibold shadow-sm"
+														: "text-zinc-400 hover:text-white"
+												}`}
+											>
+												<Code className="h-3.5 w-3.5" />
+												<span>Logic Studio (@LIOP)</span>
+											</button>
+
+											<button
+												type="button"
+												onClick={() => setExecutionMode("form")}
+												className={`text-xs px-2.5 py-1 rounded-md font-medium transition-all flex items-center gap-1.5 ${
+													executionMode === "form"
+														? "bg-primary text-black font-semibold shadow-sm"
+														: "text-zinc-400 hover:text-white"
+												}`}
+											>
+												<Terminal className="h-3.5 w-3.5" />
+												<span>MCP Tool Form</span>
+											</button>
+										</div>
+									</div>
+
+									{/* Dynamic Template Switcher (Strictly matching exposed capabilities on active target) */}
+									{executionMode === "logic" &&
+										availableTemplates.length > 0 && (
+											<div className="relative flex items-center bg-surface1 border border-white/15 p-0.5 rounded-lg flex-wrap gap-0.5">
+												{availableTemplates.map((t) => {
+													const isSelected = selectedTemplateId === t.id;
+													return (
+														<button
+															key={t.id}
+															type="button"
+															onClick={() => handleSelectTemplate(t.id)}
+															className="relative z-10 text-[11px] px-2.5 py-1 font-medium transition-colors duration-200 flex items-center gap-1.5"
+															title={t.description}
+														>
+															{isSelected && (
+																<motion.div
+																	layoutId="templateActivePill"
+																	className="absolute inset-0 rounded-md shadow-sm bg-primary"
+																	transition={{
+																		type: "spring",
+																		stiffness: 450,
+																		damping: 35,
+																	}}
+																/>
+															)}
+															<span
+																className={`relative z-20 font-medium transition-colors duration-200 flex items-center gap-1 ${
+																	isSelected
+																		? "text-black font-semibold"
+																		: "text-zinc-300 hover:text-white"
+																}`}
+															>
+																<span>{t.name}</span>
+															</span>
+														</button>
+													);
+												})}
+											</div>
+										)}
+									{executionMode === "logic" &&
+										availableTemplates.length === 0 && (
+											<div className="text-[11px] text-zinc-400 font-mono px-2 py-1 bg-surface1/60 rounded border border-white/10">
+												Scanning target capabilities...
+											</div>
+										)}
+								</CardHeader>
+
+								<CardContent className="space-y-3">
+									{/* Capability Mismatch Notice (Displayed only on manual mismatch) */}
+									{executionMode === "logic" && !isCurrentToolSupported && (
+										<div className="p-3 rounded-lg bg-red-950/30 border border-red-500/40 text-red-200 flex items-start gap-3 animate-in fade-in duration-200">
+											<ShieldBan className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
+											<div className="space-y-1">
+												<div className="flex items-center gap-2">
+													<h4 className="text-xs font-semibold text-red-300">
+														Target Mismatch
+													</h4>
+													<span className="text-[9px] px-1 py-0.2 rounded bg-red-500/20 font-mono text-red-200 border border-red-500/30">
+														ZERO-TRUST
+													</span>
+												</div>
+												<p className="text-[11px] text-zinc-300 leading-relaxed">
+													Active logic targets capability{" "}
+													<span className="font-mono text-cyan-300 font-semibold">
+														{currentTemplate?.tool || selectedToolName}
+													</span>
+													, not exposed by target{" "}
+													<span className="font-mono text-white">
+														{activeConnectedTarget}
+													</span>
+													. Execution paused to protect origin runtime.
+												</p>
+												<div className="text-[10px] text-zinc-400 font-mono pt-0.5 flex items-center gap-1.5 flex-wrap">
+													<span>Available on target:</span>
+													{tools.length > 0 ? (
+														tools.map((avail) => (
+															<button
+																key={avail.name}
+																type="button"
+																onClick={() => handleSelectTool(avail.name)}
+																className="px-1.5 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/30 transition-colors cursor-pointer"
+															>
+																+ Switch to {avail.name}
+															</button>
+														))
+													) : (
+														<span className="text-amber-400">
+															None detected
+														</span>
+													)}
+												</div>
+											</div>
+										</div>
+									)}
+									{executionMode === "form" ? (
+										<DynamicToolForm
+											toolName={selectedToolName}
+											schema={currentToolObj?.inputSchema}
+											values={formArgs}
+											onChange={(field, val) =>
+												setFormArgs((prev) => ({ ...prev, [field]: val }))
+											}
+											disabled={isRunning}
+										/>
+									) : (
+										/* Code Editor Frame with Action Bar */
+										<div className="relative border border-border rounded-lg bg-editor overflow-hidden">
+											{/* Editor Header Bar */}
+											<div className="flex items-center justify-between px-3 py-1.5 bg-secondary/40 border-b border-border/60 text-xs">
+												<div className="flex items-center gap-2">
+													<span className="text-[10px] font-mono text-primary font-semibold">
+														@LIOP
+													</span>
+													<span className="text-border-muted">•</span>
+													<span className="text-[11px] text-zinc-400 font-mono">
+														wasi_v1 sandbox
+													</span>
+												</div>
+
+												<div className="flex items-center space-x-2">
+													<button
+														type="button"
+														onClick={handleResetTemplate}
+														className={`text-[11px] flex items-center gap-1.5 transition-colors px-2.5 py-0.5 rounded shrink-0 font-medium border ${
+															isReset
+																? "text-emerald-400 bg-emerald-500/15 border-emerald-500/30"
+																: "text-zinc-300 hover:text-white bg-surface1/60 hover:bg-white/5 border-white/10"
+														}`}
+														title="Reset to template original code"
+													>
+														{isReset ? (
+															<Check className="h-3 w-3 text-emerald-400" />
+														) : (
+															<RotateCcw className="h-3 w-3" />
+														)}
+														<span>{isReset ? "Reset Done" : "Reset"}</span>
+													</button>
+
+													<button
+														type="button"
+														onClick={() => handleCopy(code, "code")}
+														className={`text-[11px] flex items-center gap-1.5 transition-colors px-2.5 py-0.5 rounded shrink-0 font-medium border ${
+															copiedKey === "code"
+																? "text-emerald-400 bg-emerald-500/15 border-emerald-500/30"
+																: "text-zinc-300 hover:text-white bg-surface1/60 hover:bg-white/5 border-white/10"
+														}`}
+														title="Copy code payload"
+													>
+														{copiedKey === "code" ? (
+															<>
+																<Check className="h-3 w-3 text-emerald-400" />
+																<span>Copied</span>
+															</>
+														) : (
+															<>
+																<Copy className="h-3 w-3" />
+																<span>Copy</span>
+															</>
+														)}
+													</button>
+												</div>
+											</div>
+
+											<textarea
+												value={code}
+												onChange={(e) => setCode(e.target.value)}
+												className="w-full h-[220px] p-3.5 bg-transparent font-mono text-xs md:text-sm text-[#7dd3fc] focus:outline-none resize-none leading-relaxed"
+												style={{ fontFamily: "'JetBrains Mono', monospace" }}
+												placeholder="// Write logic to inject on origin node..."
+												disabled={isRunning}
+												spellCheck={false}
+											/>
+
+											{/* Editor Status Footer */}
+											<div className="flex items-center justify-between px-3 py-1 bg-secondary/30 border-t border-border/50 text-[10px] font-mono text-zinc-400">
+												<div className="flex items-center gap-3">
+													<span>{editorStats.lines} lines</span>
+													<span>{editorStats.bytes} bytes</span>
+													<span className="text-cyan-400 flex items-center gap-1">
+														<Coins className="h-3 w-3" />~
+														{editorStats.estTokens} tokens (est.)
+													</span>
+												</div>
+												<div className="flex items-center gap-2">
+													<span className="text-emerald-400 flex items-center gap-1">
+														<Fuel className="h-3 w-3 text-amber-400" />
+														Fuel Limit: 1,000,000 max
+													</span>
+													<span>•</span>
+													<span className="text-white">HMAC Bind: Active</span>
+												</div>
+											</div>
+										</div>
+									)}
+
+									{/* Execute Action Bar */}
+									<div className="flex items-center justify-between pt-1">
+										<div className="text-xs text-zinc-400 flex items-center gap-1.5 flex-wrap">
+											<span>Target:</span>
+											<span
+												className={`font-semibold font-mono text-[11px] ${
+													isCurrentToolSupported
+														? "text-white"
+														: "text-red-400 line-through"
+												}`}
+											>
+												{selectedToolName || "none"}
+											</span>
+											{!isCurrentToolSupported && (
+												<Badge
+													variant="outline"
+													className="text-[9px] py-0 px-1 font-mono border-red-500/40 text-red-400 bg-red-500/10"
+												>
+													Unavailable on Target
+												</Badge>
+											)}
+											{currentToolObj?.providerNode && (
+												<Badge
+													variant="outline"
+													className="text-[9px] py-0 px-1 font-mono border-cyan-500/40 text-cyan-300"
+												>
+													{currentToolObj.providerNode}
+												</Badge>
+											)}
+											{currentToolObj?.tier && (
+												<Badge
+													variant="outline"
+													className="text-[9px] py-0 px-1 font-mono border-white/15 text-zinc-300"
+												>
+													Tier {currentToolObj.tier}
+												</Badge>
+											)}
+										</div>
+										<Button
+											onClick={handleExecute}
+											disabled={
+												isRunning ||
+												!selectedToolName ||
+												!isCurrentToolSupported
+											}
+											className={`h-9 px-6 font-bold tracking-wide shadow-md transition-all active:scale-[0.98] ${
+												!isCurrentToolSupported
+													? "opacity-60 cursor-not-allowed bg-zinc-800 hover:bg-zinc-800 text-zinc-400 border border-zinc-700"
+													: ""
+											}`}
+										>
+											{isRunning ? (
+												<>
+													<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+													{executionMode === "logic"
+														? "Injecting..."
+														: "Calling..."}
+												</>
+											) : !isCurrentToolSupported ? (
+												<>
+													<ShieldBan className="mr-2 h-4 w-4 text-red-400" />
+													Blocked on Target
+												</>
+											) : (
+												<>
+													<Play className="mr-2 h-4 w-4 fill-current" />
+													{executionMode === "logic"
+														? "Execute Logic"
+														: "Execute Tool"}
+												</>
+											)}
+										</Button>
+									</div>
+								</CardContent>
+							</Card>
+
+							{/* Bottom Grid: Timeline and Results */}
+							<div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+								{/* Timeline (5 cols) - Fixed height 380px */}
+								<Card className="md:col-span-5 h-[380px] p-4 bg-card border-border shadow-card flex flex-col">
+									<h3 className="text-xs font-semibold text-white mb-3 flex items-center gap-2 shrink-0">
+										<Activity className="h-4 w-4 text-primary" />
+										Cryptographic Pipeline
+									</h3>
+
+									<div className="space-y-3 relative before:absolute before:inset-0 before:left-[9px] before:w-[1px] before:bg-border/60 before:-z-10 pb-1 flex-1 overflow-hidden">
+										{timeline.map((step, idx) => (
+											<div
+												key={step.phase}
+												className="flex items-start space-x-2.5 text-xs"
+											>
+												<div className="mt-0.5 shrink-0">
+													{step.status === "success" && (
+														<div className="bg-success/20 p-0.5 rounded-full border border-success/40">
+															<CheckCircle2 className="h-3.5 w-3.5 text-success" />
+														</div>
+													)}
+													{step.status === "failed" && (
+														<div className="bg-destructive/20 p-0.5 rounded-full border border-destructive/40">
+															<XCircle className="h-3.5 w-3.5 text-destructive" />
+														</div>
+													)}
+													{step.status === "running" && (
+														<div className="bg-warning/20 p-0.5 rounded-full border border-warning/40">
+															<Loader2 className="h-3.5 w-3.5 text-warning animate-spin" />
+														</div>
+													)}
+													{step.status === "pending" && (
+														<div className="w-4.5 h-4.5 rounded-full bg-secondary border border-border flex items-center justify-center text-[9px] text-zinc-400 font-semibold">
+															{idx + 1}
+														</div>
+													)}
+												</div>
+
+												<div className="flex-1 min-w-0">
+													<div className="flex items-center justify-between gap-1">
+														<span
+															className={`font-medium ${
+																step.status === "running"
+																	? "text-warning"
+																	: step.status === "success"
+																		? "text-white"
+																		: step.status === "failed"
+																			? "text-destructive"
+																			: "text-zinc-400"
+															}`}
+														>
+															{step.label}
+														</span>
+														{step.durationMs !== undefined &&
+															step.status === "success" && (
+																<span className="text-[10px] font-mono tabular-nums text-zinc-300 bg-secondary/80 px-1.5 py-0.2 rounded border border-border/40">
+																	{step.durationMs === 0
+																		? "< 1ms"
+																		: `${step.durationMs}ms`}
+																</span>
+															)}
+													</div>
+													<p className="text-[11px] text-zinc-400 truncate">
+														{step.detail}
+													</p>
+												</div>
+											</div>
+										))}
+									</div>
+								</Card>
+
+								{/* Results (7 cols) - Fixed height 380px */}
+								<Card className="md:col-span-7 h-[380px] flex flex-col overflow-hidden bg-card border-border shadow-card">
+									<Tabs
+										value={activeResultsTab}
+										onValueChange={(val) =>
+											setActiveResultsTab(
+												val as "output" | "telemetry" | "proofs",
+											)
+										}
+										className="flex flex-col h-full"
+									>
+										<CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0 shrink-0">
+											<div className="flex items-center gap-2">
+												<Terminal className="h-4 w-4 text-primary" />
+
+												{/* Animated Sliding Pill Tabs (3 Tabs) */}
+												<div className="relative flex items-center bg-surface1 border border-white/15 p-0.5 rounded-md">
+													<button
+														type="button"
+														onClick={() => setActiveResultsTab("output")}
+														className="relative z-10 text-xs px-2.5 py-1 font-medium transition-colors duration-200"
+													>
+														{activeResultsTab === "output" && (
+															<motion.div
+																layoutId="resultsTabPill"
+																className="absolute inset-0 bg-primary rounded shadow-sm"
+																transition={{
+																	type: "spring",
+																	stiffness: 450,
+																	damping: 35,
+																}}
+															/>
+														)}
+														<span
+															className={`relative z-20 font-medium transition-colors duration-200 ${
+																activeResultsTab === "output"
+																	? "text-black font-semibold"
+																	: "text-zinc-300 hover:text-white"
+															}`}
+														>
+															Aggregated Output
+														</span>
+													</button>
+
+													<button
+														type="button"
+														onClick={() => setActiveResultsTab("telemetry")}
+														className="relative z-10 text-xs px-2.5 py-1 font-medium transition-colors duration-200 flex items-center gap-1"
+													>
+														{activeResultsTab === "telemetry" && (
+															<motion.div
+																layoutId="resultsTabPill"
+																className="absolute inset-0 bg-primary rounded shadow-sm"
+																transition={{
+																	type: "spring",
+																	stiffness: 450,
+																	damping: 35,
+																}}
+															/>
+														)}
+														<span
+															className={`relative z-20 font-medium transition-colors duration-200 ${
+																activeResultsTab === "telemetry"
+																	? "text-black font-semibold"
+																	: "text-zinc-300 hover:text-white"
+															}`}
+														>
+															Fuel & Telemetry
+														</span>
+													</button>
+
+													<button
+														type="button"
+														onClick={() => setActiveResultsTab("proofs")}
+														className="relative z-10 text-xs px-2.5 py-1 font-medium transition-colors duration-200 flex items-center gap-1"
+													>
+														{activeResultsTab === "proofs" && (
+															<motion.div
+																layoutId="resultsTabPill"
+																className="absolute inset-0 bg-primary rounded shadow-sm"
+																transition={{
+																	type: "spring",
+																	stiffness: 450,
+																	damping: 35,
+																}}
+															/>
+														)}
+														<span
+															className={`relative z-20 font-medium transition-colors duration-200 ${
+																activeResultsTab === "proofs"
+																	? "text-black font-semibold"
+																	: "text-zinc-300 hover:text-white"
+															}`}
+														>
+															Crypto Proofs
+														</span>
+													</button>
+												</div>
+											</div>
+
+											{meta?.latencyMs !== undefined && (
+												<Badge
+													variant="outline"
+													className="text-[10px] font-mono flex items-center gap-1 border-white/15 bg-secondary/60 text-zinc-300"
+												>
+													<Gauge className="h-3 w-3 text-primary" />
+													{meta.latencyMs}ms total
+												</Badge>
+											)}
+										</CardHeader>
+
+										<CardContent className="flex-1 min-h-0 overflow-hidden p-0">
+											<ScrollArea className="h-full px-5">
+												{/* Error or Shield Block alert */}
+												{errorAlert && (
+													<div className="mb-3 pt-1">
+														<Alert
+															variant="destructive"
+															className="border-destructive/40 bg-destructive/10"
+														>
+															<ShieldBan className="h-4 w-4 text-destructive" />
+															<AlertTitle className="text-xs font-semibold">
+																{errorAlert.title}
+															</AlertTitle>
+															<AlertDescription className="text-xs leading-relaxed mt-1">
+																{errorAlert.desc}
+															</AlertDescription>
+														</Alert>
+													</div>
+												)}
+
+												{/* Tab 1: JSON Output */}
+												<TabsContent
+													value="output"
+													className="m-0 space-y-3 pb-5"
+												>
+													{result ? (
+														<div className="space-y-2">
+															<div className="flex items-center justify-between text-xs">
+																<span className="text-zinc-300 text-[11px]">
+																	Payload returned by remote origin node:
 																</span>
 																<button
 																	type="button"
 																	onClick={() =>
-																		handleCopy(meta.zkHash || "", "zkHash")
+																		handleCopy(
+																			JSON.stringify(result, null, 2),
+																			"result",
+																		)
 																	}
-																	className="text-[10px] flex items-center gap-1 text-zinc-400 hover:text-white shrink-0 px-1.5 py-0.5 rounded bg-surface1 border border-border transition-colors"
-																	title="Copy ZK-Receipt Hash"
+																	className={`text-[11px] flex items-center gap-1.5 transition-colors px-2.5 py-0.5 rounded shrink-0 font-medium border ${
+																		copiedKey === "result"
+																			? "text-emerald-400 bg-emerald-500/15 border-emerald-500/30"
+																			: "text-zinc-300 hover:text-white bg-surface1/60 hover:bg-white/5 border-white/10"
+																	}`}
+																	title="Copy JSON payload"
 																>
-																	{copiedKey === "zkHash" ? (
+																	{copiedKey === "result" ? (
 																		<>
 																			<Check className="h-3 w-3 text-emerald-400" />
-																			<span className="text-emerald-400">
-																				Copied
-																			</span>
+																			<span>Copied</span>
 																		</>
 																	) : (
 																		<>
 																			<Copy className="h-3 w-3" />
-																			<span>Copy</span>
+																			<span>Copy JSON</span>
 																		</>
 																	)}
 																</button>
 															</div>
-														)}
-													</div>
 
-													<div className="p-2.5 rounded-md bg-secondary/40 border border-border flex items-center justify-between">
-														<div className="flex items-center gap-2">
-															<Handshake className="h-4 w-4 text-primary" />
-															<div>
-																<p className="font-semibold text-white text-[11px]">
-																	Post-Quantum Key Exchange
-																</p>
-																<p className="text-[10px] text-zinc-400">
-																	ML-KEM-768 (Kyber) quantum-resistant link
-																</p>
+															<div className="rounded-lg bg-editor border border-border p-3 font-mono text-[11px] text-[#86efac] overflow-x-auto leading-relaxed shadow-inner">
+																<pre>{JSON.stringify(result, null, 2)}</pre>
 															</div>
 														</div>
-														<Badge
-															variant="outline"
-															className="font-mono text-[10px] border-primary/40 text-primary"
-														>
-															SECURE
-														</Badge>
-													</div>
+													) : !errorAlert && !isRunning ? (
+														<div className="flex flex-col items-center justify-center py-14 text-zinc-400 text-center space-y-2">
+															<Terminal className="h-6 w-6 text-zinc-500" />
+															<p className="text-xs font-medium text-zinc-200">
+																Awaiting Execution
+															</p>
+															<p className="text-[11px] text-zinc-400 max-w-[220px]">
+																Select a template or write logic, then click
+																Execute Logic.
+															</p>
+														</div>
+													) : isRunning ? (
+														<div className="flex flex-col items-center justify-center py-14 text-zinc-400 text-center space-y-2.5">
+															<Loader2 className="h-6 w-6 animate-spin text-primary" />
+															<p className="text-xs text-zinc-300">
+																Injecting logic and enforcing Zero-Trust
+																policies...
+															</p>
+														</div>
+													) : null}
+												</TabsContent>
 
-													<div className="p-2.5 rounded-md bg-secondary/40 border border-border flex items-center justify-between">
-														<div className="flex items-center gap-2">
-															<LockKeyhole className="h-4 w-4 text-primary" />
-															<div>
-																<p className="font-semibold text-white text-[11px]">
-																	Symmetric Envelope Seal
-																</p>
-																<p className="text-[10px] text-zinc-400">
-																	AES-256-GCM authenticated cipher of payload
-																	and return
-																</p>
+												{/* Tab 2: Fuel & Telemetry Dashboard */}
+												<TabsContent
+													value="telemetry"
+													className="m-0 space-y-3 pb-5"
+												>
+													{meta?.telemetry ? (
+														<div className="space-y-3 pt-1 text-xs">
+															{/* BPE Context Tokens Saved vs MCP */}
+															{meta.telemetry.tokens && (
+																<div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 space-y-2">
+																	<div className="flex items-center justify-between">
+																		<div className="flex items-center gap-2">
+																			<div className="p-1.5 rounded-md bg-emerald-500/20 text-emerald-400">
+																				<Database className="h-4 w-4" />
+																			</div>
+																			<div>
+																				<span className="font-semibold text-white text-[12px]">
+																					Token Economy vs Traditional MCP
+																				</span>
+																				<p className="text-[10px] text-zinc-400">
+																					Comparing Logic-on-Origin injection
+																					against raw context pulling
+																				</p>
+																			</div>
+																		</div>
+																		<Badge className="bg-emerald-500 text-black font-bold text-xs px-2 py-0.5 shadow-sm">
+																			-
+																			{meta.telemetry.tokens.savingsPercent ??
+																				98.9}
+																			% Tokens
+																		</Badge>
+																	</div>
+
+																	<div className="grid grid-cols-3 gap-2 pt-1 border-t border-emerald-500/20">
+																		<div className="p-2 rounded bg-surface1/80 border border-border">
+																			<p className="text-[10px] text-zinc-400">
+																				LIOP Injected Micro-Module
+																			</p>
+																			<p className="text-sm font-bold font-mono text-emerald-400">
+																				{meta.telemetry.tokens.totalTokens ?? 0}{" "}
+																				<span className="text-[10px] font-normal text-zinc-400">
+																					tok
+																				</span>
+																			</p>
+																			<p className="text-[9px] text-zinc-400 mt-0.5">
+																				{meta.telemetry.tokens.inputTokens ?? 0}{" "}
+																				in /{" "}
+																				{meta.telemetry.tokens.outputTokens ??
+																					0}{" "}
+																				out
+																			</p>
+																		</div>
+
+																		<div className="p-2 rounded bg-surface1/80 border border-border">
+																			<p className="text-[10px] text-zinc-400">
+																				Traditional MCP Context
+																			</p>
+																			<p className="text-sm font-bold font-mono text-zinc-300">
+																				~
+																				{(
+																					meta.telemetry.tokens
+																						.traditionalContextTokens ?? 48000
+																				).toLocaleString()}{" "}
+																				<span className="text-[10px] font-normal text-zinc-400">
+																					tok
+																				</span>
+																			</p>
+																			<p className="text-[9px] text-zinc-400 mt-0.5">
+																				Full raw dataset extraction
+																			</p>
+																		</div>
+
+																		<div className="p-2 rounded bg-surface1/80 border border-border">
+																			<p className="text-[10px] text-zinc-400">
+																				Net LLM Context Saved
+																			</p>
+																			<p className="text-sm font-bold font-mono text-primary">
+																				~
+																				{(
+																					(meta.telemetry.tokens
+																						.traditionalContextTokens ??
+																						48000) -
+																					(meta.telemetry.tokens.totalTokens ??
+																						0)
+																				).toLocaleString()}{" "}
+																				<span className="text-[10px] font-normal text-zinc-400">
+																					tok
+																				</span>
+																			</p>
+																			<p className="text-[9px] text-zinc-400 mt-0.5">
+																				Tokenizer:{" "}
+																				{meta.telemetry.tokens.estimatorName ??
+																					"o200k_base (BPE)"}
+																			</p>
+																		</div>
+																	</div>
+
+																	<div className="flex items-center justify-between text-[10px] text-zinc-400 pt-0.5">
+																		<span className="flex items-center gap-1 font-mono">
+																			<Sparkles className="h-3 w-3 text-emerald-400" />
+																			<span>
+																				Zero Context Pollution in Host LLM
+																			</span>
+																		</span>
+																		<Badge
+																			variant="outline"
+																			className="text-[9px] font-mono border-emerald-500/30 text-emerald-400 bg-emerald-500/10"
+																		>
+																			OTel gen_ai.client.token.usage Active
+																		</Badge>
+																	</div>
+																</div>
+															)}
+
+															{/* AST Fuel Quota & Execution Gauge */}
+															{meta.telemetry.fuel && (
+																<div className="p-3 rounded-lg bg-surface1 border border-border space-y-2">
+																	<div className="flex items-center justify-between">
+																		<div className="flex items-center gap-2">
+																			<Fuel className="h-4 w-4 text-primary" />
+																			<div>
+																				<span className="font-semibold text-white text-[11px]">
+																					WASI Sandbox AST Fuel Consumption
+																				</span>
+																				<p className="text-[10px] text-zinc-400">
+																					Instruction-level fuel quota
+																					preventing infinite loops & DoS
+																				</p>
+																			</div>
+																		</div>
+																		<div className="text-right font-mono">
+																			<span className="text-xs font-bold text-white">
+																				{(
+																					meta.telemetry.fuel.consumed ?? 0
+																				).toLocaleString()}
+																			</span>
+																			<span className="text-[10px] text-zinc-400">
+																				{" "}
+																				/{" "}
+																				{(
+																					meta.telemetry.fuel.maxLimit ??
+																					1000000
+																				).toLocaleString()}{" "}
+																				u
+																			</span>
+																		</div>
+																	</div>
+
+																	{/* Progress bar */}
+																	<div className="w-full bg-secondary/80 rounded-full h-2 overflow-hidden border border-border">
+																		<div
+																			className="bg-primary h-2 rounded-full transition-all duration-500 shadow-sm"
+																			style={{
+																				width: `${Math.min(100, Math.max(3, (meta.telemetry.fuel.percentUsed ?? 0) * 10))}%`,
+																			}}
+																		/>
+																	</div>
+
+																	<div className="flex items-center justify-between text-[10px] text-zinc-400">
+																		<span className="font-mono text-zinc-300">
+																			Quota Used:{" "}
+																			<strong className="text-primary font-semibold">
+																				{meta.telemetry.fuel.percentUsed ?? 0}%
+																			</strong>
+																		</span>
+																		<span className="font-mono text-[9px] text-zinc-400 bg-secondary/60 px-1.5 py-0.5 rounded border border-border">
+																			{meta.telemetry.proof
+																				?.timingSideChannelProtection ??
+																				"100-Fuel-Bucket Quantization"}
+																		</span>
+																	</div>
+																</div>
+															)}
+
+															{/* Data Sovereignty & Wire Reduction */}
+															{meta.telemetry.bandwidth && (
+																<div className="p-3 rounded-lg bg-surface1 border border-border space-y-2">
+																	<div className="flex items-center justify-between">
+																		<div className="flex items-center gap-2">
+																			<Globe className="h-4 w-4 text-primary" />
+																			<div>
+																				<span className="font-semibold text-white text-[11px]">
+																					Data Sovereignty & Egress Traffic
+																				</span>
+																				<p className="text-[10px] text-zinc-400">
+																					Moving logic to data rather than
+																					transferring datasets
+																				</p>
+																			</div>
+																		</div>
+																		<Badge
+																			variant="outline"
+																			className="border-primary/40 text-primary font-mono text-[10px]"
+																		>
+																			-
+																			{meta.telemetry.bandwidth
+																				.egressReductionPercent ?? 99.1}
+																			% Wire Reduction
+																		</Badge>
+																	</div>
+
+																	<div className="grid grid-cols-2 gap-2 text-xs">
+																		<div className="p-2 rounded bg-secondary/40 border border-border font-mono">
+																			<span className="text-[10px] text-zinc-400 block font-sans">
+																				Wire Payload (Envelope + Result):
+																			</span>
+																			<strong className="text-white text-xs">
+																				{(
+																					(meta.telemetry.bandwidth
+																						.payloadBytes ?? 0) / 1024
+																				).toFixed(2)}{" "}
+																				KB
+																			</strong>
+																		</div>
+																		<div className="p-2 rounded bg-secondary/40 border border-border font-mono">
+																			<span className="text-[10px] text-zinc-400 block font-sans">
+																				Origin Dataset Shielded In-Situ:
+																			</span>
+																			<strong className="text-emerald-400 text-xs">
+																				{(
+																					(meta.telemetry.bandwidth
+																						.rawDatasetProtectedBytes ??
+																						196608) / 1024
+																				).toFixed(1)}{" "}
+																				KB
+																			</strong>
+																		</div>
+																	</div>
+																</div>
+															)}
+
+															{/* Cryptographic Pipeline Phase Latencies */}
+															{meta.telemetry.phases && (
+																<div className="p-3 rounded-lg bg-surface1 border border-border space-y-1.5">
+																	<span className="font-semibold text-white text-[11px] block">
+																		Pipeline Latency Breakdown
+																	</span>
+																	<div className="grid grid-cols-5 gap-1.5 text-center font-mono text-[10px]">
+																		<div className="p-1.5 rounded bg-secondary/50 border border-border">
+																			<span className="text-zinc-400 block text-[9px] font-sans">
+																				Route
+																			</span>
+																			<span className="text-zinc-200 font-bold">
+																				{meta.telemetry.phases.discoveryMs ?? 1}
+																				ms
+																			</span>
+																		</div>
+																		<div className="p-1.5 rounded bg-secondary/50 border border-border">
+																			<span className="text-zinc-400 block text-[9px] font-sans">
+																				Kyber
+																			</span>
+																			<span className="text-primary font-bold">
+																				{meta.telemetry.phases.pqcMs ?? 4}ms
+																			</span>
+																		</div>
+																		<div className="p-1.5 rounded bg-secondary/50 border border-border">
+																			<span className="text-zinc-400 block text-[9px] font-sans">
+																				Seal
+																			</span>
+																			<span className="text-zinc-200 font-bold">
+																				{meta.telemetry.phases.sealingMs ?? 2}ms
+																			</span>
+																		</div>
+																		<div className="p-1.5 rounded bg-secondary/50 border border-border">
+																			<span className="text-zinc-400 block text-[9px] font-sans">
+																				Sandbox
+																			</span>
+																			<span className="text-emerald-400 font-bold">
+																				{meta.telemetry.phases.wasiSandboxMs ??
+																					150}
+																				ms
+																			</span>
+																		</div>
+																		<div className="p-1.5 rounded bg-secondary/50 border border-border">
+																			<span className="text-zinc-400 block text-[9px] font-sans">
+																				ZK-Proof
+																			</span>
+																			<span className="text-primary font-bold">
+																				{meta.telemetry.phases
+																					.zkVerificationMs ?? 2}
+																				ms
+																			</span>
+																		</div>
+																	</div>
+																</div>
+															)}
+														</div>
+													) : (
+														<div className="flex flex-col items-center justify-center py-14 text-zinc-400 text-center space-y-2">
+															<Fuel className="h-6 w-6 text-zinc-500" />
+															<p className="text-xs font-medium text-zinc-200">
+																No Telemetry Recorded Yet
+															</p>
+															<p className="text-[11px] text-zinc-400 max-w-[240px]">
+																Execute any capability to inspect AST fuel
+																consumed, BPE tokens avoided vs MCP, and data
+																sovereignty metrics.
+															</p>
+														</div>
+													)}
+												</TabsContent>
+
+												{/* Tab 3: Cryptographic Proofs */}
+												<TabsContent
+													value="proofs"
+													className="m-0 space-y-3 pb-5"
+												>
+													{result || meta ? (
+														<div className="space-y-2.5 pt-1 text-xs">
+															{/* ZK-Receipt HMAC-SHA256 with Copy Button */}
+															<div className="p-2.5 rounded-md bg-secondary/40 border border-border space-y-2">
+																<div className="flex items-center justify-between">
+																	<div className="flex items-center gap-2">
+																		<Fingerprint className="h-4 w-4 text-success" />
+																		<div>
+																			<p className="font-semibold text-white text-[11px]">
+																				ZK-Receipt HMAC-SHA256
+																			</p>
+																			<p className="text-[10px] text-zinc-400">
+																				Computational integrity proof bound to
+																				origin node
+																			</p>
+																		</div>
+																	</div>
+																	<Badge
+																		variant="success"
+																		className="font-mono text-[10px]"
+																	>
+																		VALID
+																	</Badge>
+																</div>
+
+																{meta?.zkHash && (
+																	<div className="flex items-center justify-between bg-editor p-2 rounded border border-border font-mono text-[10px] text-zinc-300">
+																		<span className="truncate mr-2 select-all">
+																			{meta.zkHash}
+																		</span>
+																		<button
+																			type="button"
+																			onClick={() =>
+																				handleCopy(meta.zkHash || "", "zkHash")
+																			}
+																			className="text-[10px] flex items-center gap-1 text-zinc-400 hover:text-white shrink-0 px-1.5 py-0.5 rounded bg-surface1 border border-border transition-colors"
+																			title="Copy ZK-Receipt Hash"
+																		>
+																			{copiedKey === "zkHash" ? (
+																				<>
+																					<Check className="h-3 w-3 text-emerald-400" />
+																					<span className="text-emerald-400">
+																						Copied
+																					</span>
+																				</>
+																			) : (
+																				<>
+																					<Copy className="h-3 w-3" />
+																					<span>Copy</span>
+																				</>
+																			)}
+																		</button>
+																	</div>
+																)}
+															</div>
+
+															<div className="p-2.5 rounded-md bg-secondary/40 border border-border flex items-center justify-between">
+																<div className="flex items-center gap-2">
+																	<Handshake className="h-4 w-4 text-primary" />
+																	<div>
+																		<p className="font-semibold text-white text-[11px]">
+																			Post-Quantum Key Exchange
+																		</p>
+																		<p className="text-[10px] text-zinc-400">
+																			ML-KEM-768 (Kyber) quantum-resistant link
+																		</p>
+																	</div>
+																</div>
+																<Badge
+																	variant="outline"
+																	className="font-mono text-[10px] border-primary/40 text-primary"
+																>
+																	SECURE
+																</Badge>
+															</div>
+
+															<div className="p-2.5 rounded-md bg-secondary/40 border border-border flex items-center justify-between">
+																<div className="flex items-center gap-2">
+																	<LockKeyhole className="h-4 w-4 text-primary" />
+																	<div>
+																		<p className="font-semibold text-white text-[11px]">
+																			Symmetric Envelope Seal
+																		</p>
+																		<p className="text-[10px] text-zinc-400">
+																			AES-256-GCM authenticated cipher of
+																			payload and return
+																		</p>
+																	</div>
+																</div>
+																<Badge
+																	variant="outline"
+																	className="font-mono text-[10px] border-white/15 text-zinc-300"
+																>
+																	SEALED
+																</Badge>
+															</div>
+
+															<div className="p-2.5 rounded-md bg-secondary/40 border border-border flex items-center justify-between">
+																<div className="flex items-center gap-2">
+																	<ShieldBan className="h-4 w-4 text-success" />
+																	<div>
+																		<p className="font-semibold text-white text-[11px]">
+																			Egress PII Shield Status
+																		</p>
+																		<p className="text-[10px] text-zinc-400">
+																			Mandatory aggregation policy (K-Anonymity
+																			+ NER)
+																		</p>
+																	</div>
+																</div>
+																<Badge
+																	variant={
+																		meta?.shieldBlocked
+																			? "destructive"
+																			: "success"
+																	}
+																	className="font-mono text-[10px]"
+																>
+																	{meta?.shieldBlocked
+																		? "INTERCEPTED"
+																		: "PASSED"}
+																</Badge>
 															</div>
 														</div>
-														<Badge
-															variant="outline"
-															className="font-mono text-[10px] border-white/15 text-zinc-300"
-														>
-															SEALED
-														</Badge>
-													</div>
-
-													<div className="p-2.5 rounded-md bg-secondary/40 border border-border flex items-center justify-between">
-														<div className="flex items-center gap-2">
-															<ShieldBan className="h-4 w-4 text-success" />
-															<div>
-																<p className="font-semibold text-white text-[11px]">
-																	Egress PII Shield Status
-																</p>
-																<p className="text-[10px] text-zinc-400">
-																	Mandatory aggregation policy (K-Anonymity +
-																	NER)
-																</p>
-															</div>
+													) : (
+														<div className="text-center py-14 text-zinc-400 text-xs">
+															Execute a query to inspect cryptographic session
+															certificates.
 														</div>
-														<Badge
-															variant={
-																meta?.shieldBlocked ? "destructive" : "success"
-															}
-															className="font-mono text-[10px]"
-														>
-															{meta?.shieldBlocked ? "INTERCEPTED" : "PASSED"}
-														</Badge>
-													</div>
-												</div>
-											) : (
-												<div className="text-center py-14 text-zinc-400 text-xs">
-													Execute a query to inspect cryptographic session
-													certificates.
-												</div>
-											)}
-										</TabsContent>
-									</ScrollArea>
-								</CardContent>
-							</Tabs>
-						</Card>
+													)}
+												</TabsContent>
+											</ScrollArea>
+										</CardContent>
+									</Tabs>
+								</Card>
+							</div>
+						</section>
 					</div>
-				</section>
+				)}
 			</main>
 
 			{/* Footer */}

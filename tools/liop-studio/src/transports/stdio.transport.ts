@@ -7,6 +7,7 @@ import {
 	calculateAstInstructionFuel,
 	TokenTelemetryEngine,
 } from "@nekzus/liop";
+import { NetworkDiscoveryEngine } from "../discovery/network-scanner.js";
 import { sanitizeCommand } from "../security/sanitizer.js";
 import type {
 	EnrichedTool,
@@ -49,37 +50,81 @@ export class StdioTransport implements StudioTransport {
 	public async connect(): Promise<void> {
 		if (this.isConnected()) return;
 
-		const safeCommand = sanitizeCommand(this.options.command);
+		let safeCommand = sanitizeCommand(this.options.command);
 		const safeArgs = this.options.args || [];
 
-		this.child = spawn(safeCommand, safeArgs, {
-			shell: false,
-			stdio: ["pipe", "pipe", "pipe"],
-			env: { ...process.env, ...this.options.env },
-			cwd: this.options.cwd || process.cwd(),
-		});
-
-		this.connected = true;
-
-		this.child.stdout?.setEncoding("utf-8");
-		this.child.stdout?.on("data", (chunk: string) => {
-			this.handleStdoutChunk(chunk);
-		});
-
-		this.child.stderr?.setEncoding("utf-8");
-		this.child.stderr?.on("data", (chunk: string) => {
-			process.stderr.write(`[LIOP-Studio Stdio STDERR] ${chunk}`);
-		});
-
-		this.child.on("exit", (code, signal) => {
-			this.connected = false;
-			const err = new Error(
-				`Subprocess exited with code ${code} (signal: ${signal})`,
-			);
-			for (const [, pending] of this.pendingRequests) {
-				pending.reject(err);
+		// Windows batch command extension resolution
+		if (
+			process.platform === "win32" &&
+			!safeCommand.toLowerCase().endsWith(".exe") &&
+			!safeCommand.toLowerCase().endsWith(".cmd") &&
+			!safeCommand.toLowerCase().endsWith(".bat")
+		) {
+			const baseName = safeCommand.toLowerCase();
+			if (
+				["npx", "npm", "pnpm", "yarn", "corepack", "liop"].includes(baseName)
+			) {
+				safeCommand = `${safeCommand}.cmd`;
 			}
-			this.pendingRequests.clear();
+		}
+
+		let spawnError: Error | null = null;
+
+		await new Promise<void>((resolve, reject) => {
+			try {
+				this.child = spawn(safeCommand, safeArgs, {
+					shell: false,
+					stdio: ["pipe", "pipe", "pipe"],
+					env: { ...process.env, ...this.options.env },
+					cwd: this.options.cwd || process.cwd(),
+				});
+
+				this.child.on("error", (err) => {
+					this.connected = false;
+					spawnError = err;
+					for (const [, pending] of this.pendingRequests) {
+						pending.reject(err);
+					}
+					this.pendingRequests.clear();
+					reject(
+						new Error(
+							`Failed to spawn stdio process '${safeCommand}': ${err.message}`,
+						),
+					);
+				});
+
+				this.child.stdout?.setEncoding("utf-8");
+				this.child.stdout?.on("data", (chunk: string) => {
+					this.handleStdoutChunk(chunk);
+				});
+
+				this.child.stderr?.setEncoding("utf-8");
+				this.child.stderr?.on("data", (chunk: string) => {
+					process.stderr.write(`[LIOP-Studio Stdio STDERR] ${chunk}`);
+				});
+
+				this.child.on("exit", (code, signal) => {
+					this.connected = false;
+					const err = new Error(
+						`Subprocess exited with code ${code} (signal: ${signal})`,
+					);
+					for (const [, pending] of this.pendingRequests) {
+						pending.reject(err);
+					}
+					this.pendingRequests.clear();
+				});
+
+				// Let child process spawn settle
+				setTimeout(() => {
+					if (!spawnError) {
+						this.connected = true;
+						resolve();
+					}
+				}, 50);
+			} catch (err: unknown) {
+				const errorMsg = err instanceof Error ? err.message : String(err);
+				reject(new Error(`Spawn invocation error: ${errorMsg}`));
+			}
 		});
 
 		// MCP Initial Handshake
@@ -111,6 +156,9 @@ export class StdioTransport implements StudioTransport {
 
 	public async scan(): Promise<ScanReport> {
 		const tStart = performance.now();
+		const discovery = NetworkDiscoveryEngine.getInstance();
+		const meshNodes = await discovery.scanNetwork("127.0.0.1").catch(() => []);
+
 		try {
 			if (!this.isConnected()) {
 				await this.connect();
@@ -127,6 +175,7 @@ export class StdioTransport implements StudioTransport {
 				serverInfo: this.serverInfo,
 				totalTools: tools.length,
 				tools,
+				nodes: meshNodes,
 				timestamp: new Date().toISOString(),
 			};
 		} catch (err) {
@@ -137,6 +186,7 @@ export class StdioTransport implements StudioTransport {
 				latencyMs: Math.round(performance.now() - tStart),
 				totalTools: 0,
 				tools: [],
+				nodes: meshNodes,
 				timestamp: new Date().toISOString(),
 				error: err instanceof Error ? err.message : String(err),
 			};

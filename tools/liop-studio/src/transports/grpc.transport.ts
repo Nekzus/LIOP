@@ -9,6 +9,7 @@ import {
 	LiopRpcClient,
 	TokenTelemetryEngine,
 } from "@nekzus/liop";
+import { NetworkDiscoveryEngine } from "../discovery/network-scanner.js";
 import type {
 	EnrichedTool,
 	ExecutionResult,
@@ -30,7 +31,6 @@ export class GrpcTransport implements StudioTransport {
 	private connected = false;
 	private target: string;
 	private token?: string;
-	private serverInfo?: { name: string; version: string };
 
 	constructor(options: GrpcTransportOptions) {
 		this.target = options.target.replace(/^grpc:\/\//, "");
@@ -44,10 +44,6 @@ export class GrpcTransport implements StudioTransport {
 	public async connect(): Promise<void> {
 		this.client = new LiopRpcClient(this.target, undefined, this.token);
 		this.connected = true;
-		this.serverInfo = {
-			name: `LIOP Native Node (${this.target})`,
-			version: "2.5.0",
-		};
 	}
 
 	public async disconnect(): Promise<void> {
@@ -57,6 +53,9 @@ export class GrpcTransport implements StudioTransport {
 
 	public async scan(): Promise<ScanReport> {
 		const tStart = performance.now();
+		const discovery = NetworkDiscoveryEngine.getInstance();
+		const host = this.target.split(":")[0] || "127.0.0.1";
+
 		try {
 			if (!this.client) {
 				await this.connect();
@@ -74,24 +73,56 @@ export class GrpcTransport implements StudioTransport {
 			});
 
 			const latencyMs = Math.max(1, Math.round(performance.now() - tStart));
-			const tools = this.resolveToolsForTarget();
 			const status = intentRes.accepted ? "online" : "degraded";
-			const nodes = this.resolveScannedNodesForTarget(latencyMs, status);
+
+			// Dynamic discovery of target node & tools
+			const targetDiscovery = await discovery.resolveNodeForGrpcTarget(
+				this.target,
+				latencyMs,
+				status,
+			);
+
+			// Dynamic discovery across the mesh network
+			const meshNodes = await discovery.scanNetwork(host);
+
+			// Ensure target node is present in the nodes list
+			const nodesMap = new Map<string, ScannedTargetNode>();
+			for (const mn of meshNodes) {
+				nodesMap.set(mn.id, mn);
+			}
+			nodesMap.set(targetDiscovery.node.id, {
+				...targetDiscovery.node,
+				status,
+				rttMs: latencyMs,
+			});
+			const nodes = Array.from(nodesMap.values()).sort((a, b) => {
+				if (a.tier !== b.tier) return a.tier - b.tier;
+				return a.rttMs - b.rttMs;
+			});
 
 			return {
 				targetType: "grpc",
 				targetAddress: this.target,
 				status,
 				latencyMs,
-				serverInfo: this.serverInfo,
-				totalTools: tools.length,
-				tools,
+				serverInfo: {
+					name: targetDiscovery.node.name,
+					version: targetDiscovery.node.version,
+				},
+				totalTools: targetDiscovery.tools.length,
+				tools: targetDiscovery.tools,
 				nodes,
 				timestamp: new Date().toISOString(),
 			};
 		} catch (err) {
 			const latencyMs = Math.round(performance.now() - tStart);
-			const nodes = this.resolveScannedNodesForTarget(latencyMs, "offline");
+			const targetDiscovery = await discovery.resolveNodeForGrpcTarget(
+				this.target,
+				latencyMs,
+				"offline",
+			);
+			const meshNodes = await discovery.scanNetwork(host);
+
 			return {
 				targetType: "grpc",
 				targetAddress: this.target,
@@ -99,223 +130,24 @@ export class GrpcTransport implements StudioTransport {
 				latencyMs,
 				totalTools: 0,
 				tools: [],
-				nodes,
+				nodes: meshNodes.length > 0 ? meshNodes : [targetDiscovery.node],
 				timestamp: new Date().toISOString(),
 				error: err instanceof Error ? err.message : String(err),
 			};
 		}
 	}
 
-	public resolveScannedNodesForTarget(
-		latencyMs: number,
-		status: "online" | "offline" | "degraded",
-	): ScannedTargetNode[] {
-		const targetStr = this.target;
-		if (targetStr.includes("15021") || targetStr.includes("bank")) {
-			return [
-				{
-					id: "bank",
-					name: "The Bank (Enclave)",
-					tier: 1,
-					tierLabel: "Tier 1: Sovereign Enclaves (In-Situ Origin)",
-					host: "127.0.0.1",
-					ports: { grpc: 15021, http: 15020 },
-					status,
-					rttMs: latencyMs,
-					peerId: "12D3KooWBankEnclave",
-					version: this.serverInfo?.version || "2.5.0",
-					tools: ["Analyze_Synthetic_Bank_Transactions"],
-					role: "Core Banking & Financial Settlement",
-					isolation: "pnet Swarm Key (PSK) + Differential Privacy",
-					dataset: "1,500 synthetic accounts ($148M balance)",
-				},
-			];
-		}
-		if (targetStr.includes("15011") || targetStr.includes("vault")) {
-			return [
-				{
-					id: "vault",
-					name: "The Vault (Enclave)",
-					tier: 1,
-					tierLabel: "Tier 1: Sovereign Enclaves (In-Situ Origin)",
-					host: "127.0.0.1",
-					ports: { grpc: 15011, http: 15010 },
-					status,
-					rttMs: latencyMs,
-					peerId: "12D3KooWVaultEnclave",
-					version: this.serverInfo?.version || "2.5.0",
-					tools: ["Analyze_Synthetic_Medical_Records"],
-					role: "Clinical Healthcare & EHR Records",
-					isolation: "pnet Swarm Key (PSK) + HIPAA Strict Mode",
-					dataset: "2,500 clinical EHR patient records",
-				},
-			];
-		}
-		if (targetStr.includes("15031") || targetStr.includes("oracle")) {
-			return [
-				{
-					id: "oracle",
-					name: "The Oracle (HFT)",
-					tier: 2,
-					tierLabel: "Tier 2: Consortium Routing & Gateways",
-					host: "127.0.0.1",
-					ports: { grpc: 15031, http: 15030 },
-					status,
-					rttMs: latencyMs,
-					peerId: "12D3KooWOracleNode",
-					version: this.serverInfo?.version || "2.5.0",
-					tools: ["Analyze_HFT_Market_Data"],
-					role: "Real-time High Frequency Trading Market Simulator",
-					isolation: "Consortium Node + 50ms Tick Streaming Buffer",
-					dataset: "8 Instruments + L2 Orderbook",
-				},
-			];
-		}
-		if (targetStr.includes("15041") || targetStr.includes("edge")) {
-			return [
-				{
-					id: "edge",
-					name: "Edge Industrial IoT",
-					tier: 3,
-					tierLabel: "Tier 3: Public Backbone & Client Edge",
-					host: "127.0.0.1",
-					ports: { grpc: 15041, http: 15040 },
-					status,
-					rttMs: latencyMs,
-					peerId: "12D3KooWEdgeNode",
-					version: this.serverInfo?.version || "2.5.0",
-					tools: ["Analyze_Edge_IoT_Telemetry"],
-					role: "Edge Telemetry & Hostile 3G WAN Industrial Node",
-					isolation: "WAN Jitter/Loss Resistant Client",
-					dataset: "Edge Telemetry Sensors (Pressure, RPM, Temp)",
-				},
-			];
-		}
-		if (targetStr.includes("15051") || targetStr.includes("blg")) {
-			return [
-				{
-					id: "blg",
-					name: "Border LIO Gateway (BLG)",
-					tier: 2,
-					tierLabel: "Tier 2: Consortium Routing & Gateways",
-					host: "127.0.0.1",
-					ports: { grpc: 15051, http: 15050 },
-					status,
-					rttMs: latencyMs,
-					peerId: "12D3KooWBLGGateway",
-					version: this.serverInfo?.version || "2.5.0",
-					tools: ["Inspect_Enclave_Perimeter"],
-					role: "Dual-NIC Perimeter Security Bridge (Tier 1 <-> Tier 2)",
-					isolation: "6-Layer Zero-Trust + AST Guardian + Egress Shield",
-				},
-			];
-		}
-
-		const parsedPort = Number(targetStr.split(":")[1]) || 13011;
-		return [
-			{
-				id: "custom-grpc",
-				name: this.serverInfo?.name || `gRPC Target (${this.target})`,
-				tier: 1,
-				tierLabel: "Tier 1: Sovereign Enclaves (In-Situ Origin)",
-				host: this.target.split(":")[0] || "127.0.0.1",
-				ports: { grpc: parsedPort, http: parsedPort - 1 },
-				status,
-				rttMs: latencyMs,
-				tools: ["Execute_WASI_Logic"],
-				version: this.serverInfo?.version || "2.5.0",
-				role: "Direct Native gRPC Compute Node",
-				isolation: "Native Sandbox Isolation",
-			},
-		];
-	}
-
-	public resolveToolsForTarget(): EnrichedTool[] {
-		const targetStr = this.target;
-		if (targetStr.includes("15021") || targetStr.includes("bank")) {
-			return [
-				{
-					name: "Analyze_Synthetic_Bank_Transactions",
-					description:
-						"Tier 1 Sovereign Enclave: Securely analyzes 1,500 synthetic financial accounts ($148M) via Logic-on-Origin under SOX/PCI-DSS DP rules.",
-					providerNode: "LIOP Bank Sovereign Enclave (127.0.0.1:15021)",
-					tier: 1,
-					domain: "Banking & Finance",
-					isLiopEnabled: true,
-				},
-			];
-		}
-		if (targetStr.includes("15011") || targetStr.includes("vault")) {
-			return [
-				{
-					name: "Analyze_Synthetic_Medical_Records",
-					description:
-						"Tier 1 Sovereign Enclave: Securely analyzes 2,500 EHR patient records under HIPAA Expert Determination privacy.",
-					providerNode: "LIOP Vault Sovereign Enclave (127.0.0.1:15011)",
-					tier: 1,
-					domain: "Clinical Healthcare",
-					isLiopEnabled: true,
-				},
-			];
-		}
-		if (targetStr.includes("15031") || targetStr.includes("oracle")) {
-			return [
-				{
-					name: "Analyze_HFT_Market_Data",
-					description:
-						"Tier 2 Consortium Node: Real-time high frequency trading market simulator (8 instruments + L2 orderbook).",
-					providerNode: "LIOP HFT Oracle Node (127.0.0.1:15031)",
-					tier: 2,
-					domain: "Financial Markets",
-					isLiopEnabled: true,
-				},
-			];
-		}
-		if (targetStr.includes("15041") || targetStr.includes("edge")) {
-			return [
-				{
-					name: "Analyze_Edge_IoT_Telemetry",
-					description:
-						"Tier 3 Edge Backbone: Industrial IoT sensor telemetry stream (Pressure, RPM, Temperature).",
-					providerNode: "LIOP Edge Industrial IoT (127.0.0.1:15041)",
-					tier: 3,
-					domain: "Industrial IoT",
-					isLiopEnabled: true,
-				},
-			];
-		}
-		if (targetStr.includes("15051") || targetStr.includes("blg")) {
-			return [
-				{
-					name: "Inspect_Enclave_Perimeter",
-					description:
-						"Tier 2 Perimeter Security: Inspects physical and cryptographic defense metrics of Tier 1 Enclaves.",
-					providerNode: "Border LIO Gateway (127.0.0.1:15051)",
-					tier: 2,
-					domain: "Perimeter Security",
-					isLiopEnabled: false,
-				},
-			];
-		}
-
-		return [
-			{
-				name: "Execute_WASI_Logic",
-				description:
-					"Direct gRPC streaming WASI micro-module execution on origin.",
-				providerNode: this.serverInfo?.name || "LIOP Native Node",
-				tier: 1,
-				domain: "Core Origin Execution",
-				isLiopEnabled: true,
-			},
-		];
-	}
-
 	public async listTools(): Promise<EnrichedTool[]> {
 		if (!this.isConnected()) {
 			await this.connect();
 		}
-		return this.resolveToolsForTarget();
+		const discovery = NetworkDiscoveryEngine.getInstance();
+		const resolved = await discovery.resolveNodeForGrpcTarget(
+			this.target,
+			50,
+			"online",
+		);
+		return resolved.tools;
 	}
 
 	public async callTool(

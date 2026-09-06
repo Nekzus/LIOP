@@ -7,6 +7,7 @@ import {
 	LiopClient,
 	TokenTelemetryEngine,
 } from "@nekzus/liop";
+import { NetworkDiscoveryEngine } from "../discovery/network-scanner.js";
 import type {
 	EnrichedTool,
 	ExecutionResult,
@@ -91,12 +92,17 @@ export class MeshTransport implements StudioTransport {
 			const _connections = clientAny.meshNode?.node?.getConnections?.() || [];
 			const latencyMs = Math.max(1, Math.round(performance.now() - tStart));
 
+			const discovery = NetworkDiscoveryEngine.getInstance();
+			const meshDiscovered = await discovery
+				.scanNetwork("127.0.0.1")
+				.catch(() => []);
+
 			const nodes: ScannedTargetNode[] = [
 				{
 					id: "mesh-client",
 					name: "Local Studio Mesh Node",
 					tier: 3,
-					tierLabel: "Tier 3: Client Edge",
+					tierLabel: "Tier 3: Public Backbone & Client Edge",
 					host: "127.0.0.1",
 					status: "online",
 					rttMs: 1,
@@ -106,6 +112,7 @@ export class MeshTransport implements StudioTransport {
 					role: "Studio Gateway & Inspector Node",
 					isolation: "WASI Client Isolate",
 				},
+				...meshDiscovered.filter((n) => n.id !== "mesh-client"),
 			];
 
 			// Query tools
@@ -126,6 +133,10 @@ export class MeshTransport implements StudioTransport {
 				timestamp: new Date().toISOString(),
 			};
 		} catch (err) {
+			const discovery = NetworkDiscoveryEngine.getInstance();
+			const meshDiscovered = await discovery
+				.scanNetwork("127.0.0.1")
+				.catch(() => []);
 			return {
 				targetType: "mesh",
 				targetAddress:
@@ -136,6 +147,7 @@ export class MeshTransport implements StudioTransport {
 				latencyMs: Math.round(performance.now() - tStart),
 				totalTools: 0,
 				tools: [],
+				nodes: meshDiscovered,
 				timestamp: new Date().toISOString(),
 				error: err instanceof Error ? err.message : String(err),
 			};

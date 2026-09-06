@@ -3,6 +3,7 @@
 
 export * from "./cli/scan.js";
 export * from "./cli/table-formatter.js";
+export * from "./discovery/network-scanner.js";
 export * from "./security/sanitizer.js";
 export * from "./server/index.js";
 export * from "./transports/index.js";

@@ -24,6 +24,53 @@ Estas directivas representan el ADN del protocolo y deben respetarse en cada imp
 5.  **Calidad Profesional Estricta**: Seguir siempre las mejores prácticas recomendadas por las documentaciones oficiales de las tecnologías implicadas (Rust, libp2p, gRPC, Node.js).
 6.  **[PRIORIDAD] TypeScript SDK First**: El SDK de TypeScript (`sdks/typescript` / `@nekzus/liop`) es el **motor principal de adopción** del protocolo. El ecosistema Node.js/TypeScript proyecta el mayor volumen de usuarios y ofrece la vía de implementación más accesible. Todo feature nuevo, bug fix o mejora arquitectónica DEBE implementarse, validarse y estabilizarse **primero en el SDK TypeScript** antes de replicarse al core Rust. La secuencia de desarrollo obligatoria es: `SDK TS → BiomeJS check → Tests Vitest → Publicación NPM → Port a Rust (cuando aplique)`.
 
+- **2026-09-06**: **Consola DJ de Soberanía ('The Sovereignty Command Deck'), Dual Persona UX y Especificación Técnica Fundamental v1.2-alpha (Fase 193)**.
+  - **Motivación**: Cumplir con la visión del usuario de diseñar una herramienta complementaria de cabecera que no solo demuestre el poderío del protocolo sino que "surfee sobre él", ofreciendo una consola interactiva estilo DJ profesional donde usuarios comunes e inversores puedan sentir el ritmo y el ahorro del protocolo sin complicaciones, manteniendo al mismo tiempo una estación de ingeniería hiperavanzada para desarrolladores y auditores.
+  - **Acciones Realizadas**:
+    1. **Especificación Técnica Fundamental y Manifiesto de Adopción Viral (`liop_studio_foundational_specification.md`)**:
+       - Rediseñado y publicado el documento normativo v1.2-alpha estructurando la tesis de "Surfear sobre el Protocolo".
+       - Formalizada la metáfora operativa de **The Sovereignty Command Deck**: Deck A (Legacy Context-Pulling) vs Deck B (LIOP In-Situ Injection), gobernados por el `SovereigntyCrossfader`.
+       - Definidos los controles análogos/digitales: Performance Cue Pads (disparo en 1 clic), medidores VU de 12 segmentos LED, medidor de pulso/BPM (QPS de red), y calculadora dinámica de ROI empresarial anual.
+       - Documentada la arquitectura Dual Persona UX (Showcase Launchpad vs Developer Studio) y los 7 pilares técnicos fundamentales.
+    2. **Componente de Consola DJ (`ui/src/components/SovereigntyCrossfader.tsx`)**:
+       - Construido componente con canal central de mezcla graduado en decibelios (`-∞` a `+6 dB`), fader táctil continuo y botones rápidos (`0% PULL`, `50/50`, `100% LIOP`).
+       - Implementado componente atómico `VuMeter` con 12 barras LED dinámicas (rojo/ámbar para exposición de PII en Deck A; verde esmeralda para tráfico mínimo sellado en Deck B).
+       - Creados los 4 **Performance Cue Pads** de lanzamiento instantáneo con retroiluminación y estado de enclave: Banking ($148M en 1,500 cuentas), Healthcare (2,500 pacientes bajo HIPAA), HFT Market Oracle (VWAP L2) y PII Exfiltration Trap (defensa activa de Egress Shield).
+       - Incorporada la calculadora interactiva de ROI proyectando el ahorro financiero anual en dólares frente a la facturación de tokens de LLMs tradicionales.
+    3. **Orquestación Dual Persona en Interfaz Principal (`ui/src/App.tsx`)**:
+       - Creado conmutador maestro en el header: `[ 🎚️ DJ Launchpad ]` ↔ `[ ⚡ Dev Studio ]` con píldora animada `framer-motion`.
+       - En modo *DJ Launchpad*, despliega la consola DJ y tarjetas de resultados amigables sin fricción sintáctica.
+       - En modo *Dev Studio*, preserva el editor WASI `@LIOP`, árbol AST, escáner topológico Server Scan y paneles criptográficos.
+       - Implementado `handleRunDemoScenario` para conmutar dinámicamente plantillas y nodos objetivo, disparando la ejecución en vivo en menos de 150 ms.
+    4. **Certificación Integral y Verificación Visual**:
+       - 100% BiomeJS compliance en los 28 archivos del paquete (`0 errors, 0 warnings`).
+       - Vitest: 20 de 20 tests aprobados al 100% en 4.17s (`tests/discovery.test.ts` y `tests/transports.test.ts`).
+       - Compilación de producción en Vite (bundle JS de 484 KB) y tsup (ESM + DTS en 3.9s).
+       - Verificación visual completa mediante browser subagent en `http://127.0.0.1:16001`, registrando capturas de ambas vistas y grabación de sesión (`studio_dj_deck_1788714876540.webp`).
+  - **Resultado**: LIOP Studio opera como una consola DJ de soberanía de alta fidelidad, permitiendo a cualquier perfil surfear sobre el protocolo y entender su impacto económico y de privacidad en 10 segundos.
+
+- **2026-09-06**: **Motor Dinámico de Descubrimiento de Red y Ergonomía de Vanguardia con Skill Impeccable (Fase 192)**.
+  - **Motivación**: Erradicar el hardcoding de servidores y puertos, reemplazar la barra sobrecargada de plantillas bloqueadas con candados por un selector dinámico que presente estrictamente las capacidades soportadas por el nodo objetivo activo, y permitir el descubrimiento empírico y la conmutación interactiva directa entre nodos de la malla en un solo clic.
+  - **Acciones Realizadas**:
+    1. **Motor Dinámico de Descubrimiento de Red (`src/discovery/network-scanner.ts`)**:
+       - Creada la clase singleton `NetworkDiscoveryEngine` que sondea activamente los endpoints `/health` (con `Accept: application/json`) y `/mcp` (`tools/list`) en la red.
+       - Extrae la identidad real del nodo (`node.name`, `node.version`), topología (`topology.tier`, `transportCapabilities`), llaves de red (`mesh.peerId`, `multiaddrs`), herramientas expuestas en origen y latencia RTT medida en tiempo real.
+       - Implementado `scanNetwork(host)` con resolución concurrente mediante `Promise.allSettled`, ordenando automáticamente los nodos descubiertos por Tier (1 -> 2 -> 3) y latencia.
+    2. **Desacoplamiento de Transportes y Población Homogénea de Topología (`src/transports/`)**:
+       - Refactorizado `GrpcTransport` para delegar la resolución de nodos y herramientas al motor dinámico, eliminando métodos auxiliares con bifurcaciones de puertos estáticas.
+       - Actualizados `HttpTransport.scan()` y `MeshTransport.scan()` para invocar `NetworkDiscoveryEngine.scanNetwork(host)` y retornar la lista completa de nodos vivos en el reporte de escaneo independientemente del protocolo de transporte activo.
+    3. **Ergonomía de Interfaz Visual Impeccable (Modo Operate & Distill) (`ui/src/App.tsx`)**:
+       - **Selector Dinámico Sin Candados**: Reemplazado el mapeo estático previo por `availableTemplates`, renderizando exclusivamente las plantillas correspondientes a herramientas expuestas en el servidor conectado. Cero iconos de candado `LockKeyhole`, cero fondos ámbar y cero opciones inactivas que saturen visualmente la interfaz.
+       - **Generación Automática de Plantillas `@LIOP` In-Situ**: Para herramientas descubiertas dinámicamente que no cuenten con plantilla canónica predefinida, el sistema genera automáticamente un sobre `@LIOP{wasi_v1, Target}` reactivo con lógica de agregación en origen.
+       - **Conmutación Interactiva de Target en un Clic**: En la vista de `Server Scan`, los nodos no activos disponen de un botón `Connect` directo. Los botones de herramientas (`+ {tool}`) conmutan el target de transporte automáticamente (`handleSwitchTarget`) hacia el nodo anfitrión y cargan la plantilla correspondiente.
+       - **Eliminación de Banners Redundantes**: Descartado el mensaje de incompatibilidad para el flujo normal y sustituido por una guarda sobria y técnica aplicable únicamente ante desalineaciones manuales forzadas.
+    4. **Certificación y Cobertura de Pruebas**:
+       - Creada suite unitaria `tests/discovery.test.ts` validando el singleton, resolución de perfiles por puerto gRPC, fallback elástico para targets personalizados y ordenamiento por capas.
+       - Aprobados los 20 tests al 100% en Vitest (`2 passed (2)`, `20 passed (20)`).
+       - Certificación BiomeJS: 27 archivos verificados sin errores ni advertencias (`0 errors, 0 warnings`).
+       - Compilación de producción exitosa en Vite y tsup (ESM + DTS en 4.1s).
+  - **Resultado**: LIOP Studio detecta autónomamente la topología viva de la red, presenta interfaces limpias de alta densidad libres de opciones bloqueadas y permite conmutar dinámicamente entre enclaves soberanos con un solo clic.
+
 - **2026-09-05**: **Descubrimiento Dinámico de Servidor por IP y Guardarraíl Preventivo de Capacidades Incompatibles (Fase 191)**.
   - **Motivación**: Cumplir con la directiva del usuario de reflejar dinámicamente en la interfaz de LIOP Studio la información completa del nodo conectado a la IP/puerto activo (tarjetas por capa, puertos seguros, dataset, RTT y estado) y bloquear/descartar en tiempo real la ejecución de cualquier lógica o plantilla no disponible en ese escaneo de red.
   - **Acciones Realizadas**:
