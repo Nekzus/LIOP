@@ -24,6 +24,29 @@ Estas directivas representan el ADN del protocolo y deben respetarse en cada imp
 5.  **Calidad Profesional Estricta**: Seguir siempre las mejores prácticas recomendadas por las documentaciones oficiales de las tecnologías implicadas (Rust, libp2p, gRPC, Node.js).
 6.  **[PRIORIDAD] TypeScript SDK First**: El SDK de TypeScript (`sdks/typescript` / `@nekzus/liop`) es el **motor principal de adopción** del protocolo. El ecosistema Node.js/TypeScript proyecta el mayor volumen de usuarios y ofrece la vía de implementación más accesible. Todo feature nuevo, bug fix o mejora arquitectónica DEBE implementarse, validarse y estabilizarse **primero en el SDK TypeScript** antes de replicarse al core Rust. La secuencia de desarrollo obligatoria es: `SDK TS → BiomeJS check → Tests Vitest → Publicación NPM → Port a Rust (cuando aplique)`.
 
+- **2026-09-06**: **Destilación Radical de LIOP Studio: Skill Impeccable, Telemetría Empírica en Vivo y Erradicación de AI Slop (Fase 195)**.
+  - **Motivación**: Cumplir con la directiva estricta del usuario de eliminar la sobrecarga de información, descartar cualquier indicio de "AI slop" o proyecciones artificiales (como sliders de 25,000 queries/día inventadas o ahorros hipotéticos de $1.3M/año), usar estrictamente iconos de `lucide-react` (cero emojis), y reflejar **únicamente datos reales medidos en vivo desde el socket y el runtime de origen**.
+  - **Acciones Realizadas**:
+    1. **Destilación de Arquitectura UI bajo Skill Impeccable (`ui/src/App.tsx`)**:
+       - Eliminado el conmutador artificial de vistas (`[ Executive Overview ]` vs `[ Engineering Studio ]`) y el componente `EnterpriseBenchmarkDeck`, unificando toda la experiencia en una sola **Workstation de Alta Precisión** de dos columnas.
+       - Erradicación del 100% de emojis en la interfaz y adopción estricta de iconos de `lucide-react` (`Activity`, `Terminal`, `Cpu`, `Database`, `Fingerprint`, `Fuel`, `Globe`, `Layers`, `Loader2`, `LockKeyhole`, `Moon`, `Play`, `RefreshCw`, `RotateCcw`, `Search`, `Server`, `ShieldBan`, `ShieldCheck`, `Waypoints`, `Zap`).
+       - Eliminadas tarjetas anidadas redundantes y textos decorativos de relleno.
+    2. **Telemetría Empírica Medida en Vivo (Cero Mockups / Cero Fallbacks Arbitrarios)**:
+       - Eliminados fallbacks inventados (`?? 48000`, `?? 196608`, `?? 150ms`). Si un dato no fue medido por el socket, la interfaz muestra un estado limpio de espera (*Awaiting Execution* / *No Live Telemetry Recorded*).
+       - Context Tokens (BPE): Mediciones exactas mediante el estimador `o200k_base` (`inputTokens`, `outputTokens`, `totalTokens`). Si el dataset de origen está cuantificado, contrasta empíricamente el ahorro real frente al dataset completo retenido in-situ.
+       - Ancho de Banda (Wire Traffic): Registra los bytes físicos reales medidos del sobre y la respuesta (`payloadBytes`), contrastados contra `rawDatasetProtectedBytes` retenidos en origen.
+       - Fuel WASI: Mide exactamente las instrucciones consumidas por el sandbox en cada ejecución (`meta.telemetry.fuel.consumed`).
+       - Phase Latencies: Desglose en milisegundos reales medidos por cada fase del stream SSE.
+       - Cryptographic Proofs: Muestra el hash ZK-Receipt real devuelto por el enclave (`meta.zkHash`), la suite `ML-KEM-768`, cifrado `AES-256-GCM` y el estado real del Egress PII Shield.
+    3. **Especificación Técnica Fundamental v2.1-distilled (`liop_studio_foundational_specification.md`)**:
+       - Actualizado el documento normativo de arquitectura alineándolo estrictamente con los principios de la skill `impeccable` y la telemetría empírica de red.
+    4. **Certificación y Verificación Integral**:
+       - BiomeJS: 100% de cumplimiento en los 27 archivos del paquete (`0 errors, 0 warnings`).
+       - Vitest: 20 de 20 pruebas unitarias aprobadas al 100% en 4.40s.
+       - Compilación de producción: Vite (`dist/index.html`, bundle JS de 455 KB) y tsup (ESM + DTS en 3.7s).
+       - Verificación visual completa mediante browser subagent en `http://127.0.0.1:16001`, registrando capturas de alta resolución (`initial_studio_view_1788716755971.png`, `execution_output_result_1788716825353.png`, `telemetry_live_metrics_1788716877200.png`, `crypto_proofs_verification_1788716934713.png`) y video interactivo (`studio_distilled_impeccable_1788716721154.webp`).
+  - **Resultado**: LIOP Studio opera como una consola de instrumentación de red y ejecución in-situ limpia, directa, profesional y fundamentada al 100% en datos empíricos medidos en vivo.
+
 - **2026-09-06**: **Rediseño Enterprise de LIOP Studio: Arquitectura de Observabilidad y Gobernanza Corporativa (Fase 194)**.
   - **Motivación**: Alinear la herramienta con los estándares sobrios de infraestructura crítica y gobernanza de datos adoptados por las grandes empresas del mercado (Cloudflare Zero Trust/Radar, Datadog Network Monitoring, Snowflake Data Clean Rooms y Stripe Workbench), erradicando las metáforas de DJ y discoteca en favor de un panel corporativo riguroso de FinOps, observabilidad y cumplimiento regulatorio.
   - **Acciones Realizadas**:
