@@ -233,14 +233,37 @@ export class NetworkDiscoveryEngine {
 					isolation: profile.isolation,
 					dataset: profile.dataset,
 				});
+			} else {
+				// Node is strictly offline
+				results.push({
+					id: profile.id,
+					name: profile.defaultName,
+					tier: profile.tier,
+					tierLabel: profile.tierLabel,
+					host,
+					ports: {
+						http: profile.httpPort,
+						grpc: profile.grpcPort,
+					},
+					status: "offline",
+					rttMs: 0,
+					peerId: `peer-${profile.id}`,
+					multiaddrs: [],
+					version: "2.5.0",
+					tools: [],
+					role: profile.role,
+					isolation: profile.isolation,
+					dataset: profile.dataset,
+				});
 			}
 		});
 
 		await Promise.allSettled(probePromises);
 
-		// Sort by Tier (1 -> 2 -> 3) and RTT
+		// Sort by Tier (1 -> 2 -> 3) and online status, then RTT
 		return results.sort((a, b) => {
 			if (a.tier !== b.tier) return a.tier - b.tier;
+			if (a.status !== b.status) return a.status === "online" ? -1 : 1;
 			return a.rttMs - b.rttMs;
 		});
 	}
@@ -267,16 +290,20 @@ export class NetworkDiscoveryEngine {
 
 		if (matchedProfile) {
 			const probe = await this.probeHttpNode(host, matchedProfile.httpPort);
+			const isOnline =
+				status === "online" ||
+				(Boolean(probe?.tools) && (probe?.tools?.length ?? 0) > 0);
 			const nodeName =
 				probe?.name?.replace("PRODUCTION-", "").replace(/-/g, " ") ||
 				matchedProfile.defaultName;
 
-			const tools =
-				probe?.tools && probe.tools.length > 0
+			const tools = isOnline
+				? probe?.tools && probe.tools.length > 0
 					? probe.tools
-					: matchedProfile.defaultTools || [];
-			const enriched =
-				probe?.enrichedTools && probe.enrichedTools.length > 0
+					: matchedProfile.defaultTools || []
+				: [];
+			const enriched = isOnline
+				? probe?.enrichedTools && probe.enrichedTools.length > 0
 					? probe.enrichedTools
 					: tools.map((t) => ({
 							name: t,
@@ -284,7 +311,8 @@ export class NetworkDiscoveryEngine {
 							providerNode: `${nodeName} (${targetAddress})`,
 							tier: (probe?.tier as 1 | 2 | 3) || matchedProfile.tier,
 							isLiopEnabled: true,
-						}));
+						}))
+				: [];
 
 			const node: ScannedTargetNode = {
 				id: matchedProfile.id,
@@ -296,8 +324,8 @@ export class NetworkDiscoveryEngine {
 					grpc: grpcPort,
 					http: matchedProfile.httpPort,
 				},
-				status,
-				rttMs: probe?.rttMs || latencyMs,
+				status: isOnline ? status : "offline",
+				rttMs: isOnline ? probe?.rttMs || latencyMs : 0,
 				peerId: probe?.peerId || `peer-${matchedProfile.id}`,
 				multiaddrs: probe?.multiaddrs || [],
 				version: probe?.version || "2.5.0",
@@ -319,8 +347,8 @@ export class NetworkDiscoveryEngine {
 			host,
 			ports: { grpc: grpcPort },
 			status,
-			rttMs: latencyMs,
-			tools: ["Execute_WASI_Logic"],
+			rttMs: status === "online" ? latencyMs : 0,
+			tools: status === "online" ? ["Execute_WASI_Logic"] : [],
 			version: "2.5.0",
 			role: "Direct Native gRPC Compute Node",
 			isolation: "Native Sandbox Isolation",
@@ -328,15 +356,18 @@ export class NetworkDiscoveryEngine {
 
 		return {
 			node: customNode,
-			tools: [
-				{
-					name: "Execute_WASI_Logic",
-					description: `Direct Logic-on-Origin compute execution on ${targetAddress}`,
-					providerNode: `gRPC Node (${targetAddress})`,
-					tier: 1,
-					isLiopEnabled: true,
-				},
-			],
+			tools:
+				status === "online"
+					? [
+							{
+								name: "Execute_WASI_Logic",
+								description: `Direct Logic-on-Origin compute execution on ${targetAddress}`,
+								providerNode: `gRPC Node (${targetAddress})`,
+								tier: 1,
+								isLiopEnabled: true,
+							},
+						]
+					: [],
 		};
 	}
 }

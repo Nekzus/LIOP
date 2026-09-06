@@ -117,12 +117,14 @@ export class HttpTransport implements StudioTransport {
 				timestamp: new Date().toISOString(),
 			};
 		} catch (err) {
+			this.connected = false;
+			this.cachedTools = [];
 			const nodes = await discovery.scanNetwork(host).catch(() => []);
 			return {
 				targetType: "http",
 				targetAddress: this.targetUrl,
 				status: "offline",
-				latencyMs: Math.round(performance.now() - tStart),
+				latencyMs: 0,
 				totalTools: 0,
 				tools: [],
 				nodes,
@@ -137,31 +139,38 @@ export class HttpTransport implements StudioTransport {
 			? this.targetUrl
 			: `${this.targetUrl}/mcp`;
 
-		const res = await this.postJsonRpc<{
-			tools?: Array<{
-				name: string;
-				description?: string;
-				inputSchema?: {
-					properties?: Record<string, unknown>;
-					[key: string]: unknown;
-				};
-			}>;
-		}>(mcpEndpoint, "tools/list", {});
-		const toolsRaw = Array.isArray(res?.tools) ? res.tools : [];
+		try {
+			const res = await this.postJsonRpc<{
+				tools?: Array<{
+					name: string;
+					description?: string;
+					inputSchema?: {
+						properties?: Record<string, unknown>;
+						[key: string]: unknown;
+					};
+				}>;
+			}>(mcpEndpoint, "tools/list", {});
+			const toolsRaw = Array.isArray(res?.tools) ? res.tools : [];
 
-		this.cachedTools = toolsRaw.map((t) => ({
-			name: t.name,
-			description: t.description || "",
-			inputSchema: t.inputSchema || {},
-			providerNode: this.serverInfo?.name || "Remote Server",
-			tier: 2,
-			isLiopEnabled:
-				t.description?.includes("@LIOP") ||
-				t.inputSchema?.properties?.payload !== undefined,
-			domain: "Remote HTTP",
-		}));
+			this.cachedTools = toolsRaw.map((t) => ({
+				name: t.name,
+				description: t.description || "",
+				inputSchema: t.inputSchema || {},
+				providerNode: this.serverInfo?.name || "Remote Server",
+				tier: 2,
+				isLiopEnabled:
+					t.description?.includes("@LIOP") ||
+					t.inputSchema?.properties?.payload !== undefined,
+				domain: "Remote HTTP",
+			}));
 
-		return this.cachedTools;
+			this.connected = true;
+			return this.cachedTools;
+		} catch {
+			this.connected = false;
+			this.cachedTools = [];
+			return [];
+		}
 	}
 
 	public async callTool(

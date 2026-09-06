@@ -72,11 +72,13 @@ export function createStudioServer(options: ServerOptions = {}) {
 
 	// Liveness & health
 	app.get("/health", (c) => {
+		const isConnected =
+			activeTransport.isConnected() && lastReport?.status === "online";
 		return c.json({
-			status: "healthy",
+			status: isConnected ? "healthy" : "offline",
 			version: "1.0.0",
 			targetType: activeConfig.type,
-			connected: activeTransport.isConnected(),
+			connected: isConnected,
 		});
 	});
 
@@ -84,11 +86,14 @@ export function createStudioServer(options: ServerOptions = {}) {
 		if (!lastReport) {
 			lastReport = await activeTransport.scan().catch(() => null);
 		}
+		const isConnected =
+			activeTransport.isConnected() && lastReport?.status === "online";
 		return c.json({
-			status: activeTransport.isConnected() ? "healthy" : "connecting",
+			status: isConnected ? "healthy" : "offline",
 			targetType: activeConfig.type,
-			toolsCount: lastReport?.totalTools || 0,
-			latencyMs: lastReport?.latencyMs || 0,
+			connected: isConnected,
+			toolsCount: isConnected ? lastReport?.totalTools || 0 : 0,
+			latencyMs: isConnected ? lastReport?.latencyMs || 0 : 0,
 			version: "1.0.0",
 			serverInfo: lastReport?.serverInfo,
 		});
@@ -107,11 +112,16 @@ export function createStudioServer(options: ServerOptions = {}) {
 
 			activeConfig = body;
 			activeTransport = createTransport(body);
-			await activeTransport.connect();
+			try {
+				await activeTransport.connect();
+			} catch {
+				// Failed connect handled in scan
+			}
 			lastReport = await activeTransport.scan();
 
 			return c.json({
-				success: true,
+				success:
+					activeTransport.isConnected() && lastReport.status === "online",
 				report: lastReport,
 			});
 		} catch (err: unknown) {
@@ -151,12 +161,13 @@ export function createStudioServer(options: ServerOptions = {}) {
 		const tier3Count = nodes.filter(
 			(n) => n.tier === 3 && n.status === "online",
 		).length;
+		const avgLatency = onlineNodes > 0 ? lastReport?.latencyMs || 0 : 0;
 		return c.json({
 			summary: {
 				totalNodes: nodes.length,
 				onlineNodes,
 				offlineNodes: nodes.length - onlineNodes,
-				avgLatencyMs: lastReport?.latencyMs || 0,
+				avgLatencyMs: avgLatency,
 				byTier: {
 					tier1: tier1Count,
 					tier2: tier2Count,

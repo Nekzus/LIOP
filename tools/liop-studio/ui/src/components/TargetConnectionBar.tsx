@@ -164,14 +164,20 @@ export const TargetConnectionBar: React.FC<TargetConnectionBarProps> = ({
 						{connected ? (
 							<span className="inline-flex rounded-full h-2 w-2 bg-emerald-500" />
 						) : (
-							<span className="inline-flex rounded-full h-2 w-2 bg-amber-500" />
+							<span className="inline-flex rounded-full h-2 w-2 bg-rose-500" />
 						)}
 					</span>
 					<span
-						className="font-mono text-[11px] text-zinc-300 truncate max-w-[200px]"
+						className={`font-mono text-[11px] truncate max-w-[220px] ${
+							connected ? "text-zinc-300" : "text-rose-400 font-medium"
+						}`}
 						title={activeConnectedTarget}
 					>
-						{activeConnectedTarget || "Ready to connect"}
+						{connected
+							? activeConnectedTarget || "Ready to connect"
+							: activeConnectedTarget
+								? `${activeConnectedTarget} (Offline)`
+								: "Target Offline"}
 					</span>
 				</div>
 			</div>

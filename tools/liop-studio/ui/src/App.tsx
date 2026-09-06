@@ -400,17 +400,12 @@ export default function App() {
 
 	// Dynamic topology stats (derived from live scan, fallback to health, zero hardcoding)
 	const totalNodes =
-		scanSummary?.totalNodes ??
-		network?.totalNodes ??
-		(nodes.length > 0 ? nodes.length : null);
+		scanSummary?.totalNodes ?? network?.totalNodes ?? nodes.length;
 	const onlineNodes =
 		scanSummary?.onlineNodes ??
 		network?.nodesOnline ??
-		(nodes.length > 0
-			? nodes.filter((n) => n.status === "online").length
-			: null);
-	const hasNodeStats =
-		totalNodes !== null && totalNodes > 0 && onlineNodes !== null;
+		nodes.filter((n) => n.status === "online").length;
+	const hasNodeStats = totalNodes > 0;
 
 	const [searchQuery, setSearchQuery] = useState("");
 	const [selectedTemplateId, setSelectedTemplateId] = useState(
@@ -805,8 +800,7 @@ return {
 	// Capability support verification against current target
 	const isToolSupported = useCallback(
 		(toolName?: string): boolean => {
-			if (!toolName) return false;
-			if (tools.length === 0) return true;
+			if (!toolName || tools.length === 0) return false;
 			const cleanTarget = toolName.toLowerCase().replace(/_/g, "");
 			return tools.some(
 				(t) =>
@@ -1277,15 +1271,27 @@ for line in response.iter_lines():
 						{/* Live Mesh Status Badge */}
 						<div className="flex items-center space-x-2 bg-secondary/80 border border-white/10 px-3 py-1 rounded-md text-xs">
 							<span className="relative flex h-2 w-2">
-								<span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-								<span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+								{onlineNodes > 0 ? (
+									<>
+										<span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+										<span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+									</>
+								) : (
+									<span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+								)}
 							</span>
-							<span className="text-white font-medium">
+							<span
+								className={`font-medium ${
+									onlineNodes > 0 ? "text-white" : "text-rose-400"
+								}`}
+							>
 								{hasNodeStats
-									? `${onlineNodes}/${totalNodes} Nodes Online`
+									? onlineNodes > 0
+										? `${onlineNodes}/${totalNodes} Nodes Online`
+										: "0 Nodes Online (Offline)"
 									: isScanning
 										? "Scanning Mesh Nodes..."
-										: "Discovering Topology..."}
+										: "Topology Offline"}
 							</span>
 							<span className="text-cyan-400 font-mono text-[10px] hidden sm:inline">
 								(3 Tiers)
@@ -1615,20 +1621,36 @@ for line in response.iter_lines():
 														</div>
 													) : (
 														tier1Nodes.map((n) => {
-															const isConnected = isConnectedToNode(n);
+															const isConnected =
+																isConnectedToNode(n) && n.status === "online";
+															const isOffline = n.status === "offline";
 															return (
 																<div
 																	key={n.id}
 																	className={`p-2.5 rounded-md border transition-all ${
-																		isConnected
-																			? "border-cyan-500/60 bg-tier1 ring-1 ring-cyan-500/30 shadow-sm"
-																			: "border-emerald-500/30 bg-tier1 hover:brightness-110"
+																		isOffline
+																			? "border-border/40 bg-surface1/20 opacity-60"
+																			: isConnected
+																				? "border-cyan-500/60 bg-tier1 ring-1 ring-cyan-500/30 shadow-sm"
+																				: "border-emerald-500/30 bg-tier1 hover:brightness-110"
 																	}`}
 																>
 																	<div className="flex items-center justify-between mb-1">
 																		<div className="flex items-center gap-1.5">
-																			<Database className="h-3 w-3 text-emerald-400" />
-																			<span className="text-xs font-semibold text-zinc-100">
+																			<Database
+																				className={`h-3 w-3 ${
+																					isOffline
+																						? "text-zinc-500"
+																						: "text-emerald-400"
+																				}`}
+																			/>
+																			<span
+																				className={`text-xs font-semibold ${
+																					isOffline
+																						? "text-zinc-400"
+																						: "text-zinc-100"
+																				}`}
+																			>
 																				{n.name}
 																			</span>
 																			{isConnected && (
@@ -1639,7 +1661,7 @@ for line in response.iter_lines():
 																			)}
 																		</div>
 																		<div className="flex items-center gap-1.5">
-																			{!isConnected && (
+																			{!isConnected && !isOffline && (
 																				<button
 																					type="button"
 																					onClick={() => {
@@ -1663,13 +1685,19 @@ for line in response.iter_lines():
 																			)}
 																			<span
 																				className={`inline-block h-1.5 w-1.5 rounded-full ${
-																					n.status === "online"
-																						? "bg-emerald-400"
-																						: "bg-red-400"
+																					isOffline
+																						? "bg-rose-500"
+																						: "bg-emerald-400"
 																				}`}
 																			></span>
-																			<span className="text-[10px] font-mono text-emerald-400">
-																				{n.rttMs}ms
+																			<span
+																				className={`text-[10px] font-mono ${
+																					isOffline
+																						? "text-zinc-500 font-medium"
+																						: "text-emerald-400"
+																				}`}
+																			>
+																				{isOffline ? "OFFLINE" : `${n.rttMs}ms`}
 																			</span>
 																		</div>
 																	</div>
@@ -1686,12 +1714,18 @@ for line in response.iter_lines():
 																					: "3000")}
 																		</span>
 																		{n.dataset && (
-																			<span className="text-emerald-300 text-[9px] truncate max-w-[180px]">
+																			<span
+																				className={`text-[9px] truncate max-w-[180px] ${
+																					isOffline
+																						? "text-zinc-500"
+																						: "text-emerald-300"
+																				}`}
+																			>
 																				{n.dataset}
 																			</span>
 																		)}
 																	</div>
-																	{n.tools.length > 0 && (
+																	{!isOffline && n.tools.length > 0 && (
 																		<div className="mt-1.5 flex flex-wrap gap-1">
 																			{n.tools.map((tool) => (
 																				<button
@@ -1756,20 +1790,36 @@ for line in response.iter_lines():
 														</div>
 													) : (
 														tier2Nodes.map((n) => {
-															const isConnected = isConnectedToNode(n);
+															const isConnected =
+																isConnectedToNode(n) && n.status === "online";
+															const isOffline = n.status === "offline";
 															return (
 																<div
 																	key={n.id}
 																	className={`p-2.5 rounded-md border transition-all ${
-																		isConnected
-																			? "border-cyan-500/60 bg-tier2 ring-1 ring-cyan-500/30 shadow-sm"
-																			: "border-cyan-500/30 bg-tier2 hover:brightness-110"
+																		isOffline
+																			? "border-border/40 bg-surface1/20 opacity-60"
+																			: isConnected
+																				? "border-cyan-500/60 bg-tier2 ring-1 ring-cyan-500/30 shadow-sm"
+																				: "border-cyan-500/30 bg-tier2 hover:brightness-110"
 																	}`}
 																>
 																	<div className="flex items-center justify-between mb-1">
 																		<div className="flex items-center gap-1.5">
-																			<Globe className="h-3 w-3 text-cyan-400" />
-																			<span className="text-xs font-semibold text-zinc-100">
+																			<Globe
+																				className={`h-3 w-3 ${
+																					isOffline
+																						? "text-zinc-500"
+																						: "text-cyan-400"
+																				}`}
+																			/>
+																			<span
+																				className={`text-xs font-semibold ${
+																					isOffline
+																						? "text-zinc-400"
+																						: "text-zinc-100"
+																				}`}
+																			>
 																				{n.name}
 																			</span>
 																			{isConnected && (
@@ -1780,7 +1830,7 @@ for line in response.iter_lines():
 																			)}
 																		</div>
 																		<div className="flex items-center gap-1.5">
-																			{!isConnected && (
+																			{!isConnected && !isOffline && (
 																				<button
 																					type="button"
 																					onClick={() => {
@@ -1804,13 +1854,19 @@ for line in response.iter_lines():
 																			)}
 																			<span
 																				className={`inline-block h-1.5 w-1.5 rounded-full ${
-																					n.status === "online"
-																						? "bg-cyan-400"
-																						: "bg-red-400"
+																					isOffline
+																						? "bg-rose-500"
+																						: "bg-cyan-400"
 																				}`}
 																			></span>
-																			<span className="text-[10px] font-mono text-cyan-400">
-																				{n.rttMs}ms
+																			<span
+																				className={`text-[10px] font-mono ${
+																					isOffline
+																						? "text-zinc-500 font-medium"
+																						: "text-cyan-400"
+																				}`}
+																			>
+																				{isOffline ? "OFFLINE" : `${n.rttMs}ms`}
 																			</span>
 																		</div>
 																	</div>
@@ -1826,12 +1882,18 @@ for line in response.iter_lines():
 																					? grpcTarget.split(":")[1] || "15031"
 																					: "3000")}
 																		</span>
-																		<span className="text-cyan-300 text-[9px]">
+																		<span
+																			className={`text-[9px] ${
+																				isOffline
+																					? "text-zinc-500"
+																					: "text-cyan-300"
+																			}`}
+																		>
 																			{n.isolation?.split("+")[0] ||
 																				"Consortium Node"}
 																		</span>
 																	</div>
-																	{n.tools.length > 0 && (
+																	{!isOffline && n.tools.length > 0 && (
 																		<div className="mt-1.5 flex flex-wrap gap-1">
 																			{n.tools.map((tool) => (
 																				<button
@@ -1896,20 +1958,36 @@ for line in response.iter_lines():
 														</div>
 													) : (
 														tier3Nodes.map((n) => {
-															const isConnected = isConnectedToNode(n);
+															const isConnected =
+																isConnectedToNode(n) && n.status === "online";
+															const isOffline = n.status === "offline";
 															return (
 																<div
 																	key={n.id}
 																	className={`p-2.5 rounded-md border transition-all ${
-																		isConnected
-																			? "border-cyan-500/60 bg-tier3 ring-1 ring-cyan-500/30 shadow-sm"
-																			: "border-purple-500/30 bg-tier3 hover:brightness-110"
+																		isOffline
+																			? "border-border/40 bg-surface1/20 opacity-60"
+																			: isConnected
+																				? "border-cyan-500/60 bg-tier3 ring-1 ring-cyan-500/30 shadow-sm"
+																				: "border-purple-500/30 bg-tier3 hover:brightness-110"
 																	}`}
 																>
 																	<div className="flex items-center justify-between mb-1">
 																		<div className="flex items-center gap-1.5">
-																			<Cpu className="h-3 w-3 text-purple-400" />
-																			<span className="text-xs font-semibold text-zinc-100">
+																			<Cpu
+																				className={`h-3 w-3 ${
+																					isOffline
+																						? "text-zinc-500"
+																						: "text-purple-400"
+																				}`}
+																			/>
+																			<span
+																				className={`text-xs font-semibold ${
+																					isOffline
+																						? "text-zinc-400"
+																						: "text-zinc-100"
+																				}`}
+																			>
 																				{n.name}
 																			</span>
 																			{isConnected && (
@@ -1920,7 +1998,7 @@ for line in response.iter_lines():
 																			)}
 																		</div>
 																		<div className="flex items-center gap-1.5">
-																			{!isConnected && (
+																			{!isConnected && !isOffline && (
 																				<button
 																					type="button"
 																					onClick={() => {
@@ -1944,13 +2022,19 @@ for line in response.iter_lines():
 																			)}
 																			<span
 																				className={`inline-block h-1.5 w-1.5 rounded-full ${
-																					n.status === "online"
-																						? "bg-purple-400"
-																						: "bg-red-400"
+																					isOffline
+																						? "bg-rose-500"
+																						: "bg-purple-400"
 																				}`}
 																			></span>
-																			<span className="text-[10px] font-mono text-purple-400">
-																				{n.rttMs}ms
+																			<span
+																				className={`text-[10px] font-mono ${
+																					isOffline
+																						? "text-zinc-500 font-medium"
+																						: "text-purple-400"
+																				}`}
+																			>
+																				{isOffline ? "OFFLINE" : `${n.rttMs}ms`}
 																			</span>
 																		</div>
 																	</div>
@@ -1966,13 +2050,19 @@ for line in response.iter_lines():
 																					? grpcTarget.split(":")[1] || "15041"
 																					: "3000")}
 																		</span>
-																		<span className="text-purple-300 text-[9px]">
+																		<span
+																			className={`text-[9px] ${
+																				isOffline
+																					? "text-zinc-500"
+																					: "text-purple-300"
+																			}`}
+																		>
 																			{n.id === "playground"
 																				? "Client Runner"
 																				: "IoT / WAN"}
 																		</span>
 																	</div>
-																	{n.tools.length > 0 && (
+																	{!isOffline && n.tools.length > 0 && (
 																		<div className="mt-1.5 flex flex-wrap gap-1">
 																			{n.tools.map((tool) => (
 																				<button
@@ -2036,52 +2126,68 @@ for line in response.iter_lines():
 										<span className="text-zinc-400">Peer ID:</span>
 										<div className="flex items-center gap-1.5">
 											<span
-												className="text-white font-mono text-[11px] truncate max-w-[140px]"
+												className={`font-mono text-[11px] truncate max-w-[140px] ${
+													onlineNodes > 0 ? "text-white" : "text-zinc-500"
+												}`}
 												title={network.peerId}
 											>
-												{network.peerId}
+												{onlineNodes > 0 ? network.peerId : "Disconnected"}
 											</span>
-											<button
-												type="button"
-												onClick={() => handleCopy(network.peerId, "peerId")}
-												className="text-zinc-400 hover:text-white transition-colors p-0.5 rounded"
-												title="Copy PeerID"
-											>
-												{copiedKey === "peerId" ? (
-													<Check className="h-3 w-3 text-success" />
-												) : (
-													<Copy className="h-3 w-3" />
-												)}
-											</button>
+											{onlineNodes > 0 && (
+												<button
+													type="button"
+													onClick={() => handleCopy(network.peerId, "peerId")}
+													className="text-zinc-400 hover:text-white transition-colors p-0.5 rounded"
+													title="Copy PeerID"
+												>
+													{copiedKey === "peerId" ? (
+														<Check className="h-3 w-3 text-success" />
+													) : (
+														<Copy className="h-3 w-3" />
+													)}
+												</button>
+											)}
 										</div>
 									</div>
 
 									<div className="flex items-center justify-between border-b border-border/50 pb-2">
 										<span className="text-zinc-400">Host Address:</span>
 										<div className="flex items-center gap-1.5">
-											<span className="text-white font-mono text-[11px]">
-												{network.address}
-											</span>
-											<button
-												type="button"
-												onClick={() => handleCopy(network.address, "address")}
-												className="text-zinc-400 hover:text-white transition-colors p-0.5 rounded"
-												title="Copy Host Address"
+											<span
+												className={`font-mono text-[11px] ${
+													onlineNodes > 0 ? "text-white" : "text-zinc-500"
+												}`}
 											>
-												{copiedKey === "address" ? (
-													<Check className="h-3 w-3 text-success" />
-												) : (
-													<Copy className="h-3 w-3" />
-												)}
-											</button>
+												{onlineNodes > 0 ? network.address : "Disconnected"}
+											</span>
+											{onlineNodes > 0 && (
+												<button
+													type="button"
+													onClick={() => handleCopy(network.address, "address")}
+													className="text-zinc-400 hover:text-white transition-colors p-0.5 rounded"
+													title="Copy Host Address"
+												>
+													{copiedKey === "address" ? (
+														<Check className="h-3 w-3 text-success" />
+													) : (
+														<Copy className="h-3 w-3" />
+													)}
+												</button>
+											)}
 										</div>
 									</div>
 
 									<div className="flex items-center justify-between border-b border-border/50 pb-2">
 										<span className="text-zinc-400">Mesh Topology:</span>
-										<span className="text-cyan-400 font-mono text-[11px]">
+										<span
+											className={`font-mono text-[11px] ${
+												onlineNodes > 0 ? "text-cyan-400" : "text-rose-400"
+											}`}
+										>
 											{hasNodeStats
-												? `${onlineNodes}/${totalNodes} Nodes (3 Tiers)`
+												? onlineNodes > 0
+													? `${onlineNodes}/${totalNodes} Nodes (3 Tiers)`
+													: "0 Nodes Online (Offline)"
 												: isScanning
 													? "Discovering Topology..."
 													: "Synchronizing Mesh..."}
@@ -2090,27 +2196,34 @@ for line in response.iter_lines():
 
 									<div className="flex items-center justify-between border-b border-border/50 pb-2">
 										<span className="text-zinc-400">Avg Mesh Latency:</span>
-										<span className="text-emerald-400 font-mono text-[11px]">
-											{scanSummary?.avgLatencyMs !== undefined &&
-											scanSummary.avgLatencyMs > 0
-												? `${scanSummary.avgLatencyMs} ms`
-												: nodes.some(
-															(n) => n.rttMs > 0 && n.status === "online",
-														)
-													? `${Math.round(
-															nodes
-																.filter(
-																	(n) => n.status === "online" && n.rttMs > 0,
-																)
-																.reduce((acc, curr) => acc + curr.rttMs, 0) /
-																Math.max(
-																	1,
-																	nodes.filter(
+										<span
+											className={`font-mono text-[11px] ${
+												onlineNodes > 0 ? "text-emerald-400" : "text-zinc-500"
+											}`}
+										>
+											{onlineNodes > 0
+												? scanSummary?.avgLatencyMs !== undefined &&
+													scanSummary.avgLatencyMs > 0
+													? `${scanSummary.avgLatencyMs} ms`
+													: nodes.some(
+																(n) => n.rttMs > 0 && n.status === "online",
+															)
+														? `${Math.round(
+																nodes
+																	.filter(
 																		(n) => n.status === "online" && n.rttMs > 0,
-																	).length,
-																),
-														)} ms`
-													: "Measuring..."}
+																	)
+																	.reduce((acc, curr) => acc + curr.rttMs, 0) /
+																	Math.max(
+																		1,
+																		nodes.filter(
+																			(n) =>
+																				n.status === "online" && n.rttMs > 0,
+																		).length,
+																	),
+															)} ms`
+														: "—"
+												: "—"}
 										</span>
 									</div>
 
@@ -2210,40 +2323,69 @@ for line in response.iter_lines():
 								{executionMode === "logic" &&
 									availableTemplates.length === 0 && (
 										<div className="text-[11px] text-zinc-400 font-mono px-2 py-1 bg-surface1/60 rounded border border-white/10">
-											Scanning target capabilities...
+											{network?.status === "healthy"
+												? "Scanning target capabilities..."
+												: "Target Offline (0 Capabilities)"}
 										</div>
 									)}
 							</CardHeader>
 
 							<CardContent className="space-y-3">
-								{/* Capability Mismatch Notice (Displayed only on manual mismatch) */}
-								{executionMode === "logic" && !isCurrentToolSupported && (
-									<div className="p-3 rounded-lg bg-red-950/30 border border-red-500/40 text-red-200 flex items-start gap-3 animate-in fade-in duration-200">
-										<ShieldBan className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
+								{/* Target Offline Notice */}
+								{executionMode === "logic" && tools.length === 0 && (
+									<div className="p-3 rounded-lg bg-rose-950/20 border border-rose-500/30 text-rose-200 flex items-start gap-3 animate-in fade-in duration-200">
+										<ShieldBan className="h-4 w-4 text-rose-400 shrink-0 mt-0.5" />
 										<div className="space-y-1">
 											<div className="flex items-center gap-2">
-												<h4 className="text-xs font-semibold text-red-300">
-													Target Mismatch
+												<h4 className="text-xs font-semibold text-rose-300">
+													Target Offline
 												</h4>
-												<span className="text-[9px] px-1 py-0.2 rounded bg-red-500/20 font-mono text-red-200 border border-red-500/30">
+												<span className="text-[9px] px-1 py-0.2 rounded bg-rose-500/20 font-mono text-rose-200 border border-rose-500/30">
 													ZERO-TRUST
 												</span>
 											</div>
 											<p className="text-[11px] text-zinc-300 leading-relaxed">
-												Active logic targets capability{" "}
-												<span className="font-mono text-cyan-300 font-semibold">
-													{currentTemplate?.tool || selectedToolName}
-												</span>
-												, not exposed by target{" "}
-												<span className="font-mono text-white">
+												Target endpoint{" "}
+												<span className="font-mono text-white font-medium">
 													{activeConnectedTarget}
-												</span>
-												. Execution paused to protect origin runtime.
+												</span>{" "}
+												is unreachable. Zero computational enclaves detected.
+												Connect to an active node or start your local mesh to
+												dispatch logic.
 											</p>
-											<div className="text-[10px] text-zinc-400 font-mono pt-0.5 flex items-center gap-1.5 flex-wrap">
-												<span>Available on target:</span>
-												{tools.length > 0 ? (
-													tools.map((avail) => (
+										</div>
+									</div>
+								)}
+
+								{/* Capability Mismatch Notice (Displayed only when target is online but capability is missing) */}
+								{executionMode === "logic" &&
+									tools.length > 0 &&
+									!isCurrentToolSupported && (
+										<div className="p-3 rounded-lg bg-red-950/30 border border-red-500/40 text-red-200 flex items-start gap-3 animate-in fade-in duration-200">
+											<ShieldBan className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
+											<div className="space-y-1">
+												<div className="flex items-center gap-2">
+													<h4 className="text-xs font-semibold text-red-300">
+														Target Mismatch
+													</h4>
+													<span className="text-[9px] px-1 py-0.2 rounded bg-red-500/20 font-mono text-red-200 border border-red-500/30">
+														ZERO-TRUST
+													</span>
+												</div>
+												<p className="text-[11px] text-zinc-300 leading-relaxed">
+													Active logic targets capability{" "}
+													<span className="font-mono text-cyan-300 font-semibold">
+														{currentTemplate?.tool || selectedToolName}
+													</span>
+													, not exposed by target{" "}
+													<span className="font-mono text-white">
+														{activeConnectedTarget}
+													</span>
+													. Execution paused to protect origin runtime.
+												</p>
+												<div className="text-[10px] text-zinc-400 font-mono pt-0.5 flex items-center gap-1.5 flex-wrap">
+													<span>Available on target:</span>
+													{tools.map((avail) => (
 														<button
 															key={avail.name}
 															type="button"
@@ -2252,14 +2394,11 @@ for line in response.iter_lines():
 														>
 															+ Switch to {avail.name}
 														</button>
-													))
-												) : (
-													<span className="text-amber-400">None detected</span>
-												)}
+													))}
+												</div>
 											</div>
 										</div>
-									</div>
-								)}
+									)}
 								{executionMode === "form" ? (
 									<DynamicToolForm
 										toolName={selectedToolName}
@@ -2439,10 +2578,12 @@ for line in response.iter_lines():
 										disabled={
 											isRunning ||
 											!selectedToolName ||
+											tools.length === 0 ||
 											!isCurrentToolSupported ||
 											(executionMode === "logic" && !astValidation.valid)
 										}
 										className={`h-9 px-6 font-bold tracking-wide shadow-md transition-all active:scale-[0.98] ${
+											tools.length === 0 ||
 											!isCurrentToolSupported ||
 											(executionMode === "logic" && !astValidation.valid)
 												? "opacity-60 cursor-not-allowed bg-zinc-800 hover:bg-zinc-800 text-zinc-400 border border-zinc-700"
@@ -2455,6 +2596,11 @@ for line in response.iter_lines():
 												{executionMode === "logic"
 													? "Injecting..."
 													: "Calling..."}
+											</>
+										) : tools.length === 0 ? (
+											<>
+												<ShieldBan className="mr-2 h-4 w-4 text-rose-400" />
+												Target Offline
 											</>
 										) : !isCurrentToolSupported ? (
 											<>

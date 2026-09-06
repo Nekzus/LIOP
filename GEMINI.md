@@ -24,6 +24,34 @@ Estas directivas representan el ADN del protocolo y deben respetarse en cada imp
 5.  **Calidad Profesional Estricta**: Seguir siempre las mejores prácticas recomendadas por las documentaciones oficiales de las tecnologías implicadas (Rust, libp2p, gRPC, Node.js).
 6.  **[PRIORIDAD] TypeScript SDK First**: El SDK de TypeScript (`sdks/typescript` / `@nekzus/liop`) es el **motor principal de adopción** del protocolo. El ecosistema Node.js/TypeScript proyecta el mayor volumen de usuarios y ofrece la vía de implementación más accesible. Todo feature nuevo, bug fix o mejora arquitectónica DEBE implementarse, validarse y estabilizarse **primero en el SDK TypeScript** antes de replicarse al core Rust. La secuencia de desarrollo obligatoria es: `SDK TS → BiomeJS check → Tests Vitest → Publicación NPM → Port a Rust (cuando aplique)`.
 
+- **2026-09-06**: **Sinceramiento Radical de Estado de Red: Erradicación de Fallbacks Mockeados y Transparencia Zero-Trust Offline (Fase 197)**.
+  - **Motivación**: Resolver la inconsistencia detectada por el usuario al apagar completamente Docker, donde la interfaz continuaba reportando indicadores verdes, herramientas activas y latencias ficticias de 1ms debido a fallbacks heredados en el motor de escaneo y asunciones erróneas de capacidades.
+  - **Acciones Realizadas**:
+    1. **Eliminación de Herramientas Mockeadas en Motor de Descubrimiento (`network-scanner.ts`)**:
+       - Erradicado el fallback estático a `matchedProfile.defaultTools` en `resolveNodeForGrpcTarget()`. Si el socket no responde o se encuentra offline, la lista de herramientas es estrictamente vacía (`tools: []`), RTT reporta `0` y `status` es estrictamente `"offline"`.
+       - Enriquecidos los nodos caídos en `scanNetwork()` con `status: "offline"`, `rttMs: 0` y `tools: []`.
+    2. **Validación de Socket Activo en Transportes (`grpc.transport.ts`, `http.transport.ts`)**:
+       - `GrpcTransport`: `listTools()` ahora ejecuta un probe activo mediante `negotiateIntent` contra el socket gRPC antes de retornar capacidades. Si el endpoint no responde o es inalcanzable, marca inmediatamente `this.connected = false` y retorna `[]`.
+       - `HttpTransport`: `scan()` y `listTools()` capturan fallos de red, resetean `connected = false`, `latencyMs = 0` y `cachedTools = []`.
+    3. **Endpoints de Servidor Sinceros (`server/index.ts`)**:
+       - `/health` y `/api/health`: Retornan `status: "offline"` y `connected: false` cuando el transporte activo no responde físicamente.
+       - `/api/nodes`: Si `onlineNodes === 0`, `avgLatencyMs` se calcula y reporta como `0` (nunca el tiempo de fallo de socket de 1ms).
+    4. **Sinceramiento Zero-Trust en UI (`App.tsx`, `TargetConnectionBar.tsx`)**:
+       - **Header Live Mesh Badge**: Si `onlineNodes === 0`, conmuta a punto rojo `bg-rose-500` fijo (sin animación ping) y etiqueta `0 Nodes Online (Offline)`.
+       - **Barra de Conexión**: Muestra punto rojo `bg-rose-500` y badge `(Offline)` junto a la URL/target inalcanzable.
+       - **Tarjetas de Servidores por Capa (Tier 1, 2, 3)**: Si el nodo está offline, adopta borde tenue (`border-border/40 bg-surface1/20 opacity-60`), bolita roja `bg-rose-500`, etiqueta `OFFLINE` en texto neutro, y suprime completamente los botones de herramientas inexistentes.
+       - **Local Mesh Client**: Conmuta `Peer ID` y `Host Address` a `Disconnected`, `Mesh Topology` a `0 Nodes Online (Offline)`, y `Avg Mesh Latency` a `—` (em dash en gris).
+       - **Zero-Trust Logic Studio & Botón Execute**:
+         - Corregido el bug crítico donde `isToolSupported` retornaba `true` ante `tools.length === 0`.
+         - Desplegada alerta de grado de seguridad `Target Offline [ZERO-TRUST]` indicando que el socket es inalcanzable.
+         - Botón de ejecución deshabilitado con `Target Offline` e icono `ShieldBan`.
+    5. **Certificación y Verificación Integral**:
+       - BiomeJS: 100% de cumplimiento en los 29 archivos (`0 errors, 0 warnings`).
+       - Vitest: 20 de 20 tests unitarios aprobados al 100% en 5.30s.
+       - Build de producción: Vite y tsup exitosos (ESM + DTS en 4.0s).
+       - Verificación visual completa mediante browser subagent en `http://127.0.0.1:16001`, certificando con capturas de alta resolución el estado offline fidedigno en cada componente.
+  - **Resultado**: LIOP Studio opera con transparencia y veracidad física absoluta; si Docker o la red están apagados, el sistema no inventa latencias ni capacidades, reflejando el estado offline con precisión quirúrgica.
+
 - **2026-09-06**: **LIOP Studio Developer Workbench: Inspector de Esquema, Exportador de Código Multilenguaje, Validador AST Reactivo y Consola de Depuración de 4 Pestañas (Fase 196)**.
   - **Motivación**: Convertir LIOP Studio en un entorno de desarrollo activo y de alta utilidad para ingenieros de software, respondiendo a la necesidad de inspeccionar qué campos existen en los datasets confidenciales en origen, depurar sintaxis y runtime WASI en vivo, y exportar la integración a código real en producción con 1 solo clic.
   - **Acciones Realizadas**:

@@ -115,10 +115,10 @@ export class GrpcTransport implements StudioTransport {
 				timestamp: new Date().toISOString(),
 			};
 		} catch (err) {
-			const latencyMs = Math.round(performance.now() - tStart);
+			this.connected = false;
 			const targetDiscovery = await discovery.resolveNodeForGrpcTarget(
 				this.target,
-				latencyMs,
+				0,
 				"offline",
 			);
 			const meshNodes = await discovery.scanNetwork(host);
@@ -127,7 +127,7 @@ export class GrpcTransport implements StudioTransport {
 				targetType: "grpc",
 				targetAddress: this.target,
 				status: "offline",
-				latencyMs,
+				latencyMs: 0,
 				totalTools: 0,
 				tools: [],
 				nodes: meshNodes.length > 0 ? meshNodes : [targetDiscovery.node],
@@ -138,16 +138,39 @@ export class GrpcTransport implements StudioTransport {
 	}
 
 	public async listTools(): Promise<EnrichedTool[]> {
-		if (!this.isConnected()) {
-			await this.connect();
+		if (!this.isConnected() || !this.client) {
+			try {
+				await this.connect();
+			} catch {
+				this.connected = false;
+				return [];
+			}
 		}
-		const discovery = NetworkDiscoveryEngine.getInstance();
-		const resolved = await discovery.resolveNodeForGrpcTarget(
-			this.target,
-			50,
-			"online",
-		);
-		return resolved.tools;
+
+		// Actively probe gRPC intent before returning capabilities
+		try {
+			if (!this.client) return [];
+			const intentRes = await this.client.negotiateIntent({
+				agent_did: "did:liop:studio-probe",
+				capability_hash: "liop:manifest",
+				proof_of_intent: Buffer.from("probe"),
+			});
+			if (!intentRes.accepted) {
+				this.connected = false;
+				return [];
+			}
+			this.connected = true;
+			const discovery = NetworkDiscoveryEngine.getInstance();
+			const resolved = await discovery.resolveNodeForGrpcTarget(
+				this.target,
+				50,
+				"online",
+			);
+			return resolved.tools;
+		} catch {
+			this.connected = false;
+			return [];
+		}
 	}
 
 	public async callTool(
