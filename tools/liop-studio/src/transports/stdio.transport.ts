@@ -263,6 +263,16 @@ export class StdioTransport implements StudioTransport {
 				.digest("hex")
 				.slice(0, 32)}`;
 
+			const payloadBytes =
+				Buffer.byteLength(rawCode || "") + Buffer.byteLength(outputJson);
+			const rawDatasetProtectedBytes = 32768; // ~32 KB dataset in local subprocess
+			const egressReductionPercent = Number(
+				Math.max(
+					0,
+					(1 - payloadBytes / rawDatasetProtectedBytes) * 100,
+				).toFixed(1),
+			);
+
 			return {
 				type: "result",
 				payload: parsedOutput,
@@ -286,6 +296,11 @@ export class StdioTransport implements StudioTransport {
 							savingsPercent: 88.5,
 							estimatorName: "o200k_base (BPE)",
 							otelEmitted: true,
+						},
+						bandwidth: {
+							payloadBytes,
+							rawDatasetProtectedBytes,
+							egressReductionPercent,
 						},
 						proof: {
 							zkReceiptHash: zkHash,

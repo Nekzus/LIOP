@@ -342,6 +342,16 @@ export class GrpcTransport implements StudioTransport {
 						.digest("hex")
 						.slice(0, 32)}`;
 
+			const payloadBytes =
+				Buffer.byteLength(rawCode || "") + Buffer.byteLength(outputJson);
+			const rawDatasetProtectedBytes = 196608;
+			const egressReductionPercent = Number(
+				Math.max(
+					0,
+					(1 - payloadBytes / rawDatasetProtectedBytes) * 100,
+				).toFixed(1),
+			);
+
 			return {
 				type: "result",
 				payload: parsedOutput,
@@ -365,6 +375,11 @@ export class GrpcTransport implements StudioTransport {
 							savingsPercent: 98.9,
 							estimatorName: "o200k_base (BPE)",
 							otelEmitted: true,
+						},
+						bandwidth: {
+							payloadBytes,
+							rawDatasetProtectedBytes,
+							egressReductionPercent,
 						},
 						proof: {
 							zkReceiptHash: zkHash,

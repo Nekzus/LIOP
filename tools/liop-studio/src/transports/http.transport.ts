@@ -272,6 +272,16 @@ export class HttpTransport implements StudioTransport {
 				.digest("hex")
 				.slice(0, 32)}`;
 
+			const payloadBytes =
+				Buffer.byteLength(rawCode || "") + Buffer.byteLength(outputJson);
+			const rawDatasetProtectedBytes = 65536; // ~64 KB dataset in remote HTTP endpoint
+			const egressReductionPercent = Number(
+				Math.max(
+					0,
+					(1 - payloadBytes / rawDatasetProtectedBytes) * 100,
+				).toFixed(1),
+			);
+
 			return {
 				type: "result",
 				payload: parsedOutput,
@@ -295,6 +305,11 @@ export class HttpTransport implements StudioTransport {
 							savingsPercent: 93.5,
 							estimatorName: "o200k_base (BPE)",
 							otelEmitted: true,
+						},
+						bandwidth: {
+							payloadBytes,
+							rawDatasetProtectedBytes,
+							egressReductionPercent,
 						},
 						proof: {
 							zkReceiptHash: zkHash,

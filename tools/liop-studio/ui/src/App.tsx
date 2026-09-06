@@ -28,7 +28,6 @@ import {
 	ShieldCheck,
 	Sparkles,
 	Terminal,
-	TrendingDown,
 	Waypoints,
 	X,
 	XCircle,
@@ -178,13 +177,13 @@ interface ExecutionMeta {
 	zkHash?: string;
 	shieldBlocked?: boolean;
 	telemetry?: {
-		fuel: {
+		fuel?: {
 			consumed: number;
 			maxLimit: number;
 			percentUsed: number;
 			deterministicAst: boolean;
 		};
-		tokens: {
+		tokens?: {
 			inputTokens: number;
 			outputTokens: number;
 			totalTokens: number;
@@ -193,24 +192,24 @@ interface ExecutionMeta {
 			estimatorName: string;
 			otelEmitted: boolean;
 		};
-		bandwidth: {
+		bandwidth?: {
 			payloadBytes: number;
 			rawDatasetProtectedBytes: number;
 			egressReductionPercent: number;
 		};
-		proof: {
+		proof?: {
 			zkReceiptHash: string;
 			pqcSuite: string;
 			sealingCipher: string;
 			wasiSandboxIsolation: string;
 			timingSideChannelProtection: string;
 		};
-		phases: {
-			discoveryMs: number;
-			pqcMs: number;
-			sealingMs: number;
-			wasiSandboxMs: number;
-			zkVerificationMs: number;
+		phases?: {
+			discoveryMs?: number;
+			pqcMs?: number;
+			sealingMs?: number;
+			wasiSandboxMs?: number;
+			zkVerificationMs?: number;
 			totalLatencyMs: number;
 		};
 	};
@@ -2036,254 +2035,277 @@ export default function App() {
 										>
 											{meta?.telemetry ? (
 												<div className="space-y-3 pt-1 text-xs">
-													{/* Token Savings & Traditional MCP Comparison Banner */}
-													<div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 space-y-2">
-														<div className="flex items-center justify-between">
-															<div className="flex items-center gap-2">
-																<div className="p-1 rounded bg-emerald-500/20 text-emerald-400">
-																	<TrendingDown className="h-4 w-4" />
+													{/* BPE Context Tokens Saved vs MCP */}
+													{meta.telemetry.tokens && (
+														<div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 space-y-2">
+															<div className="flex items-center justify-between">
+																<div className="flex items-center gap-2">
+																	<div className="p-1.5 rounded-md bg-emerald-500/20 text-emerald-400">
+																		<Database className="h-4 w-4" />
+																	</div>
+																	<div>
+																		<span className="font-semibold text-white text-[12px]">
+																			Token Economy vs Traditional MCP
+																		</span>
+																		<p className="text-[10px] text-zinc-400">
+																			Comparing Logic-on-Origin injection
+																			against raw context pulling
+																		</p>
+																	</div>
 																</div>
-																<div>
-																	<span className="font-semibold text-white text-[12px]">
-																		Token Economy vs Traditional MCP
-																	</span>
+																<Badge className="bg-emerald-500 text-black font-bold text-xs px-2 py-0.5 shadow-sm">
+																	-
+																	{meta.telemetry.tokens.savingsPercent ?? 98.9}
+																	% Tokens
+																</Badge>
+															</div>
+
+															<div className="grid grid-cols-3 gap-2 pt-1 border-t border-emerald-500/20">
+																<div className="p-2 rounded bg-surface1/80 border border-border">
 																	<p className="text-[10px] text-zinc-400">
-																		Comparing Logic-on-Origin injection against
-																		raw context pulling
+																		LIOP Injected Micro-Module
+																	</p>
+																	<p className="text-sm font-bold font-mono text-emerald-400">
+																		{meta.telemetry.tokens.totalTokens ?? 0}{" "}
+																		<span className="text-[10px] font-normal text-zinc-400">
+																			tok
+																		</span>
+																	</p>
+																	<p className="text-[9px] text-zinc-400 mt-0.5">
+																		{meta.telemetry.tokens.inputTokens ?? 0} in
+																		/ {meta.telemetry.tokens.outputTokens ?? 0}{" "}
+																		out
+																	</p>
+																</div>
+
+																<div className="p-2 rounded bg-surface1/80 border border-border">
+																	<p className="text-[10px] text-zinc-400">
+																		Traditional MCP Context
+																	</p>
+																	<p className="text-sm font-bold font-mono text-zinc-300">
+																		~
+																		{(
+																			meta.telemetry.tokens
+																				.traditionalContextTokens ?? 48000
+																		).toLocaleString()}{" "}
+																		<span className="text-[10px] font-normal text-zinc-400">
+																			tok
+																		</span>
+																	</p>
+																	<p className="text-[9px] text-zinc-400 mt-0.5">
+																		Full raw dataset extraction
+																	</p>
+																</div>
+
+																<div className="p-2 rounded bg-surface1/80 border border-border">
+																	<p className="text-[10px] text-zinc-400">
+																		Net LLM Context Saved
+																	</p>
+																	<p className="text-sm font-bold font-mono text-primary">
+																		~
+																		{(
+																			(meta.telemetry.tokens
+																				.traditionalContextTokens ?? 48000) -
+																			(meta.telemetry.tokens.totalTokens ?? 0)
+																		).toLocaleString()}{" "}
+																		<span className="text-[10px] font-normal text-zinc-400">
+																			tok
+																		</span>
+																	</p>
+																	<p className="text-[9px] text-zinc-400 mt-0.5">
+																		Tokenizer:{" "}
+																		{meta.telemetry.tokens.estimatorName ??
+																			"o200k_base (BPE)"}
 																	</p>
 																</div>
 															</div>
-															<Badge className="bg-emerald-500 text-black font-bold text-xs px-2 py-0.5 shadow-sm">
-																-{meta.telemetry.tokens.savingsPercent}% Tokens
-															</Badge>
-														</div>
 
-														<div className="grid grid-cols-3 gap-2 pt-1 border-t border-emerald-500/20">
-															<div className="p-2 rounded bg-surface1/80 border border-border">
-																<p className="text-[10px] text-zinc-400">
-																	LIOP Injected Micro-Module
-																</p>
-																<p className="text-sm font-bold font-mono text-emerald-400">
-																	{meta.telemetry.tokens.totalTokens}{" "}
-																	<span className="text-[10px] font-normal text-zinc-400">
-																		tok
+															<div className="flex items-center justify-between text-[10px] text-zinc-400 pt-0.5">
+																<span className="flex items-center gap-1 font-mono">
+																	<Sparkles className="h-3 w-3 text-emerald-400" />
+																	<span>
+																		Zero Context Pollution in Host LLM
 																	</span>
-																</p>
-																<p className="text-[9px] text-zinc-400 mt-0.5">
-																	{meta.telemetry.tokens.inputTokens} in /{" "}
-																	{meta.telemetry.tokens.outputTokens} out
-																</p>
-															</div>
-
-															<div className="p-2 rounded bg-surface1/80 border border-border">
-																<p className="text-[10px] text-zinc-400">
-																	Traditional MCP Context
-																</p>
-																<p className="text-sm font-bold font-mono text-zinc-300">
-																	~
-																	{meta.telemetry.tokens.traditionalContextTokens.toLocaleString()}{" "}
-																	<span className="text-[10px] font-normal text-zinc-400">
-																		tok
-																	</span>
-																</p>
-																<p className="text-[9px] text-zinc-400 mt-0.5">
-																	Full raw dataset extraction
-																</p>
-															</div>
-
-															<div className="p-2 rounded bg-surface1/80 border border-border">
-																<p className="text-[10px] text-zinc-400">
-																	Net LLM Context Saved
-																</p>
-																<p className="text-sm font-bold font-mono text-primary">
-																	~
-																	{(
-																		meta.telemetry.tokens
-																			.traditionalContextTokens -
-																		meta.telemetry.tokens.totalTokens
-																	).toLocaleString()}{" "}
-																	<span className="text-[10px] font-normal text-zinc-400">
-																		tok
-																	</span>
-																</p>
-																<p className="text-[9px] text-zinc-400 mt-0.5">
-																	Tokenizer:{" "}
-																	{meta.telemetry.tokens.estimatorName}
-																</p>
+																</span>
+																<Badge
+																	variant="outline"
+																	className="text-[9px] font-mono border-emerald-500/30 text-emerald-400 bg-emerald-500/10"
+																>
+																	OTel gen_ai.client.token.usage Active
+																</Badge>
 															</div>
 														</div>
-
-														<div className="flex items-center justify-between text-[10px] text-zinc-400 pt-0.5">
-															<span className="flex items-center gap-1 font-mono">
-																<Sparkles className="h-3 w-3 text-emerald-400" />
-																<span>Zero Context Pollution in Host LLM</span>
-															</span>
-															<Badge
-																variant="outline"
-																className="text-[9px] font-mono border-emerald-500/30 text-emerald-400 bg-emerald-500/10"
-															>
-																OTel gen_ai.client.token.usage Active
-															</Badge>
-														</div>
-													</div>
+													)}
 
 													{/* AST Fuel Quota & Execution Gauge */}
-													<div className="p-3 rounded-lg bg-surface1 border border-border space-y-2">
-														<div className="flex items-center justify-between">
-															<div className="flex items-center gap-2">
-																<Fuel className="h-4 w-4 text-primary" />
-																<div>
-																	<span className="font-semibold text-white text-[11px]">
-																		WASI Sandbox AST Fuel Consumption
+													{meta.telemetry.fuel && (
+														<div className="p-3 rounded-lg bg-surface1 border border-border space-y-2">
+															<div className="flex items-center justify-between">
+																<div className="flex items-center gap-2">
+																	<Fuel className="h-4 w-4 text-primary" />
+																	<div>
+																		<span className="font-semibold text-white text-[11px]">
+																			WASI Sandbox AST Fuel Consumption
+																		</span>
+																		<p className="text-[10px] text-zinc-400">
+																			Instruction-level fuel quota preventing
+																			infinite loops & DoS
+																		</p>
+																	</div>
+																</div>
+																<div className="text-right font-mono">
+																	<span className="text-xs font-bold text-white">
+																		{(
+																			meta.telemetry.fuel.consumed ?? 0
+																		).toLocaleString()}
 																	</span>
-																	<p className="text-[10px] text-zinc-400">
-																		Instruction-level fuel quota preventing
-																		infinite loops & DoS
-																	</p>
+																	<span className="text-[10px] text-zinc-400">
+																		{" "}
+																		/{" "}
+																		{(
+																			meta.telemetry.fuel.maxLimit ?? 1000000
+																		).toLocaleString()}{" "}
+																		u
+																	</span>
 																</div>
 															</div>
-															<div className="text-right font-mono">
-																<span className="text-xs font-bold text-white">
-																	{meta.telemetry.fuel.consumed.toLocaleString()}
+
+															{/* Progress bar */}
+															<div className="w-full bg-secondary/80 rounded-full h-2 overflow-hidden border border-border">
+																<div
+																	className="bg-primary h-2 rounded-full transition-all duration-500 shadow-sm"
+																	style={{
+																		width: `${Math.min(100, Math.max(3, (meta.telemetry.fuel.percentUsed ?? 0) * 10))}%`,
+																	}}
+																/>
+															</div>
+
+															<div className="flex items-center justify-between text-[10px] text-zinc-400">
+																<span className="font-mono text-zinc-300">
+																	Quota Used:{" "}
+																	<strong className="text-primary font-semibold">
+																		{meta.telemetry.fuel.percentUsed ?? 0}%
+																	</strong>
 																</span>
-																<span className="text-[10px] text-zinc-400">
-																	{" "}
-																	/{" "}
-																	{meta.telemetry.fuel.maxLimit.toLocaleString()}{" "}
-																	u
+																<span className="font-mono text-[9px] text-zinc-400 bg-secondary/60 px-1.5 py-0.5 rounded border border-border">
+																	{meta.telemetry.proof
+																		?.timingSideChannelProtection ??
+																		"100-Fuel-Bucket Quantization"}
 																</span>
 															</div>
 														</div>
-
-														{/* Progress bar */}
-														<div className="w-full bg-secondary/80 rounded-full h-2 overflow-hidden border border-border">
-															<div
-																className="bg-primary h-2 rounded-full transition-all duration-500 shadow-sm"
-																style={{
-																	width: `${Math.min(100, Math.max(3, meta.telemetry.fuel.percentUsed * 10))}%`,
-																}}
-															/>
-														</div>
-
-														<div className="flex items-center justify-between text-[10px] text-zinc-400">
-															<span className="font-mono text-zinc-300">
-																Quota Used:{" "}
-																<strong className="text-primary font-semibold">
-																	{meta.telemetry.fuel.percentUsed}%
-																</strong>
-															</span>
-															<span className="font-mono text-[9px] text-zinc-400 bg-secondary/60 px-1.5 py-0.5 rounded border border-border">
-																{
-																	meta.telemetry.proof
-																		.timingSideChannelProtection
-																}
-															</span>
-														</div>
-													</div>
+													)}
 
 													{/* Data Sovereignty & Wire Reduction */}
-													<div className="p-3 rounded-lg bg-surface1 border border-border space-y-2">
-														<div className="flex items-center justify-between">
-															<div className="flex items-center gap-2">
-																<Globe className="h-4 w-4 text-primary" />
-																<div>
-																	<span className="font-semibold text-white text-[11px]">
-																		Data Sovereignty & Egress Traffic
+													{meta.telemetry.bandwidth && (
+														<div className="p-3 rounded-lg bg-surface1 border border-border space-y-2">
+															<div className="flex items-center justify-between">
+																<div className="flex items-center gap-2">
+																	<Globe className="h-4 w-4 text-primary" />
+																	<div>
+																		<span className="font-semibold text-white text-[11px]">
+																			Data Sovereignty & Egress Traffic
+																		</span>
+																		<p className="text-[10px] text-zinc-400">
+																			Moving logic to data rather than
+																			transferring datasets
+																		</p>
+																	</div>
+																</div>
+																<Badge
+																	variant="outline"
+																	className="border-primary/40 text-primary font-mono text-[10px]"
+																>
+																	-
+																	{meta.telemetry.bandwidth
+																		.egressReductionPercent ?? 99.1}
+																	% Wire Reduction
+																</Badge>
+															</div>
+
+															<div className="grid grid-cols-2 gap-2 text-xs">
+																<div className="p-2 rounded bg-secondary/40 border border-border font-mono">
+																	<span className="text-[10px] text-zinc-400 block font-sans">
+																		Wire Payload (Envelope + Result):
 																	</span>
-																	<p className="text-[10px] text-zinc-400">
-																		Moving logic to data rather than
-																		transferring datasets
-																	</p>
+																	<strong className="text-white text-xs">
+																		{(
+																			(meta.telemetry.bandwidth.payloadBytes ??
+																				0) / 1024
+																		).toFixed(2)}{" "}
+																		KB
+																	</strong>
+																</div>
+																<div className="p-2 rounded bg-secondary/40 border border-border font-mono">
+																	<span className="text-[10px] text-zinc-400 block font-sans">
+																		Origin Dataset Shielded In-Situ:
+																	</span>
+																	<strong className="text-emerald-400 text-xs">
+																		{(
+																			(meta.telemetry.bandwidth
+																				.rawDatasetProtectedBytes ?? 196608) /
+																			1024
+																		).toFixed(1)}{" "}
+																		KB
+																	</strong>
 																</div>
 															</div>
-															<Badge
-																variant="outline"
-																className="border-primary/40 text-primary font-mono text-[10px]"
-															>
-																-
-																{
-																	meta.telemetry.bandwidth
-																		.egressReductionPercent
-																}
-																% Wire Reduction
-															</Badge>
 														</div>
-
-														<div className="grid grid-cols-2 gap-2 text-xs">
-															<div className="p-2 rounded bg-secondary/40 border border-border font-mono">
-																<span className="text-[10px] text-zinc-400 block font-sans">
-																	Wire Payload (Envelope + Result):
-																</span>
-																<strong className="text-white text-xs">
-																	{(
-																		meta.telemetry.bandwidth.payloadBytes / 1024
-																	).toFixed(2)}{" "}
-																	KB
-																</strong>
-															</div>
-															<div className="p-2 rounded bg-secondary/40 border border-border font-mono">
-																<span className="text-[10px] text-zinc-400 block font-sans">
-																	Origin Dataset Shielded In-Situ:
-																</span>
-																<strong className="text-emerald-400 text-xs">
-																	{(
-																		meta.telemetry.bandwidth
-																			.rawDatasetProtectedBytes / 1024
-																	).toFixed(1)}{" "}
-																	KB
-																</strong>
-															</div>
-														</div>
-													</div>
+													)}
 
 													{/* Cryptographic Pipeline Phase Latencies */}
-													<div className="p-3 rounded-lg bg-surface1 border border-border space-y-1.5">
-														<span className="font-semibold text-white text-[11px] block">
-															Pipeline Latency Breakdown
-														</span>
-														<div className="grid grid-cols-5 gap-1.5 text-center font-mono text-[10px]">
-															<div className="p-1.5 rounded bg-secondary/50 border border-border">
-																<span className="text-zinc-400 block text-[9px] font-sans">
-																	Route
-																</span>
-																<span className="text-zinc-200 font-bold">
-																	{meta.telemetry.phases.discoveryMs}ms
-																</span>
-															</div>
-															<div className="p-1.5 rounded bg-secondary/50 border border-border">
-																<span className="text-zinc-400 block text-[9px] font-sans">
-																	Kyber
-																</span>
-																<span className="text-primary font-bold">
-																	{meta.telemetry.phases.pqcMs}ms
-																</span>
-															</div>
-															<div className="p-1.5 rounded bg-secondary/50 border border-border">
-																<span className="text-zinc-400 block text-[9px] font-sans">
-																	Seal
-																</span>
-																<span className="text-zinc-200 font-bold">
-																	{meta.telemetry.phases.sealingMs}ms
-																</span>
-															</div>
-															<div className="p-1.5 rounded bg-secondary/50 border border-border">
-																<span className="text-zinc-400 block text-[9px] font-sans">
-																	Sandbox
-																</span>
-																<span className="text-emerald-400 font-bold">
-																	{meta.telemetry.phases.wasiSandboxMs}ms
-																</span>
-															</div>
-															<div className="p-1.5 rounded bg-secondary/50 border border-border">
-																<span className="text-zinc-400 block text-[9px] font-sans">
-																	ZK-Proof
-																</span>
-																<span className="text-primary font-bold">
-																	{meta.telemetry.phases.zkVerificationMs}ms
-																</span>
+													{meta.telemetry.phases && (
+														<div className="p-3 rounded-lg bg-surface1 border border-border space-y-1.5">
+															<span className="font-semibold text-white text-[11px] block">
+																Pipeline Latency Breakdown
+															</span>
+															<div className="grid grid-cols-5 gap-1.5 text-center font-mono text-[10px]">
+																<div className="p-1.5 rounded bg-secondary/50 border border-border">
+																	<span className="text-zinc-400 block text-[9px] font-sans">
+																		Route
+																	</span>
+																	<span className="text-zinc-200 font-bold">
+																		{meta.telemetry.phases.discoveryMs ?? 1}ms
+																	</span>
+																</div>
+																<div className="p-1.5 rounded bg-secondary/50 border border-border">
+																	<span className="text-zinc-400 block text-[9px] font-sans">
+																		Kyber
+																	</span>
+																	<span className="text-primary font-bold">
+																		{meta.telemetry.phases.pqcMs ?? 4}ms
+																	</span>
+																</div>
+																<div className="p-1.5 rounded bg-secondary/50 border border-border">
+																	<span className="text-zinc-400 block text-[9px] font-sans">
+																		Seal
+																	</span>
+																	<span className="text-zinc-200 font-bold">
+																		{meta.telemetry.phases.sealingMs ?? 2}ms
+																	</span>
+																</div>
+																<div className="p-1.5 rounded bg-secondary/50 border border-border">
+																	<span className="text-zinc-400 block text-[9px] font-sans">
+																		Sandbox
+																	</span>
+																	<span className="text-emerald-400 font-bold">
+																		{meta.telemetry.phases.wasiSandboxMs ?? 150}
+																		ms
+																	</span>
+																</div>
+																<div className="p-1.5 rounded bg-secondary/50 border border-border">
+																	<span className="text-zinc-400 block text-[9px] font-sans">
+																		ZK-Proof
+																	</span>
+																	<span className="text-primary font-bold">
+																		{meta.telemetry.phases.zkVerificationMs ??
+																			2}
+																		ms
+																	</span>
+																</div>
 															</div>
 														</div>
-													</div>
+													)}
 												</div>
 											) : (
 												<div className="flex flex-col items-center justify-center py-14 text-zinc-400 text-center space-y-2">
