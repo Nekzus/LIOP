@@ -3,7 +3,9 @@
 
 import crypto from "node:crypto";
 import {
+	AesGcmWrapper,
 	calculateAstInstructionFuel,
+	Kyber768Wrapper,
 	LiopRpcClient,
 	TokenTelemetryEngine,
 } from "@nekzus/liop";
@@ -188,6 +190,33 @@ export class GrpcTransport implements StudioTransport {
 				);
 			}
 
+			const rawPublicKey =
+				(intentRes as unknown as Record<string, unknown>).kyber_public_key ||
+				(intentRes as unknown as Record<string, unknown>).kyberPublicKey;
+			const sessionToken =
+				(intentRes as unknown as Record<string, unknown>).session_token ||
+				(intentRes as unknown as Record<string, unknown>).sessionToken ||
+				"";
+
+			let encryptedWasm: Uint8Array = Buffer.from(
+				rawCode || JSON.stringify(args),
+			);
+			let kyberCiphertext: Uint8Array = new Uint8Array(1088);
+			let aesNonce: Uint8Array = new Uint8Array(12);
+
+			if (rawPublicKey instanceof Uint8Array || Buffer.isBuffer(rawPublicKey)) {
+				const { ciphertext, sharedSecret } =
+					await Kyber768Wrapper.encapsulateAsymmetric(rawPublicKey);
+				kyberCiphertext = new Uint8Array(ciphertext);
+
+				const sealed = AesGcmWrapper.encryptPayload(
+					encryptedWasm,
+					sharedSecret,
+				);
+				encryptedWasm = new Uint8Array(sealed.ciphertext);
+				aesNonce = new Uint8Array(sealed.nonce);
+			}
+
 			if (onStep) {
 				await onStep(
 					"pqc",
@@ -216,11 +245,11 @@ export class GrpcTransport implements StudioTransport {
 				is_error: boolean;
 			}>((resolve, reject) => {
 				const stream = client.executeLogic({
-					session_token: intentRes.session_token,
-					wasm_binary: Buffer.from(rawCode || JSON.stringify(args)),
+					session_token: String(sessionToken),
+					wasm_binary: encryptedWasm,
 					inputs: {},
-					pqc_ciphertext: Buffer.alloc(1088),
-					aes_nonce: Buffer.alloc(12),
+					pqc_ciphertext: kyberCiphertext,
+					aes_nonce: aesNonce,
 				});
 
 				let fulfilled = false;
@@ -228,7 +257,17 @@ export class GrpcTransport implements StudioTransport {
 				stream.on("data", (chunk: any) => {
 					if (!fulfilled) {
 						fulfilled = true;
-						resolve(chunk);
+						resolve({
+							semantic_evidence:
+								chunk.semantic_evidence || chunk.semanticEvidence || "",
+							cryptographic_proof:
+								chunk.cryptographic_proof ||
+								chunk.cryptographicProof ||
+								new Uint8Array(),
+							zk_receipt:
+								chunk.zk_receipt || chunk.zkReceipt || new Uint8Array(),
+							is_error: Boolean(chunk.is_error ?? chunk.isError),
+						});
 					}
 				});
 				stream.on("error", (err: Error) => {

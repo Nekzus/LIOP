@@ -17,6 +17,7 @@ export * from "./observability/tracing.js";
 export * from "./prompts/adapters.js";
 export * from "./rpc/channel-options.js";
 export * from "./rpc/client.js";
+export * from "./rpc/crypto/aes.js";
 export * from "./rpc/crypto/dilithium.js";
 export * from "./rpc/crypto/kyber.js";
 export * from "./rpc/server.js";
