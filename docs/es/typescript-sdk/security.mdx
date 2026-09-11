@@ -515,6 +515,94 @@ Para neutralizar ataques de agotamiento de CPU por bucles ocultos y eliminar can
 
 ---
 
+## Control Estático de Flujo de Información (`TaintAnalyzer`)
+
+La Capa 3 del modelo de defensa en profundidad de LIOP implementa **Control de Flujo de Información Estático (IFC)** mediante la clase `TaintAnalyzer`. Construido sobre el analizador sintáctico Acorn ESTree y `acorn-walk`, inspecciona la lógica JavaScript inyectada dentro del sobre `@LIOP{...}` *antes* de la compilación a bytecode o la ejecución en el isolate.
+
+```typescript
+import { TaintAnalyzer } from "@nekzus/liop";
+
+const analyzer = new TaintAnalyzer(
+  ["ssn", "credit_card", "email", "password", "medical_record"], // PII prohibida
+  ["salary", "account_balance"]                                    // Claves sensibles
+);
+
+const violation = analyzer.analyze(sourceCode, recordCount, 50);
+if (violation) {
+  throw new Error(`Ejecución rechazada por Capa 3 IFC: ${violation.reason} (línea ${violation.line})`);
+}
+```
+
+### Análisis Estático AST en Múltiples Pasadas
+
+El analizador ejecuta un pipeline determinista de 5 pasadas de inspección:
+
+1. **Identificación de Variables Ligadas a Registros (Pasada 1)**: Recorre el AST para identificar variables vinculadas a registros confidenciales individuales dentro de funciones callback de iteración (`map`, `filter`, `forEach`, `flatMap`, `find`, `some`, `every` y la familia `reduce`/`reduceRight`).
+2. **Propagación de Mancha (Pasada 2)**: Rastrea los flujos de datos a través de asignaciones de variables, desestructuración de objetos, operaciones aritméticas binarias, concatenaciones de cadenas e invocaciones de métodos. Se marca un conjunto exhaustivo de métodos de extracción de caracteres como propagadores de mancha:
+   - *Extracción de caracteres*: `charCodeAt`, `codePointAt`, `charAt`, `at`
+   - *Búsqueda y análisis estructural*: `indexOf`, `lastIndexOf`, `search`, `startsWith`, `endsWith`, `includes`
+   - *Transformaciones*: `substring`, `slice`, `substr`, `split`, `match`, `replace`, `toLowerCase`, `trim`
+3. **Fuga en Sentencias de Retorno (Pasada 3)**: Valida que ninguna variable escalar derivada de un campo PII manchado fluya hacia la sentencia `return` o el objeto exportado de la función.
+4. **Guarda de Correlación (Pasada 4 - Mitigación F-01)**: En conjuntos de datos con menos de 50 registros, detecta múltiples operaciones `reduce` distintas dirigidas al mismo campo sensible, lo que permitiría a un atacante reconstruir valores exactos mediante sistemas de ecuaciones diferenciales.
+5. **Compuerta de Extremos Min/Max (Pasada 5 - Mitigación F-02)**: Intercepta intentos de extracción de registros individuales (como ordenar registros por campos PII o extraer cotas máximas/mínimas en cohortes reducidas) que posibilitan ataques de búsqueda binaria.
+
+### Clasificación de Sensibilidad de Campos (NIST SP 800-226)
+
+Los campos se evalúan frente a una matriz de clasificación de 3 niveles:
+
+| Nivel de Sensibilidad | Comportamiento | Atributos de Ejemplo |
+|---|---|---|
+| `forbidden` | Exfiltración o derivación directa bloqueada incondicionalmente por la Capa 3 | `ssn`, `iban`, `passport_number`, `password_hash` |
+| `sensitive` | Permitido únicamente mediante algoritmos de agregación verificados con inyección de ruido DP | `balance`, `transaction_amount`, `health_diagnosis` |
+| `public` | Agregación y exportación sin restricciones | `country_code`, `currency`, `timestamp_epoch` |
+
+---
+
+## Motor de Privacidad Diferencial (`DpEngine`)
+
+Para proteger contra ataques de reconstrucción estadística e inferencia de pertenencia en conjuntos de datos pequeños o sensibles, el SDK de LIOP integra un **Motor de Privacidad Diferencial** de alto rendimiento en conformidad con **NIST SP 800-226** y las directrices de la librería Google DP.
+
+```typescript
+import { applyDpToOutput, addLaplaceNoise, type DpConfig } from "@nekzus/liop";
+
+const dpConfig: DpConfig = {
+  epsilon: 1.5,                 // Presupuesto de privacidad (menor = más ruido)
+  sensitivity: 1000,            // Delta máximo admisible para operaciones SUM
+  smallDatasetThreshold: 50,    // Solo inyectar ruido cuando la cohorte n < 50
+  seed: "tenant_audit_seed_42"  // Semilla opcional para Privacidad Diferencial Determinista (DDP)
+};
+
+const sanitizedResult = applyDpToOutput(rawOutput, dpConfig, datasetSize);
+```
+
+### Mecanismo de Laplace y Entropía Criptográfica
+
+El motor muestrea ruido a partir de la distribución continua de Laplace $\text{Lap}(0, \lambda)$ con escala $\lambda = \frac{\Delta f}{\varepsilon}$:
+
+$$f(x) = \frac{1}{2\lambda} \exp\left(-\frac{|x|}{\lambda}\right)$$
+
+#### Decisiones de Seguridad (Recalibración Industrial)
+
+1. **Fuente CSPRNG (`crypto.randomBytes`)**: A diferencia de implementaciones genéricas basadas en `Math.random()` (Xorshift128+), `DpEngine` genera entropía mediante `crypto.randomBytes(4)` mapeado a $[-0.5, 0.5)$. Esto elimina ataques de reconstrucción de estado donde un adversario que observe 3 a 5 salidas consecutivas pueda predecir los estados pseudoaleatorios futuros y restar el ruido.
+2. **Sensibilidad Consciente de la Consulta**: La sensibilidad ($\Delta f$) se deriva automáticamente según la semántica de la clave:
+   - **Consultas `COUNT`**: Sensibilidad fijada en $\Delta f = 1$ (axioma: añadir o eliminar un registro individual altera el recuento en 1 como máximo).
+   - **Consultas `AVG` / `VARIANCE`**: La sensibilidad se escala dinámicamente por el tamaño de la cohorte: $\Delta f = \frac{\text{sensitivity}}{n}$.
+   - **Consultas `SUM`**: Aplica el límite de sensibilidad global configurado por el operador.
+3. **Piso de Épsilon ($\varepsilon \ge 1.0$)**: Para cohortes extremadamente pequeñas ($n < 10$), el motor fuerza un piso de $\varepsilon = 1.0$ para evitar la aniquilación de utilidad (aplicar $\varepsilon < 1.0$ en $n < 10$ genera números aleatorios sin utilidad analítica).
+4. **Privacidad Diferencial Determinista (DDP)**: Cuando se suministra una `seed` de auditoría, la entropía se deriva de una secuencia de contadores bajo HMAC-SHA-256. Esto garantiza la reproducibilidad determinista del ZK-Receipt en auditorías de cumplimiento manteniendo la privacidad matemática.
+5. **Preservación Estructural**: Los enteros originales se mantienen como enteros redondeados (`Math.round`), y los atributos no negativos se restringen a $\ge 0$, respetando los estándares de post-procesamiento TopDown del Censo de EE.UU.
+
+### Referencia de Configuración (`DpConfig`)
+
+| Propiedad | Tipo | Predeterminado | Propósito |
+|---|---|---|---|
+| `epsilon` | `number` | `1.0` | Parámetro de pérdida de privacidad $\varepsilon$. Regula el equilibrio entre privacidad y precisión numérica. |
+| `sensitivity` | `number` | `1.0` | Cota de sensibilidad global $\Delta f$ que representa la contribución máxima plausible de un único registro. |
+| `smallDatasetThreshold` | `number` | `50` | Umbral de cardinalidad de registros bajo el cual se activa el ruido DP (alineado con HIPAA Safe Harbor). |
+| `seed` | `string` | `undefined` | Cadena de semilla criptográfica para reproducibilidad determinista en auditorías. |
+
+---
+
 ## Hoja de Ruta
 
 Las siguientes capacidades están definidas arquitectónicamente y planificadas para versiones futuras:

@@ -515,6 +515,94 @@ To defend against CPU exhaustion attacks that execute hidden computational loops
 
 ---
 
+## Static Information Flow Control (`TaintAnalyzer`)
+
+Layer 3 of the LIOP defense-in-depth model implements **Static Information Flow Control (IFC)** via the `TaintAnalyzer` class. Built on top of the Acorn ESTree parser and `acorn-walk`, it inspects injected JavaScript logic inside the `@LIOP{...}` envelope *before* bytecode compilation or isolate execution.
+
+```typescript
+import { TaintAnalyzer } from "@nekzus/liop";
+
+const analyzer = new TaintAnalyzer(
+  ["ssn", "credit_card", "email", "password", "medical_record"], // Forbidden PII
+  ["salary", "account_balance"]                                    // Policy-sensitive
+);
+
+const violation = analyzer.analyze(sourceCode, recordCount, 50);
+if (violation) {
+  throw new Error(`Execution rejected by Layer 3 IFC: ${violation.reason} (line ${violation.line})`);
+}
+```
+
+### Multi-Pass AST Static Analysis
+
+The analyzer runs a deterministic 5-pass inspection pipeline:
+
+1. **Record-Bound Variable Identification (Pass 1)**: Traverses the AST to detect variables bound to individual confidential records inside iteration callbacks (`map`, `filter`, `forEach`, `flatMap`, `find`, `some`, `every`, and `reduce`/`reduceRight`).
+2. **Taint Propagation (Pass 2)**: Tracks data flows through variable assignments, object destructuring, binary arithmetic, string concatenations, and method invocations. A comprehensive set of character-extraction methods are flagged as taint propagators:
+   - *Character extraction*: `charCodeAt`, `codePointAt`, `charAt`, `at`
+   - *Search & Structural discovery*: `indexOf`, `lastIndexOf`, `search`, `startsWith`, `endsWith`, `includes`
+   - *Transformations*: `substring`, `slice`, `substr`, `split`, `match`, `replace`, `toLowerCase`, `trim`
+3. **Return Statement Escapes (Pass 3)**: Validates that no scalar variable derived from a tainted PII field flows into the function's `return` statement or export object.
+4. **Correlation Guard (Pass 4 - F-01 Mitigation)**: On datasets with fewer than 50 records, detects multiple distinct `reduce` operations targeting the same sensitive field, which could allow attackers to reconstruct values via differential equations.
+5. **Min/Max Extrema Gate (Pass 5 - F-02 Mitigation)**: Intercepts single-record extraction attempts (such as sorting records by PII fields or extracting maximum/minimum bounds on tiny cohorts) that facilitate binary search attacks.
+
+### Field Sensitivity Classification (NIST SP 800-226)
+
+Fields are evaluated against a 3-tier classification matrix:
+
+| Sensitivity Tier | Behavior | Example Attributes |
+|---|---|---|
+| `forbidden` | Direct exfiltration or derivation unconditionally blocked by Layer 3 AST pass | `ssn`, `iban`, `passport_number`, `password_hash` |
+| `sensitive` | Permitted only through verified aggregation algorithms with DP noise injection | `balance`, `transaction_amount`, `health_diagnosis` |
+| `public` | Unrestricted aggregation and export | `country_code`, `currency`, `timestamp_epoch` |
+
+---
+
+## Differential Privacy Engine (`DpEngine`)
+
+To defend against statistical reconstruction and membership inference attacks on small or sensitive datasets, the LIOP SDK integrates a high-performance **Differential Privacy Engine** conforming to **NIST SP 800-226** and Google DP library specifications.
+
+```typescript
+import { applyDpToOutput, addLaplaceNoise, type DpConfig } from "@nekzus/liop";
+
+const dpConfig: DpConfig = {
+  epsilon: 1.5,                 // Privacy budget (lower = more noise)
+  sensitivity: 1000,            // Maximum plausible delta for SUM operations
+  smallDatasetThreshold: 50,    // Only inject noise when cohort n < 50
+  seed: "tenant_audit_seed_42"  // Optional seed for Deterministic DP (DDP)
+};
+
+const sanitizedResult = applyDpToOutput(rawOutput, dpConfig, datasetSize);
+```
+
+### Laplace Mechanism & Cryptographic Entropy
+
+The engine samples noise from the continuous Laplace distribution $\text{Lap}(0, \lambda)$ where scale $\lambda = \frac{\Delta f}{\varepsilon}$:
+
+$$f(x) = \frac{1}{2\lambda} \exp\left(-\frac{|x|}{\lambda}\right)$$
+
+#### Security Decisions (Industrial Recalibration)
+
+1. **CSPRNG Source (`crypto.randomBytes`)**: Unlike generic implementations that rely on `Math.random()` (Xorshift128+), `DpEngine` generates entropy using `crypto.randomBytes(4)` mapped into $[-0.5, 0.5)$. This prevents state-reconstruction attacks where an adversary observing 3–5 outputs could predict future pseudo-random states and subtract the noise.
+2. **Query-Aware Sensitivity**: Sensitivity ($\Delta f$) is derived automatically according to key semantics:
+   - **`COUNT` Queries**: Sensitivity is fixed at $\Delta f = 1$ (axiom: adding/removing one individual alters count by at most 1).
+   - **`AVG` / `VARIANCE` Queries**: Sensitivity is scaled dynamically by cohort size: $\Delta f = \frac{\text{sensitivity}}{n}$.
+   - **`SUM` Queries**: Uses the operator-configured global sensitivity cap.
+3. **Epsilon Floor ($\varepsilon \ge 1.0$)**: For extremely small cohorts ($n < 10$), the engine enforces an $\varepsilon$ floor of $1.0$ to prevent utility destruction (running $\varepsilon < 1.0$ on $n < 10$ yields purely random noise with zero analytical value).
+4. **Deterministic Differential Privacy (DDP)**: When an audit `seed` is supplied, entropy is derived via an HMAC-SHA-256 counter sequence. This allows verified reproducibility of ZK-Receipts in compliance audits while maintaining rigorous mathematical privacy.
+5. **Structural Preservation**: Original integers remain rounded integers (`Math.round`), and non-negative attributes remain clamped to $\ge 0$, adhering to US Census TopDown post-processing standards.
+
+### Configuration Reference (`DpConfig`)
+
+| Property | Type | Default | Purpose |
+|---|---|---|---|
+| `epsilon` | `number` | `1.0` | Privacy loss parameter $\varepsilon$. Controls trade-off between privacy and numerical precision. |
+| `sensitivity` | `number` | `1.0` | Global sensitivity cap $\Delta f$ representing the maximum plausible contribution of a single record. |
+| `smallDatasetThreshold` | `number` | `50` | Record count threshold below which DP noise is activated (aligned with HIPAA Safe Harbor). |
+| `seed` | `string` | `undefined` | Cryptographic seed string for deterministic audit reproducibility. |
+
+---
+
 ## Roadmap
 
 The following capabilities are architecturally defined and planned for future releases:

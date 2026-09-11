@@ -24,6 +24,28 @@ Estas directivas representan el ADN del protocolo y deben respetarse en cada imp
 5.  **Calidad Profesional Estricta**: Seguir siempre las mejores prácticas recomendadas por las documentaciones oficiales de las tecnologías implicadas (Rust, libp2p, gRPC, Node.js).
 6.  **[PRIORIDAD] TypeScript SDK First**: El SDK de TypeScript (`sdks/typescript` / `@nekzus/liop`) es el **motor principal de adopción** del protocolo. El ecosistema Node.js/TypeScript proyecta el mayor volumen de usuarios y ofrece la vía de implementación más accesible. Todo feature nuevo, bug fix o mejora arquitectónica DEBE implementarse, validarse y estabilizarse **primero en el SDK TypeScript** antes de replicarse al core Rust. La secuencia de desarrollo obligatoria es: `SDK TS → BiomeJS check → Tests Vitest → Publicación NPM → Port a Rust (cuando aplique)`.
 
+- **2026-09-11**: **Cierre de Brechas de Paridad Documental de Módulos Críticos del SDK TypeScript (Fase 214)**.
+  - **Motivación**: Subsanar la falta total de cobertura documental detectada en la segunda auditoría de paridad para 6 módulos centrales del SDK TypeScript (`DpEngine`, `TaintAnalyzer`, `InMemoryRateLimiter`, `TopologyProbe`, `RoutingTable`, `TokenManager`), garantizando que la documentación oficial en Mintlify y los READMEs reflejen al 100% las capacidades de seguridad, enrutamiento, rate limiting y runtime del protocolo.
+  - **Acciones Realizadas**:
+    1. **Capa de Seguridad (`security.mdx` EN / ES)**:
+       - Incorporada la sección de `TaintAnalyzer` detallando el análisis estático de AST en 5 pasadas con Acorn ESTree, detección de exfiltración por canales laterales (`charCodeAt`, inferencia booleana), clasificación de sensibilidad en 3 niveles (NIST SP 800-226), Correlation Guard (F-01) y Min/Max Extrema Gate (F-02) para cohortes $n < 50$.
+       - Incorporada la sección de `DpEngine` documentando el mecanismo de Laplace (NIST SP 800-226), entropía con CSPRNG (`crypto.randomBytes`) para evitar ataques de reconstrucción de estado, sensibilidad consciente de la consulta (`COUNT`, `AVG`, `SUM`), piso de épsilon ($\varepsilon \ge 1.0$) en $n < 10$, y modo DDP determinista para ZK-Receipts auditables.
+    2. **Capa de Gateway (`gateway.mdx` EN / ES)**:
+       - Incorporada la sección de `InMemoryRateLimiter` con algoritmo de ventana deslizante conforme a OWASP API4:2023, referencia de API (`check`, `reset`, `cleanup`, `close`), y temporizadores de purga en segundo plano con `unref()` para salida limpia del bucle de eventos.
+    3. **Capa de Runtime (`runtime.mdx` EN / ES - Nueva Página)**:
+       - Creada página dedicada con arquitectura integral y diagramas de flujo.
+       - Documentado `TopologyProbe`: autodescubrimiento en una sola URL bajo RFC 9728 (Protected Resource Metadata), resolución adaptativa de modos (`gateway`, `mesh`, `hybrid`), y normalización de host/puertos en puentes Docker-to-Host.
+       - Documentado `RoutingTable`: enrutamiento determinista por herramienta en transportes heterogéneos (`http-gateway`, `p2p-grpc`, `local`), disyuntor integrado con corte a los 5 fallos consecutivos (`MAX_FAILURES = 5`), métricas de latencia y ordenamiento para `tools/list`.
+       - Documentado `TokenManager`: ciclo de vida M2M OAuth 2.1 (RFC 6749, RFC 8707), refresco preventivo con margen de 30 segundos, desduplicación de peticiones concurrentes en vuelo (`pendingPromise`), e invalidación reactiva ante HTTP 401.
+    4. **Navegación y Repositorio**:
+       - Registradas las rutas `"typescript-sdk/runtime"` y `"es/typescript-sdk/runtime"` en `docs/docs.json`.
+       - Actualizadas las tablas de capacidades en `sdks/typescript/README.md` y `README.md` de la raíz del monorepo.
+    5. **Certificación de Calidad**:
+       - BiomeJS: 106 archivos verificados con 0 errores y 0 advertencias (`pnpm run check`).
+       - Verificación de integridad de disco: 46 / 46 páginas de Mintlify confirmadas físicamente (100% OK).
+       - Grafo de conocimiento Graphify: actualizado a 4,195 nodos, 7,769 aristas y 314 comunidades.
+  - **Resultado**: Paridad documental 1:1 absoluta entre el código fuente del SDK TypeScript y el portal Mintlify en inglés y español, con riguroso estándar Anti-AI Slop.
+
 - **2026-09-11**: **Auditoría de Estabilidad de Recursos, Resistencia a Cargas Extremas en MCP `liop-mesh` y Certificación Integral de Observabilidad (Fase 213)**.
   - **Motivación**: Verificar de forma exhaustiva la estabilidad de recursos de hardware en WSL2 y Docker Desktop tras la optimización de `.wslconfig` (`memory=6GB`, `processors=4`), ejecutando una nueva batería de cargas normales, cómputo WASI extremo (Bootstrap Monte Carlo), ataques de exfiltración Zero-Trust y ráfagas analíticas vía MCP `liop-mesh` para controlar que el sistema no se sature y validar que Grafana refleje la telemetría fidedigna en tiempo real.
   - **Acciones Realizadas**:

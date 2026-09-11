@@ -77,15 +77,18 @@ The developer-facing SDK, published as [`@nekzus/liop`](https://www.npmjs.com/pa
 | `LiopMcpBridge` | JSON-RPC 2.0 adapter for legacy MCP clients (Claude Desktop, Cursor) |
 | Dual-Era MCP | Support for modern stateless MCP v2 (2026-07-28) and legacy MCP (2025-11-25) fallback |
 | Token Economy | Inlined BPE `o200k_base` tokenizer with zero runtime dependencies and OpenTelemetry bridge |
-| Interactive Playground | Live Web UI (`:16000` / `:14000`) with real-time token economics, AST fuel telemetry, and tri-tab proof inspector |
+| Interactive Playground | Live Web UI (`:16000` / `:14000`) with 4-tab modular architecture (`Output`, `Debug`, `Telemetry`, `Export`), code generation (TS/cURL/Python), and dual OLED/Slate themes |
 | Multi-Tier Enclaves | Sovereign enclave isolation via `@libp2p/pnet` (256-bit Swarm Key PSK) and Border LIO Gateway (`blg`) |
 | AST Fuel Metering | Deterministic AST instruction fuel scoring with 100-bucket quantization for NIST SP 800-53 timing invariance |
+| Differential Privacy | NIST SP 800-226 Laplace mechanism with CSPRNG entropy, query-aware sensitivity, and deterministic ZK-Receipt auditing (`DpEngine`) |
 | Guardian AST | Static analysis of WASM imports to prevent sandbox escapes |
-| IFC Taint Analyzer | Static AST information flow control blocking computed keys and PII derivation at preflight |
+| IFC Taint Analyzer | 5-pass static AST information flow control blocking computed keys, correlation attacks, and extrema gates at preflight (`TaintAnalyzer`) |
+| Adaptive Discovery & Routing | Single-URL RFC 9728 PRM probe (`TopologyProbe`) and per-tool hybrid routing with 5-failure circuit breaker (`RoutingTable`) |
+| OAuth 2.1 & Rate Limiter | M2M token manager with 30s preemptive refresh (`TokenManager`) and OWASP API4:2023 sliding-window rate limiting (`InMemoryRateLimiter`) |
 | PII Shield | Real-time detection and blocking of sensitive data via Customizable Regional Presets (Email, Credit Card, SSN, IBAN, Passport MRZ, custom regex) |
 | Worker Pool | Multi-threaded execution via Piscina for non-blocking cryptography |
 | PQC (Kyber & Dilithium) | ML-KEM-768 key encapsulation + ML-DSA-65 digital signatures with 1-hour session expiry |
-| Security & Compliance | TLS/mTLS with `CertManager` hot-reloading, Rate-Limiting, and SOC 2 Hash-Chain audit log |
+| Security & Compliance | TLS/mTLS with `CertManager` hot-reloading, sliding-window rate limiting, and SOC 2 Hash-Chain audit log |
 | Cross-AI Prompts | Zero-Shot Adaptors to train models in Real-Time (Claude XML, OpenAI, Gemini) |
 | ZK Receipts | HMAC-SHA256 cryptographic proof of honest computation (ZK-VM roadmap) |
 

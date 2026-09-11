@@ -103,6 +103,50 @@ const { access_token, expires_in } = await tokenResponse.json();
 
 ---
 
+## Limitador de Tasa por Ventana Deslizante (`InMemoryRateLimiter`)
+
+Para proteger los gateways de borde, los endpoints MCP y los pools de workers contra ataques de Denegación de Servicio (DoS) y enumeración de tokens por fuerza bruta, el SDK proporciona la clase de alto rendimiento `InMemoryRateLimiter` sin dependencias externas.
+
+Cumple estrictamente con el estándar **OWASP API Security Top 10 (API4:2023 - Unrestricted Resource Consumption)** aplicando cuotas por cliente calculadas sobre ventanas temporales deslizantes.
+
+```typescript
+import { InMemoryRateLimiter } from "@nekzus/liop";
+
+const limiter = new InMemoryRateLimiter({
+  windowMs: 60_000,    // Ventana de evaluación de 1 minuto
+  maxRequests: 120     // Hasta 120 peticiones permitidas por ventana
+});
+
+// Evaluación en middleware por IP remota o ID de cliente OAuth entrante
+const status = limiter.check(req.socket.remoteAddress || "anonymous");
+if (!status.allowed) {
+  res.writeHead(429, {
+    "Content-Type": "application/json",
+    "Retry-After": Math.ceil(status.resetMs / 1000).toString(),
+    "X-RateLimit-Limit": status.limit.toString(),
+    "X-RateLimit-Remaining": status.remaining.toString(),
+    "X-RateLimit-Reset": Math.ceil(status.resetMs / 1000).toString()
+  });
+  res.end(JSON.stringify({ error: "Too Many Requests", retryAfterMs: status.resetMs }));
+  return;
+}
+```
+
+### Referencia de la API de RateLimiter
+
+| Método | Firma | Descripción |
+|---|---|---|
+| `check(key)` | `(key: string) => RateLimitStatus` | Evalúa si la cuota del cliente permite una petición adicional. Retorna cuota remanente, estado booleano y milisegundos restantes para el reseteo. |
+| `reset(key)` | `(key: string) => void` | Limpia manualmente el contador del bucket para una clave específica (útil tras desafíos MFA u OIDC superados con éxito). |
+| `cleanup()` | `() => void` | Purga registros de clientes expirados del `Map` interno para evitar fugas de memoria en sesiones de ejecución prolongada. |
+| `close()` | `() => void` | Cancela los temporizadores internos de intervalo y destruye todos los buckets de cuota en el apagado ordenado del nodo. |
+
+<Tip>
+  El temporizador de limpieza periódica se ejecuta cada 30 segundos invocando `unref()`. Esto garantiza que la rutina de mantenimiento en segundo plano nunca impida la finalización limpia del bucle de eventos de Node.js al terminar procesos o ejecutar suites de pruebas.
+</Tip>
+
+---
+
 ## Notas de Seguridad
 
 - `LiopStreamBridge` soporta política Zero-Trust bearer mediante `ZERO_TRUST_TOKEN`.

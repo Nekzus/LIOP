@@ -1,0 +1,169 @@
+---
+title: "Runtime & Mesh Discovery"
+description: "Adaptive topology auto-discovery, hybrid per-tool routing, and OAuth 2.1 token lifecycle management"
+---
+
+The `@nekzus/liop` runtime layer coordinates network topology detection, dynamic routing across heterogeneous transports, and machine-to-machine (M2M) authentication lifecycles.
+
+It ensures that whether an agent runs in a local development environment, an edge proxy, or a high-security distributed mesh, requests route through the most performant and secure channel available.
+
+---
+
+## Architecture Overview
+
+```
+                        ┌────────────────────────┐
+                        │   CLI / Agent Client   │
+                        └───────────┬────────────┘
+                                    │
+                                    ▼
+                         ┌────────────────────┐
+                         │   TopologyProbe    │ (RFC 9728 Auto-Discovery)
+                         └──────────┬─────────┘
+                                    │
+                  ┌─────────────────┼─────────────────┐
+                  ▼                 ▼                 ▼
+          [Gateway Mode]      [Hybrid Mode]      [Mesh Mode]
+          Direct HTTP-MCP     Route per Tool     Pure P2P gRPC
+                  │                 │                 │
+                  └────────► ┌──────┴──────┐ ◄────────┘
+                             │RoutingTable │ (Circuit Breaker)
+                             └──────┬──────┘
+                                    │
+                     ┌──────────────┴──────────────┐
+                     ▼                             ▼
+              [TokenManager]              [Transport Exec]
+         Preemptive OAuth 2.1         p2p-grpc | http-gateway | local
+```
+
+---
+
+## Adaptive Network Discovery (`TopologyProbe`)
+
+Rather than requiring operators to manually configure endpoints, multiaddrs, and OIDC discovery URLs, `TopologyProbe` implements single-URL auto-discovery conforming to **RFC 9728 (OAuth 2.0 Protected Resource Metadata)**, **RFC 8414**, and **NIST SP 800-207 (Zero Trust Architecture)**.
+
+```typescript
+import { probeTopology, type TopologyProbeOptions } from "@nekzus/liop";
+
+const options: TopologyProbeOptions = {
+  blgUrl: "http://127.0.0.1:15018",      // Explicit Border LIO Gateway URL
+  nexusUrl: "http://127.0.0.1:15000",    // Nexus OIDC provider
+  clientId: "mesh-diagnostic-agent",
+  clientSecret: process.env.LIOP_CLIENT_SECRET,
+  bootstrapNodes: [                      // Optional P2P DHT multiaddrs
+    "/ip4/127.0.0.1/tcp/15001/p2p/12D3KooW..."
+  ]
+};
+
+const topology = await probeTopology(options);
+console.log(`Resolved Mode: ${topology.mode}`); // "gateway" | "mesh" | "hybrid"
+```
+
+### Discovery Workflow
+
+1. **RFC 9728 Protected Resource Probe**: Queries `/.well-known/oauth-protected-resource` and `/health` on candidate URLs.
+2. **Metadata Chaining**: Automatically extracts the authorization server `issuer`, `token_endpoint`, supported `scopes`, and advertised `tools`.
+3. **Bridge Normalization**: In hybrid Docker-to-Host development environments, internal container hostnames (`nexus-prod`, `172.20.0.x`) are safely translated to published host ports (`127.0.0.1:15000`).
+4. **Execution Mode Resolution**:
+   - **`gateway`**: Detected when a healthy Border LIO Gateway is reachable and no P2P bootstraps are configured. Minimizes overhead by operating over HTTP/JSON-RPC without spawning libp2p background threads.
+   - **`mesh`**: Activated when only P2P DHT bootstrap nodes are supplied. Operates sovereignly over gRPC with Noise and post-quantum Kyber768 encryption.
+   - **`hybrid`**: Activated when both gateway endpoints and mesh bootstrap nodes are present. Routes perimeter tools through the gateway while executing enclaved compute directly on mesh peers.
+
+---
+
+## Per-Tool Hybrid Routing (`RoutingTable`)
+
+In distributed enterprise deployments, different capabilities require different transport protocols. For instance, diagnostic health probes execute locally, public indexing tools route through perimeter gateways, and confidential ledger queries require direct sovereign gRPC channels.
+
+`RoutingTable` manages per-tool route resolution, latency telemetry, and automatic failover.
+
+```typescript
+import { RoutingTable, type ToolDefinition } from "@nekzus/liop";
+
+const table = new RoutingTable();
+
+// 1. Register tools exposed by an HTTP Gateway
+table.registerGatewayTools(
+  [{ name: "SearchIndex", description: "Query public vector index" }],
+  "http://127.0.0.1:15018/mcp",
+  true // authRequired
+);
+
+// 2. Register tools discovered over P2P Mesh
+table.registerMeshTools(
+  [{ name: "BankAnalytics", description: "Enclave balance aggregation" }],
+  "127.0.0.1:15021", // gRPC target
+  false // internal mesh auth
+);
+
+// 3. Register in-process diagnostic tools
+table.registerLocalTool({
+  name: "LiopMeshStatus",
+  description: "Instantaneous node telemetry"
+});
+
+// Resolve optimal route
+const route = table.resolve("BankAnalytics");
+console.log(`Route provider: ${route?.provider}`); // "p2p-grpc"
+```
+
+### Transport Providers
+
+| Provider | Transport Protocol | Typical Use Case |
+|---|---|---|
+| `http-gateway` | HTTP/1.1 or gRPC-Web via MCP JSON-RPC | Perimeter APIs, reverse proxies, and edge microservices |
+| `p2p-grpc` | Direct libp2p + HTTP/2 gRPC with Kyber768 PQC | Sovereign Tier 1 enclaves (`Bank`, `Vault`) requiring ZK-Receipts |
+| `local` | In-process synchronous handler | Diagnostic tools, status reporting, and health checks |
+
+### Circuit Breaker & Resilience
+
+`RoutingTable` tracks execution reliability per tool:
+
+- **`recordSuccess(toolName, latencyMs)`**: Resets consecutive failure counters and stores instantaneous latency for round-robin optimizations.
+- **`recordFailure(toolName)`**: Increments the failure counter. When a route reaches **5 consecutive failures** (`MAX_FAILURES = 5`), the circuit breaker trips, emitting a warning and allowing fallback dispatchers to bypass degraded endpoints.
+- **`getAllToolDefinitions()`**: Exports an alphabetically sorted list of all active tools to satisfy the MCP `tools/list` protocol requirement.
+
+---
+
+## M2M Token Lifecycle (`TokenManager`)
+
+The `TokenManager` class handles Machine-to-Machine (M2M) Bearer token lifecycles under **OAuth 2.1 (RFC 6749, RFC 8707 Resource Indicators, RFC 9068 JWT Profile)**.
+
+```typescript
+import { TokenManager } from "@nekzus/liop";
+
+const tokenManager = new TokenManager({
+  tokenEndpoint: "http://127.0.0.1:15000/oidc/token",
+  clientId: "border-gateway-client",
+  clientSecret: process.env.LIOP_CLIENT_SECRET!,
+  audience: "urn:liop:mesh:api",
+  scopes: ["liop:tools:call", "liop:mesh:query"]
+});
+
+// Fetches cached token or requests a new one
+const token = await tokenManager.getToken();
+```
+
+### Preemptive Refresh & Concurrency De-duplication
+
+To survive high-frequency batch workloads without experiencing transient authentication failures, `TokenManager` implements two core patterns:
+
+1. **Preemptive Refresh Buffer (`REFRESH_BUFFER_MS = 30_000`)**: If an access token has fewer than 30 seconds of remaining lifetime, `TokenManager` automatically triggers a refresh *before* dispatching the request. This eliminates HTTP 401 Unauthorized race conditions during long-running WASI script executions.
+2. **Concurrency In-Flight De-duplication**: When multiple asynchronous tool calls request an authorization token simultaneously while the cache is cold, `TokenManager` coalesces them into a single in-flight HTTP POST request (`pendingPromise`). All concurrent callers resolve against the exact same network response, preventing OIDC server rate-limit exhaustion.
+
+### Reactive Invalidation
+
+If an upstream enclave revokes an access key or rotates signing certificates, the client gateway invalidates the stale token on-demand:
+
+```typescript
+try {
+  await dispatchRpc(route, payload, await tokenManager.getToken());
+} catch (error) {
+  if (isHttp401(error)) {
+    // Purge cached token so the subsequent attempt acquires a fresh one
+    tokenManager.invalidate();
+    return await dispatchRpc(route, payload, await tokenManager.getToken());
+  }
+  throw error;
+}
+```

@@ -103,6 +103,50 @@ const { access_token, expires_in } = await tokenResponse.json();
 
 ---
 
+## Sliding-Window Rate Limiter (`InMemoryRateLimiter`)
+
+To defend edge gateways, MCP endpoints, and worker pools against Denial of Service (DoS) attacks and brute-force token enumeration, the SDK provides a high-throughput, zero-dependency `InMemoryRateLimiter`.
+
+It strictly adheres to **OWASP API Security Top 10 (API4:2023 - Unrestricted Resource Consumption)** by enforcing per-client sliding-window quotas.
+
+```typescript
+import { InMemoryRateLimiter } from "@nekzus/liop";
+
+const limiter = new InMemoryRateLimiter({
+  windowMs: 60_000,    // 1-minute evaluation window
+  maxRequests: 120     // Up to 120 requests per window
+});
+
+// Middleware evaluation per incoming client IP or OAuth client ID
+const status = limiter.check(req.socket.remoteAddress || "anonymous");
+if (!status.allowed) {
+  res.writeHead(429, {
+    "Content-Type": "application/json",
+    "Retry-After": Math.ceil(status.resetMs / 1000).toString(),
+    "X-RateLimit-Limit": status.limit.toString(),
+    "X-RateLimit-Remaining": status.remaining.toString(),
+    "X-RateLimit-Reset": Math.ceil(status.resetMs / 1000).toString()
+  });
+  res.end(JSON.stringify({ error: "Too Many Requests", retryAfterMs: status.resetMs }));
+  return;
+}
+```
+
+### RateLimiter API Reference
+
+| Method | Signature | Description |
+|---|---|---|
+| `check(key)` | `(key: string) => RateLimitStatus` | Evaluates whether the client quota allows another request. Returns remaining quota, status, and reset millisecond countdown. |
+| `reset(key)` | `(key: string) => void` | Manually clears the bucket counter for a specific client key (useful post-successful MFA/OIDC challenge). |
+| `cleanup()` | `() => void` | Prunes expired client records from the internal `Map` to prevent memory leaks during long-running sessions. |
+| `close()` | `() => void` | Clears internal interval timers and destroys all cached quota buckets during graceful node shutdown. |
+
+<Tip>
+  The internal cleanup timer runs every 30 seconds and invokes `unref()`. This ensures the background maintenance loop never prevents the Node.js event loop from terminating cleanly during process exits or testing suites.
+</Tip>
+
+---
+
 ## Security Notes
 
 - `LiopStreamBridge` supports Zero-Trust bearer enforcement via `ZERO_TRUST_TOKEN`.
