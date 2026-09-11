@@ -1,0 +1,224 @@
+---
+title: "Observabilidad Enterprise"
+description: "Métricas nativas Prometheus, despliegue agnóstico en producción, stack IaC de Grafana y alertas operativas para nodos de la malla LIOP"
+---
+
+Cada instancia del servidor `@nekzus/liop` expone un endpoint nativo con **formato texto de Prometheus** en `GET /metrics`. No requiere sidecar, agente externo ni dependencia adicional — el registro de métricas está integrado en el core del SDK y actualiza los gauges de proceso de forma síncrona en cada petición de scrape.
+
+## Referencia de Métricas
+
+El SDK emite tres categorías de métricas: **contadores de protocolo**, **gauges de recursos** e **histogramas criptográficos**.
+
+### Contadores de Protocolo
+
+| Métrica | Tipo | Labels | Descripción |
+|---|---|---|---|
+| `liop_tool_calls_total` | Counter | `capability` | Ejecuciones totales de inyección de lógica |
+| `liop_tool_call_errors_total` | Counter | `capability`, `error_type` | Ejecuciones fallidas o rechazadas por política |
+| `liop_egress_blocks_total` | Counter | — | Salidas bloqueadas por el Escudo Egress PII |
+| `liop_wire_egress_bytes_total` | Counter | `capability` | Bytes físicos transmitidos por el cable de red |
+| `liop_wire_saved_bytes_total` | Counter | `capability` | Bytes retenidos in-situ en el origen de datos |
+| `liop_tokens_input_total` | Counter | — | Tokens BPE de entrada procesados (`o200k_base`) |
+| `liop_tokens_output_total` | Counter | — | Tokens BPE de salida emitidos |
+| `liop_tokens_saved_total` | Counter | — | Tokens estimados ahorrados frente a MCP context-pulling |
+| `liop_zk_verifications_total` | Counter | `status` | Verificaciones de atestación HMAC-SHA256 (ZK-Receipt) |
+| `liop_pqc_handshakes_total` | Counter | `algorithm`, `status` | Operaciones de encapsulación de clave ML-KEM-768 |
+
+### Gauges de Recursos
+
+| Métrica | Tipo | Labels | Descripción |
+|---|---|---|---|
+| `liop_mesh_peers_connected` | Gauge | — | Conexiones P2P activas (DHT Kademlia) |
+| `liop_manifest_cache_size` | Gauge | — | Manifiestos de herramientas remotas verificados en caché |
+| `liop_node_health_status` | Gauge | — | Salud operativa: `1` = activo, `0` = degradado |
+| `liop_process_uptime_seconds` | Gauge | — | Tiempo de actividad del proceso en segundos |
+| `liop_process_memory_rss_bytes` | Gauge | — | Resident Set Size (memoria física) |
+| `liop_process_memory_heap_used_bytes` | Gauge | — | Memoria heap de V8 en uso |
+| `liop_process_memory_heap_total_bytes` | Gauge | — | Heap total asignado por V8 |
+| `liop_process_memory_external_bytes` | Gauge | — | Memoria vinculada a objetos C++ y ArrayBuffers |
+
+<Note>
+  Los gauges como `liop_mesh_peers_connected` y `liop_manifest_cache_size` se muestrean **de forma síncrona dentro del handler `GET /metrics`**, garantizando que Prometheus reciba siempre el estado instantáneo del runtime — no una instantánea cacheada obsoleta.
+</Note>
+
+### Histogramas Criptográficos
+
+| Métrica | Tipo | Buckets | Descripción |
+|---|---|---|---|
+| `liop_fuel_consumed_total` | Histogram | 100, 500, 1K, 2.5K, 5K, 10K, 50K, 100K | Unidades de fuel WASI deterministas por ejecución |
+| `liop_operation_duration_ms` | Histogram | 5, 15, 30, 50, 100, 250, 500, 1K, 2.5K, 5K | Latencia de operación extremo a extremo |
+| `liop_pqc_handshake_duration_ms` | Histogram | 1, 5, 10, 25, 50, 100, 250, 500 | Latencia de encapsulación ML-KEM-768 |
+| `liop_zk_verification_duration_ms` | Histogram | 1, 2, 5, 10, 25, 50, 100 | Latencia de atestación ZK-Receipt HMAC |
+
+---
+
+## Despliegue Agnóstico en Producción
+
+El servidor LIOP es un proceso estándar de Node.js. Se enlaza a un puerto HTTP configurable y opera de forma idéntica en bare metal, máquinas virtuales, contenedores o runtimes serverless. No existe dependencia de orquestadores.
+
+### Variables de Entorno
+
+| Variable | Predeterminado | Descripción |
+|---|---|---|
+| `LIOP_PORT` | `3000` | Puerto HTTP del servidor gateway |
+| `LIOP_NODE_ROLE` | `enclave` | Etiqueta de rol del nodo expuesta en Prometheus (`nexus-seed`, `vault-enclave`, `bank-enclave`, etc.) |
+| `LIOP_TIER` | `tier1-enclave` | Etiqueta de tier de seguridad para agrupación de flota |
+| `NODE_OPTIONS` | — | Configuración del heap V8 (recomendado: `--max-old-space-size=2048`) |
+
+### Ejecución como Servicio del Sistema
+
+<CodeGroup>
+```ini Linux (systemd)
+# /etc/systemd/system/liop-enclave.service
+[Unit]
+Description=LIOP Mesh Enclave Node
+After=network.target
+
+[Service]
+Type=simple
+User=liop
+WorkingDirectory=/opt/liop
+ExecStart=/usr/bin/node dist/server.js
+Environment=LIOP_PORT=3000
+Environment=LIOP_NODE_ROLE=vault-enclave
+Environment=LIOP_TIER=tier1-enclave
+Environment="NODE_OPTIONS=--max-old-space-size=2048"
+Restart=on-failure
+RestartSec=5
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```powershell Windows (NSSM)
+# Instalar como servicio de Windows con NSSM (Non-Sucking Service Manager)
+nssm install LiopEnclave "C:\Program Files\nodejs\node.exe" "C:\liop\dist\server.js"
+nssm set LiopEnclave AppEnvironmentExtra `
+  "LIOP_PORT=3000" `
+  "LIOP_NODE_ROLE=vault-enclave" `
+  "LIOP_TIER=tier1-enclave" `
+  "NODE_OPTIONS=--max-old-space-size=2048"
+nssm start LiopEnclave
+```
+
+```bash PM2 (Multiplataforma)
+# Iniciar con el gestor de procesos PM2
+LIOP_PORT=3000 \
+LIOP_NODE_ROLE=vault-enclave \
+LIOP_TIER=tier1-enclave \
+NODE_OPTIONS="--max-old-space-size=2048" \
+pm2 start dist/server.js --name liop-enclave
+pm2 save
+pm2 startup
+```
+</CodeGroup>
+
+### Scraping de Prometheus
+
+<CodeGroup>
+```yaml Target Estático
+# prometheus.yml
+scrape_configs:
+  - job_name: liop-mesh
+    scrape_interval: 15s
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - "10.0.1.10:3000"
+          - "10.0.1.11:3000"
+          - "10.0.1.12:3000"
+        labels:
+          cluster: "production"
+```
+
+```yaml Descubrimiento AWS EC2
+scrape_configs:
+  - job_name: liop-mesh
+    ec2_sd_configs:
+      - region: us-east-1
+        port: 3000
+        filters:
+          - name: tag:service
+            values: ["liop-enclave"]
+    relabel_configs:
+      - source_labels: [__meta_ec2_tag_NodeRole]
+        target_label: node_role
+      - source_labels: [__meta_ec2_tag_Tier]
+        target_label: tier
+```
+
+```yaml Descubrimiento vía Consul
+scrape_configs:
+  - job_name: liop-mesh
+    consul_sd_configs:
+      - server: "consul.internal:8500"
+        services: ["liop-enclave"]
+    relabel_configs:
+      - source_labels: [__meta_consul_service_metadata_node_role]
+        target_label: node_role
+```
+</CodeGroup>
+
+En entornos con firewalls de solo salida (banca, salud), configure [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/) con `prometheusreceiver` para scraping local y `otlphttp` para exportar al backend OTLP.
+
+---
+
+## Stack de Observabilidad Oficial (IaC)
+
+El SDK incluye un stack de monitoreo desplegable bajo `examples/observability/`:
+
+```bash
+docker compose -f examples/observability/docker-compose.observability.yml up -d
+```
+
+Esto inicia:
+- **Prometheus** en `:9090` con targets de scrape y reglas de alerta preconfigurados
+- **Grafana** en `:3001` con el Master Dashboard auto-provisionado
+
+### Dashboard Master de Grafana
+
+El [Dashboard LIOP Overview](https://github.com/nekzus/liop/blob/main/tools/dashboards/liop-overview.json) contiene más de 25 paneles organizados en cinco secciones operativas:
+
+| Sección | Paneles | Métricas Principales |
+|---|---|---|
+| **KPIs Ejecutivos** | Disponibilidad SLO, Total Inyecciones, Peers P2P, Uptime | `liop_tool_calls_total`, `liop_mesh_peers_connected` |
+| **Método RED** | Tasa de Peticiones, Tasa de Error, Duración p50/p95/p99 | `liop_operation_duration_ms`, `liop_tool_call_errors_total` |
+| **Método USE** | Distribución de Fuel WASI, Memoria RSS, Saturación Heap V8 | `liop_fuel_consumed_total`, `liop_process_memory_*` |
+| **Cripto y Seguridad** | Tasa ZK-Receipt, Bloqueos Egress, Ops ML-KEM-768, Wire Egress | `liop_wire_egress_bytes_total`, `liop_pqc_handshakes_total` |
+| **Inventario de Flota** | Tabla en Vivo (Rol, Tier, Salud, Peers, RSS, Heap, Uptime) | Todos los gauges por `instance` |
+
+Para importar el dashboard en una instancia de Grafana existente, navegue a **Dashboards → Import** y cargue `tools/dashboards/liop-overview.json`.
+
+---
+
+## Reglas de Alerta
+
+El SDK incluye reglas de alerta de Prometheus validadas en producción en [`examples/observability/prometheus/alerting_rules.yml`](https://github.com/nekzus/liop/blob/main/examples/observability/prometheus/alerting_rules.yml):
+
+| Alerta | Severidad | Condición | Propósito |
+|---|---|---|---|
+| `LiopMeshZeroPeers` | `critical` | `liop_mesh_peers_connected == 0` por 1m | Nodo aislado de la DHT Kademlia |
+| `LiopEnclaveDown` | `critical` | `up == 0` por 30s | Enclave no responde al scrape |
+| `LiopZeroTrustEgressViolation` | `critical` | `increase(liop_egress_blocks_total[1m]) > 0` | Intento de exfiltración de PII bloqueado |
+| `LiopZkVerificationFailure` | `critical` | `increase(liop_zk_verifications_total{status="invalid"}[1m]) > 0` | Violación de integridad computacional |
+| `LiopPqcHandshakeFailure` | `critical` | `increase(liop_pqc_handshakes_total{status="failure"}[1m]) > 0` | Fallo en negociación ML-KEM-768 |
+| `LiopHighErrorRate` | `warning` | Tasa de error > 5% en 2m | Presupuesto de error SLA excedido |
+| `LiopPqcLatencySpike` | `warning` | ML-KEM-768 p99 > 25ms en 2m | Contención en el pool de workers |
+| `LiopHeapSaturation` | `warning` | Heap usado / heap total > 90% por 2m | Presión de memoria V8 |
+
+---
+
+## Generador de Tráfico Sintético
+
+El SDK incluye un generador de tráfico de telemetría integrado para validación pre-producción y pruebas de carga:
+
+```bash
+pnpm --filter @nekzus/liop telemetry:stream
+```
+
+Este script ejecuta un flujo continuo de llamadas de inyección de lógica contra la malla activa, ciclando entre todas las capacidades registradas (banca, salud, IoT edge) y produciendo emisiones reales de métricas Prometheus. Utilícelo para:
+
+- Validar que el scraping de Prometheus y los paneles de Grafana rendericen correctamente antes del despliegue a producción
+- Estresar el escalamiento del consumo de fuel WASI bajo carga sostenida
+- Verificar que los umbrales de las reglas de alerta responden a patrones empíricos de tráfico

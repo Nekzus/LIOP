@@ -79,7 +79,8 @@
                   "typescript-sdk/economy",
                   "typescript-sdk/security",
                   "typescript-sdk/playground",
-                  "typescript-sdk/production-audit"
+                  "typescript-sdk/production-audit",
+                  "typescript-sdk/observability"
                 ]
               }
             ]
@@ -148,7 +149,8 @@
                   "es/typescript-sdk/economy",
                   "es/typescript-sdk/security",
                   "es/typescript-sdk/playground",
-                  "es/typescript-sdk/production-audit"
+                  "es/typescript-sdk/production-audit",
+                  "es/typescript-sdk/observability"
                 ]
               }
             ]

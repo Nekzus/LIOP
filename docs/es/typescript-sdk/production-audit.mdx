@@ -47,7 +47,7 @@ pnpm audit:prod:start
 ```
 
 ```bash 2. Ejecutar Suites de Auditoría
-# Ejecuta las 10 suites automatizadas de Vitest dentro del contenedor audit-runner
+# Ejecuta las 11 suites automatizadas (59 pruebas) de Vitest dentro del contenedor audit-runner
 pnpm audit:prod:run
 ```
 
@@ -59,9 +59,9 @@ pnpm audit:prod:clean
 
 ---
 
-## Batería de Pruebas Automatizadas (Suites 00 a 09)
+## Batería de Pruebas Automatizadas (Suites 00 a 10)
 
-El arnés ejecuta 10 suites exhaustivas de Vitest en el contenedor `liop-audit-runner`:
+El arnés ejecuta **11 suites exhaustivas de Vitest** (59 pruebas individuales) en el contenedor `liop-audit-runner`:
 
 1. **`00-npm-integrity`**: Verifica que el paquete generado por `npm pack` contenga únicamente archivos de producción y tipos DTS válidos, sin código de prueba residual.
 2. **`01-mesh-convergence`**: Valida el descubrimiento de nodos vía DHT Kademlia en todos los tiers y la estabilización de tablas de ruteo en menos de 5 segundos.
@@ -73,3 +73,14 @@ El arnés ejecuta 10 suites exhaustivas de Vitest en el contenedor `liop-audit-r
 8. **`07-observability`**: Valida los endpoints de métricas dinámicas de Prometheus (`/metrics`) y la emisión de tokens a OpenTelemetry (`gen_ai.client.token.usage`).
 9. **`08-lifecycle-traceability`**: Certifica los identificadores criptográficos deterministas que vinculan cada solicitud con su ejecución en el nodo de origen.
 10. **`09-pnet-tier-isolation`**: Certifica que los Enclaves Tier 1 (`Bank` y `Vault`) rechazan conexiones de nodos sin la clave privada Swarm Key PSK, y confirma que el tráfico cruzado se enruta de forma segura a través del Border LIO Gateway (`BLG`).
+11. **`plug-and-play`**: Validación "plug-and-play" de extremo a extremo que confirma que el SDK arranca, descubre peers, ejecuta inyecciones lógicas y devuelve resultados criptográficamente atestados sin configuración manual alguna.
+
+---
+
+## Validación Empírica de Estrés y Zero-Trust
+
+La infraestructura de auditoría soporta validaciones extendidas más allá de las suites automatizadas:
+
+* **Escalamiento Bootstrap Monte Carlo**: Cargas sostenidas de inferencia estadística (30–40 iteraciones de remuestreo con varianza, covarianza y correlación de Pearson) generan un escalamiento determinista y proporcional del fuel WASI de 300–400 a 700–900 unidades (+75% a +125%), capturado en vivo por el histograma `liop_fuel_consumed_total`.
+* **Intercepción Zero-Trust**: Micro-módulos hostiles que intentan exfiltrar PII cruda (`stolenRecords`) o invocar globales no autorizados (`fetch`) son interceptados por la Capa 3 (Taint Analyzer AST / Preflight Policy) y la Capa 1 (Guardian AST) antes de acceder a los datos del enclave.
+* **Estabilidad de Hardware**: Verificado bajo WSL2 (`memory=6GB`, `processors=4`) con 0% de uso de swap y CPU agregado en ~14% de 400% disponible — sin saturación térmica ni bloqueos de pipe.

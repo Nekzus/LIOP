@@ -35,26 +35,30 @@ pnpm demo:playground
 
 ## Capacidades Principales del Estudio
 
-### 1. Panel de Resultados Tri-Pestaña
-La consola organiza los datos de ejecución en tres pestañas especializadas con animación fluida:
+### 1. Panel de Resultados en Cuatro Pestañas
 
-* **Aggregated Output (Salida Agregada)**: Muestra el payload JSON devuelto por el nodo de origen tras el cómputo y filtrado in-situ.
-* **Fuel & Telemetry (Fuel y Telemetría)**:
-  * **Economía de Tokens frente a MCP Tradicional**: Comparación en tiempo real entre los tokens consumidos por el micro-módulo inyectado y los ~16.000–48.000 tokens requeridos por la extracción masiva de datos en MCP tradicional (-98.9% de tokens evitados).
-  * **Consumo de Fuel AST en WASI Sandbox**: Muestra la cuota de fuel determinista consumida a nivel de instrucción AST (ej. `500 u / 1.000.000 u máx`) con **Cuantización en Bloques de 100 Unidades** para eliminar canales laterales de temporización según NIST SP 800-53.
-  * **Tasa de Soberanía de Datos**: Mide el tamaño de los datos en tránsito por red frente al volumen del dataset original protegido in-situ (más de 99.6% de reducción de tráfico).
-  * **Desglose de Latencias por Fase**: Tiempos exactos en milisegundos para Descubrimiento de Ruta, enlace cuántico Kyber-768, cifrado AES-256-GCM, ejecución en WASI Sandbox y verificación ZK-Receipt.
-* **Crypto Proofs (Pruebas Criptográficas)**:
-  * **ZK-Receipt HMAC-SHA256**: Valida la prueba matemática de integridad computacional que vincula el resultado al código exacto ejecutado y al hash del dataset. Incluye botón de copiado rápido con confirmación visual.
-  * **Intercambio Cuántico de Claves**: Certifica el secreto de sesión cuántico-resistente acordado mediante ML-KEM-768 (Kyber).
-  * **Estado del Escudo Egress PII**: Confirma si la salida cumplió con las políticas de k-anonimato y privacidad diferencial (`PASSED`) o fue interceptada (`INTERCEPTED`).
+La consola organiza los datos de ejecución en cuatro componentes React modulares:
+
+* **Output** (`OutputTab`): Resultado JSON estructurado devuelto por el enclave de origen tras la agregación in-situ. Incluye el hash de atestación ZK-Receipt HMAC-SHA256 y copiado con un clic.
+* **Debug** (`DebugTab`): Inspector de payloads crudos que muestra cabeceras de solicitud/respuesta, envolvente JSON-RPC, desglose de tiempos de ejecución (Descubrimiento de Ruta → ML-KEM-768 → AES-256-GCM → WASI Sandbox → ZK-Receipt), veredicto del Escudo Egress PII (`PASSED` / `INTERCEPTED`) y el secreto de sesión post-cuántico activo.
+* **Telemetry** (`TelemetryTab`):
+  * **Economía de Tokens frente a MCP**: Comparación lado a lado de tokens BPE consumidos (`o200k_base`) contra los ~16.000–48.000 tokens requeridos por MCP context-pulling tradicional.
+  * **Consumo de Fuel WASI**: Fuel determinista consumido a nivel de instrucción AST (ej. `500 u / 1.000.000 máx`) con **Cuantización en Bloques de 100 Unidades** según NIST SP 800-53 para eliminar canales laterales de temporización.
+  * **Soberanía del Cable**: Bytes físicos transmitidos vs bytes retenidos in-situ (>99.6% reducción de tráfico).
+* **Export** (`ExportTab`): Snippets de código ejecutable generados automáticamente para reproducir la consulta actual en TypeScript (SDK `@nekzus/liop`), cURL y Python. Cada snippet incluye el endpoint resuelto, cabeceras de autenticación y payload lógico exacto.
 
 ---
 
-### 2. Estimador de Tokens en Vivo y Sincronización Bidireccional
+### 2. Resolución de Token OAuth 2.1
 
-* **Estadísticas en el Editor de Código**: El pie del editor calcula dinámicamente los tokens estimados con el tokenizador BPE `o200k_base` (`~141 tokens (est.)`) y muestra el límite de fuel asignado (`1.000.000 u máx`).
-* **Sincronización Bidireccional**: Al seleccionar una plantilla se actualiza automáticamente la capacidad objetivo en la malla, y al elegir una herramienta del catálogo se carga de inmediato su plantilla canónica, evitando errores de esquema de datos.
+Al apuntar a enclaves Tier 1 o Tier 2 detrás del Border LIO Gateway (`BLG`), el playground resuelve automáticamente tokens de acceso Bearer mediante credenciales de cliente RFC 6749 contra el proveedor OIDC de Nexus (`/oidc/token`). Los tokens se cachean en memoria con un margen de seguridad de 30 segundos antes de `expires_in` para evitar errores HTTP 401 durante secuencias rápidas de consulta.
+
+---
+
+### 3. Estimador de Tokens en Vivo y Sincronización Bidireccional
+
+* **Estadísticas en el Editor de Código**: El pie del editor calcula dinámicamente los tokens BPE estimados (`~141 tokens (est.)`) y muestra el límite de fuel asignado (`1.000.000 u máx`).
+* **Sincronización Bidireccional**: Al seleccionar una plantilla se actualiza la capacidad objetivo; al elegir una herramienta se carga su plantilla canónica. Esto previene errores de esquema y rechazos de payload entre dominios.
 
 ---
 

@@ -35,26 +35,30 @@ pnpm demo:playground
 
 ## Key Studio Features
 
-### 1. Tri-Tab Results Panel
-The output console organizes execution data into three specialized tabs:
+### 1. Four-Tab Results Panel
 
-* **Aggregated Output**: Displays the structured JSON payload returned by the remote origin node after in-situ execution and aggregation.
-* **Fuel & Telemetry**:
-  * **Token Economy vs Traditional MCP**: Real-time comparison contrasting the tokens consumed by the injected micro-module against the ~16,000–48,000 tokens required by traditional MCP raw context-pulling.
-  * **WASI Sandbox AST Fuel Metering**: Displays deterministic instruction-level fuel quota consumed (e.g. `500 u / 1,000,000 max`) with **100-Unit Bucket Quantization** to eliminate side-channel timing attacks per NIST SP 800-53.
-  * **Data Sovereignty Ratio**: Measures the wire payload size against the raw origin dataset protected in-situ (achieving over 99.6% wire traffic reduction).
-  * **Cryptographic Phase Latencies**: Exact millisecond breakdown across Route Discovery, Kyber-768 handshake, AES-256-GCM sealing, WASI Sandbox run, and ZK-Receipt verification.
-* **Crypto Proofs**:
-  * **ZK-Receipt HMAC-SHA256**: Validates the mathematical integrity proof binding the returned data to the exact code executed and the origin dataset hash. Features a quick-copy button for the proof hash.
-  * **Post-Quantum Key Exchange**: Verifies the active ML-KEM-768 (Kyber) quantum-resistant session secret.
-  * **Egress PII Shield Status**: Confirms whether the execution passed cardinality and differential privacy policies (`PASSED`) or was intercepted (`INTERCEPTED`).
+The output console organizes execution data into four modular React components:
+
+* **Output** (`OutputTab`): Structured JSON result returned by the origin enclave after in-situ aggregation. Includes the ZK-Receipt HMAC-SHA256 attestation hash and one-click copy.
+* **Debug** (`DebugTab`): Raw payload inspector showing request/response headers, JSON-RPC envelope, execution timing breakdowns (Route Discovery → ML-KEM-768 → AES-256-GCM → WASI Sandbox → ZK-Receipt), Egress PII Shield verdict (`PASSED` / `INTERCEPTED`), and the active post-quantum session secret.
+* **Telemetry** (`TelemetryTab`):
+  * **Token Economy vs MCP**: Side-by-side comparison of BPE tokens consumed (`o200k_base`) against the ~16,000–48,000 tokens required by traditional MCP context-pulling.
+  * **WASI Fuel Metering**: Deterministic instruction-level fuel consumed (e.g. `500 u / 1,000,000 max`) with **100-Unit Bucket Quantization** per NIST SP 800-53 to eliminate timing side-channels.
+  * **Wire Sovereignty**: Physical bytes transmitted vs bytes retained in-situ (>99.6% wire traffic reduction).
+* **Export** (`ExportTab`): Auto-generated executable code snippets for reproducing the current query in TypeScript (`@nekzus/liop` SDK), cURL, and Python. Each snippet includes the resolved endpoint, authentication headers, and exact logic payload.
 
 ---
 
-### 2. Live Token Estimator & Bidirectional Synchronization
+### 2. OAuth 2.1 Token Resolver
 
-* **Live Editor Stats**: The code editor footer dynamically estimates BPE tokens for the code currently written (`~141 tokens (est.)`) and displays the active fuel limit (`1,000,000 max`).
-* **Bidirectional Synchronization**: Selecting an analytical template automatically targets the corresponding capability and node in the mesh, while selecting any discovered capability automatically loads its canonical template, eliminating schema mismatch errors.
+When targeting Tier 1 or Tier 2 enclaves behind the Border LIO Gateway (`BLG`), the playground automatically resolves Bearer access tokens via RFC 6749 client credentials against the Nexus OIDC provider (`/oidc/token`). Tokens are cached in memory with a 30-second safety margin before `expires_in` to prevent HTTP 401 errors during rapid query sequences.
+
+---
+
+### 3. Live Token Estimator & Bidirectional Synchronization
+
+* **Live Editor Stats**: The code editor footer dynamically estimates BPE tokens (`~141 tokens (est.)`) and displays the active fuel limit (`1,000,000 max`).
+* **Bidirectional Synchronization**: Selecting a template updates the target capability; selecting a capability loads its canonical template. This prevents schema mismatch errors and cross-domain payload rejections.
 
 ---
 
