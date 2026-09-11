@@ -8,9 +8,11 @@ import {
 } from "@nekzus/liop";
 import { NetworkDiscoveryEngine } from "../discovery/network-scanner.js";
 import { validateHttpTarget } from "../security/sanitizer.js";
+import { resolveOidcToken } from "../security/token-resolver.js";
 import type {
 	EnrichedTool,
 	ExecutionResult,
+	ScannedTargetNode,
 	ScanReport,
 	StudioTransport,
 	TargetTransportType,
@@ -103,7 +105,49 @@ export class HttpTransport implements StudioTransport {
 
 			const tools = await this.listTools();
 			const latencyMs = Math.max(1, Math.round(performance.now() - tStart));
-			const nodes = await discovery.scanNetwork(host);
+			let portNum = 80;
+			try {
+				const parsed = new URL(this.targetUrl);
+				portNum = parsed.port
+					? Number(parsed.port)
+					: parsed.protocol === "https:"
+						? 443
+						: 80;
+			} catch {
+				// Fallback
+			}
+
+			const meshNodes = await discovery.scanNetwork(host);
+
+			// If the connected target matches an existing scanned node (e.g. by HTTP port), update it; otherwise add httpNode
+			const matchedNode = meshNodes.find((n) => n.ports?.http === portNum);
+			let nodes: ScannedTargetNode[];
+
+			if (matchedNode) {
+				matchedNode.status = "online";
+				matchedNode.rttMs = latencyMs;
+				if (tools.length > 0) {
+					matchedNode.tools = tools.map((t) => t.name);
+				}
+				nodes = meshNodes;
+			} else {
+				const httpNode: ScannedTargetNode = {
+					id: `http-${host}-${portNum}`,
+					name: this.serverInfo?.name || `HTTP Gateway (${this.targetUrl})`,
+					tierLabel: "HTTP / SSE Gateway",
+					host,
+					ports: { http: portNum },
+					status: "online",
+					rttMs: latencyMs,
+					tools: tools.map((t) => t.name),
+					version: this.serverInfo?.version || "1.0.0",
+					role: "Web / SSE Transport Host",
+					isolation: "Transport Barrier Isolation",
+					transportType: "http",
+				};
+				discovery.registerCustomTarget(httpNode);
+				nodes = [httpNode, ...meshNodes.filter((n) => n.id !== httpNode.id)];
+			}
 
 			return {
 				targetType: "http",
@@ -298,13 +342,6 @@ export class HttpTransport implements StudioTransport {
 
 			const payloadBytes =
 				Buffer.byteLength(rawCode || "") + Buffer.byteLength(outputJson);
-			const rawDatasetProtectedBytes = 65536; // ~64 KB dataset in remote HTTP endpoint
-			const egressReductionPercent = Number(
-				Math.max(
-					0,
-					(1 - payloadBytes / rawDatasetProtectedBytes) * 100,
-				).toFixed(1),
-			);
 
 			return {
 				type: "result",
@@ -325,15 +362,11 @@ export class HttpTransport implements StudioTransport {
 							inputTokens,
 							outputTokens,
 							totalTokens,
-							traditionalContextTokens: Math.max(totalTokens * 15, 8000),
-							savingsPercent: 93.5,
 							estimatorName: "o200k_base (BPE)",
 							otelEmitted: true,
 						},
 						bandwidth: {
 							payloadBytes,
-							rawDatasetProtectedBytes,
-							egressReductionPercent,
 						},
 						proof: {
 							zkReceiptHash: zkHash,
@@ -370,8 +403,9 @@ export class HttpTransport implements StudioTransport {
 			"Content-Type": "application/json",
 			Accept: "application/json",
 		};
-		if (this.authToken) {
-			headers.Authorization = `Bearer ${this.authToken}`;
+		const activeToken = this.authToken || (await resolveOidcToken());
+		if (activeToken) {
+			headers.Authorization = `Bearer ${activeToken}`;
 		}
 
 		const res = await fetch(url, {

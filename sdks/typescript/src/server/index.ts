@@ -19,7 +19,10 @@ import {
 import {
 	egressBlocksTotal,
 	fuelConsumed,
+	toolCallErrorsTotal,
 	toolCallsTotal,
+	wireEgressBytesTotal,
+	wireSavedBytesTotal,
 } from "../observability/metrics.js";
 import { Dilithium65Wrapper } from "../rpc/crypto/dilithium.js";
 import { LiopRpcServer } from "../rpc/server.js";
@@ -2135,13 +2138,46 @@ Protocol Adherence is mandatory for successful execution.`,
 						});
 
 						toolCallsTotal.inc({
+							capability: toolName || "unknown",
 							tool: toolName || "unknown",
 							status: isBlocked ? "blocked_egress" : "success",
 						});
 						fuelConsumed.observe(
-							{ tool: toolName || "unknown" },
+							{
+								capability: toolName || "unknown",
+								tool: toolName || "unknown",
+							},
 							workerResponse.fuel_consumed || 0,
 						);
+
+						// [Wire Telemetry] Measure raw response size and network bandwidth saved
+						try {
+							const egressBytes =
+								Buffer.byteLength(response.semantic_evidence || "") +
+								(response.cryptographic_proof
+									? response.cryptographic_proof.length
+									: 0) +
+								(response.zk_receipt ? response.zk_receipt.length : 0);
+							wireEgressBytesTotal.inc(
+								{ capability: toolName || "unknown" },
+								egressBytes,
+							);
+
+							if (this.sandboxRecords && this.sandboxRecords.length > 0) {
+								const rawDatasetBytes = Buffer.byteLength(
+									JSON.stringify(this.sandboxRecords),
+								);
+								const savedBytes = Math.max(0, rawDatasetBytes - egressBytes);
+								if (savedBytes > 0) {
+									wireSavedBytesTotal.inc(
+										{ capability: toolName || "unknown" },
+										savedBytes,
+									);
+								}
+							}
+						} catch {
+							// Egress metrics failure must not interrupt response delivery
+						}
 
 						call.write(response, () => {
 							call.end();
@@ -2174,8 +2210,13 @@ Protocol Adherence is mandatory for successful execution.`,
 						});
 
 						toolCallsTotal.inc({
+							capability: toolName || "unknown",
 							tool: toolName || "unknown",
 							status: "error",
+						});
+						toolCallErrorsTotal.inc({
+							capability: toolName || "unknown",
+							error_type: "runtime_error",
 						});
 
 						// Send error response before closing, avoiding "stream closed without results"

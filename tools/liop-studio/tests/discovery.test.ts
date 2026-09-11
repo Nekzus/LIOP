@@ -40,17 +40,29 @@ describe("LIOP Studio: Dynamic Network Discovery Engine", () => {
 		expect(resolved.node.status).toBe("online");
 	});
 
-	it("should scan network profiles and sort online nodes by tier and RTT", async () => {
+	it("should register and scan custom agnostic target nodes dynamically", async () => {
 		const discovery = NetworkDiscoveryEngine.getInstance();
-		const nodes = await discovery.scanNetwork("127.0.0.1");
+		discovery.registerCustomTarget({
+			id: "custom-linux-node",
+			name: "Remote Linux Microservice",
+			host: "10.0.0.5",
+			status: "online",
+			rttMs: 12,
+			tools: ["Custom_Log_Analytics"],
+			version: "1.0.0",
+			role: "Standalone gRPC Analytics Node",
+			isolation: "WASI Sandbox",
+			transportType: "grpc",
+		});
 
-		expect(Array.isArray(nodes)).toBe(true);
-		// If test docker containers are online, verify structured properties
-		for (const node of nodes) {
-			expect(node.status).toBe("online");
-			expect(node.tier).toBeGreaterThanOrEqual(1);
-			expect(node.tier).toBeLessThanOrEqual(3);
-			expect(node.rttMs).toBeGreaterThanOrEqual(0);
-		}
+		const customTargets = discovery.getCustomTargets();
+		expect(customTargets.some((t) => t.id === "custom-linux-node")).toBe(true);
+
+		const allNodes = await discovery.scanNetwork("127.0.0.1");
+		const found = allNodes.find((n) => n.id === "custom-linux-node");
+		expect(found).toBeDefined();
+		expect(found?.status).toBe("online");
+		expect(found?.tier).toBeUndefined();
+		expect(found?.tools).toContain("Custom_Log_Analytics");
 	});
 });

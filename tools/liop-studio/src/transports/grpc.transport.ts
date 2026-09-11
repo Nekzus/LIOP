@@ -10,6 +10,7 @@ import {
 	TokenTelemetryEngine,
 } from "@nekzus/liop";
 import { NetworkDiscoveryEngine } from "../discovery/network-scanner.js";
+import { createStudioTokenProvider } from "../security/token-resolver.js";
 import type {
 	EnrichedTool,
 	ExecutionResult,
@@ -42,7 +43,8 @@ export class GrpcTransport implements StudioTransport {
 	}
 
 	public async connect(): Promise<void> {
-		this.client = new LiopRpcClient(this.target, undefined, this.token);
+		const tokenProvider = this.token || createStudioTokenProvider();
+		this.client = new LiopRpcClient(this.target, undefined, tokenProvider);
 		this.connected = true;
 	}
 
@@ -96,7 +98,12 @@ export class GrpcTransport implements StudioTransport {
 				rttMs: latencyMs,
 			});
 			const nodes = Array.from(nodesMap.values()).sort((a, b) => {
-				if (a.tier !== b.tier) return a.tier - b.tier;
+				if (a.status !== b.status) return a.status === "online" ? -1 : 1;
+				if (a.tier !== undefined && b.tier !== undefined && a.tier !== b.tier) {
+					return a.tier - b.tier;
+				}
+				if (a.tier !== undefined && b.tier === undefined) return -1;
+				if (a.tier === undefined && b.tier !== undefined) return 1;
 				return a.rttMs - b.rttMs;
 			});
 
@@ -215,6 +222,7 @@ export class GrpcTransport implements StudioTransport {
 		}
 
 		try {
+			const tPqcStart = performance.now();
 			if (onStep) {
 				await onStep(
 					"pqc",
@@ -249,31 +257,35 @@ export class GrpcTransport implements StudioTransport {
 			let kyberCiphertext: Uint8Array = new Uint8Array(1088);
 			let aesNonce: Uint8Array = new Uint8Array(12);
 
+			let sealingMs = 1;
 			if (rawPublicKey instanceof Uint8Array || Buffer.isBuffer(rawPublicKey)) {
 				const { ciphertext, sharedSecret } =
 					await Kyber768Wrapper.encapsulateAsymmetric(rawPublicKey);
 				kyberCiphertext = new Uint8Array(ciphertext);
 
+				const tSealingStart = performance.now();
 				const sealed = AesGcmWrapper.encryptPayload(
 					encryptedWasm,
 					sharedSecret,
 				);
 				encryptedWasm = new Uint8Array(sealed.ciphertext);
 				aesNonce = new Uint8Array(sealed.nonce);
+				sealingMs = Math.max(1, Math.round(performance.now() - tSealingStart));
 			}
+			const pqcMs = Math.max(1, Math.round(performance.now() - tPqcStart));
 
 			if (onStep) {
 				await onStep(
 					"pqc",
 					"Post-quantum ML-KEM-768 session established",
 					"success",
-					4,
+					pqcMs,
 				);
 				await onStep(
 					"sealing",
 					"Encrypting WASI micro-module with AES-256-GCM...",
 					"success",
-					2,
+					sealingMs,
 				);
 				await onStep(
 					"execution",
@@ -354,6 +366,19 @@ export class GrpcTransport implements StudioTransport {
 				};
 			}
 
+			const tZkStart = performance.now();
+			const zkHash = response.zk_receipt
+				? `zk-${Buffer.from(response.zk_receipt).toString("hex").slice(0, 32)}`
+				: `zk-hmac-sha256:${crypto
+						.createHash("sha256")
+						.update(rawCode + response.semantic_evidence)
+						.digest("hex")
+						.slice(0, 32)}`;
+			const zkVerificationMs = Math.max(
+				1,
+				Math.round(performance.now() - tZkStart),
+			);
+
 			if (onStep) {
 				await onStep(
 					"execution",
@@ -365,7 +390,7 @@ export class GrpcTransport implements StudioTransport {
 					"zk_verify",
 					"ZK-Receipt HMAC-SHA256 verified",
 					"success",
-					2,
+					zkVerificationMs,
 				);
 			}
 
@@ -379,23 +404,9 @@ export class GrpcTransport implements StudioTransport {
 			const outputJson = JSON.stringify(parsedOutput);
 			const outputTokens = engine.countTokens(outputJson);
 			const totalTokens = inputTokens + outputTokens;
-			const zkHash = response.zk_receipt
-				? `zk-${Buffer.from(response.zk_receipt).toString("hex").slice(0, 32)}`
-				: `zk-hmac-sha256:${crypto
-						.createHash("sha256")
-						.update(rawCode + outputJson)
-						.digest("hex")
-						.slice(0, 32)}`;
 
 			const payloadBytes =
 				Buffer.byteLength(rawCode || "") + Buffer.byteLength(outputJson);
-			const rawDatasetProtectedBytes = 196608;
-			const egressReductionPercent = Number(
-				Math.max(
-					0,
-					(1 - payloadBytes / rawDatasetProtectedBytes) * 100,
-				).toFixed(1),
-			);
 
 			return {
 				type: "result",
@@ -416,15 +427,11 @@ export class GrpcTransport implements StudioTransport {
 							inputTokens,
 							outputTokens,
 							totalTokens,
-							traditionalContextTokens: 48000,
-							savingsPercent: 98.9,
 							estimatorName: "o200k_base (BPE)",
 							otelEmitted: true,
 						},
 						bandwidth: {
 							payloadBytes,
-							rawDatasetProtectedBytes,
-							egressReductionPercent,
 						},
 						proof: {
 							zkReceiptHash: zkHash,
@@ -434,11 +441,11 @@ export class GrpcTransport implements StudioTransport {
 							timingSideChannelProtection: "100-Fuel-Bucket Quantization",
 						},
 						phases: {
-							discoveryMs: 2,
-							pqcMs: 4,
-							sealingMs: 2,
+							discoveryMs: Math.max(1, Math.round(tPqcStart - t0)),
+							pqcMs,
+							sealingMs,
 							wasiSandboxMs: execMs,
-							zkVerificationMs: 2,
+							zkVerificationMs,
 							totalLatencyMs: Math.round(performance.now() - t0),
 						},
 					},

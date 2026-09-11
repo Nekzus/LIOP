@@ -75,7 +75,8 @@
     "audit:prod:start": "tsx tests/infra/production-audit/cli/audit-start.ts",
     "audit:prod:run": "tsx tests/infra/production-audit/cli/audit-run.ts",
     "audit:prod:runner": "docker compose -f tests/infra/production-audit/docker-compose.production-audit.yml run --rm audit-runner",
-    "audit:prod:clean": "tsx tests/infra/production-audit/cli/audit-clean.ts"
+    "audit:prod:clean": "tsx tests/infra/production-audit/cli/audit-clean.ts",
+    "telemetry:stream": "tsx scripts/telemetry-stream.ts"
   },
   "keywords": [
     "liop",

@@ -103,6 +103,16 @@ Logic-Injection-on-Origin Protocol (LIOP) is the high-performance successor to t
 25. **Template-to-Capability Bidirectional Synchronization Invariant**:
    - In interactive playgrounds and logic injection studios, template selection and capability/tool targeting must maintain bidirectional synchronization.
    - Selecting a logic template must immediately update the selected tool to the template's designated capability, and choosing a tool from the capability browser must load that tool's corresponding canonical template. This prevents schema mismatch runtime errors and cross-domain payload rejections.
+26. **Canonical PromQL Vector Fallback Invariant (Zero Scalar Set Operators)**:
+   - In Prometheus PromQL expressions (both in alerting rules and Grafana dashboard panels), the `or` operator is strictly a set operator between instant vectors.
+   - Never write scalar fallbacks like `(sum(...) or 0)` or `(sum(...) > 0 or 1)`. Such syntax causes `parse error: set operator "or" not allowed in binary scalar expression`.
+   - Always use the canonical vector function: `(sum(...) or vector(0))` and provide vector fallbacks `or vector(100)` when computing availability percentages or error budgets.
+27. **Prometheus Scraping Target Hygiene & Role Tagging Invariant**:
+   - Scrape configurations in `prometheus.yml` must strictly target endpoints that expose native Prometheus text-format metrics (`/metrics`). Never add UI, Vite dev servers, or static HTML web servers to scrape jobs as they return `text/html` and trigger scrape failures (`DOWN`).
+   - Every enclave target must define explicit metadata labels: `node_role` (e.g. `nexus-seed`, `vault-enclave`, `bank-enclave`, `oracle-consortium`, `edge-remote`, `relay-backbone`, `blg-perimeter`) and `tier` (`tier1-enclave`, `tier2-consortium`, `tier3-backbone`) to enable native, zero-regex fleet grouping and high-density inventory tables in Grafana.
+28. **Controlled Telemetry Streaming & Enclave Route Decoupling Invariant**:
+   - Telemetry stream generators, synthetic load runners, and demonstration harnesses must strictly respect asymmetric enclave boundaries. Requests targeting Tier 1 Enclaves (`Bank`, `Vault`) must route through the Border LIO Gateway (`BLG`) using `callTool` abstractions rather than directly polling unreachable private endpoints.
+   - Continuous traffic streams must implement rate moderation (intervals >= 3.5s) to avoid socket exhaustion and prevent Docker Desktop Windows engine pipe lockups (`500 Internal Server Error`).
 
 ---
 

@@ -51,6 +51,7 @@ RUN chmod +x /app/network-profiles/*.sh
 
 ENV LIOP_LOG_LEVEL=info
 ENV LIOP_GRPC_PORT=50051
+ENV NODE_OPTIONS="--max-old-space-size=2048"
 
 EXPOSE 3000 4000 4001 50051
 

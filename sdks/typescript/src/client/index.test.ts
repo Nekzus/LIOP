@@ -4,10 +4,14 @@
 /// <reference types="node" />
 
 import { Buffer } from "node:buffer";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { TokenTelemetryEngine } from "../economy/telemetry.js";
 import { LiopClient } from "./index.js";
 
 describe("LiopClient", () => {
+	beforeEach(() => {
+		TokenTelemetryEngine.destroy();
+	});
 	it("should throw an error if attempting to execute without connection", async () => {
 		const client = new LiopClient();
 
@@ -76,5 +80,65 @@ describe("LiopClient", () => {
 		expect(result.contents[0].uri).toBe("liop://test/resource");
 		expect(result.contents[0].mimeType).toBe("application/json");
 		expect(result.contents[0].text).toContain("liop://test/resource");
+	});
+
+	it("should record token telemetry on discoverTools", async () => {
+		const client = new LiopClient();
+		await client.connect();
+
+		const telemetry = TokenTelemetryEngine.getInstance();
+		const initialOps = telemetry.getReport().operations.length;
+
+		await client.discoverTools();
+
+		const report = telemetry.getReport();
+		expect(report.operations.length).toBeGreaterThan(initialOps);
+
+		const discoverOp = report.operations.find(
+			(op) => op.method === "discoverTools",
+		);
+		expect(discoverOp).toBeDefined();
+		expect(discoverOp?.type).toBe("tools_list");
+		expect(discoverOp?.estimatedInputTokens).toBeGreaterThanOrEqual(0);
+		expect(discoverOp?.estimatedOutputTokens).toBeGreaterThan(0);
+		expect(discoverOp?.durationMs).toBeGreaterThanOrEqual(0);
+	});
+
+	it("should record token telemetry on readResource", async () => {
+		const client = new LiopClient();
+		await client.connect();
+
+		// Access private meshNode instance for mocking
+		// biome-ignore lint/suspicious/noExplicitAny: testing internals
+		const meshNode = (client as any).meshNode;
+
+		vi.spyOn(meshNode, "findProviders").mockResolvedValue(["peer-tel-1"]);
+		vi.spyOn(meshNode, "queryManifest").mockResolvedValue({
+			peerId: "peer-tel-1",
+			grpcPort: 3000,
+			tools: [],
+			serverInfo: { name: "test-server", version: "1.0.0" },
+			resources: [
+				{
+					uri: "liop://telemetry/data",
+					name: "telemetry-data",
+					mimeType: "application/json",
+					text: '{"status":"ok"}',
+				},
+			],
+		});
+
+		const telemetry = TokenTelemetryEngine.getInstance();
+		await client.readResource("liop://telemetry/data");
+
+		const report = telemetry.getReport();
+		const readOp = report.operations.find((op) => op.method === "readResource");
+		expect(readOp).toBeDefined();
+		expect(readOp?.type).toBe("resource_read");
+		expect(readOp?.toolName).toBe("liop://telemetry/data");
+		expect(readOp?.peerId).toBe("peer-tel-1");
+		expect(readOp?.estimatedInputTokens).toBeGreaterThan(0);
+		expect(readOp?.estimatedOutputTokens).toBeGreaterThan(0);
+		expect(readOp?.durationMs).toBeGreaterThanOrEqual(0);
 	});
 });

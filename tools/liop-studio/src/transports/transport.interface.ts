@@ -47,8 +47,8 @@ export interface EnrichedTool {
 export interface ScannedTargetNode {
 	id: string;
 	name: string;
-	tier: 1 | 2 | 3;
-	tierLabel: string;
+	tier?: 1 | 2 | 3;
+	tierLabel?: string;
 	host: string;
 	status: "online" | "offline" | "degraded";
 	rttMs: number;
@@ -60,6 +60,7 @@ export interface ScannedTargetNode {
 	dataset?: string;
 	ports?: { http?: number; p2p?: number; grpc?: number };
 	multiaddrs?: string[];
+	transportType?: TargetTransportType;
 	error?: string;
 }
 
@@ -87,15 +88,15 @@ export interface ExecutionTelemetry {
 		inputTokens: number;
 		outputTokens: number;
 		totalTokens: number;
-		traditionalContextTokens: number;
-		savingsPercent: number;
+		traditionalContextTokens?: number;
+		savingsPercent?: number;
 		estimatorName: string;
 		otelEmitted: boolean;
 	};
 	bandwidth?: {
 		payloadBytes: number;
-		rawDatasetProtectedBytes: number;
-		egressReductionPercent: number;
+		rawDatasetProtectedBytes?: number;
+		egressReductionPercent?: number;
 	};
 	proof?: {
 		zkReceiptHash: string;

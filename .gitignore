@@ -87,6 +87,7 @@ preview*.html
 docs/images/*.png
 docs/images/*.jpg
 docs/*.html
+scratch/
 
 # Graphify local output
 graphify-out/

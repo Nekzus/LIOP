@@ -1,0 +1,105 @@
+# Copyright 2026 Nekzus Solutions and contributors
+# SPDX-License-Identifier: Apache-2.0
+
+groups:
+  - name: liop_mesh_alerts
+    rules:
+      - alert: LiopMeshZeroPeers
+        expr: liop_mesh_peers_connected == 0
+        for: 1m
+        labels:
+          severity: critical
+          tier: mesh-routing
+          component: libp2p
+        annotations:
+          summary: "LIOP node isolated from mesh (0 peers connected)"
+          description: "Node {{ $labels.instance }} in cluster {{ $labels.cluster }} has 0 connected DHT peers for over 1 minute. Kademlia routing and dynamic discovery are impaired."
+          runbook_url: "https://github.com/nekzus/liop/blob/main/examples/observability/README.md#runbook-liopmeshzeropeers"
+
+      - alert: LiopEnclaveDown
+        expr: up == 0
+        for: 30s
+        labels:
+          severity: critical
+          tier: infrastructure
+          component: gateway
+        annotations:
+          summary: "LIOP enclave target unreachable"
+          description: "Enclave instance {{ $labels.instance }} (job {{ $labels.job }}) is down or unresponsive to Prometheus scrape requests for over 30 seconds."
+          runbook_url: "https://github.com/nekzus/liop/blob/main/examples/observability/README.md#runbook-liopenclavedown"
+
+  - name: liop_security_alerts
+    rules:
+      - alert: LiopZeroTrustEgressViolation
+        expr: increase(liop_egress_blocks_total[1m]) > 0
+        for: 0s
+        labels:
+          severity: critical
+          tier: zero-trust
+          component: egress-shield
+        annotations:
+          summary: "Zero-Trust Egress Shield blocked unauthorized data egress"
+          description: "Egress Shield intercepted and blocked an attempt to extract raw row-level or PII confidential data on {{ $labels.instance }}. Total blocked attempts: {{ $value }}."
+          runbook_url: "https://github.com/nekzus/liop/blob/main/examples/observability/README.md#runbook-liopzerotrustegressviolation"
+
+      - alert: LiopZkVerificationFailure
+        expr: increase(liop_zk_verifications_total{status="invalid"}[1m]) > 0
+        for: 0s
+        labels:
+          severity: critical
+          tier: cryptography
+          component: zk-attestation
+        annotations:
+          summary: "Cryptographic ZK-Receipt or HMAC verification failure"
+          description: "A logic execution on {{ $labels.instance }} produced an invalid ZK-Receipt or cryptographic proof signature. Computational integrity violation suspected."
+          runbook_url: "https://github.com/nekzus/liop/blob/main/examples/observability/README.md#runbook-liopzkverificationfailure"
+
+      - alert: LiopPqcHandshakeFailure
+        expr: increase(liop_pqc_handshakes_total{status="failure"}[1m]) > 0
+        for: 0s
+        labels:
+          severity: critical
+          tier: cryptography
+          component: ml-kem-768
+        annotations:
+          summary: "Post-Quantum ML-KEM-768 key encapsulation failure"
+          description: "A post-quantum cryptographic key encapsulation handshake failed on {{ $labels.instance }}. Potential PQC negotiation incompatibility or key corruption."
+          runbook_url: "https://github.com/nekzus/liop/blob/main/examples/observability/README.md#runbook-lioppqchandshakefailure"
+
+  - name: liop_performance_and_red_alerts
+    rules:
+      - alert: LiopHighErrorRate
+        expr: (sum(rate(liop_tool_call_errors_total[2m])) / sum(rate(liop_tool_calls_total[2m]))) * 100 > 5
+        for: 2m
+        labels:
+          severity: warning
+          tier: sla
+          component: logic-runtime
+        annotations:
+          summary: "High tool execution error rate (> 5%)"
+          description: "Tool logic execution error rate is {{ $value | printf \"%.2f\" }}% over the last 2 minutes, exceeding the 5% error budget threshold."
+          runbook_url: "https://github.com/nekzus/liop/blob/main/examples/observability/README.md#runbook-liophigherrorrate"
+
+      - alert: LiopPqcLatencySpike
+        expr: histogram_quantile(0.99, sum(rate(liop_pqc_handshake_duration_ms_bucket[2m])) by (le)) > 25
+        for: 2m
+        labels:
+          severity: warning
+          tier: cryptography
+          component: ml-kem-768
+        annotations:
+          summary: "Post-Quantum Kyber handshake latency spike (p99 > 25ms)"
+          description: "ML-KEM-768 key encapsulation p99 latency is {{ $value | printf \"%.2f\" }}ms on {{ $labels.instance }}, indicating potential worker pool contention."
+          runbook_url: "https://github.com/nekzus/liop/blob/main/examples/observability/README.md#runbook-lioppqclatencyspike"
+
+      - alert: LiopHeapSaturation
+        expr: (liop_process_memory_heap_used_bytes / liop_process_memory_heap_total_bytes) * 100 > 90
+        for: 2m
+        labels:
+          severity: warning
+          tier: resources
+          component: v8-isolate
+        annotations:
+          summary: "V8 isolate heap saturation (> 90%)"
+          description: "Process memory heap on {{ $labels.instance }} is utilizing {{ $value | printf \"%.2f\" }}% of allocated heap space."
+          runbook_url: "https://github.com/nekzus/liop/blob/main/examples/observability/README.md#runbook-liopheapsaturation"

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { LiopVerifier } from "../crypto/verifier.js";
+import { TokenTelemetryEngine } from "../economy/telemetry.js";
 import {
 	MCP_LEGACY_SUPPORT_ENABLED,
 	MCP_PROTOCOL_VERSION_LEGACY,
@@ -11,6 +12,13 @@ import {
 	MeshNode,
 	type MeshNodeConfig,
 } from "../mesh/node.js";
+import {
+	pqcHandshakeDurationMs,
+	pqcHandshakesTotal,
+	toolCallErrorsTotal,
+	wireEgressBytesTotal,
+	zkVerificationsTotal,
+} from "../observability/metrics.js";
 import { LiopRpcClient } from "../rpc/client.js";
 import { AesGcmWrapper } from "../rpc/crypto/aes.js";
 import { Kyber768Wrapper } from "../rpc/crypto/kyber.js";
@@ -301,6 +309,8 @@ export class LiopClient {
 			throw new Error("Client must be connected before discovering tools.");
 		}
 
+		const discoveryStartTime = Date.now();
+
 		log.info(
 			`[LiopClient] Discovery started (forceRefresh: ${forceRefresh})...`,
 		);
@@ -343,6 +353,23 @@ export class LiopClient {
 		log.info(
 			`[LiopClient] Discovery finished. Found ${tools.length} unique tools.`,
 		);
+
+		// [Token Economy] Record telemetry for discoverTools
+		try {
+			const telemetry = TokenTelemetryEngine.getInstance();
+			const toolsPayload = JSON.stringify(tools);
+			const toolsResponsePayload = JSON.stringify({ tools });
+			telemetry.record({
+				type: "tools_list",
+				method: "discoverTools",
+				estimatedInputTokens: telemetry.countTokens(toolsPayload),
+				estimatedOutputTokens: telemetry.countTokens(toolsResponsePayload),
+				durationMs: Date.now() - discoveryStartTime,
+			});
+		} catch {
+			// Telemetry error isolation
+		}
+
 		return tools;
 	}
 
@@ -357,6 +384,7 @@ export class LiopClient {
 			throw new Error("Client must be connected before calling tools.");
 		}
 
+		const callStartTime = Date.now();
 		const toolName = request.name;
 		log.info(`[LiopClient] Resolving Tool: ${toolName}`);
 
@@ -499,6 +527,12 @@ export class LiopClient {
 				"[LiopClient] Critical Error: Kyber Public Key not found in IntentResponse.",
 				intentResponse,
 			);
+			try {
+				pqcHandshakesTotal.inc({
+					algorithm: "ml-kem-768",
+					status: "failure",
+				});
+			} catch {}
 			throw new Error(
 				"Handshake failed: Remote host did not provide a valid Kyber Public Key.",
 			);
@@ -508,8 +542,28 @@ export class LiopClient {
 		log.info(
 			`[LiopClient] Encapsulating Post-Quantum Shared Secret for ${request.name}...`,
 		);
-		const { ciphertext: kyberCiphertext, sharedSecret } =
-			await Kyber768Wrapper.encapsulateAsymmetric(publicKey);
+		const pqcStart = performance.now();
+		let kyberCiphertext: Uint8Array;
+		let sharedSecret: Uint8Array;
+		try {
+			const res = await Kyber768Wrapper.encapsulateAsymmetric(publicKey);
+			kyberCiphertext = res.ciphertext;
+			sharedSecret = res.sharedSecret;
+			const pqcDuration = performance.now() - pqcStart;
+			pqcHandshakeDurationMs.observe({ tool: request.name }, pqcDuration);
+			pqcHandshakesTotal.inc({
+				algorithm: "ml-kem-768",
+				status: "success",
+			});
+		} catch (encapError) {
+			try {
+				pqcHandshakesTotal.inc({
+					algorithm: "ml-kem-768",
+					status: "failure",
+				});
+			} catch {}
+			throw encapError;
+		}
 
 		// 3. Symmetric Sealing (AES-256-GCM)
 		log.info(`[LiopClient] Sealing WASM Payload and Inputs...`);
@@ -576,7 +630,21 @@ export class LiopClient {
 							response.semantic_evidence,
 						);
 
+						try {
+							zkVerificationsTotal.inc({
+								status: isValid ? "valid" : "invalid",
+							});
+						} catch {
+							// Metrics isolation
+						}
+
 						if (!isValid) {
+							try {
+								toolCallErrorsTotal.inc({
+									capability: toolName,
+									error_type: "zk_verification_failed",
+								});
+							} catch {}
 							reject(
 								new Error(
 									"PROTOCOL INTEGRITY VIOLATION: ZK-Receipt verification failed.",
@@ -584,9 +652,45 @@ export class LiopClient {
 							);
 							return;
 						}
+					} else {
+						try {
+							toolCallErrorsTotal.inc({
+								capability: toolName,
+								error_type: "remote_execution_error",
+							});
+						} catch {}
 					}
 
 					resultFulfilled = true;
+
+					// [Token Economy & Wire Telemetry] Record telemetry for callTool
+					try {
+						const telemetry = TokenTelemetryEngine.getInstance();
+						const inputPayload = JSON.stringify(request.arguments ?? {});
+						telemetry.record({
+							type: "tool_call",
+							method: "callTool",
+							toolName,
+							peerId:
+								targetClientKey !== toolName ? targetClientKey : undefined,
+							estimatedInputTokens: telemetry.countTokens(inputPayload),
+							estimatedOutputTokens: telemetry.countTokens(
+								response.semantic_evidence,
+							),
+							durationMs: Date.now() - callStartTime,
+						});
+
+						const egressBytes =
+							Buffer.byteLength(response.semantic_evidence || "") +
+							(response.cryptographic_proof
+								? response.cryptographic_proof.length
+								: 0) +
+							(response.zk_receipt ? response.zk_receipt.length : 0);
+						wireEgressBytesTotal.inc({ capability: toolName }, egressBytes);
+					} catch {
+						// Telemetry error isolation
+					}
+
 					resolve({
 						content: [
 							{
@@ -597,6 +701,12 @@ export class LiopClient {
 						isError: response.is_error,
 					});
 				} catch (err) {
+					try {
+						toolCallErrorsTotal.inc({
+							capability: toolName,
+							error_type: "verification_exception",
+						});
+					} catch {}
 					reject(err);
 				}
 			});
@@ -605,6 +715,12 @@ export class LiopClient {
 				// Evict faulted client from cache so subsequent requests reconnect cleanly
 				this.rpcClients.delete(targetClientKey);
 				this.rpcClients.delete(toolName);
+				try {
+					toolCallErrorsTotal.inc({
+						capability: toolName,
+						error_type: "stream_error",
+					});
+				} catch {}
 				if (resultFulfilled) return;
 				log.error("[LiopClient] Stream Error:", err);
 				reject(err);
@@ -714,6 +830,7 @@ export class LiopClient {
 		if (!this.meshNode) {
 			throw new Error("Client must be connected before reading resources.");
 		}
+		const readStartTime = Date.now();
 		log.info(`[LiopClient] Querying Mesh for Resource: ${uri}...`);
 
 		// We search for the peer hosting the resource in the P2P Mesh
@@ -735,7 +852,7 @@ export class LiopClient {
 		}
 
 		// Return the declarative metadata (Logic-Injection is required for actual data extraction)
-		return {
+		const result = {
 			contents: [
 				{
 					uri,
@@ -744,6 +861,25 @@ export class LiopClient {
 				},
 			],
 		};
+
+		// [Token Economy] Record telemetry for readResource
+		try {
+			const telemetry = TokenTelemetryEngine.getInstance();
+			const outputPayload = JSON.stringify(result);
+			telemetry.record({
+				type: "resource_read",
+				method: "readResource",
+				toolName: uri,
+				peerId: providers[0],
+				estimatedInputTokens: telemetry.countTokens(uri),
+				estimatedOutputTokens: telemetry.countTokens(outputPayload),
+				durationMs: Date.now() - readStartTime,
+			});
+		} catch {
+			// Telemetry error isolation
+		}
+
+		return result;
 	}
 
 	public getServerInfo(): { name: string; version: string } | undefined {

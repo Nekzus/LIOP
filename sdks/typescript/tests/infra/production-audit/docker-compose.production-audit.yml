@@ -33,6 +33,7 @@ x-audit-base: &audit-base
     - ./entrypoints:/app/entrypoints
     - ./utils:/app/utils
     - ../../../dist:/app/node_modules/@nekzus/liop/dist
+    - ../../../package.json:/app/node_modules/@nekzus/liop/package.json
 
 services:
   psk-init:
@@ -49,6 +50,7 @@ services:
     hostname: nexus-prod
     command: ["tsx", "--no-warnings", "entrypoints/nexus.ts"]
     environment:
+      NODE_OPTIONS: "--max-old-space-size=2048"
       LIOP_NODE_ROLE: nexus
       LIOP_LOG_LEVEL: info
       LIOP_NET_PROFILE: lan
@@ -84,6 +86,7 @@ services:
     hostname: blg-prod
     command: ["tsx", "--no-warnings", "entrypoints/blg.ts"]
     environment:
+      NODE_OPTIONS: "--max-old-space-size=2048"
       LIOP_NODE_ROLE: blg
       LIOP_LOG_LEVEL: info
       LIOP_NET_PROFILE: lan
@@ -118,6 +121,7 @@ services:
     hostname: vault-prod
     command: ["tsx", "--no-warnings", "entrypoints/vault.ts"]
     environment:
+      NODE_OPTIONS: "--max-old-space-size=2048"
       LIOP_NODE_ROLE: vault
       LIOP_LOG_LEVEL: info
       LIOP_NET_PROFILE: cross-atlantic
@@ -147,6 +151,7 @@ services:
     hostname: bank-prod
     command: ["tsx", "--no-warnings", "entrypoints/bank.ts"]
     environment:
+      NODE_OPTIONS: "--max-old-space-size=2048"
       LIOP_NODE_ROLE: bank
       LIOP_LOG_LEVEL: info
       LIOP_NET_PROFILE: cross-atlantic-london
@@ -176,6 +181,7 @@ services:
     hostname: oracle-prod
     command: ["tsx", "--no-warnings", "entrypoints/oracle.ts"]
     environment:
+      NODE_OPTIONS: "--max-old-space-size=2048"
       LIOP_NODE_ROLE: oracle
       LIOP_LOG_LEVEL: info
       LIOP_NET_PROFILE: cross-pacific
@@ -203,6 +209,7 @@ services:
     hostname: edge-prod
     command: ["tsx", "--no-warnings", "entrypoints/edge.ts"]
     environment:
+      NODE_OPTIONS: "--max-old-space-size=2048"
       LIOP_NODE_ROLE: edge
       LIOP_LOG_LEVEL: info
       LIOP_NET_PROFILE: hostile-3g
@@ -228,6 +235,7 @@ services:
     hostname: relay-prod
     command: ["tsx", "--no-warnings", "entrypoints/relay.ts"]
     environment:
+      NODE_OPTIONS: "--max-old-space-size=2048"
       LIOP_NODE_ROLE: relay
       LIOP_LOG_LEVEL: info
       LIOP_NET_PROFILE: moderate
@@ -257,7 +265,9 @@ services:
       - ./utils:/app/utils
       - ../playground-dist:/app/playground-dist
       - ../../../dist:/app/node_modules/@nekzus/liop/dist
+      - ../../../package.json:/app/node_modules/@nekzus/liop/package.json
     environment:
+      NODE_OPTIONS: "--max-old-space-size=2048"
       LIOP_NODE_ROLE: client
       LIOP_LOG_LEVEL: info
       LIOP_NET_PROFILE: cross-atlantic
@@ -289,7 +299,9 @@ services:
       - ./utils:/app/utils
       - ./tests:/app/tests
       - ../../../dist:/app/node_modules/@nekzus/liop/dist
+      - ../../../package.json:/app/node_modules/@nekzus/liop/package.json
     environment:
+      NODE_OPTIONS: "--max-old-space-size=2048"
       NEXUS_URL: http://nexus-prod:3000
       BLG_URL: http://blg-prod:3000
       VAULT_URL: http://vault-prod:3000

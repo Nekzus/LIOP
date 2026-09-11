@@ -6,6 +6,13 @@ import * as grpc from "@grpc/grpc-js";
 import { LiopVerifier } from "../crypto/verifier.js";
 import { TokenTelemetryEngine } from "../economy/telemetry.js";
 import type { LiopManifest, MeshNode } from "../mesh/index.js";
+import {
+	pqcHandshakeDurationMs,
+	pqcHandshakesTotal,
+	toolCallErrorsTotal,
+	wireEgressBytesTotal,
+	zkVerificationsTotal,
+} from "../observability/metrics.js";
 import { GRPC_CHANNEL_OPTIONS } from "../rpc/channel-options.js";
 import { Dilithium65Wrapper } from "../rpc/crypto/dilithium.js";
 import { Kyber768Wrapper } from "../rpc/crypto/kyber.js";
@@ -1764,6 +1771,12 @@ export class LiopMcpRouter {
 				metadata,
 				async (err: Error | null, response: IntentResponse) => {
 					if (err || !response.accepted) {
+						try {
+							toolCallErrorsTotal.inc({
+								capability: toolName,
+								error_type: "handshake_failed",
+							});
+						} catch {}
 						return resolve({
 							jsonrpc: "2.0",
 							id,
@@ -1779,10 +1792,21 @@ export class LiopMcpRouter {
 						});
 					}
 
+					const pqcStart = performance.now();
 					const { ciphertext, sharedSecret } =
 						await Kyber768Wrapper.encapsulateAsymmetric(
 							response.kyber_public_key,
 						);
+					const pqcDuration = performance.now() - pqcStart;
+					try {
+						pqcHandshakeDurationMs.observe({ tool: toolName }, pqcDuration);
+						pqcHandshakesTotal.inc({
+							algorithm: "ml-kem-768",
+							status: "success",
+						});
+					} catch {
+						// Metrics observation failure must never disrupt handshake
+					}
 					// SECURITY: Avoid AES-GCM nonce reuse across multiple ciphertexts.
 					// We embed arguments directly into the proxy logic so we only encrypt ONE payload per session/nonce.
 					const embeddedArgs =
@@ -1837,7 +1861,19 @@ export class LiopMcpRouter {
 										resultBody,
 									);
 
+									try {
+										zkVerificationsTotal.inc({
+											status: isValid ? "valid" : "invalid",
+										});
+									} catch {}
+
 									if (!isValid) {
+										try {
+											toolCallErrorsTotal.inc({
+												capability: toolName,
+												error_type: "cryptographic_audit_failed",
+											});
+										} catch {}
 										return resolve({
 											jsonrpc: "2.0",
 											id,
@@ -1852,12 +1888,19 @@ export class LiopMcpRouter {
 											},
 										});
 									}
+								} else {
+									try {
+										toolCallErrorsTotal.inc({
+											capability: toolName,
+											error_type: "remote_execution_error",
+										});
+									} catch {}
 								}
 							}
 
 							const parsedResult = JSON.parse(resultBody);
 
-							// [Token Economy] Record remote tool call telemetry
+							// [Token Economy & Wire Telemetry] Record remote tool call telemetry
 							const remoteTelemetry = TokenTelemetryEngine.getInstance();
 							remoteTelemetry.record({
 								type: "tool_call",
@@ -1869,6 +1912,12 @@ export class LiopMcpRouter {
 								estimatedOutputTokens: remoteTelemetry.countTokens(resultBody),
 								durationMs: Date.now() - transcodingStartTime,
 							});
+							try {
+								wireEgressBytesTotal.inc(
+									{ capability: toolName },
+									Buffer.byteLength(resultBody),
+								);
+							} catch {}
 
 							resolve({ jsonrpc: "2.0", id, result: parsedResult });
 						} catch (_e) {
@@ -1879,7 +1928,13 @@ export class LiopMcpRouter {
 							});
 						}
 					});
-					call.on("error", (e: Error) =>
+					call.on("error", (e: Error) => {
+						try {
+							toolCallErrorsTotal.inc({
+								capability: toolName,
+								error_type: "grpc_stream_error",
+							});
+						} catch {}
 						resolve({
 							jsonrpc: "2.0",
 							id,
@@ -1889,8 +1944,8 @@ export class LiopMcpRouter {
 								],
 								isError: true,
 							},
-						}),
-					);
+						});
+					});
 				},
 			);
 		});

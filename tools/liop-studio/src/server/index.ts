@@ -161,6 +161,9 @@ export function createStudioServer(options: ServerOptions = {}) {
 		const tier3Count = nodes.filter(
 			(n) => n.tier === 3 && n.status === "online",
 		).length;
+		const standaloneCount = nodes.filter(
+			(n) => (n.tier === undefined || n.tier === null) && n.status === "online",
+		).length;
 		const avgLatency = onlineNodes > 0 ? lastReport?.latencyMs || 0 : 0;
 		return c.json({
 			summary: {
@@ -172,25 +175,14 @@ export function createStudioServer(options: ServerOptions = {}) {
 					tier1: tier1Count,
 					tier2: tier2Count,
 					tier3: tier3Count,
+					standalone: standaloneCount,
 				},
 			},
 			nodes,
 		});
 	});
 
-	// Tools discovery
-	app.get("/api/discover", async (c) => {
-		try {
-			const tools = await activeTransport.listTools();
-			return c.json({ tools });
-		} catch (err: unknown) {
-			return c.json(
-				{ error: err instanceof Error ? err.message : String(err) },
-				500,
-			);
-		}
-	});
-
+	// Capabilities discovery
 	app.get("/api/tools", async (c) => {
 		try {
 			const tools = await activeTransport.listTools();

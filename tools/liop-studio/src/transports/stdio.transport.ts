@@ -12,6 +12,7 @@ import { sanitizeCommand } from "../security/sanitizer.js";
 import type {
 	EnrichedTool,
 	ExecutionResult,
+	ScannedTargetNode,
 	ScanReport,
 	StudioTransport,
 	TargetTransportType,
@@ -159,6 +160,11 @@ export class StdioTransport implements StudioTransport {
 		const discovery = NetworkDiscoveryEngine.getInstance();
 		const meshNodes = await discovery.scanNetwork("127.0.0.1").catch(() => []);
 
+		const cmdParts = this.options.command.trim().split(/[/\\\\]/);
+		const cmdBase = cmdParts.pop() || this.options.command;
+		const fullAddress =
+			`${this.options.command} ${(this.options.args || []).join(" ")}`.trim();
+
 		try {
 			if (!this.isConnected()) {
 				await this.connect();
@@ -166,27 +172,67 @@ export class StdioTransport implements StudioTransport {
 			const tools = await this.listTools();
 			const latencyMs = Math.max(1, Math.round(performance.now() - tStart));
 
+			const stdioNode: ScannedTargetNode = {
+				id: "stdio-target",
+				name: this.serverInfo?.name || `Stdio (${cmdBase})`,
+				tierLabel: "Local Subprocess (Stdio)",
+				host: "localhost",
+				status: "online",
+				rttMs: latencyMs,
+				tools: tools.map((t) => t.name),
+				version: this.serverInfo?.version || "1.0.0",
+				role: "Local Subprocess MCP / LIOP Server",
+				isolation: "Process Stdio Stream Isolation",
+				transportType: "stdio",
+			};
+
+			discovery.registerCustomTarget(stdioNode);
+
+			const nodes = [
+				stdioNode,
+				...meshNodes.filter((n) => n.id !== "stdio-target"),
+			];
+
 			return {
 				targetType: "stdio",
-				targetAddress:
-					`${this.options.command} ${(this.options.args || []).join(" ")}`.trim(),
+				targetAddress: fullAddress,
 				status: "online",
 				latencyMs,
 				serverInfo: this.serverInfo,
 				totalTools: tools.length,
 				tools,
-				nodes: meshNodes,
+				nodes,
 				timestamp: new Date().toISOString(),
 			};
 		} catch (err) {
+			const stdioNode: ScannedTargetNode = {
+				id: "stdio-target",
+				name: `Stdio (${cmdBase})`,
+				tierLabel: "Local Subprocess (Stdio)",
+				host: "localhost",
+				status: "offline",
+				rttMs: 0,
+				tools: [],
+				version: "1.0.0",
+				role: "Local Subprocess MCP / LIOP Server",
+				isolation: "Process Stdio Stream Isolation",
+				transportType: "stdio",
+			};
+			discovery.registerCustomTarget(stdioNode);
+
+			const nodes = [
+				stdioNode,
+				...meshNodes.filter((n) => n.id !== "stdio-target"),
+			];
+
 			return {
 				targetType: "stdio",
-				targetAddress: this.options.command,
+				targetAddress: fullAddress,
 				status: "offline",
 				latencyMs: Math.round(performance.now() - tStart),
 				totalTools: 0,
 				tools: [],
-				nodes: meshNodes,
+				nodes,
 				timestamp: new Date().toISOString(),
 				error: err instanceof Error ? err.message : String(err),
 			};

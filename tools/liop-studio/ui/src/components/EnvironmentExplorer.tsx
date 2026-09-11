@@ -11,11 +11,14 @@ import {
 } from "lucide-react";
 import type React from "react";
 import { useState } from "react";
+import { copyToClipboard } from "../lib/clipboard";
+import type { Tool } from "../types";
 
 export interface EnvironmentExplorerProps {
 	isOpen: boolean;
 	onClose: () => void;
 	toolName: string;
+	tool?: Tool;
 }
 
 interface FieldDefinition {
@@ -33,7 +36,7 @@ const TOOL_SCHEMAS: Record<
 		sampleRecord: Record<string, unknown>;
 	}
 > = {
-	get_account_balances: {
+	Analyze_Synthetic_Bank_Transactions: {
 		recordType: "BankAccountRecord",
 		fields: [
 			{
@@ -75,7 +78,7 @@ const TOOL_SCHEMAS: Record<
 			status: "ACTIVE",
 		},
 	},
-	get_patient_records: {
+	Analyze_Synthetic_Medical_Records: {
 		recordType: "ClinicalPatientRecord",
 		fields: [
 			{
@@ -117,7 +120,7 @@ const TOOL_SCHEMAS: Record<
 			diastolicBp: 88,
 		},
 	},
-	get_market_depth: {
+	Analyze_HFT_Market_Data: {
 		recordType: "MarketDepthTick",
 		fields: [
 			{
@@ -166,7 +169,7 @@ const TOOL_SCHEMAS: Record<
 			volume: 14.82,
 		},
 	},
-	read_telemetry_stream: {
+	Analyze_IoT_Sensor_Data: {
 		recordType: "IndustrialTelemetryRecord",
 		fields: [
 			{
@@ -208,7 +211,103 @@ const TOOL_SCHEMAS: Record<
 			alertStatus: false,
 		},
 	},
+	BLG_Inspect_Enclave_Perimeter: {
+		recordType: "PerimeterSecurityEvent",
+		fields: [
+			{
+				name: "enclaveId",
+				type: "string",
+				description: "Isolated sovereign enclave identifier",
+				example: "enclave-vault-01",
+			},
+			{
+				name: "tier",
+				type: "1 | 2 | 3",
+				description: "Classification tier boundary",
+				example: 1,
+			},
+			{
+				name: "activeIsolation",
+				type: "string",
+				description: "Active cryptographic and network isolation",
+				example: "Strict Zero-Trust pnet",
+			},
+			{
+				name: "pqcSuite",
+				type: "string",
+				description: "Negotiated post-quantum key exchange",
+				example: "ML-KEM-768",
+			},
+			{
+				name: "egressPIIShield",
+				type: "string",
+				description: "Status of 4-stage data leak protection",
+				example: "Active (Strict)",
+			},
+			{
+				name: "unauthorizedAttempts",
+				type: "number",
+				description: "Derivation attacks blocked at origin",
+				example: 0,
+			},
+		],
+		sampleRecord: {
+			enclaveId: "enclave-vault-01",
+			tier: 1,
+			activeIsolation: "Strict Zero-Trust pnet",
+			pqcSuite: "ML-KEM-768",
+			egressPIIShield: "Active (Strict)",
+			unauthorizedAttempts: 0,
+		},
+	},
+	LiopMeshStatus: {
+		recordType: "MeshTopologyState",
+		fields: [
+			{
+				name: "peerId",
+				type: "string",
+				description: "libp2p node identity string",
+				example: "12D3KooW9pZ...",
+			},
+			{
+				name: "connectedPeers",
+				type: "number",
+				description: "Active swarm peer connections",
+				example: 8,
+			},
+			{
+				name: "dhtProviders",
+				type: "number",
+				description: "Kademlia DHT provider records indexed",
+				example: 12,
+			},
+			{
+				name: "consensusState",
+				type: "string",
+				description: "Distributed state sync condition",
+				example: "SYNCHRONIZED",
+			},
+		],
+		sampleRecord: {
+			peerId: "12D3KooW9pZ...",
+			connectedPeers: 8,
+			dhtProviders: 12,
+			consensusState: "SYNCHRONIZED",
+		},
+	},
 };
+
+// Aliases for compatibility
+TOOL_SCHEMAS.BLG_Execute_Banking_Analytics =
+	TOOL_SCHEMAS.Analyze_Synthetic_Bank_Transactions;
+TOOL_SCHEMAS.BLG_Execute_Healthcare_Analytics =
+	TOOL_SCHEMAS.Analyze_Synthetic_Medical_Records;
+TOOL_SCHEMAS.get_account_balances =
+	TOOL_SCHEMAS.Analyze_Synthetic_Bank_Transactions;
+TOOL_SCHEMAS.get_patient_records =
+	TOOL_SCHEMAS.Analyze_Synthetic_Medical_Records;
+TOOL_SCHEMAS.get_market_depth = TOOL_SCHEMAS.Analyze_HFT_Market_Data;
+TOOL_SCHEMAS.read_telemetry_stream = TOOL_SCHEMAS.Analyze_IoT_Sensor_Data;
 
 const ALLOWED_APIS = [
 	{
@@ -261,6 +360,7 @@ export const EnvironmentExplorer: React.FC<EnvironmentExplorerProps> = ({
 	isOpen,
 	onClose,
 	toolName,
+	tool,
 }) => {
 	const [activeTab, setActiveTab] = useState<"fields" | "sample" | "sandbox">(
 		"fields",
@@ -269,37 +369,107 @@ export const EnvironmentExplorer: React.FC<EnvironmentExplorerProps> = ({
 
 	if (!isOpen) return null;
 
-	const schema = TOOL_SCHEMAS[toolName] ?? {
-		recordType: "DynamicOriginRecord",
-		fields: [
-			{
-				name: "id",
-				type: "string",
-				description: "Unique entity record identifier",
-				example: "REC-001",
+	// 1. Check preset schemas first
+	let schema = TOOL_SCHEMAS[toolName];
+
+	// 2. Dynamically parse from tool.inputSchema (standard MCP JSON Schema)
+	if (!schema && tool?.inputSchema && typeof tool.inputSchema === "object") {
+		// biome-ignore lint/suspicious/noExplicitAny: JSON Schema properties
+		const inputSchema = tool.inputSchema as Record<string, any>;
+		const properties = inputSchema.properties || {};
+		const requiredFields = new Set<string>(
+			Array.isArray(inputSchema.required) ? inputSchema.required : [],
+		);
+
+		const parsedFields: FieldDefinition[] = [];
+		const sampleRecord: Record<string, unknown> = {};
+
+		interface JsonSchemaProp {
+			type?: string;
+			description?: string;
+			enum?: unknown[];
+			default?: string | number | boolean;
+			example?: string | number | boolean;
+		}
+
+		for (const [key, propValue] of Object.entries(properties)) {
+			const prop = (propValue || {}) as JsonSchemaProp;
+			const typeStr = prop.enum
+				? prop.enum.map((e: unknown) => JSON.stringify(e)).join(" | ")
+				: prop.type || "unknown";
+
+			let exampleVal: string | number | boolean =
+				prop.default !== undefined ? prop.default : "";
+
+			if (exampleVal === "") {
+				if (prop.type === "number" || prop.type === "integer") {
+					exampleVal = 0;
+				} else if (prop.type === "boolean") {
+					exampleVal = true;
+				} else if (prop.type === "array") {
+					exampleVal = "[]";
+				} else if (prop.enum && prop.enum.length > 0) {
+					exampleVal = String(prop.enum[0]);
+				} else {
+					exampleVal =
+						prop.example !== undefined ? String(prop.example) : `sample_${key}`;
+				}
+			}
+
+			const isReq = requiredFields.has(key);
+			parsedFields.push({
+				name: isReq ? `${key} *` : key,
+				type: typeStr,
+				description:
+					prop.description ||
+					(isReq ? "Required parameter field" : "Optional parameter property"),
+				example: exampleVal,
+			});
+
+			sampleRecord[key] = exampleVal;
+		}
+
+		if (parsedFields.length > 0) {
+			schema = {
+				recordType: `${tool.name.replace(/[^a-zA-Z0-9_]/g, "")}Schema`,
+				fields: parsedFields,
+				sampleRecord,
+			};
+		}
+	}
+
+	// 3. Fallback schema
+	if (!schema) {
+		schema = {
+			recordType: "DynamicOriginRecord",
+			fields: [
+				{
+					name: "id",
+					type: "string",
+					description: "Unique entity record identifier",
+					example: "REC-001",
+				},
+				{
+					name: "value",
+					type: "number | string | object",
+					description: "Payload data attribute",
+					example: 100,
+				},
+			],
+			sampleRecord: {
+				id: "REC-001",
+				value: 100,
+				timestamp: Date.now(),
 			},
-			{
-				name: "value",
-				type: "number | string | object",
-				description: "Payload data attribute",
-				example: 100,
-			},
-		],
-		sampleRecord: {
-			id: "REC-001",
-			value: 100,
-			timestamp: Date.now(),
-		},
-	};
+		};
+	}
 
 	const copySample = async () => {
 		const text = JSON.stringify(schema.sampleRecord, null, 2);
-		try {
-			await navigator.clipboard.writeText(text);
+		const ok = await copyToClipboard(text);
+		if (ok) {
 			setCopied(true);
 			setTimeout(() => setCopied(false), 2000);
-		} catch (_e) {
-			// Fallback
 		}
 	};
 
