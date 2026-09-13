@@ -1,6 +1,6 @@
 ---
 title: "Conceptos del Servidor"
-description: "Entendiendo cómo un Nodo de Datos LIOP protege los recursos y ejecuta lógica"
+description: "Arquitectura de protección de recursos y ejecución de lógica en Nodos de Datos LIOP"
 ---
 
 En el Logic-Injection-on-Origin Protocol, un "Servidor" es técnicamente denominado un **Nodo de Datos** (Data Node). A diferencia de un servidor web tradicional que responde pasivamente con JSON, un Servidor LIOP es un Motor de Ejecución activo. Su deber principal es recibir lógica foránea inyectada, aislarla estrictamente y permitirle operar sobre datos locales.
@@ -12,7 +12,7 @@ Para lograr esto de forma segura, los Servidores LIOP exponen tres primitivas fu
 En protocolos heredados (como MCP), los servidores definen "Herramientas" estáticas (ej., `calculate_sum`, `read_log`), y la IA instruye al servidor para ejecutarlas con parámetros fijos. 
 
 En LIOP, el Servidor no necesita pre-programar infinitas herramientas. En su lugar, expone una **Interfaz de Ejecución**.
-El Agente envía un **Módulo WebAssembly (`.wasm`)** completamente dinámico que contiene su propia lógica innovadora.
+El Agente envía un **Módulo WebAssembly (`.wasm`)** completamente dinámico que contiene la lógica requerida para su tarea.
 
 <Frame>
   <img className="block dark:hidden w-full" src="/images/server-flow-light.svg" alt="Flujo de Ejecución del Nodo de Datos LIOP" />
@@ -23,25 +23,23 @@ El Agente envía un **Módulo WebAssembly (`.wasm`)** completamente dinámico qu
 *   El Agente compila su razonamiento (ej., "Encontrar todos los logs de error con la IP 192.168.1.1 y agruparlos") en un binario WASM multiplataforma.
 *   El Servidor LIOP recibe este bloque inyectado vía gRPC.
 *   En lugar de ejecutarlo nativamente, el Servidor levanta un **WASI Sandbox** efímero e inyecta el módulo WASM en él.
-*   **Escalabilidad Industrial:** Tanto el backend en Rust como el SDK en TS aprovechan modelos de hilos avanzados (Native OS Threads y `piscina` en Node.js) para procesar miles de sandboxes concurrentemente.
+*   **Escalabilidad y Concurrencia:** Tanto el backend en Rust como el SDK en TS aprovechan modelos de hilos avanzados (Native OS Threads y `piscina` en Node.js) para procesar miles de sandboxes concurrentemente.
 
-Esto permite capacidades infinitas sin requerir que el administrador del servidor escriba constantemente nuevos endpoints de herramientas.
+Esto proporciona amplia flexibilidad analítica sin requerir que el administrador del servidor escriba continuamente nuevos endpoints.
 
 ## 2. Capacidades (Los Recursos)
 
-Si el servidor ejecuta código arbitrario vía WASM, ¿cómo es seguro? A través de la **Seguridad Basada en Capacidades**.
-
-Las Capacidades son el equivalente LIOP a los "Recursos" de MCP, pero radicalmente más seguras. Por defecto, un módulo WASM en ejecución en LIOP tiene **acceso cero absoluto** a todo:
+Las Capacidades aplican límites de seguridad mediante un modelo estricto basado en capacidades. Por defecto, un módulo WASM en ejecución opera sin privilegios ni acceso implícito al sistema:
 - Sin lectura/escritura en el sistema de archivos local.
 - Sin acceso a sockets de red.
 - Sin variables de entorno del host.
 - Sin acceso al reloj del sistema.
 
-### Otorgando Acceso
-When un Agente envía un Módulo, debe especificar las Capacidades que requiere para funcionar. El Servidor verifica estas peticiones contra su manifiesto. Si se aprueban, el Servidor *mapea dinámicamente* los recursos específicos directamente en el espacio de memoria del Sandbox.
+### Asignación de Permisos
+Cuando un Agente envía un Módulo, debe especificar las Capacidades que requiere para funcionar. El Servidor verifica estas peticiones contra su manifiesto. Si se aprueban, el Servidor *mapea dinámicamente* los recursos específicos directamente en el espacio de memoria del Sandbox.
 
 Por ejemplo, una Capacidad podría ser: `READ_ONLY_ACCESS: /var/logs/nginx/`. 
-El módulo WASM puede ahora leer los logs a una velocidad asombrosa, pero si la lógica maliciosa intenta leer archivos no autorizados, el motor de Sandboxing disparará un `WASI Trap` inmediato, terminando instantáneamente la ejecución.
+El módulo WASM puede leer los logs dentro de los límites asignados de memoria. Si el código intenta acceder a rutas no autorizadas (como `/etc/passwd`), el motor Wasmtime dispara un `WASI Trap` e interrumpe la ejecución de inmediato.
 
 ## 3. Watchdogs (Eventos Asíncronos Persistentes)
 
@@ -55,9 +53,9 @@ Las aplicaciones de IA a menudo necesitan monitorear un servidor (ej., "Avísame
 *   El módulo WASM se conecta localmente a los flujos del sistema.
 *   En el momento en que se cumple la condición, el módulo WASM se despierta y empuja un evento asíncrono directamente a través de la conexión multiplexada abierta de vuelta al Agente.
 
-## 4. Confianza y Evidencia (Industrial TEE Execution Sandbox)
+## 4. Confianza y Evidencia (Entorno de Ejecución Seguro TEE)
 
-En entornos de Nivel-0 (Tier-0), el Servidor LIOP evoluciona más allá del sandboxing estándar. El servidor proporciona evidencia matemática y física utilizando un **TEE (Trusted Execution Environment) Sandbox**.
+En entornos corporativos de alta seguridad (Tier-0), el Servidor LIOP evoluciona más allá del sandboxing a nivel de sistema operativo. El servidor proporciona evidencia criptográfica y física utilizando un **TEE (Trusted Execution Environment) Sandbox**.
 
 <Frame>
   <img className="block dark:hidden w-full" src="/images/animated-tee-flow-light.svg" alt="Flujo del TEE Execution Sandbox en LIOP" />
@@ -67,21 +65,21 @@ En entornos de Nivel-0 (Tier-0), el Servidor LIOP evoluciona más allá del sand
 El pipeline de ejecución TEE procesa lógica foránea bajo asunciones de cero-confianza:
 
 #### 1. Host Bounds & Checks (Guardian AST y Egress Filter)
-Antes de que la lógica toque el motor de ejecución, el interceptor del Host descifra el payload. El **Guardian AST Sentinel** analiza el Árbol de Sintaxis Abstracta del WebAssembly. Si detecta intentos de importación ilegal, el payload es purgado.
-Tras la ejecución, un **Filtro Anti-Exfiltración (Egress Filter)** analiza matemáticamente el buffer saliente para prevenir la fuga de PII antes de su transmisión.
+Antes de que la lógica toque el motor de ejecución, el interceptor del Host descifra el payload. El **Guardian AST Sentinel** analiza el Árbol de Sintaxis Abstracta del WebAssembly. Si detecta intentos de importación no autorizados, el payload se descarta antes de su ejecución.
+Tras la ejecución, un **Filtro de Egreso (Egress Filter)** analiza matemáticamente el buffer de salida para prevenir la fuga de datos confidenciales o PII antes de su transmisión.
 
 #### 2. Hardware Isolated Enclave (TEE)
-La computación central se empuja a un Enclave de Hardware físico (como **AWS Nitro Enclaves**). Esto garantiza la *Computación Ciega*: la RAM del Host está encriptada por hardware, por lo que ni siquiera el administrador del sistema puede volcar la memoria para robar el razonamiento del Agente.
+La computación central se ejecuta en un Enclave de Hardware físico (como **AWS Nitro Enclaves** o **Intel SGX**). Esto garantiza la *Computación Ciega*: la memoria RAM del host está cifrada por hardware, impidiendo que administradores del sistema o proveedores cloud inspeccionen la memoria durante el procesamiento.
 
 #### 3. Motor de Ejecución y Monitor de Combustible
-Dentro del sandbox, el motor arranca el contexto WASI. Dado que WebAssembly es Turing Completo, podría ejecutar un bucle infinito por error o malicia. El **Monitor de Combustible** (Fuel Monitor) defiende contra esto; si el combustible se agota, el motor mata la ejecución.
+Dentro del sandbox, el motor arranca el contexto WASI. Dado que WebAssembly es Turing Completo, podría ejecutar bucles no controlados. El **Monitor de Combustible** (Fuel Monitor) defiende contra esto consumiendo unidades de combustible por instrucción; si el límite se agota, el motor aborta la ejecución para prevenir ataques de denegación de servicio.
 
 #### 4. ZK Prover (Certeza Matemática)
-Cuando el `.wasm` termina, el resultado pasa al **Zero-Knowledge Prover**. Este módulo genera un *Recibo* matemático. El paquete devuelto prueba incondicionalmente al Agente que la lógica específica se ejecutó perfectamente y el resultado es íntegro.
+Cuando el módulo termina su salida, el resultado pasa al **Zero-Knowledge Prover**. Este módulo genera un *Recibo* criptográfico verificable. El paquete devuelto prueba de forma determinista al Agente que la lógica solicitada se ejecutó sin alteraciones por parte del nodo.
 
 ## 5. Servidor TypeScript y MCP Bridge (El Nodo SDK)
 
-Mientras que el plano de datos en Rust domina el sandboxing pesado, el ecosistema LIOP también proporciona una implementación completa de servidor en TypeScript (`@nekzus/liop`). 
+Mientras que el plano de datos en Rust gestiona el sandboxing de alta exigencia, el ecosistema LIOP también proporciona una implementación completa de servidor en TypeScript (`@nekzus/liop`). 
 
 Este servidor actúa como una capa de adopción rápida para desarrolladores de Node.js.
 
@@ -92,11 +90,11 @@ Este servidor actúa como una capa de adopción rápida para desarrolladores de 
 
 ### Cómo el Bridge maneja Clientes MCP Heredados:
 1. **Intercepción JSON-RPC**: Las herramientas heredadas envían peticiones JSON-RPC 2.0 estándar.
-2. **LiopMcpBridge Adapter**: El SDK intercepta estos payloads y los traduce internamente. También expone impecablemente los endpoints de recursos, permitiendo el *Descubrimiento Zero-Shot* de esquemas de datos.
+2. **LiopMcpBridge Adapter**: El SDK intercepta estos payloads y los traduce internamente. También expone los endpoints de recursos, permitiendo el descubrimiento de esquemas de datos para modelos de lenguaje.
 3. **Validación Zod en LiopServer**: Antes de la ejecución, el `LiopServer` impone validaciones estrictas de esquema Zod en el hilo principal.
 4. **Respuesta Transparente**: El resultado se devuelve formateado como un bloque estándar de MCP.
 
-Esto garantiza que los desarrolladores puedan adoptar inmediatamente el protocolo y servir sus herramientas existentes en la red LIOP con **cero modificaciones de código**.
+Esto permite a los desarrolladores adoptar el protocolo e integrar sus herramientas existentes en la red LIOP sin necesidad de modificar su código base.
 
 ## 6. Seguridad Avanzada y Diccionario de Datos
 
@@ -279,12 +277,12 @@ El motor deriva automáticamente la **sensibilidad por campo** basándose en el 
 | Finanzas (SOX/PCI) | `2.0` | Directrices PET del DOJ |
 | Datos Públicos | `4.0–8.0` | US Census, Google RAPPOR |
 
-Consulte [Seguridad Zero-Trust — Motor de Privacidad Diferencial](/es/concepts/zero-trust#7-motor-de-privacidad-diferencial-mecanismo-de-laplace) para la inmersión técnica completa.
+Consulte [Seguridad Zero-Trust — Motor de Privacidad Diferencial](/es/concepts/zero-trust#7-motor-de-privacidad-diferencial-mecanismo-de-laplace) para la especificación técnica detallada.
 
-### Estructura Dinámica de Retorno (Auto-i18n Nativo) [PLANIFICADO]
-LIOP introduce un patrón arquitectónico donde la fricción por traducción no existe. Esta funcionalidad está en el roadmap.
+### Estructura Dinámica de Retorno (Localización de Datos en Origen) [PLANIFICADO]
+LIOP introduce un patrón arquitectónico donde la traducción y localización de datos ocurre directamente en el momento de la ejecución. Esta funcionalidad está en la hoja de ruta.
 
-Cuando un Nodo de Datos registra sus capacidades, incrusta una directiva estructural dentro del payload. Esto obliga al agente a generar esquemas JSON que utilizan llaves mapeadas al **idioma exacto hablado por el usuario en el prompt.**
+Cuando un Nodo de Datos registra sus capacidades, incrusta una directiva estructural dentro del payload (`DYNAMIC RETURN STRUCTURE`). Esto instruye al agente ejecutor a generar esquemas JSON con claves mapeadas al **idioma detectado en la consulta inicial del usuario.**
 
-*   Si el usuario consulta *"¿Cuántos pacientes tienen hipertensión?"*, el Nodo recibe naturalmente una respuesta con taxonomía en Español (ej., `{"cantidad": 25}`).
-*   Esto elimina la necesidad de librerías de internacionalización, dejando la localización de datos directamente en el Origen de forma segura.
+*   Si el usuario consulta *"¿Cuántos pacientes tienen hipertensión?"*, el Nodo devuelve una respuesta con claves en español (como `{"cantidad": 25, "edad_promedio": 45}`).
+*   Esto elimina la necesidad de capas cliente de internacionalización (i18n), resolviendo la taxonomía de los datos en el Origen sin requerir re-traducción de prompts.

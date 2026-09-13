@@ -1,7 +1,7 @@
 # LIOP Educational Sandbox Demo
 
 ## Objective
-This demo is designed for **educational and technical auditing purposes**. It provides a deep dive into the internal components of the Logic-Injection-on-Origin Protocol (LIOP) that typically operate transparently within the SDK.
+This demo is designed for **educational and technical auditing purposes**. It demonstrates the internal security and execution layers of the Logic-Injection-on-Origin Protocol (LIOP) that operate under the hood in the SDK.
 
 ## Key Components
 - **LiopCompiler**: Simulation of logic packaging into an LIOP binary.

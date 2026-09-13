@@ -1,15 +1,15 @@
 ---
 title: "Economía y Telemetría"
-description: "Medir consumo de tokens y exportar métricas de observabilidad"
+description: "Medición de consumo de tokens y exportación de métricas de telemetría"
 ---
 
 El SDK incorpora un módulo de economía de tokens para estimar costo y exponer telemetría de operaciones MCP.
 
 ## Estimadores
 
-El SDK incorpora de forma nativa un tokenizador Byte-Pair Encoding (BPE) **`o200k_base`** con cero dependencias externas en tiempo de ejecución — el esquema de codificación estándar de la industria para los modelos modernos de OpenAI (GPT-4o, o1, o3-mini) y una línea base altamente precisa para proveedores como Anthropic (Claude 3.5/3.7) y Google (Gemini 2.0).
+El SDK incorpora de forma nativa un tokenizador Byte-Pair Encoding (BPE) **`o200k_base`** con cero dependencias externas en tiempo de ejecución, el esquema de codificación estándar de la industria para los modelos modernos de OpenAI (GPT-4o, o1, o3-mini) y una línea base precisa para proveedores como Anthropic (Claude 3.5/3.7) y Google (Gemini 2.0).
 
-Mediante *inlining* en tiempo de compilación y *tree-shaking* de AST con `tsup`, el vocabulario `o200k_base` se empaqueta directamente en la distribución compilada. Esto eliminó **25.95 MB** de dependencias de tokenizadores heredados en desuso, reduciendo la huella instalada de `node_modules` de **100.95 MB** a **84.43 MB** (reducción neta de -17.1%).
+Mediante *inlining* en tiempo de compilación y *tree-shaking* de AST con `tsup`, el vocabulario `o200k_base` se empaqueta directamente en la distribución compilada. Esto eliminó **25.95 MB** de dependencias de tokenizadores heredados en desuso, con lo que la huella instalada de `node_modules` se redujo de **100.95 MB** a **84.43 MB** (reducción neta de -17.1%).
 
 Tanto `createTokenEstimator()` (factoría asíncrona) como `createSyncTokenEstimator()` (factoría síncrona) proporcionan acceso síncrono e inmediato a `RealTokenEstimator` sin ninguna configuración adicional:
 
@@ -60,7 +60,7 @@ telemetry.record({
 
 ## LiopOTelBridge
 
-`LiopOTelBridge` mapea telemetría de tokens hacia semánticas **OpenTelemetry `gen_ai.*`**, permitiendo que backends de observabilidad externos ingieran los datos de costo de LIOP sin fricción.
+`LiopOTelBridge` mapea telemetría de tokens hacia semánticas **OpenTelemetry `gen_ai.*`**, permitiendo que backends de observabilidad externos ingieran los datos de costo de LIOP de forma directa.
 
 El puente se acopla automáticamente a tu `MeterProvider` global y emite las siguientes métricas:
 - `gen_ai.client.token.usage` (Histograma)
@@ -70,13 +70,13 @@ Usa este módulo cuando necesites visibilidad de costo en producción para carga
 
 ## Integración con LiopMeshStatus
 
-El LIOP Agent expone una herramienta de diagnóstico local llamada **`LiopMeshStatus`** que consume el `TokenTelemetryEngine` internamente para producir un bloque de estado enriquecido y legible por humanos vía `formatStatusBlock()`. Cuando un LLM invoca esta herramienta, recibe un reporte estructurado que contiene:
+El LIOP Agent expone una herramienta de diagnóstico local llamada **`LiopMeshStatus`** que consume el `TokenTelemetryEngine` internamente para producir un informe estructurado de estado operativo vía `formatStatusBlock()`. Cuando un LLM invoca esta herramienta, recibe un reporte estructurado que contiene:
 
 - **ID de Sesión** y tiempo activo
 - **Modelo del estimador** (`o200k_base` o heurístico)
-- **Desglose de operaciones** — cada método MCP invocado, con estimaciones de tokens de entrada/salida
-- **Totales acumulados** — tokens totales consumidos durante la sesión
-- **Proyección de costo** — costo estimado basado en precios por token configurables
+- **Desglose de operaciones** (cada método MCP invocado, con estimaciones de tokens de entrada/salida)
+- **Totales acumulados** (tokens totales consumidos durante la sesión)
+- **Proyección de costo** (costo estimado basado en precios por token configurables)
 
 <Tip>
   La telemetría de economía de tokens es **intencionalmente visible** en la salida de `LiopMeshStatus`. Esta transparencia permite a los clientes B2B auditar patrones de consumo y a los agentes de IA autogestionar sus presupuestos de ventana de contexto sin requerir infraestructura de monitoreo externa.

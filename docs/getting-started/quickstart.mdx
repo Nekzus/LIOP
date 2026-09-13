@@ -115,7 +115,7 @@ npx tsx server.ts
 # Output: LIOP Server is listening on the Mesh...
 ```
 
-In a separate terminal, unleash your Agent:
+In a separate terminal, run the agent client:
 ```bash
 npx tsx client.ts
 # Output: Joined LIOP Protocol...
@@ -144,14 +144,14 @@ Once running, navigate to **`http://localhost:14000`** in your browser:
 Unlike legacy REST APIs or MCP string parsing:
 1. Your Client discovered the Server instantly via a **P2P Kademlia Routing Table**.
 2. A **Post-Quantum Kyber Handshake (ML-KEM-768)** secured the session.
-3. The query was serialized into an ultra-compact **Protobuf Binary** and sealed with **AES-256-GCM**.
+3. The query was serialized into binary **Protocol Buffers** and sealed with **AES-256-GCM**.
 4. The execution happened inside an isolated **WASI Sandbox** on the server, protected by the **Guardian AST** and **Egress PII Shield**.
 5. The output was cryptographically sealed with an **HMAC-SHA256 ZK-Receipt**.
 
 ## Next Steps
 
-Now that you've run your first Mesh execution, dive deeper into the core architecture to understand how to leverage advanced capabilities like Continuous Watchdogs and Zero-Knowledge Proofs.
+With the client verified on the mesh, review the core architecture to configure persistent Watchdogs and Zero-Knowledge receipts.
 
 <Card title="Core Architecture" icon="sitemap" href="/concepts/architecture">
-  Learn how the Data Layer and Transport Layer synergize in LIOP.
+  Learn how the Data Layer and Transport Layer integrate in LIOP.
 </Card>

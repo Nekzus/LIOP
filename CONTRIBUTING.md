@@ -3,7 +3,7 @@
 
 Thank you for your interest in contributing to the Logic-Injection-on-Origin Protocol (LIOP). We are building the high-performance sovereign compute mesh that complements application-level agent protocols (such as MCP) by shifting distributed data computation from Context-Pulling to **Logic-Injection-on-Origin (LIO)**.
 
-To ensure the highest architectural quality, military-grade Zero-Trust security, and a predictable open-source lifecycle, please adhere to the following contribution guidelines.
+To ensure the highest architectural quality, defense-in-depth Zero-Trust security, and a predictable open-source lifecycle, please adhere to the following contribution guidelines.
 
 ---
 
@@ -72,7 +72,7 @@ Commits without GPG signatures (`-S`) and valid DCO sign-offs (`-s`) will be rej
 
 Gracias por tu interés en contribuir al Logic-Injection-on-Origin Protocol (LIOP). Estamos construyendo la malla de cómputo soberano de alto rendimiento que complementa a los protocolos de agentes a nivel de aplicación (como MCP), transformando el cómputo de datos distribuidos desde la Extracción de Contexto hacia **Logic-Injection-on-Origin (LIO)**.
 
-Para garantizar la más alta calidad arquitectónica, seguridad Zero-Trust de grado militar y un ciclo de vida predecible, por favor adhiérete a las siguientes directrices.
+Para garantizar la más alta calidad arquitectónica, seguridad Zero-Trust de defensa en profundidad y un ciclo de vida predecible, por favor adhiérete a las siguientes directrices.
 
 ---
 

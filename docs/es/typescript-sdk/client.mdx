@@ -118,7 +118,7 @@ try {
 
 ## Manejo de Errores y Rechazos Zero-Trust
 
-Debido a que el Servidor impone un sandbox `WASI` estricto y utiliza el *Guardian Cero-Tiempo* para inspeccionar tu carga `.wasm` ANTES de la ejecución, tu cliente debe estar preparado para manejar rechazos del sandbox.
+Debido a que el Servidor impone un sandbox `WASI` estricto y utiliza *Guardian AST* para inspeccionar el payload `.wasm` antes de la ejecución, tu cliente debe estar preparado para manejar rechazos del sandbox.
 
 ```typescript
 try {

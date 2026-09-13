@@ -14,17 +14,17 @@
 
 # Logic-Injection-on-Origin Protocol (LIOP)
 
-**LIOP** is a next-generation, high-performance binary transport mesh designed for advanced AI Agent communication. It is the conceptual and technical evolution of the Model Context Protocol (MCP), radically shifting the paradigm from **pulling massive data** to secure **Logic-Injection-on-Origin (LIO)** execution.
+**LIOP** is a high-performance binary transport mesh designed for autonomous agent communication. It extends the Model Context Protocol (MCP) by replacing context-pulling data transfers with sandboxed **Logic-Injection-on-Origin (LIO)** execution.
 
 > Instead of moving terabytes of data to the AI, LIOP moves lightweight, sandboxed logic to the data.
 
 ## The Problem
 
-In the rapid evolution of autonomous agents, transferring gigabytes of raw data to central AI nodes for filtering, parsing, or reasoning is increasingly inefficient, slow, and expensive. Current protocols force agents to download entire datasets to extract a few relevant insights, wasting bandwidth, tokens, and time.
+Transferring raw data to central agent runtime environments for filtering, parsing, or reasoning introduces unnecessary network overhead, high token costs, and privacy exposure. Current context-pulling models force agents to download entire datasets to extract minimal subsets of information.
 
 ## The LIOP Solution: Logic-Injection-on-Origin
 
-LIOP introduces a **decentralized, Zero-Trust architectural model** where AI agents inject ultra-lightweight, sandboxed execution modules (WebAssembly) directly into the data source. The data never leaves its origin.
+LIOP introduces a **decentralized, Zero-Trust architecture** where agents dispatch sandboxed execution modules (WebAssembly or AST-verified envelopes) directly to the data source. The underlying data remains in place.
 
 ```
 @LIOP{wasi_v1,AuditModule}
@@ -32,10 +32,10 @@ LIOP introduces a **decentralized, Zero-Trust architectural model** where AI age
 @END
 ```
 
-**Key benefits:**
-- **Dramatically reduces network latency and bandwidth** — only semantically relevant results are returned.
-- **Saves millions of tokens** — agents receive cryptographically verified evidence, not raw data.
-- **Zero-Trust by default** — injected logic runs inside strict WASI sandboxes with capability-limited access.
+**Core capabilities:**
+- **Bandwidth reduction:** Only aggregated results or extracted evidence cross the wire.
+- **Context token efficiency:** Agents ingest compact semantic evidence instead of raw tabular data.
+- **Zero-Trust sandboxing:** Injected logic executes inside isolated WASI environments with capability-limited system access.
 
 ## Repository Structure
 
@@ -116,7 +116,7 @@ The high-performance Data Node host, written in Rust. This is where injected WAS
 | Module | Description |
 |---|---|
 | `executor.rs` | Wasmtime + WASI sandbox with fuel-based CPU limits and `liop::push_event` host syscall |
-| `guardian.rs` | Zero-Time AST structural scanning via `wasmparser` — rejects malicious imports before JIT |
+| `guardian.rs` | Pre-execution AST structural scanning via `wasmparser` — rejects unauthorized imports before JIT compilation |
 | `grpc.rs` | Tonic gRPC server with PQC intent negotiation, Rate-Limiting, and streaming |
 | `p2p.rs` | libp2p Kademlia DHT for decentralized peer discovery over Noise/TCP/QUIC |
 | `zk.rs` | ZK-Receipt generation engine (HMAC-SHA256 commitments, ZK-VM roadmap) |
@@ -149,7 +149,7 @@ npm install @nekzus/liop@latest
 
 ### Launch the Interactive Web Playground & Local Mesh
 
-Experience in-situ execution, PQC handshakes, AST fuel metering, and cryptographic ZK-receipts in real-time:
+Execute in-situ queries, evaluate PQC handshakes, monitor AST fuel consumption, and inspect cryptographic ZK-receipts:
 
 ```bash
 # 1. Production-Grade Multi-Tier Audit Mesh (8 Nodes + Web UI at http://localhost:16000)
@@ -167,7 +167,7 @@ docker compose up -d
 
 ### Run the Zero-Config Agent (CLI)
 
-For end-users wanting to integrate with **Claude Desktop** instantly:
+Connect Claude Desktop or local MCP clients to the LIOP mesh:
 
 ```bash
 npx -y @nekzus/liop@latest

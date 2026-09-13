@@ -7,14 +7,14 @@
 
 # Logic-Injection-on-Origin Protocol - Cargo Core (rust-app)
 
-This directory contains the underlying high-performance, system-level components of the LIOP mesh network, written cleanly in a Rust 2021 Cargo Workspace.
+This directory contains the underlying high-performance, system-level components of the LIOP mesh network, structured as a Rust 2021 Cargo Workspace.
 
 ## Components Breakdown
 
 The Cargo Workspace is divided into modular crates and source modules:
 
 - **`liop-core`**: The shared library storing standardized Protobuf definitions via `prost` and `tonic` (located in `sdks/rust/crates/core`).
-- **`liop-node`**: The Data Node host application (this directory). Contains the heavy-duty `wasmtime-wasi` sandbox. It securely receives foreign WebAssembly logic, virtualizes strict capabilities (like read-only filesystem access for specific directories), and executes the payload at near-native speeds.
+- **`liop-node`**: The Data Node host application (this directory). Houses the `wasmtime-wasi` sandbox. It securely receives foreign WebAssembly logic, virtualizes strict capabilities (like read-only filesystem access for specific directories), and executes the payload at near-native speeds.
 - **`liop-client`**: The Agent Node injector SDK for compiling and pushing Wasm logic (now located in `sdks/rust/crates/client`).
 - **`src/config.rs` & `src/health.rs`**: Modular infrastructure for TOML-driven external configuration (`config.toml`) and Hyper-based observability (`/health` status probes).
 
@@ -23,15 +23,15 @@ The Cargo Workspace is divided into modular crates and source modules:
 - **Native QUIC Transport**: Support for high-performance, multiplexed `/quic-v1` UDP transport over the Libp2p Mesh DHT.
 - **TLS/mTLS Security**: Deep integration with `rustls` securing gRPC Tonic endpoints with decentralized or standard PKI certificates.
 - **Rate-Limiting (Anti-DoS)**: Token-bucket interceptors deployed at the gRPC layer to throttle aggressive logic injections.
-- **Structured Telemetry**: Full `tracing_subscriber` integration out-of-the-box for JSON-ready asynchronous logging.
+- **Structured Telemetry**: Full `tracing_subscriber` integration for JSON-ready asynchronous logging.
 
 ## Security (Zero-Trust)
 
-This backend implements a ferocious security posture:
-- **WASI Sandboxing**: Payload instances cannot touch sockets, memory, or undeclared files not strictly mapped by the Server. Includes `consume_fuel()` runtime protections against infinite loops.
-- **Decentralized Identity**: Peer Identifiers are mathematically derived from Ed25519 keypairs. Kademlia routing is cryptographically verified to evade Eclipse attacks.
-- **Zero-Time AST**: `Guardian` statically analyzes `.wasm` imports via `wasmparser` to ban malicious sandbox escapes *before* instantiation.
-- **PQC Handshakes & ZK**: Experimental integrations with `pqcrypto-kyber` to thwart "Harvest Now, Decrypt Later" quantum attacks, and ZK-Receipt SHA-256 (Journal + Seal) verification.
+This backend enforces a multi-layered Zero-Trust architecture:
+- **WASI Sandboxing**: Payload instances cannot access host sockets, memory, or undeclared files outside explicit server mappings. Includes `consume_fuel()` runtime protections against infinite loops.
+- **Decentralized Identity**: Peer Identifiers are mathematically derived from Ed25519 keypairs. Kademlia routing is cryptographically verified to mitigate Eclipse attacks.
+- **Pre-Execution AST**: `Guardian` statically analyzes `.wasm` imports via `wasmparser` to reject unauthorized sandbox escapes before instantiation.
+- **PQC Handshakes & ZK**: Experimental integrations with `pqcrypto-kyber` to mitigate harvest-now-decrypt-later vectors, and ZK-Receipt SHA-256 (Journal + Seal) verification.
 
 ## Building and Running
 
@@ -48,4 +48,4 @@ cargo build
 cargo test
 ```
 
-*Note: The `target/` directory of this workspace is heavily isolated and ignored globally from version control to prevent repository bloat.*
+*Note: The `target/` directory of this workspace is excluded by version control.*

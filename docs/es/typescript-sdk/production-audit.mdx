@@ -69,7 +69,7 @@ El arnés ejecuta **11 suites exhaustivas de Vitest** (59 pruebas individuales) 
 4. **`03-auth-apikey`**: Comprueba el control de acceso fail-closed de RBAC, bloqueando llamadas no autorizadas y validando credenciales de cliente OAuth 2.1.
 5. **`04-logic-wan`**: Ejecuta consultas de inyección lógica in-situ a través de fronteras de red (ej. cálculo de riesgo financiero a través del enlace transatlántico).
 6. **`05-security-shields`**: Batería de pruebas adversariales intentando exfiltración de PII, envenenamiento de prototipos, bombas de memoria e inferencia estadística (100% interceptados).
-7. **`06-resilience`**: Simula caídas intencionadas de nodos, disparo del circuit breaker y recuperación transparente entre gRPC y libp2p.
+7. **`06-resilience`**: Simula caídas intencionadas de nodos, disparo del circuit breaker y recuperación automatizada entre gRPC y libp2p.
 8. **`07-observability`**: Valida los endpoints de métricas dinámicas de Prometheus (`/metrics`) y la emisión de tokens a OpenTelemetry (`gen_ai.client.token.usage`).
 9. **`08-lifecycle-traceability`**: Certifica los identificadores criptográficos deterministas que vinculan cada solicitud con su ejecución en el nodo de origen.
 10. **`09-pnet-tier-isolation`**: Certifica que los Enclaves Tier 1 (`Bank` y `Vault`) rechazan conexiones de nodos sin la clave privada Swarm Key PSK, y confirma que el tráfico cruzado se enruta de forma segura a través del Border LIO Gateway (`BLG`).

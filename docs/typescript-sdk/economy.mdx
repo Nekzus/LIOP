@@ -7,9 +7,9 @@ The SDK ships with a token economy module designed to estimate cost and expose t
 
 ## Estimators
 
-The SDK includes a built-in, zero-runtime-dependency **`o200k_base`** Byte-Pair Encoding (BPE) tokenizer — the industry standard encoding scheme for modern OpenAI models (GPT-4o, o1, o3-mini) and an accurate baseline across major LLM providers (Anthropic Claude 3.5/3.7, Google Gemini 2.0).
+The SDK includes a built-in, zero-runtime-dependency **`o200k_base`** Byte-Pair Encoding (BPE) tokenizer, the industry standard encoding scheme for modern OpenAI models (GPT-4o, o1, o3-mini) and an accurate baseline across major LLM providers (Anthropic Claude 3.5/3.7, Google Gemini 2.0).
 
-Through build-time inlining and AST tree-shaking via `tsup`, the `o200k_base` vocabulary is bundled directly into the compiled distribution. This eliminates **25.95 MB** of external legacy tokenizer dependencies, reducing the installed `node_modules` footprint from **100.95 MB** to **84.43 MB** (-17.1% net reduction).
+Through build-time inlining and AST tree-shaking via `tsup`, the `o200k_base` vocabulary is bundled directly into the compiled distribution. This removes **25.95 MB** of external legacy tokenizer dependencies, reducing the installed `node_modules` footprint from **100.95 MB** to **84.43 MB** (-17.1% net reduction).
 
 Both `createTokenEstimator()` (async factory) and `createSyncTokenEstimator()` (synchronous factory) provide immediate, synchronous access to `RealTokenEstimator` out-of-the-box:
 
@@ -60,7 +60,7 @@ telemetry.record({
 
 ## LiopOTelBridge
 
-`LiopOTelBridge` maps token telemetry into **OpenTelemetry `gen_ai.*` semantics** so external observability backends can ingest LIOP token data seamlessly.
+`LiopOTelBridge` maps token telemetry into **OpenTelemetry `gen_ai.*` semantics** so external observability backends can ingest LIOP token data directly.
 
 The bridge automatically binds to your global `MeterProvider` and emits the following metrics:
 - `gen_ai.client.token.usage` (Histogram)
@@ -70,13 +70,13 @@ Use this module when you need production cost visibility across local and mesh-r
 
 ## LiopMeshStatus Integration
 
-The LIOP Agent exposes a local diagnostic tool called **`LiopMeshStatus`** that consumes the `TokenTelemetryEngine` internally to produce a rich, human-readable status block via `formatStatusBlock()`. When an LLM calls this tool, it receives a structured report containing:
+The LIOP Agent exposes a local diagnostic tool called **`LiopMeshStatus`** that consumes the `TokenTelemetryEngine` internally to produce a structured operational status report via `formatStatusBlock()`. When an LLM calls this tool, it receives a structured report containing:
 
 - **Session ID** and uptime
 - **Estimator model** (`o200k_base` or heuristic)
-- **Operation breakdown** — each MCP method called, with input/output token estimates
-- **Cumulative totals** — total tokens consumed across the session
-- **Cost projection** — estimated cost based on configurable per-token pricing
+- **Operation breakdown** (each MCP method called, with input/output token estimates)
+- **Cumulative totals** (total tokens consumed across the session)
+- **Cost projection** (estimated cost based on configurable per-token pricing)
 
 <Tip>
   The token economy telemetry is **intentionally visible** in the `LiopMeshStatus` output. This transparency enables B2B clients to audit consumption patterns and allows AI agents to autonomously manage their context window budgets without requiring external monitoring infrastructure.

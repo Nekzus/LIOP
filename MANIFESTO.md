@@ -47,7 +47,7 @@ These seven principles govern every architectural decision in the protocol. They
 4. **Cryptographic Verifiability** — Every computation produces a ZK-Receipt that binds the output hash to the exact logic executed and the session secret. Third parties can audit results without re-executing the logic.
 5. **Quantum Resilience** — All key exchanges and session seals use post-quantum algorithms (ML-KEM-768) from day one. This is not a future upgrade path — it is a launch requirement, designed against harvest-now-decrypt-later strategies.
 6. **Minimal Footprint** — The protocol must operate on resource-constrained edge devices. Efficiency is a hard constraint, not an optimization target. CPU fuel limits are deterministic and AST-derived.
-7. **Ecosystem Coexistence & Backward Compatibility** — LIOP operates at the sovereign compute and distributed mesh layer while coexisting with application-level agent protocols. Through a dual-era gateway adapter, legacy MCP clients consume LIOP services seamlessly without ecosystem fragmentation.
+7. **Ecosystem Coexistence & Backward Compatibility** — LIOP operates at the sovereign compute and distributed mesh layer while coexisting with application-level agent protocols. Through a dual-era gateway adapter, legacy MCP clients consume LIOP services without requiring client-side modifications or creating ecosystem fragmentation.
 
 ---
 
@@ -139,13 +139,9 @@ The technical implementation, cryptographic primitives, and transport features e
 
 ---
 
-## 9. Join the Mesh
+## 9. Next Steps
 
-- **Stop Pulling.**
-- **Start Pushing.**
-- **LIO is the future of Autonomous AI.**
-
-Read the [Protocol Specification](./protocol/SPECIFICATION.md). Run the [Interactive Playground](http://localhost:14000). Build your first LIOP Server with `npm install @nekzus/liop`. Join the mesh.
+Review the [Protocol Specification](./protocol/SPECIFICATION.md), run the [Interactive Playground](http://localhost:16000), or instantiate an enclave node using the TypeScript SDK via `npm install @nekzus/liop`.
 
 ---
 

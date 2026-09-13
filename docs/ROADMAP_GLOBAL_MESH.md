@@ -59,7 +59,7 @@ gantt
 * **Core Runtime**: V8 Isolate sandboxing with 25 poisoned globals, deep-frozen prototypes (11 core prototypes), and a 32KB AST Taint Analyzer (Information Flow Control) to prevent PII derivation and side channels.
 * **Cryptography**: Post-Quantum ML-KEM-768 (`mlkem@2.7.0`, NIST FIPS 203) key encapsulation for gRPC intent handshakes, AES-256-GCM authenticated payload encryption, and HMAC-SHA256 ZK-Receipts binding output to logic and SOX-compliant dataset hashes.
 * **Differential Privacy**: Laplace mechanism with CSPRNG (`crypto.randomBytes()`) and a 3-tier query budget (`FORBIDDEN`, `SENSITIVE`, `PUBLIC`) aligned with NIST SP 800-226.
-* **Dual-Era MCP Bridge**: Seamless protocol transcoding supporting both MCP v2 (2026-07-28) and v1 legacy (2025-11-25) clients.
+* **Dual-Era MCP Bridge**: Protocol transcoding supporting both MCP v2 (2026-07-28) and v1 legacy (2025-11-25) clients.
 
 ### 1.2 Phase Beta-1: Global Network Connectivity & Firewall Resilience
 * **Status**: Complete & Verified against live 4-node Docker mesh (`nexus`, `bank`, `vault`, `oracle`).
@@ -154,7 +154,7 @@ gantt
      - Automated test suite verifying mesh behavior under simulated transcontinental WAN latency (300ms), packet loss, partition splits, and abrupt bootstrap node termination.
      - *Target Files*: `tests/chaos/network-partition.test.ts`, `tests/chaos/bootstrap-drain.test.ts`.
   4. **Geo-Proximity Routing & Multi-Region Failover**:
-     - RTT-aware and region-aware routing prioritizing closest geographic nodes with seamless failover.
+     - RTT-aware and region-aware routing prioritizing closest geographic nodes with automated circuit-breaker failover.
      - *Target Files*: `src/gateway/router.ts`.
 
 ---

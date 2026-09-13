@@ -15,7 +15,7 @@ We provide security updates and patches for the following release channels:
 
 ## Reporting a Security Vulnerability
 
-The Logic-Injection-on-Origin Protocol (LIOP) operates under a strict **Zero-Trust** security model with military-grade protections against data extraction, side-channel attacks, and sandbox escapes.
+The Logic-Injection-on-Origin Protocol (LIOP) operates under a strict **Zero-Trust** security model with multi-layered architectural protections against data extraction, side-channel attacks, and sandbox escapes.
 
 If you discover a potential security vulnerability, memory isolation breach, PII extraction vector, or cryptographic weakness, **please DO NOT create a public GitHub issue**.
 

@@ -136,13 +136,13 @@ This automatically registers the `liop_blind_analyst` intelligent prompt into th
 
 ## Security & Memory Management
 
-When a Data Node receives a `.wasm` or `.js` payload, the **`GuardianTS`** module performs a Zero-Time Heuristic Inspection on its Abstract Syntax Tree (AST) to ensure absolute security. 
+When a Data Node receives a `.wasm` or `.js` payload, the **`GuardianTS`** module performs a pre-execution heuristic inspection on its Abstract Syntax Tree (AST) to verify security constraints.
 
-Before any WebAssembly module is even instantiated or executed, `GuardianTS` scans all imports. It strictly rejects any payload that attempts to bind to unauthorized host APIs. Only standard WASI APIs (`wasi_snapshot_preview1`) and native `LIOP` sandboxed functions are allowed, categorically preventing sandbox escapes.
+Before any WebAssembly module is instantiated or executed, `GuardianTS` scans all imports. It rejects payloads attempting to bind to unauthorized host APIs. Only standard WASI APIs (`wasi_snapshot_preview1`) and native `LIOP` sandboxed functions are permitted, preventing sandbox escapes.
 
-This rigorous AST evaluation is aggressively cached in memory `O(1)` for blazing-fast subsequent executions of the exact same logic payload.
+AST evaluation results are cached in memory `O(1)` to optimize subsequent executions of the same payload.
 
-If you are hot-deploying Zero-Day security patches on the host or need to forcefully invalidate the execution memory, you can purge the AST cache manually:
+If you are deploying security updates on the host or need to invalidate the execution memory, you can purge the AST cache manually:
 
 ```typescript
 server.clearAstCache();

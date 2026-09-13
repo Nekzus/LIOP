@@ -3,7 +3,7 @@ title: "Arquitectura de Seguridad"
 description: "Capas de defensa en profundidad, pipelines criptográficos y mecanismos de protección de datos en el SDK TypeScript de LIOP"
 ---
 
-El SDK TypeScript de LIOP aplica un modelo de seguridad basado en **defensa en profundidad**, compuesto por seis capas independientes. Cada capa aborda una superficie de amenaza distinta — desde el análisis estático de código hasta el filtrado de datos post-ejecución — garantizando que ningún punto único de fallo pueda comprometer el sistema.
+El SDK TypeScript de LIOP aplica un modelo de seguridad basado en **defensa en profundidad**, compuesto por seis capas independientes. Cada capa aborda una superficie de amenaza distinta (desde el análisis estático de código hasta el filtrado de datos post-ejecución), garantizando que ningún punto único de fallo pueda comprometer el sistema.
 
 <Note>
   Las características marcadas con **[ROADMAP]** están definidas arquitectónicamente pero aún no están disponibles en la versión actual.
@@ -81,7 +81,7 @@ const POISONED_GLOBALS = [
 ```
 
 <Tip>
-  El **envenenamiento de `Date`** previene que la lógica inyectada realice análisis de canal lateral por temporización para inferir el tamaño del dataset o los patrones de ejecución. El **envenenamiento de TypedArrays** previene ataques DoS de tipo Heap Bomb que alojan buffers binarios masivos para crashear el proceso worker.
+  El **envenenamiento de `Date`** previene que la lógica inyectada realice análisis de canal lateral por temporización para inferir el tamaño del dataset o los patrones de ejecución. El **envenenamiento de TypedArrays** previene ataques DoS de tipo Heap Bomb que alojan buffers binarios masivos para causar la caída del proceso de trabajo.
 </Tip>
 
 Tras la asignación, el contexto completo del sandbox se congela recursivamente mediante `Object.freeze()`, impidiendo cualquier alteración del entorno aislado en tiempo de ejecución.
@@ -196,13 +196,13 @@ Preflight policy rejected: PII side-channel detected: output contains values der
 
 ## Capa 4: Escudo de Privacidad (PII Egress Shield)
 
-El escáner PII intercepta toda la salida del sandbox **antes** de devolver los resultados al llamador. A partir de la v3, opera un **pipeline de detección en cuatro etapas** que combina análisis estructural, coincidencia de patrones y procesamiento de lenguaje natural. Cada etapa es independiente — el sistema bloquea los datos si **cualquier** etapa detecta una violación.
+El escáner PII intercepta toda la salida del sandbox **antes** de devolver los resultados al llamador. A partir de la v3, opera un **pipeline de detección en cuatro etapas** que combina análisis estructural, coincidencia de patrones y procesamiento de lenguaje natural. Cada etapa es independiente: el sistema bloquea los datos si **cualquier** etapa detecta una violación.
 
 ### Pipeline de Detección
 
 | Etapa | Mecanismo | Propósito |
 |:------|:----------|:---------|
-| **1. Coincidencia Exacta de Claves** | `Set<string>.has()` — O(1) | Bloquea nombres de campo PII conocidos (`ssn`, `email`, `password`) |
+| **1. Coincidencia Exacta de Claves** | `Set<string>.has()` (O(1)) | Bloquea nombres de campo PII conocidos (`ssn`, `email`, `password`) |
 | **2. Coincidencia Difusa de Claves** | Regex de contorno + subcadena | Captura aliases y variaciones (`patientId`, `names`, `fullName`) |
 | **3. Validadores de Patrones** | Regex + verificaciones algorítmicas | Detecta valores PII independientemente del nombre de la clave |
 | **4. Escaneo NER de Contenido** | Motor NLP `compromise` | Identifica nombres de personas, lugares y organizaciones en texto libre |
@@ -232,7 +232,7 @@ Una **lista segura** de palabras comunes del inglés y claves internas del proto
 
 ### Etapa 4: Reconocimiento de Entidades Nombradas (NER)
 
-Cuando `enableNerScanning` se establece en `true`, el escáner utiliza la librería NLP [`compromise`](https://github.com/spencermountain/compromise) para detectar nombres de personas, ubicaciones geográficas y nombres de organizaciones embebidos en los valores de salida — independientemente de la clave utilizada para almacenarlos.
+Cuando `enableNerScanning` se establece en `true`, el escáner utiliza la librería NLP [`compromise`](https://github.com/spencermountain/compromise) para detectar nombres de personas, ubicaciones geográficas y nombres de organizaciones embebidos en los valores de salida, independientemente de la clave utilizada para almacenarlos.
 
 ```typescript
 const server = new LiopServer(
@@ -266,7 +266,7 @@ Los presets pueden combinarse con reglas regex personalizadas para cumplir con r
 
 - **Defensa contra JSON Anidado**: El análisis recursivo de cadenas con JSON embebido neutraliza la ofuscación mediante envolturas de `JSON.stringify()`
 - **Protección contra Referencias Circulares**: Un `WeakSet` de seguimiento previene la recursión infinita en objetos auto-referenciantes
-- **Política Aggregation-First**: Bloquea la exportación de datos crudos a nivel de fila — solo pasan resultados agregados (conteos, promedios, resúmenes)
+- **Política Aggregation-First**: Bloquea la exportación de datos crudos a nivel de fila; solo pasan resultados agregados (conteos, promedios, resúmenes)
 - **Aplicación de Output Schema**: Cuando se define un esquema de salida `Zod`, el modo `.strict()` se aplica automáticamente, rechazando cualquier clave no permitida explícitamente en el esquema
 - **Desempaquetado Criptográfico y de Envoltura**: Aísla y extrae automáticamente el payload de datos de negocio real de las envolturas de transporte MCP/LIOP y de las respuestas proxied de gRPC (mediante `unwrapForAggregationPolicyScan`) antes de realizar el escaneo. Esto evita falsos positivos procedentes de metadatos binarios y sellos criptográficos (como las firmas HMAC-SHA256 de los recibos ZK).
 - **Sanitización Numérica Recursiva en Memoria**: Antes de realizar el escaneo, todos los valores numéricos del payload devuelto se procesan de forma recursiva: los números decimales positivos (floats) se redondean a un máximo de 4 decimales, y los valores negativos se acotan de forma segura a `0` (mediante `sanitizeOutput()`). Esto se ejecuta enteramente en memoria para evitar canales laterales en representaciones de coma flotante y previene conversiones de cadena de caracteres redundantes.
@@ -581,7 +581,7 @@ El motor muestrea ruido a partir de la distribución continua de Laplace $\text{
 
 $$f(x) = \frac{1}{2\lambda} \exp\left(-\frac{|x|}{\lambda}\right)$$
 
-#### Decisiones de Seguridad (Recalibración Industrial)
+#### Decisiones de Seguridad
 
 1. **Fuente CSPRNG (`crypto.randomBytes`)**: A diferencia de implementaciones genéricas basadas en `Math.random()` (Xorshift128+), `DpEngine` genera entropía mediante `crypto.randomBytes(4)` mapeado a $[-0.5, 0.5)$. Esto elimina ataques de reconstrucción de estado donde un adversario que observe 3 a 5 salidas consecutivas pueda predecir los estados pseudoaleatorios futuros y restar el ruido.
 2. **Sensibilidad Consciente de la Consulta**: La sensibilidad ($\Delta f$) se deriva automáticamente según la semántica de la clave:

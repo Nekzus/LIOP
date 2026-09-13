@@ -11,7 +11,7 @@ To solve this, LIOP relies entirely on mathematical CPU-level isolation provided
 
 When a Node.js or Python tool executes in MCP, it relies on the operating system's broad sandboxing (usually containerization like Docker). If a Python dependency is compromised, it could theoretically attempt full network escalation or escape.
 
-**WASI flips the security model.** WebAssembly is a memory-safe, purely mathematical compute format. By default, a `.wasm` module literally lacks the CPU instructions to talk to the operating system, disk, clock, or network. WASI is the strictly controlled bridge that re-introduces these features exactly, and only, when explicitly granted.
+**WASI establishes a capability-oriented security model.** WebAssembly is a memory-safe, portable compilation format. By default, a `.wasm` module does not include instructions to interact with the operating system, disk, clock, or network. WASI is the controlled bridge that re-introduces these system interfaces only when explicitly granted through host capabilities.
 
 ## The LIOP Sandbox Lifecycle
 
@@ -23,22 +23,22 @@ When an Agent Node injects a WebAssembly module into a Data Node, the following 
 </Frame>
 
 ### 1. Capability Verification
-The Agent declares the capabilities it requires upfront (e.g., `requires_capability: ["logs_read", "sql_readonly"]`). The Data Node checks its local manifest to see if it allows this specific Agent to access those capabilities.
+The Agent declares the capabilities it requires upfront (e.g., `requires_capability: ["logs_read", "sql_readonly"]`). The Data Node checks its local manifest to verify whether this specific Agent is authorized to access those capabilities.
 
-### 2. Microscopic Preopens
-If approved, the Data Node does **not** grant the WASM module access to the file system. Instead, it "pre-opens" very specific file descriptors and maps them into the WASM module's virtualized space.
-If the agent asks to read `/var/log/nginx/` and the server allows it as `/logs`, the Agent *only* sees `/logs` as the absolute root of its entire universe. Attempting to traverse directories with `../` stops dead at the Sandbox limit.
+### 2. Scoped Directory Preopens
+If approved, the Data Node does **not** grant the WASM module arbitrary file system access. Instead, it pre-opens designated directory descriptors and maps them into the virtualized file system space of the module.
+If the agent requests `/var/log/nginx/` and the server permits access as `/logs`, the Agent sees `/logs` as an isolated root directory. Directory traversal attempts using `../` are blocked at the sandbox boundary.
 
 ### 3. Execution & Memory Bounds
-`Wasmtime` boots the engine with strict limiters:
-- **Maximum Execution Time:** If the module enters an infinite loop, the runtime kills it via Out-Of-Fuel exhaustion.
-- **Maximum Memory Limit:** If the module attempts a buffer overflow or tries to allocate memory beyond its cap (e.g., 50MB), it triggers an uncatchable OOM Trap.
-- **Zero Sockets:** The Agent logic runs completely offline inside the Server. It cannot open a port, connect to the internet, or exfiltrate data directly over a TCP socket. Its only output is what it `returns` to the LIOP invocation orchestrator.
-- **Node.js Parity (V8 Isolation):** In local development or SDK Demos (where WebAssembly isn't pre-installed), LIOP utilizes identical strict boundaries via the `node:vm` module (`vm.createContext(Object.create(null))`). This establishes absolute hardware-level containment, explicitly stripping the Sandbox of **25 poisoned globals** (`process`, `require`, `eval`, `Function`, `Date`, `ArrayBuffer`, `Uint8Array`, and more), thereby eliminating any possibility of Host-System escalation.
-- **Timing Side-Channel Defense:** The `Date` object is poisoned within the sandbox to prevent injected logic from measuring execution time differences, which could be used to infer dataset size or internal execution patterns. Because the global `Date` class is set to `undefined` (calling `new Date()` or `Date.now()` will throw a ReferenceError), chronological sorting and filtering must be performed using lexicographical string comparisons on ISO 8601 strings (e.g., `record.date >= '2024-01-01'`).
-- **Heap Bomb Defense:** All 12 `TypedArray` constructors (`Uint8Array`, `Float64Array`, `DataView`, etc.) are neutralized to prevent allocation of massive binary buffers that could crash the worker process through V8 heap exhaustion. Each worker is additionally constrained to a configurable memory ceiling via `maxHeapMb` (default: 64 MB).
-- **Prototype Pollution Defense:** Eleven core JavaScript prototypes (`Object`, `Array`, `String`, `Number`, `Boolean`, `RegExp`, `Map`, `Set`, `Promise`, `Error`, and `Function` resolved dynamically) are frozen via `Object.freeze()` inside the sandbox IIFE before user code executes. By wrapping execution in `"use strict";`, any unauthorized attempts to pollute prototypes trigger immediate `TypeError` halts instead of silent failures, preventing injected logic from overriding built-in methods.
-- **Non-Blocking Pool:** The Sandbox execution is inherently computationally heavy. To prevent Node.js servers from freezing, the `@nekzus/liop` isolates this entire lifecycle inside native `worker_threads` (via `piscina`), achieving parallel throughput identical to the native Mesh-Node. The pool implements an asynchronous background warmup (No-Op Warmup) on initialization to eliminate V8 cold-start overhead (~820k fuel units).
+`Wasmtime` boots the engine with strict resource constraints:
+- **Maximum Execution Time:** If the module enters an infinite loop, the runtime halts execution via Out-Of-Fuel exhaustion.
+- **Maximum Memory Limit:** If the module attempts a buffer overflow or tries to allocate memory beyond its configured ceiling (e.g., 50MB), Wasmtime triggers a non-recoverable OOM Trap.
+- **Socket Prohibition:** Injected logic executes offline within the server boundary. It cannot open listener ports or initiate external TCP/UDP connections. Its only output is returned through the standard invocation channel.
+- **Node.js Parity (V8 Isolation):** In local development or SDK environments where native WebAssembly runtimes are not pre-configured, LIOP enforces equivalent isolation boundaries through `node:vm` (`vm.createContext(Object.create(null))`). The execution environment strips **25 restricted globals** (`process`, `require`, `eval`, `Function`, `Date`, `ArrayBuffer`, `Uint8Array`, and related constructors) to prevent host environment escalation.
+- **Timing Side-Channel Defense:** The `Date` object is disabled within the sandbox to prevent injected logic from measuring fine-grained execution durations to infer dataset volume. Because calling `new Date()` or `Date.now()` throws a `ReferenceError`, chronological sorting and filtering should use lexicographical comparisons on ISO 8601 strings (such as `record.date >= '2024-01-01'`).
+- **Heap Allocation Defense:** All 12 `TypedArray` constructors (`Uint8Array`, `Float64Array`, `DataView`, etc.) are neutralized to prevent large binary buffer allocations from causing V8 heap exhaustion. Each worker is constrained by a memory limit configured via `maxHeapMb` (default: 64 MB).
+- **Prototype Pollution Defense:** Eleven core JavaScript prototypes (`Object`, `Array`, `String`, `Number`, `Boolean`, `RegExp`, `Map`, `Set`, `Promise`, `Error`, and `Function`) are frozen via `Object.freeze()` inside the sandbox IIFE before executing user logic. By wrapping execution in `"use strict";`, prototype modification attempts throw a `TypeError`, preventing injected code from overriding built-in methods.
+- **Non-Blocking Worker Pool:** To prevent event loop contention in Node.js servers, `@nekzus/liop` offloads sandbox execution to worker threads (via `piscina`). The pool executes an asynchronous warm-up cycle upon initialization to eliminate V8 cold-start overhead (~820k fuel units).
 - **Safe Host Environment Isolation (`allowEnv`):** By default, the WASI sandbox completely isolates the execution from any environment variables. If host variables are strictly required by the business logic, you can enable environment propagation:
   ```typescript
   const server = new LiopServer(info, {

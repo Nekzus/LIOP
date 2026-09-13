@@ -17,19 +17,19 @@ LIOP solves this by completely inverting the architecture: **We move the math to
 
 <CardGroup cols={2}>
   <Card title="Logic-Injection-on-Origin" icon="bolt">
-    Instead of downloading giant datasets, Agents dynamically compile their reasoning step into a microscopic WebAssembly (`.wasm`) module and push it exactly where the data lives.
+    Instead of downloading giant datasets, Agents dynamically compile their reasoning step into a compact WebAssembly (`.wasm`) module and push it exactly where the data lives.
   </Card>
   <Card title="Multi-Layered Security (Tier-1)" icon="shield-halved">
-    Zero-Trust AST Sandboxing (WASI), Egress PII verification with Military-Grade algorithms (Luhn, NIST boundaries, Safe Words), and Post-Quantum cryptography.
+    Zero-Trust AST Sandboxing (WASI), Egress PII verification with compliance algorithms (Luhn, NIST boundaries, and pattern validators), and Post-Quantum cryptography.
   </Card>
   <Card title="Zero-Shot Autonomy" icon="brain">
     LIOP Auto-educates remote LLMs on-the-fly. If an Agent violates the Logic-Injection paradigm, the Server cognitively instructs the Agent to rewrite its WASM payload securely.
   </Card>
   <Card title="Binary High-Performance" icon="rocket">
-    Built entirely on compiled Protobuf messages multiplexed over Tonic (gRPC). Say goodbye to slow JSON-string parsing blocking your event loops. Payload sizes drop by over 60%.
+    Built entirely on compiled Protobuf messages multiplexed over Tonic (gRPC). Eliminates text-based JSON serialization overhead, reducing payload sizes by over 60%.
   </Card>
   <Card title="Multi-Core Scalability" icon="microchip">
-    The Node.js SDK leverages a Native Worker Pool (`piscina`), bypassing the single-threaded V8 limit to achieve transactional parities identical to massive Rust setups.
+    The Node.js SDK leverages a Native Worker Pool (`piscina`), distributing cryptographic operations across background worker threads.
   </Card>
   <Card title="Mathematical Verification" icon="signature">
     Built-in HMAC-SHA256 cryptographic receipts (ZK-Receipts) that prove honest computation. Native ZK-VM integration is on the roadmap.
@@ -39,9 +39,9 @@ LIOP solves this by completely inverting the architecture: **We move the math to
   </Card>
 </CardGroup>
 
-## The Power of Logic-Injection-on-Origin: Innovative Use Cases
+## Logic-Injection-on-Origin: Industrial Use Cases
 
-The *Logic-Injection-on-Origin* paradigm is not just a performance optimization; it is our undeniable architectural postulate. It fundamentally unlocks completely new ways to process restricted data across global networks without violating privacy boundaries. By sending a verified mathematical algorithm to the data source rather than extracting the data to the algorithm, we eradicate **Data Gravity** entirely.
+The *Logic-Injection-on-Origin* paradigm inverts traditional distributed compute flows. Instead of extracting raw records across the network to remote models, the protocol dispatches sandboxed logic directly to the infrastructure hosting the data, eliminating the network latency, egress costs, and compliance risks caused by Data Gravity.
 
 ### 1. Healthcare & Bio-Informatics (Zero-Exfiltration)
 An AI Doctor Agent wants to analyze 10 years of patient history across multiple hospitals to find correlations between specific medications and side effects. 
@@ -73,18 +73,16 @@ LIOP provides significant benefits across the entire AI ecosystem:
 2.  **Post-Quantum Handshakes:** Intent negotiations use Kyber (ML-KEM-768) ensuring "Harvest Now, Decrypt Later" state-level attacks are completely mitigated, encapsulating all data via Symmetric `AES-256-GCM`.
 3.  **Real-Time Watchdogs:** Agents can push persistent `.wasm` modules that sleep on the server for free, and asynchronously wake up to stream an alert via gRPC only when an anomaly is detected.
 4.  **Hardware Blind Computing (TEEs):** Future-proof architectural designs ready to execute the `Wasmtime` engine inside AWS Nitro Enclaves, assuring Memory-level encryption for High-Compliance environments.
-5.  **Zero-Time AST Guardians:** The SDK preemptively inspects and destroys `.wasm` binary trees that attempt illegal namespace mappings before they even reach the initialization engine.
+5.  **AST Guardian Inspection:** The SDK statically inspects incoming binary syntax trees and rejects payloads attempting illegal namespace bindings before instantiation.
 
-## Getting Started
-
-Ready to dive in and modernize your AI architecture? Choose your path:
+## Next Steps
 
 <CardGroup cols={2}>
   <Card title="Quickstart Guide" icon="forward-step" href="/getting-started/quickstart">
     Launch your first LIOP Server and Client in under 5 minutes using the official SDK.
   </Card>
-  <Card title="Architecture Deep Dive" icon="sitemap" href="/concepts/architecture">
-    Understand how Kademlia, gRPC, and Wasmtime intertwine to create the Logic-Injection-on-Origin paradigm.
+  <Card title="Architecture Overview" icon="sitemap" href="/concepts/architecture">
+    Understand how Kademlia, gRPC, and Wasmtime operate together in the Logic-Injection-on-Origin protocol.
   </Card>
 </CardGroup>
 

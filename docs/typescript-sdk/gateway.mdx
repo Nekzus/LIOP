@@ -22,7 +22,7 @@ await gateway.stop();
 
 ## LiopMcpRouter & Dual-Era Compliance
 
-`LiopMcpRouter` is the request dispatcher used by the gateway and CLI agents. It provides seamless **Dual-Era MCP Protocol Compliance**:
+`LiopMcpRouter` is the request dispatcher used by the gateway and CLI agents. It provides **Dual-Era MCP Protocol Compliance**:
 
 - **Modern MCP v2 Era (2026-07-28)**: Supports stateless routing, non-polling resource updates via `subscriptions/listen`, dynamic resource template discovery (`resources/templates/list`), SEP-2243 header routing, and deterministically sorted results (SEP-2549).
 - **Legacy MCP Era (2025-11-25)**: Automatically negotiates handshake capabilities and strips unsupported fields via `adaptResponseForLegacyClient()` for legacy MCP clients (Claude Desktop, Cursor).
@@ -36,7 +36,7 @@ For edge networks, web browsers, and environments where native HTTP/2 gRPC frami
 - Emulates gRPC 5-byte length-prefixed binary frames (`[flags (1B)][length (4B BE)][payload]`) over standard HTTP/1.1 POST streams.
 - Encodes gRPC status trailers in HTTP response headers (`grpc-status`, `grpc-message`).
 
-## Industrial Observability & Health Probes
+## Observability & Health Probes
 
 `LiopHybridGateway` natively serves standard Kubernetes and Prometheus endpoints:
 

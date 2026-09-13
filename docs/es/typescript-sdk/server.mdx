@@ -136,13 +136,13 @@ Esto registrará automáticamente el prompt inteligente `liop_blind_analyst` en 
 
 ## Seguridad y Gestión de Memoria
 
-Cuando un Nodo de Datos recibe un payload `.wasm` o `.js`, el módulo **`GuardianTS`** somete su Árbol de Sintaxis Abstracta (AST) a una Inspección Heurística de Tiempo-Cero para garantizar seguridad absoluta.
+Cuando un Nodo de Datos recibe un payload `.wasm` o `.js`, el módulo **`GuardianTS`** somete su Árbol de Sintaxis Abstracta (AST) a una inspección heurística previa a la ejecución para verificar las restricciones de seguridad.
 
-Antes de que cualquier módulo WebAssembly sea siquiera instanciado o ejecutado, `GuardianTS` escanea todas sus importaciones. Rechaza estrictamente cualquier payload que intente enlazarse a APIs no autorizadas del host. Solamente las APIs estándar de WASI (`wasi_snapshot_preview1`) y las funciones nativas en sandbox de `LIOP` son permitidas, previniendo categóricamente escapes de la sandbox.
+Antes de que cualquier módulo WebAssembly sea instanciado o ejecutado, `GuardianTS` escanea todas sus importaciones. Rechaza estrictamente cualquier payload que intente enlazarse a APIs no autorizadas del host. Solamente las APIs estándar de WASI (`wasi_snapshot_preview1`) y las funciones nativas en sandbox de `LIOP` son permitidas, previniendo escapes del sandbox.
 
-Esta pesada evaluación de AST se cachea agresivamente en memoria `O(1)` para permitir ejecuciones subsiguientes ultra veloces de exactamente la misma lógica.
+Los resultados de la evaluación de AST se almacenan en caché en memoria `O(1)` para optimizar las ejecuciones subsiguientes del mismo payload.
 
-Si te encuentras desplegando parches de seguridad *Zero-Day* en el host de ejecución o necesitas invalidar forzosamente la memoria del Nodo, puedes purgar el almacenamiento en caché del AST de forma manual y síncrona:
+Si despliegas actualizaciones de seguridad en el host o requieres invalidar la memoria del nodo, puedes purgar la caché del AST manualmente:
 
 ```typescript
 server.clearAstCache();

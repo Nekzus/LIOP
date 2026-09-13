@@ -1,13 +1,13 @@
 ---
-title: "Compilando Payloads WASM"
-description: "Creando Inteligencia binaria para el Sandbox de la Malla"
+title: "Compilación de Payloads WASM"
+description: "Compilación de módulos binarios para el sandbox WASI"
 ---
 
 Al desarrollar directamente en el Rust Core (específicamente dentro del crate `wasm-filters`), estás escribiendo la lógica exacta que un Agente inyectará en los Nodos de Datos remotos.
 
 Debido a que esta lógica debe ser completamente agnóstica al SO y estar estrictamente aislada (sandboxed), no puedes compilarla apuntando a arquitecturas estándar como `x86_64` o `arm64`. Debe ser compilada a WebAssembly, apuntando explícitamente al estándar **WASI (WebAssembly System Interface)**.
 
-## Configurando el Target del Compilador
+## Configuración del Target del Compilador
 
 Asegúrate de que tu toolchain de Rust tenga instalada la librería estándar de WASI.
 
@@ -19,7 +19,7 @@ rustup target add wasm32-wasi
   LIOP actualmente apunta a WASI Preview 1 (`wasm32-wasi`). Estamos monitoreando activamente `wasm32-wasip2` (El Modelo de Componentes) y migraremos el motor `Wasmtime` para soportar objetos complejos fuertemente tipados cruzando el límite del motor en nuestro próximo lanzamiento.
 </Note>
 
-## Escribiendo un Filtro (Filter)
+## Estructura de un Filtro Rust
 
 Un Filtro LIOP típico es código estándar de Rust, con la salvedad de que las operaciones de red y de hilos (threading) fallarán (panic) si son invocadas, debido a las restricciones de Sandboxing en el servidor de destino.
 
@@ -53,7 +53,7 @@ Para compilar tu lógica en el payload de inyección `.wasm`, ejecuta Cargo apun
 cargo build --target wasm32-wasi --release
 ```
 
-El archivo microscópico resultante (ej., `target/wasm32-wasi/release/filter.wasm`) es lo que el `liop-client` carga en memoria y transmite al par (peer) a través de la red.
+El módulo compilado resultante (ej., `target/wasm32-wasi/release/filter.wasm`) es cargado en memoria por `liop-client` y transmitido al nodo destino mediante gRPC.
 
 ## Pruebas Locales
 

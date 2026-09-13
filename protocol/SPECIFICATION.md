@@ -60,8 +60,8 @@ An LIOP Agent interacting with an LIOP Server pushes executable logic (in the fo
 - **Deterministic CPU Fuel**: Execution is constrained by AST-derived fuel limits, neutralizing infinite loops and computational denial-of-service attacks.
 - **Worker Pool Warmup**: Pre-warmed Piscina thread pools eliminate V8 cold-start overhead (~820k fuel reduction).
 
-#### 5.2 Zero-Time AST Guardian
-- Before a payload enters the execution engine, LIOP evaluates its Abstract Syntax Tree (AST). It destructs payloads attempting to import forbidden modules outside of the 14-function strict WASI allowlist, supporting top-level return expressions for dynamic modules.
+#### 5.2 Pre-Execution AST Guardian
+- Before a payload enters the execution engine, LIOP evaluates its Abstract Syntax Tree (AST). It rejects payloads attempting to import forbidden modules outside of the 14-function strict WASI allowlist, supporting top-level return expressions for dynamic modules.
 
 #### 5.3 Egress PII Defense
 - The LIOP SDK injects a Tier-1 PII Shield at the Egress stage. Employs a 4-stage pipeline: exact key match → fuzzy match → regex pattern validators (Luhn algorithm for credit cards, SSN, email, phone) → Named Entity Recognition (NER).

@@ -47,7 +47,7 @@ Estos siete principios gobiernan cada decisión arquitectónica del protocolo. N
 4. **Verificabilidad Criptográfica** — Cada cómputo produce un ZK-Receipt que vincula el hash de salida con la lógica exacta ejecutada y el secreto de sesión. Terceros pueden auditar resultados sin re-ejecutar la lógica.
 5. **Resiliencia Cuántica** — Todos los intercambios de claves y sellos de sesión utilizan algoritmos post-cuánticos (ML-KEM-768) desde el primer día. No es un camino de actualización futura — es un requisito de lanzamiento, diseñado contra estrategias de cosecha-ahora-descifra-después.
 6. **Huella Mínima** — El protocolo debe operar en dispositivos de borde con recursos limitados. La eficiencia es una restricción dura, no un objetivo de optimización. Los límites de combustible de CPU son determinísticos y derivados del AST.
-7. **Convivencia de Ecosistema y Compatibilidad Retroactiva** — LIOP opera en la capa de cómputo soberano y malla distribuida mientras convive con protocolos de agentes a nivel de aplicación. Mediante un adaptador de gateway de era dual, los clientes MCP consumen servicios LIOP de forma transparente sin fragmentación del ecosistema.
+7. **Convivencia de Ecosistema y Compatibilidad Retroactiva** — LIOP opera en la capa de cómputo soberano y malla distribuida mientras convive con protocolos de agentes a nivel de aplicación. Mediante un adaptador de gateway de era dual, los clientes MCP consumen servicios LIOP sin requerir modificaciones en el cliente ni causar fragmentación del ecosistema.
 
 ---
 
@@ -139,13 +139,9 @@ La implementación técnica, las primitivas criptográficas y las capacidades de
 
 ---
 
-## 9. Únete a la Malla
+## 9. Próximos Pasos
 
-- **Deja de Extraer.**
-- **Comienza a Inyectar.**
-- **LIO es el futuro de la IA Autónoma.**
-
-Lee la [Especificación del Protocolo](./protocol/SPECIFICATION.md). Ejecuta el [Playground Interactivo](http://localhost:14000). Construye tu primer Servidor LIOP con `npm install @nekzus/liop`. Únete a la malla.
+Consulta la [Especificación del Protocolo](./protocol/SPECIFICATION.md), evalúa el [Playground Interactivo](http://localhost:16000), o despliega un nodo enclave mediante el SDK TypeScript ejecutando `npm install @nekzus/liop`.
 
 ---
 

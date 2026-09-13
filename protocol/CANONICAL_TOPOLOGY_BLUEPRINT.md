@@ -247,7 +247,7 @@ The **Border LIO Gateway (BLG)** is the architectural keystone that bridges Tier
   │   [Security Shields - Pre-Flight Ingress Inspection]                   │
   │    ├── Post-Quantum ML-KEM-768 Handshake (Session Secret Derivation)   │
   │    ├── ML-DSA-65 Signature & Manifest Verifier                         │
-  │    ├── Zero-Time Guardian AST (Acorn Static Code Analysis)             │
+  │    ├── Pre-Execution Guardian AST (Acorn Static Code Analysis)         │
   │    │    └── Blocks forbidden imports, ensures allowlist compliance      │
   │    └── Information Flow Control (IFC) Static Taint Analysis            │
   │                                                                        │

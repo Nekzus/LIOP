@@ -3,7 +3,7 @@ title: "Security Architecture"
 description: "Defense-in-depth layers, cryptographic pipelines, and data protection mechanisms in the LIOP TypeScript SDK"
 ---
 
-The LIOP TypeScript SDK enforces a **defense-in-depth** security model composed of six independent layers. Each layer addresses a distinct threat surface — from static code analysis to post-execution data filtering — ensuring that no single point of failure can compromise the system.
+The LIOP TypeScript SDK enforces a **defense-in-depth** security model composed of six independent layers. Each layer addresses a distinct threat surface (from static code analysis to post-execution data filtering), ensuring that no single point of failure can compromise the system.
 
 <Note>
   Features marked with **[ROADMAP]** are architecturally defined but not yet available in the current release.
@@ -196,13 +196,13 @@ Preflight policy rejected: PII side-channel detected: output contains values der
 
 ## Layer 4: PII Egress Shield
 
-The PII Scanner intercepts all sandbox output **before** results are returned to the caller. Starting from v3, it operates a **four-stage detection pipeline** that combines structural analysis, pattern matching, and natural language processing. Each stage is independent — the system blocks data if **any** stage detects a violation.
+The PII Scanner intercepts all sandbox output **before** results are returned to the caller. Starting from v3, it operates a **four-stage detection pipeline** that combines structural analysis, pattern matching, and natural language processing. Each stage is independent: the system blocks data if **any** stage detects a violation.
 
 ### Detection Pipeline
 
 | Stage | Mechanism | Purpose |
 |:------|:----------|:--------|
-| **1. Exact Key Match** | `Set<string>.has()` — O(1) | Blocks well-known PII field names (`ssn`, `email`, `password`) |
+| **1. Exact Key Match** | `Set<string>.has()` (O(1)) | Blocks well-known PII field names (`ssn`, `email`, `password`) |
 | **2. Fuzzy Key Match** | Boundary regex + substring | Catches aliases and variations (`patientId`, `names`, `fullName`) |
 | **3. Pattern Validators** | Regex + algorithmic checks | Detects PII values regardless of key naming (emails, credit cards, IBANs) |
 | **4. NER Content Scan** | `compromise` NLP engine | Identifies person names, places, and organizations in free text |
@@ -232,7 +232,7 @@ A **safelist** of common English words and LIOP protocol internal keys prevents 
 
 ### Stage 4: Named Entity Recognition (NER)
 
-When `enableNerScanning` is set to `true`, the scanner leverages the [`compromise`](https://github.com/spencermountain/compromise) NLP library to detect person names, geographic locations, and organization names embedded in output values — regardless of the key used to store them.
+When `enableNerScanning` is set to `true`, the scanner leverages the [`compromise`](https://github.com/spencermountain/compromise) NLP library to detect person names, geographic locations, and organization names embedded in output values, regardless of the key used to store them.
 
 ```typescript
 const server = new LiopServer(
@@ -266,7 +266,7 @@ Presets can be merged with custom regex rules for organization-specific complian
 
 - **Nested JSON Defense**: Recursive parsing of JSON-encoded strings defeats obfuscation through `JSON.stringify()` wrapping
 - **Circular Reference Guard**: `WeakSet` tracking prevents infinite recursion on self-referencing objects
-- **Aggregation-First Policy**: Blocks raw row-level data export — only aggregated results (counts, averages, summaries) pass through
+- **Aggregation-First Policy**: Blocks raw row-level data export; only aggregated results (counts, averages, summaries) pass through
 - **Output Schema Enforcement**: When a `Zod` output schema is defined, `.strict()` mode is automatically applied, rejecting any keys not explicitly allowed in the schema
 - **Cryptographic & Envelope Unwrapping**: Automatically isolates and extracts the raw business data payload from MCP/LIOP envelopes and gRPC proxied responses (via `unwrapForAggregationPolicyScan`) before scanning. This prevents false positives from binary metadata and cryptographic seals (like HMAC-SHA256 ZK-Receipt signatures).
 - **Recursive In-Memory Numerical Sanitization**: Before scanning, all numeric values inside the returned payload are processed recursively: positive floats are clamped to a maximum of 4 decimal places, and negative values are safely clamped to `0` (via `sanitizeOutput()`). This is executed fully in-memory to prevent float-representation side-channels and avoids redundant string conversions.

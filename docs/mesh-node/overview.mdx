@@ -3,7 +3,7 @@ title: "Rust Core"
 description: "The high-performance Protocol Buffers and Network foundation"
 ---
 
-While the `@nekzus/liop` provides a beautiful developer experience in Node.js and TypeScript, the absolute truth of the protocol exists in its core **Rust Backend**.
+While `@nekzus/liop` provides the developer experience in Node.js and TypeScript, the protocol implementation is rooted in its **Rust Backend**.
 
 This workspace (`servers/liop-node/`) contains the hyper-optimized data structures, the `Wasmtime` engine execution loop, and the raw Libp2p network primitives. 
 
@@ -33,26 +33,24 @@ The Cargo Workspace is strictly modularized into functional components:
 
 ## Network Transport Stack
 
-## Network Transport Stack
+Unlike simple HTTP/REST APIs, LIOP requires a persistent, bidirectional, and multiplexed connection to support persistent Watchdogs and low-latency logic execution.
 
-Unlike simple HTTP/REST APIs, LIOP requires a persistent, bidirectional, and highly multiplexed connection to support persistent Watchdogs and low-latency logic execution.
-
-The Rust backend implements this by combining two state-of-the-art technologies:
+The Rust backend implements this by combining two networking layers:
 
 1. **Tonic (gRPC):** 
-   Tonic handles the message framing. Every `LogicRequest` and `LogicResponse` is streamed as binary Protobuf. Tonic automatically manages backpressure and streaming contexts asynchronously using the `tokio` runtime.
+   Tonic handles the message framing. Every `LogicRequest` and `LogicResponse` is streamed as binary Protobuf. Tonic manages backpressure and streaming contexts asynchronously using the `tokio` runtime.
 2. **Libp2p (QUIC & Noise):**
-   Instead of running Tonic over standard TCP/TLS, the `liop-core` tunnels the entirety of the gRPC traffic inside a **QUIC** stream managed by Libp2p. This allows Kademlia Peer discovery and Ed25519 identity verification instantly upon handshake, entirely dispensing the need for centralized CAs or DNS registrars.
+   Instead of running Tonic over standard TCP/TLS, `liop-core` tunnels gRPC traffic inside a **QUIC** stream managed by Libp2p. This allows Kademlia peer discovery and Ed25519 identity verification upon handshake, removing the need for centralized CAs or DNS registrars.
 
 ## Execution Engine
 
-The core differentiator of the entire Logic-Injection-on-Origin Protocol resides in `servers/liop-node/src/executor.rs`.
+The core execution path of the Logic-Injection-on-Origin Protocol resides in `servers/liop-node/src/executor.rs`.
 
-Here, the native Rust binary receives a byte array representing the AI Agent's intention. Before execution, the engine limits the memory dynamically based on the Agent's authorization token, preopens strict file descriptors using `WasiCtxBuilder`, and hands the payload to the virtual CPU.
+Here, the native Rust binary receives a byte array representing the AI Agent's intention. Before execution, the engine limits memory dynamically based on the Agent's authorization token, pre-opens directory descriptors using `WasiCtxBuilder`, and passes the payload to the virtual CPU.
 
-This ensures total panic-isolation: if the Agent's `.wasm` encounters a memory leak, the Host OS remains unharmed.
+This ensures crash isolation: if the Agent's `.wasm` encounters a memory trap, the Host OS remains unaffected.
 
-### Vanguard Features (Truth Protocol)
-Entering the Tier-0 Endgame, `liop-node` operates beyond standard sandboxing:
-- **Zero-Knowledge Hooks**: Before returning a response, the logic can be wrapped in a zkVM to generate a deterministic mathematical Receipt of the exact AST applied over the localized data.
-- **Blind Computation**: Through the `EnclaveProvider` trait, the execution engine can be seamlessly booted inside isolated Hardware capabilities, preventing hypervisor and host-OS level memory dumping.
+### Enterprise Verification Features
+In environments with strict computational verification requirements, `liop-node` extends beyond basic sandboxing:
+- **Zero-Knowledge Hooks**: Before returning a response, logic can be executed inside a zkVM to generate a deterministic mathematical Receipt of the exact AST applied over the localized data.
+- **Blind Computation**: Through the `EnclaveProvider` trait, the execution engine can be deployed inside isolated Hardware capabilities, preventing hypervisor and host-OS level memory inspection.

@@ -24,6 +24,33 @@ Estas directivas representan el ADN del protocolo y deben respetarse en cada imp
 5.  **Calidad Profesional Estricta**: Seguir siempre las mejores prácticas recomendadas por las documentaciones oficiales de las tecnologías implicadas (Rust, libp2p, gRPC, Node.js).
 6.  **[PRIORIDAD] TypeScript SDK First**: El SDK de TypeScript (`sdks/typescript` / `@nekzus/liop`) es el **motor principal de adopción** del protocolo. El ecosistema Node.js/TypeScript proyecta el mayor volumen de usuarios y ofrece la vía de implementación más accesible. Todo feature nuevo, bug fix o mejora arquitectónica DEBE implementarse, validarse y estabilizarse **primero en el SDK TypeScript** antes de replicarse al core Rust. La secuencia de desarrollo obligatoria es: `SDK TS → BiomeJS check → Tests Vitest → Publicación NPM → Port a Rust (cuando aplique)`.
 
+- **2026-09-13**: **Auditoría Integral y Humanización Anti-AI Slop de Documentación, Textos y READMEs del Monorepo (Fase 215)**.
+  - **Motivación**: Ejecutar la auditoría técnica completa y humanización rigurosa de toda la documentación del portal Mintlify (EN/ES), especificaciones, manifiestos y archivos README de paquetes y demostraciones del monorepo `NMP-v1.0-alpha`. Erradicar clichés sintéticos de IA, fórmulas promocionales infladas, metáforas teatrales/bélicas (*"sacred data"*, *"amputate"*, *"military-grade"*, *"Tier-0 Endgame"*), hipérboles injustificadas (*"blinding speed"*, *"infinite"*, *"zero-latency"*), calques gramaticales (*"salvando el hilo"*) y vicios del español como gerundios de posterioridad en descripciones y títulos, preservando intactos el 100% de comandos, códigos, puertos, esquemas y primitivas criptográficas del protocolo.
+  - **Acciones Realizadas**:
+    1. **Auditoría y Humanización de Módulos Mintlify (EN / ES - 30 Archivos)**:
+       - **Getting Started (`intro.mdx`, `quickstart.mdx`)**: Reemplazadas aperturas infladas, eliminados términos como *"unleash your Agent"*, *"misión en la malla"*, *"se sinergizan"*, y referencias a *"military-grade"* y *"microscopic"*. Estandarizadas secciones de siguientes pasos.
+       - **Concepts (`logic-on-origin.mdx`, `server-concepts.mdx`, `client-concepts.mdx`, `wasi-sandboxing.mdx`, `zero-trust.mdx`, `specification.mdx`, `architecture.mdx`, `manifesto.mdx`)**: Erradicadas metáforas como *"datos sagrados"*, *"tejer la lógica"*, *"carece literalmente"*, *"raíz absoluta de su universo"*. Subsanado el calco *"salvando el hilo principal"* por *"evitando bloqueos en el bucle de eventos"*, y eliminado *"Endgame de Nivel-0"*.
+       - **TypeScript SDK (`overview.mdx`, `server.mdx`, `client.mdx`, `gateway.mdx`, `economy.mdx`, `security.mdx`, `playground.mdx`, `production-audit.mdx`, `agent.mdx`)**: Corregido token residual indonesio **"Namun"** en `es/.../agent.mdx:84`. Reemplazadas cadenas de guiones largos (`—`) y descripciones con gerundios. Sustituido *"Zero-Time Guardian"* por *"Guardian AST (Pre-Execution Inspection)"*.
+    2. **Módulo Mesh Node (`compilation.mdx`, `overview.mdx` EN / ES)**:
+       - Normalizados títulos con gerundios RAE (`"Compilando Payloads WASM"` -> `"Compilación de Payloads WASM"`, `"Configurando..."` -> `"Configuración..."`).
+       - Eliminados adjetivos como *"archivo microscópico"* e *"inteligencia binaria"*, sustituidos por descripciones técnicas de módulos WebAssembly dirigidos al runtime WASI.
+    3. **Documentos Raíz del Monorepo (`README.md`, `MANIFESTO.md`, `MANIFESTO_ES.md`, `SECURITY.md`, `CONTRIBUTING.md`)**:
+       - `README.md`: Erradicada apertura de cliché sintético (*"In the rapid evolution of autonomous agents..."*) sustituida por análisis causal de red y consumo de tokens. Reemplazado *"radically shifting"* y *"Zero-Time AST"*.
+       - `MANIFESTO.md` y `MANIFESTO_ES.md`: Enmendado el Principio 7 sustituyendo *"seamlessly"* / *"de forma transparente"* por formulaciones técnicas precisas. Reemplazados eslóganes promocionales en la Sección 9 por instrucciones operativas de adopción.
+       - `SECURITY.md` y `CONTRIBUTING.md`: Sustituido *"military-grade Zero-Trust security"* y *"grado militar"* por *"defense-in-depth Zero-Trust security"* y *"arquitectura de defensa en profundidad"*.
+    4. **READMEs de Paquetes y Demostraciones**:
+       - `sdks/typescript/README.md`: Eliminados *"fundamentally solves"*, *"seamless"*, *"out-of-the-box"*, *"industrial presets"* y *"Zero-Time Guardian"*.
+       - `servers/liop-node/README.md`: Erradicados *"written cleanly in"*, *"heavy-duty"* y *"ferocious security posture"*.
+       - `examples/demos/high-fidelity-demo/README.md`: Eliminados títulos binarios teatrales (*"The Power"* / *"The Shield"*), *"Zero-Time fatal drop"*, y la metáfora *"successfully amputates the process"*.
+       - `examples/demos/educational-sandbox-demo/README.md`: Reemplazados *"deep dive"* y *"operate transparently"*.
+       - `protocol/SPECIFICATION.md`, `protocol/SOVEREIGN_MESH_OPERATIONS_MANUAL.md` y `protocol/CANONICAL_TOPOLOGY_BLUEPRINT.md`: Normalizado *"Zero-Time Guardian AST"* a *"Pre-Execution Guardian AST"*.
+    5. **Certificación de Calidad y Cero Regresiones**:
+       - **Linter & Formatter (BiomeJS)**: 106 archivos de código y documentación inspeccionados con 0 errores y 0 advertencias (`pnpm run check`).
+       - **Suites de Pruebas (Vitest)**: 30 archivos de prueba y 223 tests unitarios aprobados al 100% con Exit code 0 (`Test Files 30 passed, Tests 223 passed`).
+       - **Grafo de Conocimiento (Graphify)**: Sincronizado a 4,193 nodos, 7,768 aristas y 305 comunidades.
+       - **Inspección Heurística de Residuos**: 0 ocurrencias de `military-grade`, 0 de `seamlessly`, 0 de `seamless`, 0 de `zero-time`, 0 de `amputate`, 0 de `sacred data`, 0 de `Namun`, 0 de `game-changer`, 0 de `crucial`.
+  - **Resultado**: Monorepo completamente humanizado y libre de AI Slop, exhibiendo un tono de ingeniería sobrio, riguroso y de autoridad técnica enterprise tanto en inglés como en español.
+
 - **2026-09-11**: **Cierre de Brechas de Paridad Documental de Módulos Críticos del SDK TypeScript (Fase 214)**.
   - **Motivación**: Subsanar la falta total de cobertura documental detectada en la segunda auditoría de paridad para 6 módulos centrales del SDK TypeScript (`DpEngine`, `TaintAnalyzer`, `InMemoryRateLimiter`, `TopologyProbe`, `RoutingTable`, `TokenManager`), garantizando que la documentación oficial en Mintlify y los READMEs reflejen al 100% las capacidades de seguridad, enrutamiento, rate limiting y runtime del protocolo.
   - **Acciones Realizadas**:

@@ -118,7 +118,7 @@ try {
 
 ## Error Handling & Zero-Trust Rejections
 
-Because the Server enforces a strict `WASI` sandbox and uses the *Zero-Time Guardian* to inspect your `.wasm` payload BEFORE execution, your client must be prepared to handle sandbox rejections.
+Because the Server enforces a strict `WASI` sandbox and uses the *Guardian AST* to inspect your `.wasm` payload before execution, your client must be prepared to handle sandbox rejections.
 
 ```typescript
 try {

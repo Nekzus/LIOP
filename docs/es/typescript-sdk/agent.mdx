@@ -81,7 +81,7 @@ El agente utiliza el `LiopMcpRouter` internamente. Cuando recibe una llamada de 
 3. Inyecta la lógica en el servidor remoto y devuelve el resultado verificado binariamente.
 
 ### 3. Descubrimiento de Bootstrap
-Por defecto, el agente se conecta al **LIOP Alpha Nexus** oficial. Namun, puedes apuntarlo a cualquier nodo bootstrap de la red:
+Por defecto, el agente se conecta al nodo **LIOP Alpha Nexus**. Si se requiere una infraestructura personalizada, puede apuntar a cualquier nodo bootstrap de la red:
 
 ```bash
 npx @nekzus/liop@latest /ip4/1.2.3.4/tcp/4001/p2p/PEER_ID
@@ -91,13 +91,13 @@ npx @nekzus/liop@latest /ip4/1.2.3.4/tcp/4001/p2p/PEER_ID
 El agente solo se comunica a través de **STDIO**. Imprime logs de estado y eventos de descubrimiento estrictamente en `stderr`, asegurando que el canal `stdout` permanezca limpio para los mensajes JSON-RPC 2.0 requeridos por el cliente LLM.
 
 ### Diagnóstico Local de Malla (`LiopMeshStatus`)
-El agente expone automáticamente una herramienta de diagnóstico local llamada **`LiopMeshStatus`**. Cuando un LLM invoca esta herramienta, el agente la intercepta localmente en lugar de enrutarla por la red P2P. Retorna instantáneamente un reporte legible por humanos detallando:
+El agente expone automáticamente una herramienta de diagnóstico local llamada **`LiopMeshStatus`**. Cuando un LLM invoca esta herramienta, el agente la intercepta localmente en lugar de enrutarla por la red P2P. Retorna un informe estructurado de estado operativo que incluye:
 - Bootstrappers conectados y Peer IDs
 - Nodos activos (Vault, Bank, Oracle)
 - Tablas de enrutamiento de herramientas y estado de la Kademlia DHT
 - Consumo de tokens y estimaciones de telemetría
 
-Esto permite a los clientes de IA autodiagnosticar caídas de conexión o verificar qué herramientas están disponibles sin quemar ancho de banda ni duplicar peticiones de diagnóstico a través de múltiples nodos.
+Esto permite a los clientes de IA autodiagnosticar caídas de conexión o verificar qué herramientas están disponibles sin sobrecargar el ancho de banda de la red ni duplicar peticiones de diagnóstico a través de múltiples nodos.
 
 ### Variables de Entorno
 

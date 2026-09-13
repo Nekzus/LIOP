@@ -5,11 +5,11 @@ description: "Arquitectura de defensa multicapa que protege la red LIOP"
 
 En un ecosistema donde agentes de IA inyectan y ejecutan lógica en nodos de datos de forma autónoma, la seguridad perimetral tradicional (VPNs, firewalls, contraseñas) es insuficiente. 
 
-El Logic-Injection-on-Origin Protocol (LIOP) asume que la red es hostil por defecto, adoptando una **Arquitectura Industrial Zero-Trust**. Cada capa integra protecciones criptográficas y de aislamiento avanzadas.
+El Logic-Injection-on-Origin Protocol (LIOP) asume que la red es hostil por defecto, adoptando una **arquitectura Zero-Trust integral**. Cada capa integra protecciones criptográficas y de aislamiento avanzadas.
 
 ## 1. Cifrado de Transporte (P2P & PQC)
 
-LIOP utiliza el **Noise Protocol Framework** (usado por aplicaciones de mensajería segura) para el establecimiento de conexiones P2P, eliminando la dependencia de Autoridades de Certificación (CAs) centralizadas y reforzado con Criptografía Post-Cuántica:
+LIOP utiliza el **Noise Protocol Framework** para el establecimiento de conexiones P2P, eliminando la dependencia de Autoridades de Certificación (CAs) centralizadas y reforzado con Criptografía Post-Cuántica:
 
 - **Identidades Ed25519**: Cada Agente y Nodo de Datos genera un par de claves. Tu Clave Pública *es* tu identidad (Peer ID) en la red.
 - **Autenticación Mutua**: Las conexiones se autentican de forma bilateral instantánea. Ambos extremos saben exactamente con quién están transaccionando mediante pruebas de posesión de clave.
@@ -18,7 +18,7 @@ LIOP utiliza el **Noise Protocol Framework** (usado por aplicaciones de mensajer
 - **Límite Estricto de Sesión de 1 Hora**: Las claves simétricas derivadas vencen automáticamente a los 3600 segundos para minimizar ventanas de exposición y mitigar repeticiones.
 - **TLS Mutuo con CertManager**: Permite autenticación corporativa X.509 de clientes con recarga de certificados en caliente sin interrupciones.
 
-## 2. Inspección de Carga (Guardian AST Sentinel & Taint Analyzer)
+## 2. Inspección de Carga (Guardián AST y Analizador de Taint)
 
 Antes de que el Nodo de Datos permita la ejecución del código inyectado, este se somete a un análisis estático profundo del Árbol de Sintaxis Abstracta (AST), tanto a nivel binario como de script.
 
@@ -32,24 +32,24 @@ El **Módulo Guardián** inspecciona el Árbol de Sintaxis Abstracta (AST) de We
 Para scripts interpretados (como payloads en JavaScript), el **Taint Analyzer** ejecuta una inspección estática de **Control de Flujo de Información (IFC)**. Este módulo analiza el AST para asegurar que las variables que contienen datos PII no se filtren hacia salidas escalares.
 
 **Protección contra Evasión por Generadores e Iteradores**:
-Para prevenir intentos sofisticados de bypass que utilicen generadores o iteradores (`function*` / `yield`) para extraer registros evadiendo los escaneos estándar de propiedades, el Taint Analyzer realiza un análisis estático profundo de los ámbitos de función:
+Para prevenir intentos de bypass que utilicen generadores o iteradores (`function*` / `yield`) para extraer registros evadiendo los escaneos estándar de propiedades, el Taint Analyzer realiza un análisis estático profundo de los ámbitos de función:
 - **Rastreo de `YieldExpression`**: El motor evalúa recursivamente los argumentos de `yield`, garantizando que los valores derivados de PII sean marcados incluso si se encapsulan en yields de generadores.
 - **Contaminación (Tainting) del Scope de Funciones**: Las funciones locales (`FunctionDeclaration`, `FunctionExpression`, `ArrowFunctionExpression`) que retornan o hacen `yield` de campos con taint son marcadas permanentemente como *tainted*.
 - **Cadenas de Métodos de Iteración**: Al invocar una función contaminada (`gen()`), el iterador resultante y sus llamadas subsiguientes (como `.next().value`) heredan el taint, propagando la restricción a través del árbol de expresiones y neutralizando la exfiltración por generadores.
 
-Esto neutraliza código malicioso, lógica evasiva y ataques de escape en tiempo cero, antes de que comience la ejecución.
+Esto neutraliza patrones evasivos e importaciones no autorizadas de forma estática antes de iniciar la ejecución.
 
 ## 3. Filtro Anti-Exfiltración (Egress Filter)
 
-Incluso si un payload intentase acceder a datos no autorizados dentro del Sandbox, el Servidor LIOP impone una última **Defensa de Egreso (Egress Filter)** antes de enviar la respuesta a través del túnel seguro.
+Si un módulo inyectado intentara emitir datos no autorizados fuera de los límites del sandbox, el Servidor LIOP aplica un **Filtro de Egreso (Egress Filter)** antes de transmitir la respuesta a través del canal seguro.
 
-Este filtro inspecciona dinámicamente el buffer de salida buscando información sensible (PII, claves, o campos restringidos). Si se detectan métricas de fuga de privacidad, la respuesta se bloquea instantáneamente, impidiendo la salida de los datos.
+Este filtro inspecciona dinámicamente el buffer de salida buscando información sensible (PII, claves o campos restringidos). Si se detectan violaciones de privacidad, la respuesta se bloquea y el payload se descarta.
 
 **Defensa contra Ofuscación JSON**:
-Los agentes podrían intentar evadir escáneres estáticos mediante doble serialización. Para neutralizar esto, el `PiiScanner` implementa *parsing profundo recursivo*. Si un string devuelto contiene estructuras JSON internas, el Escudo las de-serializa para exponer y filtrar su contenido, volviendo inútil cualquier intento de contrabando de datos.
+Los agentes podrían intentar evadir escáneres estáticos mediante doble serialización. Para neutralizar esto, el `PiiScanner` implementa *parsing profundo recursivo*. Si un string devuelto contiene estructuras JSON internas, el filtro las deserializa para exponer su contenido, lo que neutraliza los intentos de evasión basados en serialización anidada.
 
 **Política de Agregación Primero**:
-Más allá del escaneo PII, el Filtro de Egreso impone una heurística de **Agregación Primero** que bloquea la exportación masiva de datos a nivel de fila. Si la salida del sandbox contiene arrays con más elementos tipo objeto que el umbral configurado (por defecto: 10), la respuesta se rechaza. Solo pasan los resultados agregados (conteos, promedios, resúmenes), previniendo la exfiltración masiva de datos incluso cuando los registros individuales no contienen PII.
+Más allá del escaneo PII, el Filtro de Egreso impone una heurística de **Agregación Primero** que bloquea la exportación masiva de datos a nivel de fila. Si la salida del sandbox contiene arrays con más elementos tipo objeto que el umbral configurado (por defecto: 10), la respuesta se rechaza. Solo se transmiten resultados agregados (conteos, promedios o resúmenes), lo que evita la exfiltración masiva de datos incluso cuando los registros individuales carecen de PII.
 
 **Desempaquetado Criptográfico y de Envolturas**:
 Para evitar falsos positivos causados por las firmas HMAC-SHA256 de los recibos ZK, envolturas JSON-RPC o respuestas proxied de herramientas gRPC (como `{ content: [{ type: "text", text: "..." }] }`), el Escudo de Egreso realiza su escaneo estrictamente sobre el payload de negocio desempaquetado (mediante `unwrapForAggregationPolicyScan`). Esto garantiza que los sellos criptográficos y los metadatos de enrutamiento no interfieran con las políticas de seguridad.
@@ -75,7 +75,7 @@ Junto a la respuesta, el servidor puede emitir un **Recibo ZK**. El Agente verif
 
 **Ancla de Integridad de Datos**: Cada Recibo ZK incluye un `dataset_hash` — un digest SHA-256 del dataset subyacente al momento de la ejecución. Este ancla criptográfica permite a los clientes verificar que el dataset fue idéntico entre consultas consecutivas, separando definitivamente el ruido legítimo de Privacidad Diferencial de cualquier mutación no autorizada de los datos.
 
-**Validación Estructural ZK**: Esta validación (`verifyZkReceipt`) es ejecutada de forma nativa tanto por el `LiopClient` como por el adaptador `LiopMcpBridge`. Estos componentes actúan como guardianes Zero-Trust infalibles, comprobando las firmas e impidiendo que datos adulterados u orígenes comprometidos sean entregados a la IA.
+**Validación Estructural ZK**: Esta validación (`verifyZkReceipt`) es ejecutada de forma nativa tanto por el `LiopClient` como por el adaptador `LiopMcpBridge`. Estos componentes actúan como filtros de verificación criptográfica, comprobando las firmas e impidiendo que datos adulterados u orígenes comprometidos sean entregados a la IA.
 
 ## 7. Motor de Privacidad Diferencial (Mecanismo de Laplace)
 

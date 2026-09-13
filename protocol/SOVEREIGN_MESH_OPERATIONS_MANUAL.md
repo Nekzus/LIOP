@@ -558,7 +558,7 @@ The **Border LIO Gateway (BLG)** enforces an absolute asymmetric policy:
 
 ```mermaid
 flowchart TD
-    InboundCode["Inbound Injected Logic Payload"] --> L1["Layer 1: Zero-Time Guardian AST<br/>(Acorn static AST parse & import allowlist)"]
+    InboundCode["Inbound Injected Logic Payload"] --> L1["Layer 1: Guardian AST<br/>(Acorn static AST parse & import allowlist)"]
     L1 -->|Pass| L2["Layer 2: WASI Sandboxed Isolate<br/>(25 Poisoned Globals, 11 Frozen Prototypes)"]
     L2 -->|Pass| L3["Layer 3: Information Flow Control (IFC)<br/>(Static Taint Tracking & Side-Channel Shield)"]
     L3 -->|Pass| Exec["In-Situ Computation over Origin Dataset<br/>(Constrained by AST Fuel Limits)"]
@@ -582,7 +582,7 @@ flowchart TD
 
 ### 6.1 Layer-by-Layer Defense Specifications
 
-1. **Layer 1: Zero-Time Guardian AST (Pre-Execution Gatekeeper):**
+1. **Layer 1: Guardian AST (Pre-Execution Gatekeeper):**
    - Parses the submitted logic string into an Abstract Syntax Tree (AST) using Acorn with `{ allowReturnOutsideFunction: true }`.
    - Validates all function calls against a strict 14-symbol allowlist: `Math.abs`, `Math.min`, `Math.max`, `Math.round`, `Math.floor`, `Math.ceil`, `Math.sqrt`, `Math.pow`, `Array.prototype.map`, `filter`, `reduce`, `find`, `length`, and `JSON.stringify`.
    - Blocks dynamic code evaluation (`eval`, `Function`, `setTimeout`, `setInterval`).

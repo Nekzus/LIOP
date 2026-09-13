@@ -16,7 +16,7 @@ The Logic-Injection-on-Origin Protocol (LIOP) is a decentralized, high-performan
 ## 2. The Logic-Injection-on-Origin (LIO) Postulate
 **Postulate of Origin (Execution Core):** Data must never be pulled to intelligence. Intelligence must be pushed to the data.
 
-An LIOP Agent interacting with an LIOP Server pushes executable logic (in the form of microscopic `.wasm` modules or dynamically transpiled algorithms). The server securely executes this logic within a strict sandbox and returns only the aggregated mathematical results or filtered lists, mathematically negating the possibility of unintentional PII (Personally Identifiable Information) exfiltration due to large-context extraction.
+An LIOP Agent interacting with an LIOP Server pushes executable logic (in the form of compact `.wasm` modules or dynamically transpiled algorithms). The server securely executes this logic within a strict sandbox and returns only the aggregated mathematical results or filtered lists, preventing unintended PII (Personally Identifiable Information) exfiltration from raw context extraction.
 
 ## 3. Topographical Architecture
 
@@ -24,7 +24,7 @@ An LIOP Agent interacting with an LIOP Server pushes executable logic (in the fo
 - LIOP operates atop a decentralized `libp2p` overlay.
 - Servers (Data Nodes) bind to TCP/QUIC ports and advertise themselves as long-running daemons.
 - Clients (Agent Injectors) connect ad-hoc across local networks or public WAN using Kademlia DHT routing.
-- LIOP completely eliminates centralized brokering or proxy hubs.
+- LIOP operates without centralized brokers or proxy hubs.
 
 ### 3.2 Transport & Multiplexing
 - Connections use Multiplexing via Yamux, allowing hundreds of concurrent `Logic-Injection-on-Origin` injections to occur over a single opened TCP socket without Head-Of-Line Blocking.
@@ -33,7 +33,7 @@ An LIOP Agent interacting with an LIOP Server pushes executable logic (in the fo
 - Raw binary payloads are encapsulated in strict Protobuf definitions (`.proto`).
 - The entire LIOP interaction relies on Protocol Buffers transmitted over HTTP/2 via Tonic, eliminating JSON-RPC serialization overhead natively.
 
-## 4. Cryptographic Security (The Shield)
+## 4. Cryptographic Security Architecture
 
 ### 4.1 Post-Quantum Key Encapsulation (ML-KEM-768)
 - At initialization, connections instantiate a Post-Quantum Handshake. LIOP employs **ML-KEM-768 (Kyber)** to negotiate shared secrets securely against quantum-computing decrypt attacks ("Harvest Now, Decrypt Later" protection).
@@ -49,7 +49,7 @@ An LIOP Agent interacting with an LIOP Server pushes executable logic (in the fo
 - The SDK generates **HMAC-SHA256 commitments** that cryptographically bind the output to the exact logic executed, sealed with the Post-Quantum session secret.
 - **Dataset Integrity Anchor**: Receipts embed a SHA-256 `dataset_hash`, guaranteeing that Differential Privacy perturbations and aggregation logic are strictly anchored to immutable origin data.
 
-## 5. Execution Core (The Sandbox)
+## 5. Execution Core Architecture
 
 ### 5.1 WASI Instantiation & Environment Isolation
 - Injected logic is deployed into a bare-metal `Wasmtime` Virtual Machine or V8 Isolate implementing the WebAssembly System Interface (WASI).
@@ -58,8 +58,8 @@ An LIOP Agent interacting with an LIOP Server pushes executable logic (in the fo
 - **Deterministic CPU Fuel**: Execution is constrained by AST-derived fuel limits, neutralizing infinite loops and computational denial-of-service attacks.
 - **Worker Pool Warmup**: Pre-warmed Piscina thread pools eliminate V8 cold-start overhead (~820k fuel reduction).
 
-### 5.2 Zero-Time AST Guardian
-- Before a payload enters the execution engine, LIOP evaluates its Abstract Syntax Tree (AST). It destructs payloads attempting to import forbidden modules outside of the 14-function strict WASI allowlist, supporting top-level return expressions for dynamic modules.
+### 5.2 Static AST Guardian
+- Before a payload enters the execution engine, LIOP evaluates its Abstract Syntax Tree (AST). It discards payloads attempting to import modules outside of the 14-function strict WASI allowlist, supporting top-level return expressions for dynamic modules.
 
 ### 5.3 Egress PII Defense
 - The LIOP SDK injects a Tier-1 PII Shield at the Egress stage. Employs a 4-stage pipeline: exact key match → fuzzy match → regex pattern validators (Luhn algorithm for credit cards, SSN, email, phone) → Named Entity Recognition (NER).
@@ -75,8 +75,8 @@ An LIOP Agent interacting with an LIOP Server pushes executable logic (in the fo
   - `sensitive`: 8 queries/session (biometric, financial, diagnosis fields).
   - `public`: 25 queries/session (general categorical and metric fields).
 
-## 6. Zero-Shot Autonomy (Self-Healing AI)
-LIOP features built-in self-instructing middleware. Should an Agent attempt a JSON-RPC interaction over MCP legacy adapters that violates the Logic-Injection-on-Origin protocol structure (e.g., attempting raw data extraction), LIOP intercepts the request, blocks it, and returns a cognitive plaintext instruction prompt enabling the Agent to autonomously rewrite its intent as injected logic.
+## 6. Autonomous Protocol Remediation
+LIOP features built-in self-instructing middleware. Should an Agent attempt a JSON-RPC interaction over MCP legacy adapters that violates the Logic-Injection-on-Origin protocol structure (such as attempting raw data extraction), LIOP intercepts the request, blocks it, and returns a structured instructional prompt enabling the Agent to reformat its intent as injected logic.
 
 ## 7. Dual-Era MCP Compatibility & Gateway Adapter
 - **MCP v2 Support**: Full compliance with the `2026-07-28` specification (`subscriptions/listen` and `resources/templates/list`) without polling overhead.

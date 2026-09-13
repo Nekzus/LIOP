@@ -69,7 +69,7 @@ The audit harness executes **11 comprehensive Vitest suites** (59 individual tes
 4. **`03-auth-apikey`**: Evaluates fail-closed RBAC enforcement, rejecting unauthenticated calls and validating OAuth 2.1 client credentials.
 5. **`04-logic-wan`**: Dispatches in-situ logic queries across network boundaries (e.g. executing financial risk models over the Atlantic link).
 6. **`05-security-shields`**: Adversarial test suite attempting PII exfiltration, prototype pollution, memory bombs, and side-channel inference (100% blocked).
-7. **`06-resilience`**: Simulates node drops, circuit breaker recovery, and seamless transport failover between gRPC and libp2p.
+7. **`06-resilience`**: Simulates node drops, circuit breaker recovery, and automated transport failover between gRPC and libp2p.
 8. **`07-observability`**: Validates dynamic Prometheus metrics scrape handlers (`/metrics`) and OpenTelemetry token emission (`gen_ai.client.token.usage`).
 9. **`08-lifecycle-traceability`**: Verifies deterministic cryptographic lifecycle hashes binding each request to origin execution.
 10. **`09-pnet-tier-isolation`**: Certifies that Tier 1 Enclaves (`Bank` and `Vault`) reject connections from nodes lacking the private Swarm Key PSK, and confirms that cross-boundary traffic is securely routed via the Border LIO Gateway (`BLG`).

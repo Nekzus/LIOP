@@ -1,6 +1,6 @@
 ---
 title: "Compiling WASM Payloads"
-description: "Creating binary Intelligence for the Mesh Sandbox"
+description: "Compile binary modules targeting the WASI sandbox"
 ---
 
 When developing directly in the Rust Core (specifically within the `wasm-filters` crate), you are writing the exact logic that an Agent will inject into remote Data Nodes.
@@ -53,7 +53,7 @@ To compile your logic into the `.wasm` injection payload, run Cargo targeting th
 cargo build --target wasm32-wasi --release
 ```
 
-The resulting microscopic file (e.g., `target/wasm32-wasi/release/filter.wasm`) is what the `liop-client` loads into memory and streams to the peer over the network.
+The compiled module (e.g., `target/wasm32-wasi/release/filter.wasm`) is what the `liop-client` loads into memory and streams to the destination node over gRPC.
 
 ## Testing Locally
 

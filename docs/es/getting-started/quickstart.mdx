@@ -111,7 +111,7 @@ npx tsx server.ts
 # Salida: Servidor LIOP escuchando en la malla...
 ```
 
-En otra terminal, lanza el Agente:
+En otra terminal, ejecuta el cliente del agente:
 ```bash
 npx tsx client.ts
 # Salida: Conectado al Logic-Injection-on-Origin Protocol...
@@ -140,14 +140,14 @@ Una vez en ejecución, abre **`http://localhost:14000`** en tu navegador:
 A diferencia de las APIs tradicionales o el parsing de strings en MCP:
 1. Tu Cliente descubrió el Servidor instantáneamente mediante la **tabla de enrutamiento Kademlia P2P**.
 2. Un handshake **Post-Cuántico Kyber (ML-KEM-768)** aseguró la sesión.
-3. La consulta se serializó en un formato **binario Protobuf** ultra compacto y se selló con **AES-256-GCM**.
+3. La consulta se serializó en formato binario con **Protocol Buffers** y se cifró con **AES-256-GCM**.
 4. La ejecución ocurrió dentro de un **sandbox WASI** en el servidor, protegido por el **Guardian AST** y el **Egress PII Shield**.
 5. El resultado se selló criptográficamente con un **recibo ZK HMAC-SHA256**.
 
 ## Siguientes Pasos
 
-Ahora que has ejecutado tu primera misión en la malla, explora la arquitectura para aprovechar Watchdogs y Pruebas ZK.
+Una vez ejecutado el cliente en la malla, revisa la arquitectura del núcleo para configurar Watchdogs persistentes y atestaciones ZK.
 
-<Card title="Arquitectura del Core" icon="sitemap" href="/es/concepts/architecture">
-  Aprende cómo la capa de datos y transporte se sinergizan en LIOP.
+<Card title="Arquitectura del Protocolo" icon="sitemap" href="/es/concepts/architecture">
+  Conoce cómo interactúan las capas de transporte y datos en LIOP.
 </Card>

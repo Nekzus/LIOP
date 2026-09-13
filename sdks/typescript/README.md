@@ -26,21 +26,21 @@
 
 `@nekzus/liop` is an SDK that implements the **Logic-Injection-on-Origin (LIO)** paradigm: instead of extracting raw data from a server and sending it to an LLM, the LLM injects a micro-module of logic to be executed *at the data source*, inside a secure sandbox. The result — never the raw data — is returned.
 
-This fundamentally solves the data privacy, bandwidth, and latency challenges of AI-powered data analysis at scale.
+This addresses the data privacy, bandwidth, and latency bottlenecks of distributed agent data analysis.
 
 ### Key Capabilities
 
 | Feature                             | Description                                                                                                                                |
 | :---------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------- |
 | **Logic-Injection-on-Origin** | LLMs send code, not queries. Data never leaves the origin server.                                                                          |
-| **Dual-Era MCP Compliance**   | Seamless support for modern stateless MCP v2 (2026-07-28) and legacy MCP (2025-11-25) clients (Claude Desktop, Cursor).                    |
+| **Dual-Era MCP Compliance**   | Dual-era compatibility supporting modern stateless MCP v2 (2026-07-28) and legacy MCP (2025-11-25) clients (Claude Desktop, Cursor).    |
 | **Token Economy Engine**      | Inlined BPE `o200k_base` tokenizer with zero runtime dependencies (16.5MB footprint reduction) and OpenTelemetry `gen_ai.*` bridge.       |
 | **Interactive Playground UI** | Real-time Web UI (`:16000` prod / `:14000` dev) with 4-tab modular architecture (`Output`, `Debug`, `Telemetry`, `Export`), code generation (TS/cURL/Python), and dual OLED/Slate themes. |
 | **Multi-Tier Sovereign Enclaves** | Physical socket isolation via `@libp2p/pnet` (256-bit Swarm Key PSK) and Border LIO Gateway (`blg`) with OAuth 2.1 authentication.       |
 | **AST Fuel Metering**         | Deterministic AST instruction fuel scoring with 100-bucket quantization for NIST SP 800-53 timing side-channel elimination (`stddev = 0`).|
 | **Differential Privacy Engine** | NIST SP 800-226 Laplace mechanism with CSPRNG entropy, query-aware sensitivity, and deterministic ZK-Receipt auditing (`DpEngine`). |
 | **MCP Drop-in Replacement**   | `LiopServer` mirrors the Anthropic MCP `Server` API — tools, resources, and prompts with `Zod` schemas.                             |
-| **Guardian AST**              | Zero-time heuristic inspection blocks sandbox escapes (`require`, `fs`, `eval`, `fetch`, prototype pollution).                     |
+| **Guardian AST**              | Pre-execution heuristic inspection blocks sandbox escapes (`require`, `fs`, `eval`, `fetch`, prototype pollution).                 |
 | **IFC Taint Analyzer**        | 5-pass Acorn AST information flow control tracking collection aliases, correlation guards, and extrema gates at preflight.         |
 | **WASI Sandbox**              | JavaScript payloads execute inside V8 isolates with CPU fuel limits, no Node.js globals, and safe environment isolation (`allowEnv`). |
 | **Adaptive Network Discovery**| Single-URL RFC 9728 Protected Resource Metadata probe and adaptive execution mode resolution (`TopologyProbe`).                   |
@@ -72,7 +72,7 @@ npm install @nekzus/liop@beta
 
 ### Zero-Bloat & Micro-Deployments (Opt-Out)
 
-By default, the SDK provides out-of-the-box MCP backward compatibility (`LiopMcpBridge`) by declaring `@modelcontextprotocol/sdk` as an optional dependency (which is automatically resolved by standard installations of NPM, PNPM, or Yarn).
+By default, the SDK provides backward compatibility with MCP (`LiopMcpBridge`) by declaring `@modelcontextprotocol/sdk` as an optional dependency (which is automatically resolved by standard installations of NPM, PNPM, or Yarn).
 
 For constrained production environments (e.g., Docker, AWS Lambda, Edge/IoT) where every megabyte counts, you can perform a **pure, zero-bloat LIOP installation** by opting out of the optional dependencies:
 
@@ -323,11 +323,11 @@ await bridge.connect();
 
 ## Security Architecture
 
-### The Shield — Multi-Layer Defense
+### Defense-in-Depth Architecture
 
 ```
 ┌───────────────────────────────────────────────────────────┐
-│  Layer 1: Guardian AST (Zero-Time Static Analysis)        │
+│  Layer 1: Guardian AST (Pre-Execution Static Analysis)    │
 │  14-function WASI allowlist • 128 import cap • Blocks     │
 │  require, import(), fs, eval, fetch, __proto__            │
 ├───────────────────────────────────────────────────────────┐
@@ -452,7 +452,7 @@ The following shows a complete Logic-Injection-on-Origin execution cycle (handle
 ```
 1. LLM generates JavaScript analysis code wrapped in @LIOP / @END boundaries
 2. LiopServer receives the payload via tools/call (JSON-RPC or direct)
-3. Guardian AST inspects for sandbox escapes (zero-time heuristic analysis)
+3. Guardian AST inspects for sandbox escapes (pre-execution heuristic analysis)
 4. Code executes inside a V8 isolate with CPU fuel limits (no Node.js globals)
 5. Taint Analyzer blocks PII side-channel derivation (charCodeAt, boolean inference)
 6. PII Shield scans output for forbidden data and keys
@@ -538,7 +538,7 @@ await server.connectToMesh();
 
 ## Interactive Web Playground (`:16000` prod / `:14000` dev)
 
-The SDK includes an industrial, real-time developer interface to visually test Logic-Injection-on-Origin, trace post-quantum handshakes, evaluate AST fuel consumption, and inspect cryptographic proofs:
+The SDK includes a real-time developer interface to test Logic-Injection-on-Origin, trace post-quantum handshakes, evaluate AST fuel consumption, and inspect cryptographic proofs:
 
 ```bash
 # 1. Launch the full 8-node production audit mesh with traffic shaping (http://localhost:16000)
@@ -557,11 +557,11 @@ pnpm run demo:start
 Navigate to **`http://localhost:16000`** in your browser:
 
 * **Live 7-Phase Streaming:** Visualizes Bootstrap, DHT Discovery, ML-KEM-768 Handshake, AES-256-GCM Sealing, WASI Sandbox Execution, ZK-Receipt Verification, and Output Aggregation via real-time Server-Sent Events (SSE).
-* **Tri-Tab Results Panel:** Seamlessly switch between `Aggregated Output` (sanitized JSON), `Fuel & Telemetry` (WASI fuel metering, token economy comparison banner), and `Crypto Proofs` (ImageID, Dataset Hash, and HMAC-SHA256 signature with instant copy).
+* **Tri-Tab Results Panel:** Switch between `Aggregated Output` (sanitized JSON), `Fuel & Telemetry` (WASI fuel metering, token economy comparison banner), and `Crypto Proofs` (ImageID, Dataset Hash, and HMAC-SHA256 signature with instant copy).
 * **Token Economy Dashboard:** Live comparison showing **98.9% – 99.6% token reduction** and **99.6% network bandwidth savings** over traditional MCP context-pulling.
 * **REST Telemetry Endpoint:** Query session analytics programmatically at `GET http://localhost:16000/api/telemetry`.
-* **Built-in Industrial Presets:** Ready-to-run micro-modules for High-Frequency Trading (HFT Level 2 order books), Banking transaction analysis, Medical Vault HIPAA records, and Edge IoT industrial sensor telemetry.
-* **Dual Dark Modes:** Seamlessly toggle between Obsidian OLED (`#000000`) and Slate Navy (`#0f172a`) interfaces.
+* **Built-in Scenario Presets:** Ready-to-run micro-modules for High-Frequency Trading (HFT Level 2 order books), Banking transaction analysis, Medical Vault HIPAA records, and Edge IoT industrial sensor telemetry.
+* **Dual Dark Modes:** Toggle between Obsidian OLED (`#000000`) and Slate Navy (`#0f172a`) interfaces.
 
 ---
 
@@ -619,7 +619,7 @@ You can run security audits and check package health scores directly from the mo
 - **Check SDK Security Score:** `pnpm socket:score` (shows the detailed package score for the SDK in Markdown format)
 - **Fix Vulnerabilities:** `pnpm socket:fix` (automatically remediates known CVEs in package.json)
 
-The codebase undergoes regular dependencies audits. As of June 2026, the SDK is verified to be 100% free of orphan packages and dead dependencies, ensuring an ultra-lightweight deployment footprint.
+The codebase undergoes regular dependencies audits. As of June 2026, the SDK is verified to be 100% free of orphan packages and dead dependencies, ensuring a minimal deployment footprint.
 
 ---
 

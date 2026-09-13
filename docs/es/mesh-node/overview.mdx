@@ -3,9 +3,9 @@ title: "Core en Rust"
 description: "La base de red y Protocol Buffers de alto rendimiento"
 ---
 
-Mientras que el `@nekzus/liop` proporciona una excelente experiencia de desarrollador en Node.js y TypeScript, la verdad absoluta del protocolo reside en su núcleo: el **Backend en Rust**.
+Mientras que `@nekzus/liop` proporciona la interfaz para desarrolladores en Node.js y TypeScript, el núcleo del protocolo reside en su **Backend en Rust**.
 
-Este espacio de trabajo (`servers/liop-node/`) contiene las estructuras de datos hiper-optimizadas, el bucle de ejecución del motor `Wasmtime` y las primitivas de red puras de Libp2p. 
+Este espacio de trabajo (`servers/liop-node/`) contiene las estructuras de datos optimizadas, el bucle de ejecución del motor `Wasmtime` y las primitivas de red de Libp2p. 
 
 Solo deberías interactuar directamente con el Rust Core si estás:
 - Construyendo un SDK de LIOP para un nuevo lenguaje (ej., Python, Go, C#).
@@ -36,9 +36,9 @@ El Workspace de Cargo está estrictamente modularizado en componentes funcionale
 
 ## Stack de Transporte de Red
 
-A diferencia de las APIs simples de HTTP/REST, LIOP requiere una conexión persistente, bidireccional y altamente multiplexada para soportar los Watchdogs persistentes y la ejecución de lógica de baja latencia.
+A diferencia de las APIs simples de HTTP/REST, LIOP requiere una conexión persistente, bidireccional y multiplexada para soportar los Watchdogs persistentes y la ejecución de lógica con baja latencia.
 
-El backend en Rust implementa esto combinando dos tecnologías de vanguardia:
+El backend en Rust implementa esto combinando dos capas de red:
 
 1. **Tonic (gRPC):** 
    Tonic maneja el enmarcado de mensajes (message framing). Cada `LogicRequest` y `LogicResponse` se transmite como Protobuf binario. Tonic gestiona automáticamente la contrapresión (backpressure) y los contextos de streaming de forma asíncrona utilizando el runtime de `tokio`.
@@ -47,15 +47,15 @@ El backend en Rust implementa esto combinando dos tecnologías de vanguardia:
 
 ## Motor de Ejecución
 
-El diferenciador central de todo el Logic-Injection-on-Origin Protocol (LIOP) reside en `servers/liop-node/src/executor.rs`.
+El núcleo de ejecución del protocolo reside en `servers/liop-node/src/executor.rs`.
 
 Aquí, el binario nativo de Rust recibe un array de bytes que representa la intención del Agente de IA. Antes de la ejecución, el motor limita la memoria dinámicamente basándose en el token de autorización del Agente, pre-abre descriptores de archivos estrictos usando `WasiCtxBuilder` y entrega la carga a la CPU virtual.
 
-Esto asegura un aislamiento total ante fallos (panic-isolation): si el `.wasm` del Agente encuentra una fuga de memoria, el SO Host permanece ileso.
+Esto asegura un aislamiento ante fallos: si el `.wasm` del Agente encuentra una trampa de memoria, el sistema operativo anfitrión permanece intacto.
 
-### Características de Vanguardia (Truth Protocol)
+### Características Avanzadas de Verificación
 
-Entrando en el "Endgame" de Nivel-0 (Tier-0), `liop-node` opera más allá del sandboxing estándar:
-- **Observabilidad y Resiliencia**: Incluye instrumentación estructurada vía `tracing` y endpoints `/health` de hyper paralelizados, además de `config.toml` externalizada para despliegues dinámicos.
-- **Hooks de Conocimiento Cero (Zero-Knowledge Hooks)**: Antes de devolver una respuesta, la lógica puede envolverse en una zkVM para generar un Recibo matemático determinista del AST exacto aplicado sobre los datos localizados.
-- **Computación Ciega (Blind Computation)**: A través del trait `EnclaveProvider`, el motor de ejecución puede arrancar sin problemas dentro de capacidades de Hardware aisladas, previniendo el volcado de memoria a nivel de hipervisor y del SO host.
+En entornos de alta seguridad con requisitos estrictos de verificación, `liop-node` opera más allá del sandboxing estándar:
+- **Observabilidad y Resiliencia**: Incluye instrumentación estructurada vía `tracing` y endpoints `/health` paralelizados, además de `config.toml` externalizada para despliegues dinámicos.
+- **Hooks de Conocimiento Cero (Zero-Knowledge Hooks)**: Antes de devolver una respuesta, la lógica puede ejecutarse dentro de una zkVM para generar un recibo determinista del AST exacto aplicado sobre los datos locales.
+- **Computación Ciega (Blind Computation)**: A través del trait `EnclaveProvider`, el motor de ejecución puede ejecutarse dentro de enclaves de hardware aislados, impidiendo el volcado de memoria a nivel de hipervisor y del sistema operativo anfitrión.

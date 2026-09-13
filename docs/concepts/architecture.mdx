@@ -1,6 +1,6 @@
 ---
 title: "Architecture"
-description: "Understanding the components, layers, and P2P routing of the Logic-Injection-on-Origin Protocol"
+description: "Components, execution layers, and P2P routing in the Logic-Injection-on-Origin Protocol"
 ---
 
 <img className="block dark:hidden" src="/images/architecture-light.svg" alt="LIOP Architecture Diagram" />
@@ -14,7 +14,7 @@ By orchestrating Logic-on-Origin, LIOP eliminates data gravity constraints, allo
 
 LIOP comprises several foundational pillars:
 - **LIOP Specification**: The standardized implementation of Protobuf messages, libp2p routing, and WASI binary execution constraints.
-- **LIOP SDKs**: Official TypeScript and Rust libraries to seamlessly integrate the mesh into existing applications.
+- **LIOP SDKs**: Official TypeScript and Rust libraries to integrate the mesh into existing applications.
 - **LIOP Runtimes**: The core engine (usually `wasmtime`) that performs the mathematical sandboxing.
 
 <Note>
@@ -31,7 +31,7 @@ In the LIOP Mesh, every node is a Peer, but they assume distinct roles based on 
 
 ## System Layers
 
-To ensure ultra-low latency and maximum security, LIOP is strictly divided into two technical layers, orchestrated through mathematically verifiable pipelines.
+To minimize latency and enforce strict isolation, LIOP is structured into two technical layers, orchestrated through verifiable execution pipelines.
 
 <Frame>
   <img className="block dark:hidden w-full" src="/images/topology-light.svg" alt="LIOP Topology Architecture" />
@@ -104,11 +104,11 @@ Here is the exact lifecycle of a LIOP execution, reflecting a 1:1 parity between
 
 ### 3. The Origin Ingestion (`Rust Server`)
 - **Transport Terminator:** The Data Node unwraps the Kyber secret and applies AES-256-GCM decryption natively, extracting the core payload.
-- **AST Guardian (Zero-Time Sentinel):** The Rust `wasmparser` dissects the incoming Abstract Syntax Tree. Any illegal Host imports trap the logic instantly in zero-time.
-- **Wasmtime / WASI Sandboxing:** Bytecode Alliance's engine boots a hyper-constrained memory boundary. The logic loops safely over Gigabytes of Host Data with absolute zero network overhead.
+- **AST Guardian:** The Rust `wasmparser` inspects the incoming Abstract Syntax Tree. Any unauthorized host imports halt execution prior to instantiation.
+- **Wasmtime / WASI Sandboxing:** Bytecode Alliance's engine boots a constrained memory boundary. The logic processes host data locally without moving records across the network.
 
 ### 4. Mathematical Return (`ZK-Receipt`)
-- **Mathematical Proof:** Optionally, `RISC Zero` a zkVM generates a cryptographic Journal and cryptographically proven Seal (ZK-Receipt) of the execution.
-- **Result Streaming:** The microscopic findings return through the gRPC Yamux Multiplex, empowering the Agent with final mathematical certainty.
+- **Mathematical Proof:** Optionally, a zkVM generates a cryptographic Journal and seal (ZK-Receipt) of the execution.
+- **Result Streaming:** Compact aggregated results return through gRPC streams, accompanied by cryptographic verification proofs.
 
-This E2E architecture embodies the exact code in production, providing theoretical maximum speeds for Autonomous AI Agents along with Enterprise-grade Zero-Trust privacy that is fully auditable.
+This architecture combines in-situ computational efficiency with auditable, multi-layered Zero-Trust isolation.
