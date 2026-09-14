@@ -21,7 +21,11 @@ const plugins = [
 				{ type: "feat", scope: "studio", release: "minor" },
 				{ type: "fix", scope: "studio", release: "patch" },
 				{ type: "perf", scope: "studio", release: "patch" },
+				{ type: "feat", scope: "studio-ui", release: "minor" },
+				{ type: "fix", scope: "studio-ui", release: "patch" },
+				{ type: "perf", scope: "studio-ui", release: "patch" },
 				{ scope: "studio", release: "patch" },
+				{ scope: "studio-ui", release: "patch" },
 			],
 		},
 	],
@@ -52,7 +56,14 @@ const plugins = [
 				"chore(studio-release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}",
 		},
 	],
-	"@semantic-release/github",
+	[
+		"@semantic-release/github",
+		{
+			failComment: false,
+			failTitle: false,
+			labels: false,
+		},
+	],
 ];
 
 export default {
