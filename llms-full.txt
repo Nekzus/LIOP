@@ -18,33 +18,33 @@ title: "Introduction"
 description: "Welcome to the Logic-Injection-on-Origin Protocol (LIOP) documentation"
 ---
 
-LIOP is a next-generation, high-performance binary transport mesh designed specifically for advanced Artificial Intelligence Agent communication. Conceived as the conceptual and technical evolution of existing context protocols (like the **Model Context Protocol**), LIOP radically shifts the paradigm from pulling massive data chunks towards **secure Logic-Injection-on-Origin (LIO) execution**.
+LIOP is a high-performance binary transport mesh designed for autonomous agent communication. It extends application-level protocols such as the Model Context Protocol (MCP) by replacing context-pulling data transfers with **sandboxed Logic-Injection-on-Origin (LIO)** execution.
 
-The "Logic-Injection-on-Origin" is the **Postulate of Origin (Execution Core)** of the neural mesh: the data is sacred and must never leave its physical location unless mathematically aggregated.
+The **Postulate of Origin (LIO)** establishes the core architectural rule: underlying data is sovereign and remains at rest within its local boundary. Only mathematically aggregated results or cryptographically attested evidence cross the wire.
 
-If MCP was built as the "USB-C port for AI applications" to standardize connections, **LIOP is the fiber-optic nervous system** that enables true decentralized intelligence.
+While MCP standardizes client-side application tooling and developer workflows, **LIOP provides sovereign, decentralized compute and transport infrastructure** for distributed enterprise datasets.
 
-## Why LIOP?
+## Architectural Context
 
-In the current landscape of autonomous agents, traditional client-server architectures face severe bottlenecks. Transferring gigabytes of raw data (logs, databases, repositories) over HTTP/JSON across the internet for an LLM to parse, reason, and filter is increasingly inefficient, slow, and expensive in terms of token context limits.
+Traditional client-server architectures face severe bottlenecks when integrating autonomous agents. Transferring raw datasets (logs, database dumps, transactional ledgers) over HTTP/JSON for an LLM to parse and filter introduces high latency, excessive bandwidth consumption, and context-window exhaustion.
 
-LIOP solves this by completely inverting the architecture: **We move the math to the data, not the data to the math.**
+LIOP inverts this workflow: **compute dispatches to the data source rather than extracting data into the model context.**
 
 <CardGroup cols={2}>
   <Card title="Logic-Injection-on-Origin" icon="bolt">
-    Instead of downloading giant datasets, Agents dynamically compile their reasoning step into a microscopic WebAssembly (`.wasm`) module and push it exactly where the data lives.
+    Instead of downloading giant datasets, Agents dynamically compile their reasoning step into a compact WebAssembly (`.wasm`) module and push it exactly where the data lives.
   </Card>
   <Card title="Multi-Layered Security (Tier-1)" icon="shield-halved">
-    Zero-Trust AST Sandboxing (WASI), Egress PII verification with Military-Grade algorithms (Luhn, NIST boundaries, Safe Words), and Post-Quantum cryptography.
+    Zero-Trust AST Sandboxing (WASI), Egress PII verification with compliance algorithms (Luhn, NIST boundaries, and pattern validators), and Post-Quantum cryptography.
   </Card>
   <Card title="Zero-Shot Autonomy" icon="brain">
     LIOP Auto-educates remote LLMs on-the-fly. If an Agent violates the Logic-Injection paradigm, the Server cognitively instructs the Agent to rewrite its WASM payload securely.
   </Card>
   <Card title="Binary High-Performance" icon="rocket">
-    Built entirely on compiled Protobuf messages multiplexed over Tonic (gRPC). Say goodbye to slow JSON-string parsing blocking your event loops. Payload sizes drop by over 60%.
+    Built entirely on compiled Protobuf messages multiplexed over Tonic (gRPC). Eliminates text-based JSON serialization overhead, reducing payload sizes by over 60%.
   </Card>
   <Card title="Multi-Core Scalability" icon="microchip">
-    The Node.js SDK leverages a Native Worker Pool (`piscina`), bypassing the single-threaded V8 limit to achieve transactional parities identical to massive Rust setups.
+    The Node.js SDK leverages a Native Worker Pool (`piscina`), distributing cryptographic operations across background worker threads.
   </Card>
   <Card title="Mathematical Verification" icon="signature">
     Built-in HMAC-SHA256 cryptographic receipts (ZK-Receipts) that prove honest computation. Native ZK-VM integration is on the roadmap.
@@ -54,9 +54,9 @@ LIOP solves this by completely inverting the architecture: **We move the math to
   </Card>
 </CardGroup>
 
-## The Power of Logic-Injection-on-Origin: Innovative Use Cases
+## Logic-Injection-on-Origin: Industrial Use Cases
 
-The *Logic-Injection-on-Origin* paradigm is not just a performance optimization; it is our undeniable architectural postulate. It fundamentally unlocks completely new ways to process restricted data across global networks without violating privacy boundaries. By sending a verified mathematical algorithm to the data source rather than extracting the data to the algorithm, we eradicate **Data Gravity** entirely.
+The *Logic-Injection-on-Origin* paradigm inverts traditional distributed compute flows. Instead of extracting raw records across the network to remote models, the protocol dispatches sandboxed logic directly to the infrastructure hosting the data, eliminating the network latency, egress costs, and compliance risks caused by Data Gravity.
 
 ### 1. Healthcare & Bio-Informatics (Zero-Exfiltration)
 An AI Doctor Agent wants to analyze 10 years of patient history across multiple hospitals to find correlations between specific medications and side effects. 
@@ -88,18 +88,16 @@ LIOP provides significant benefits across the entire AI ecosystem:
 2.  **Post-Quantum Handshakes:** Intent negotiations use Kyber (ML-KEM-768) ensuring "Harvest Now, Decrypt Later" state-level attacks are completely mitigated, encapsulating all data via Symmetric `AES-256-GCM`.
 3.  **Real-Time Watchdogs:** Agents can push persistent `.wasm` modules that sleep on the server for free, and asynchronously wake up to stream an alert via gRPC only when an anomaly is detected.
 4.  **Hardware Blind Computing (TEEs):** Future-proof architectural designs ready to execute the `Wasmtime` engine inside AWS Nitro Enclaves, assuring Memory-level encryption for High-Compliance environments.
-5.  **Zero-Time AST Guardians:** The SDK preemptively inspects and destroys `.wasm` binary trees that attempt illegal namespace mappings before they even reach the initialization engine.
+5.  **AST Guardian Inspection:** The SDK statically inspects incoming binary syntax trees and rejects payloads attempting illegal namespace bindings before instantiation.
 
-## Getting Started
-
-Ready to dive in and modernize your AI architecture? Choose your path:
+## Next Steps
 
 <CardGroup cols={2}>
   <Card title="Quickstart Guide" icon="forward-step" href="/getting-started/quickstart">
     Launch your first LIOP Server and Client in under 5 minutes using the official SDK.
   </Card>
-  <Card title="Architecture Deep Dive" icon="sitemap" href="/concepts/architecture">
-    Understand how Kademlia, gRPC, and Wasmtime intertwine to create the Logic-Injection-on-Origin paradigm.
+  <Card title="Architecture Overview" icon="sitemap" href="/concepts/architecture">
+    Understand how Kademlia, gRPC, and Wasmtime operate together in the Logic-Injection-on-Origin protocol.
   </Card>
 </CardGroup>
 
@@ -136,12 +134,12 @@ title: "Quickstart"
 description: "Start building with LIOP in under 5 minutes using the official TypeScript SDK"
 ---
 
-The Logic-Injection-on-Origin Protocol (LIOP) provides the `@nekzus/liop`, designed as a powerful yet highly familiar SDK. If you have previously built servers for MCP, transitioning to LIOP architecture is almost effortless.
+The Logic-Injection-on-Origin Protocol (LIOP) provides the `@nekzus/liop` package, offering an API surface familiar to MCP developers. If you have previously built servers for MCP, transitioning to LIOP follows the same architectural conventions.
 
 In this guide, we'll build a basic LIOP Server that exposes a tool, and a Client that invokes it.
 
 <Note>
-  Under the hood, LIOP is compiling your logic to WebAssembly and injecting it via P2P. However, the SDK abstracts this entirely, letting you focus on writing pure business logic.
+  Under the hood, LIOP compiles logic into sandboxed execution envelopes and dispatches it across the mesh. The SDK abstracts the underlying gRPC and P2P transport, exposing standard tool registration and execution methods.
 </Note>
 
 ## 1. Installation
@@ -248,7 +246,7 @@ npx tsx server.ts
 # Output: LIOP Server is listening on the Mesh...
 ```
 
-In a separate terminal, unleash your Agent:
+In a separate terminal, run the agent client:
 ```bash
 npx tsx client.ts
 # Output: Joined LIOP Protocol...
@@ -277,16 +275,16 @@ Once running, navigate to **`http://localhost:14000`** in your browser:
 Unlike legacy REST APIs or MCP string parsing:
 1. Your Client discovered the Server instantly via a **P2P Kademlia Routing Table**.
 2. A **Post-Quantum Kyber Handshake (ML-KEM-768)** secured the session.
-3. The query was serialized into an ultra-compact **Protobuf Binary** and sealed with **AES-256-GCM**.
+3. The query was serialized into binary **Protocol Buffers** and sealed with **AES-256-GCM**.
 4. The execution happened inside an isolated **WASI Sandbox** on the server, protected by the **Guardian AST** and **Egress PII Shield**.
 5. The output was cryptographically sealed with an **HMAC-SHA256 ZK-Receipt**.
 
 ## Next Steps
 
-Now that you've run your first Mesh execution, dive deeper into the core architecture to understand how to leverage advanced capabilities like Continuous Watchdogs and Zero-Knowledge Proofs.
+With the client verified on the mesh, review the core architecture to configure persistent Watchdogs and Zero-Knowledge receipts.
 
 <Card title="Core Architecture" icon="sitemap" href="/concepts/architecture">
-  Learn how the Data Layer and Transport Layer synergize in LIOP.
+  Learn how the Data Layer and Transport Layer integrate in LIOP.
 </Card>
 
 
@@ -344,7 +342,7 @@ These seven principles govern every architectural decision in the protocol. They
 4. **Cryptographic Verifiability** — Every computation produces a ZK-Receipt that binds the output hash to the exact logic executed and the session secret. Third parties can audit results without re-executing the logic.
 5. **Quantum Resilience** — All key exchanges and session seals use post-quantum algorithms (ML-KEM-768) from day one. This is not a future upgrade path — it is a launch requirement, designed against harvest-now-decrypt-later strategies.
 6. **Minimal Footprint** — The protocol must operate on resource-constrained edge devices. Efficiency is a hard constraint, not an optimization target. CPU fuel limits are deterministic and AST-derived.
-7. **Ecosystem Coexistence & Backward Compatibility** — LIOP operates at the sovereign compute and distributed mesh layer while coexisting with application-level agent protocols. Through a dual-era gateway adapter, legacy MCP clients consume LIOP services seamlessly without ecosystem fragmentation.
+7. **Ecosystem Coexistence & Backward Compatibility** — LIOP operates at the sovereign compute and distributed mesh layer while coexisting with application-level agent protocols. Through a dual-era gateway adapter, legacy MCP clients consume LIOP services without requiring client-side modifications or creating ecosystem fragmentation.
 
 ## 4. The Six Shields — Threat Model & Defense Layers
 
@@ -443,13 +441,9 @@ The technical implementation, cryptographic primitives, and transport features e
 3. **Peer Review & Verification** — A minimum 14-day technical review period, including empirical test vectors in the reference SDK.
 4. **Specification Ratification** — Approved LEPs are incorporated into the next dated release of the [Protocol Specification](/concepts/specification).
 
-## 9. Join the Mesh
+## 9. Next Steps
 
-- **Stop Pulling.**
-- **Start Pushing.**
-- **LIO is the future of Autonomous AI.**
-
-Read the [Protocol Specification](/concepts/specification). Run the [Interactive Playground](http://localhost:14000). Build your first LIOP Server with `npm install @nekzus/liop`. [Join the mesh](/getting-started/quickstart).
+Review the [Protocol Specification](/concepts/specification), run the [Interactive Playground](http://localhost:16000), or instantiate an enclave node using the TypeScript SDK via `npm install @nekzus/liop`. See the [Getting Started Guide](/getting-started/quickstart).
 
 ---
 
@@ -478,7 +472,7 @@ The Logic-Injection-on-Origin Protocol (LIOP) is a decentralized, high-performan
 ## 2. The Logic-Injection-on-Origin (LIO) Postulate
 **Postulate of Origin (Execution Core):** Data must never be pulled to intelligence. Intelligence must be pushed to the data.
 
-An LIOP Agent interacting with an LIOP Server pushes executable logic (in the form of microscopic `.wasm` modules or dynamically transpiled algorithms). The server securely executes this logic within a strict sandbox and returns only the aggregated mathematical results or filtered lists, mathematically negating the possibility of unintentional PII (Personally Identifiable Information) exfiltration due to large-context extraction.
+An LIOP Agent interacting with an LIOP Server pushes executable logic (in the form of compact `.wasm` modules or dynamically transpiled algorithms). The server securely executes this logic within a strict sandbox and returns only the aggregated mathematical results or filtered lists, preventing unintended PII (Personally Identifiable Information) exfiltration from raw context extraction.
 
 ## 3. Topographical Architecture
 
@@ -486,7 +480,7 @@ An LIOP Agent interacting with an LIOP Server pushes executable logic (in the fo
 - LIOP operates atop a decentralized `libp2p` overlay.
 - Servers (Data Nodes) bind to TCP/QUIC ports and advertise themselves as long-running daemons.
 - Clients (Agent Injectors) connect ad-hoc across local networks or public WAN using Kademlia DHT routing.
-- LIOP completely eliminates centralized brokering or proxy hubs.
+- LIOP operates without centralized brokers or proxy hubs.
 
 ### 3.2 Transport & Multiplexing
 - Connections use Multiplexing via Yamux, allowing hundreds of concurrent `Logic-Injection-on-Origin` injections to occur over a single opened TCP socket without Head-Of-Line Blocking.
@@ -495,7 +489,7 @@ An LIOP Agent interacting with an LIOP Server pushes executable logic (in the fo
 - Raw binary payloads are encapsulated in strict Protobuf definitions (`.proto`).
 - The entire LIOP interaction relies on Protocol Buffers transmitted over HTTP/2 via Tonic, eliminating JSON-RPC serialization overhead natively.
 
-## 4. Cryptographic Security (The Shield)
+## 4. Cryptographic Security Architecture
 
 ### 4.1 Post-Quantum Key Encapsulation (ML-KEM-768)
 - At initialization, connections instantiate a Post-Quantum Handshake. LIOP employs **ML-KEM-768 (Kyber)** to negotiate shared secrets securely against quantum-computing decrypt attacks ("Harvest Now, Decrypt Later" protection).
@@ -511,7 +505,7 @@ An LIOP Agent interacting with an LIOP Server pushes executable logic (in the fo
 - The SDK generates **HMAC-SHA256 commitments** that cryptographically bind the output to the exact logic executed, sealed with the Post-Quantum session secret.
 - **Dataset Integrity Anchor**: Receipts embed a SHA-256 `dataset_hash`, guaranteeing that Differential Privacy perturbations and aggregation logic are strictly anchored to immutable origin data.
 
-## 5. Execution Core (The Sandbox)
+## 5. Execution Core Architecture
 
 ### 5.1 WASI Instantiation & Environment Isolation
 - Injected logic is deployed into a bare-metal `Wasmtime` Virtual Machine or V8 Isolate implementing the WebAssembly System Interface (WASI).
@@ -520,8 +514,8 @@ An LIOP Agent interacting with an LIOP Server pushes executable logic (in the fo
 - **Deterministic CPU Fuel**: Execution is constrained by AST-derived fuel limits, neutralizing infinite loops and computational denial-of-service attacks.
 - **Worker Pool Warmup**: Pre-warmed Piscina thread pools eliminate V8 cold-start overhead (~820k fuel reduction).
 
-### 5.2 Zero-Time AST Guardian
-- Before a payload enters the execution engine, LIOP evaluates its Abstract Syntax Tree (AST). It destructs payloads attempting to import forbidden modules outside of the 14-function strict WASI allowlist, supporting top-level return expressions for dynamic modules.
+### 5.2 Static AST Guardian
+- Before a payload enters the execution engine, LIOP evaluates its Abstract Syntax Tree (AST). It discards payloads attempting to import modules outside of the 14-function strict WASI allowlist, supporting top-level return expressions for dynamic modules.
 
 ### 5.3 Egress PII Defense
 - The LIOP SDK injects a Tier-1 PII Shield at the Egress stage. Employs a 4-stage pipeline: exact key match → fuzzy match → regex pattern validators (Luhn algorithm for credit cards, SSN, email, phone) → Named Entity Recognition (NER).
@@ -537,8 +531,8 @@ An LIOP Agent interacting with an LIOP Server pushes executable logic (in the fo
   - `sensitive`: 8 queries/session (biometric, financial, diagnosis fields).
   - `public`: 25 queries/session (general categorical and metric fields).
 
-## 6. Zero-Shot Autonomy (Self-Healing AI)
-LIOP features built-in self-instructing middleware. Should an Agent attempt a JSON-RPC interaction over MCP legacy adapters that violates the Logic-Injection-on-Origin protocol structure (e.g., attempting raw data extraction), LIOP intercepts the request, blocks it, and returns a cognitive plaintext instruction prompt enabling the Agent to autonomously rewrite its intent as injected logic.
+## 6. Autonomous Protocol Remediation
+LIOP features built-in self-instructing middleware. Should an Agent attempt a JSON-RPC interaction over MCP legacy adapters that violates the Logic-Injection-on-Origin protocol structure (such as attempting raw data extraction), LIOP intercepts the request, blocks it, and returns a structured instructional prompt enabling the Agent to reformat its intent as injected logic.
 
 ## 7. Dual-Era MCP Compatibility & Gateway Adapter
 - **MCP v2 Support**: Full compliance with the `2026-07-28` specification (`subscriptions/listen` and `resources/templates/list`) without polling overhead.
@@ -559,11 +553,11 @@ title: "The Logic-on-Origin Paradigm"
 description: "How LIOP eliminates Data Gravity by moving Logic to the Origin."
 ---
 
-The quintessential breakthrough of the **Logic-Injection-on-Origin Protocol (LIOP)** is the introduction and mastery of the **Logic-Injection-on-Origin (LIO)** paradigm.
+The core principle of the **Logic-Injection-on-Origin Protocol (LIOP)** is the **Logic-Injection-on-Origin (LIO)** paradigm.
 
-LIO is the **Postulate of Origin (Execution Core)** of the neural mesh: the data is sacred and must never leave its physical location unless mathematically aggregated.
+Under the **Postulate of Origin**, data remains at rest within its physical custody boundary unless the output is mathematically aggregated or cryptographically attested.
 
-As AI scaling progresses, the industry recognized a fundamental flaw in the way autonomous agents operate: The context window bottleneck. Traditional protocols (like the Model Context Protocol) operate on a fundamentally legacy pattern: **Context-Pulling**.
+As AI systems scale, context window saturation and egress bandwidth become primary architectural constraints. Traditional protocols (such as Model Context Protocol) rely on **Context-Pulling**, extracting remote data to a centralized model.
 
 <Frame>
   <img className="block dark:hidden w-full" src="/images/logic-vs-pull-light.svg" alt="Animated Logic-on-Origin vs Context-Pulling Comparison" />
@@ -574,32 +568,32 @@ As AI scaling progresses, the industry recognized a fundamental flaw in the way 
 
 In standard AI applications, when an LLM needs to analyze data, read a ledger, or search a repository, the server must extract the raw data and transmit it over the network to the model.
 
-This is fundamentally flawed for three reasons:
+This introduces three structural bottlenecks:
 
-1. **The Exfiltration Risk (Privacy):** Transmitting raw databases directly violates compliance standards like HIPAA, GDPR, or Banking Secrecy Acts. The LLM provider suddenly holds the Personally Identifiable Information (PII) of thousands of users in its RAM.
-2. **The Bandwidth Collapse:** Sending gigabytes of logs or telemetry data across the globe over JSON/HTTP is severely slow and wasteful.
-3. **The Context Window Saturation:** Feeding a 10GB database into a prompt is impossible or financially ruinous due to token costs.
+1. **Exfiltration Risk (Data Privacy):** Transmitting raw databases conflicts with compliance standards such as HIPAA, GDPR, or financial secrecy regulations. The remote LLM provider temporarily holds sensitive user records in memory.
+2. **Network Overhead:** Transferring gigabytes of telemetry or log streams over HTTP causes high transfer latency and network egress costs.
+3. **Context Window Saturation:** Streaming large datasets directly into model context windows incurs significant token costs and risks truncation.
 
-Data possesses "Gravity". The larger the dataset, the harder and more expensive it is to move. 
+Data possesses gravity: as dataset size increases, network transfer becomes slower, costlier, and less secure.
 
-## The LIOP Solution: Pure Logic-on-Origin
+## The LIOP Solution: Logic-on-Origin
 
-Instead of forcing the massive dataset to travel to the mathematical algorithm (the LLM), **LIOP forces the mathematical algorithm to travel to the dataset.**
+Instead of moving large datasets to the model, **LIOP dispatches compiled logic to the dataset.**
 
-When a LIOP Agent needs an answer, it dynamically writes the logic required to find that answer. It compiles this logic into a microscopic `WebAssembly (.wasm)` byte-carrier and pushes it across the Zero-Trust Mesh.
+When an LIOP Agent requires an analytical result, it writes the query logic, compiles it into an isolated WebAssembly (`.wasm`) module or sandboxed script, and transmits it across the peer-to-peer network.
 
-Upon arriving at the Target Server:
-1. **It is Isolated**: The logic is trapped inside a `WASI Sandbox`. It cannot touch the host OS.
-2. **It Executes Locally**: The WebAssembly code processes the gigabytes of data locally at hardware-native speeds. It searches, filters, analyzes, and aggregates.
-3. **It Returns Only Semantics**: The WASM code terminates and returns a highly distilled string (e.g., *"The average value is 42% latency"*) along with a mathematical ZK-Receipt confirming honesty. 
+Upon arriving at the target Data Node:
+1. **Sandboxed Isolation**: The logic executes within a `WASI Sandbox` configured with restricted file descriptors and capability allowlists.
+2. **Local Processing**: The WebAssembly code processes the dataset in situ at native execution speed, performing filtering, transformation, and aggregation locally.
+3. **Verified Output**: The module completes execution and returns an aggregated result along with an HMAC-SHA256 ZK-Receipt that cryptographically binds the output to the executed logic.
 
-**Zero bytes of raw data ever left the origin system.**
+**Raw records never leave the origin infrastructure.**
 
-## Establishing the Intelligence Backbone
+## Architectural Scope & M2M Integration
 
-We designed LIOP to claim the intellectual frontier of this architecture. By utilizing this protocol, developers are no longer building mere "chatbot integrations." They are deploying **Asynchronous Intelligence Probes** into strictly forbidden digital territories with supreme mathematical confidence.
-
-From orchestrating *Healthcare Analytical Consortiums* without breaking Privacy Laws, to deploying *High-Frequency Trading Fraud Detectors* within Bank Nitro Enclaves, the Logic-on-Origin paradigm is the undeniable future of Machine to Machine (M2M) autonomous intelligence.
+By moving computation to origin, developers deploy deterministic analytical modules directly across secure enterprise boundaries:
+- **Healthcare Consortiums**: Cross-institutional research cohorts execute epidemiological queries across hospital databases without exposing patient records protected by HIPAA.
+- **Financial Audit & Fraud Detection**: Anomaly detection heuristics execute directly inside sovereign banking enclaves without transmitting ledgers across public networks.
 
 
 ---
@@ -608,7 +602,7 @@ From orchestrating *Healthcare Analytical Consortiums* without breaking Privacy 
 
 ---
 title: "Architecture"
-description: "Understanding the components, layers, and P2P routing of the Logic-Injection-on-Origin Protocol"
+description: "Components, execution layers, and P2P routing in the Logic-Injection-on-Origin Protocol"
 ---
 
 <img className="block dark:hidden" src="/images/architecture-light.svg" alt="LIOP Architecture Diagram" />
@@ -622,7 +616,7 @@ By orchestrating Logic-on-Origin, LIOP eliminates data gravity constraints, allo
 
 LIOP comprises several foundational pillars:
 - **LIOP Specification**: The standardized implementation of Protobuf messages, libp2p routing, and WASI binary execution constraints.
-- **LIOP SDKs**: Official TypeScript and Rust libraries to seamlessly integrate the mesh into existing applications.
+- **LIOP SDKs**: Official TypeScript and Rust libraries to integrate the mesh into existing applications.
 - **LIOP Runtimes**: The core engine (usually `wasmtime`) that performs the mathematical sandboxing.
 
 <Note>
@@ -639,7 +633,7 @@ In the LIOP Mesh, every node is a Peer, but they assume distinct roles based on 
 
 ## System Layers
 
-To ensure ultra-low latency and maximum security, LIOP is strictly divided into two technical layers, orchestrated through mathematically verifiable pipelines.
+To minimize latency and enforce strict isolation, LIOP is structured into two technical layers, orchestrated through verifiable execution pipelines.
 
 <Frame>
   <img className="block dark:hidden w-full" src="/images/topology-light.svg" alt="LIOP Topology Architecture" />
@@ -712,14 +706,14 @@ Here is the exact lifecycle of a LIOP execution, reflecting a 1:1 parity between
 
 ### 3. The Origin Ingestion (`Rust Server`)
 - **Transport Terminator:** The Data Node unwraps the Kyber secret and applies AES-256-GCM decryption natively, extracting the core payload.
-- **AST Guardian (Zero-Time Sentinel):** The Rust `wasmparser` dissects the incoming Abstract Syntax Tree. Any illegal Host imports trap the logic instantly in zero-time.
-- **Wasmtime / WASI Sandboxing:** Bytecode Alliance's engine boots a hyper-constrained memory boundary. The logic loops safely over Gigabytes of Host Data with absolute zero network overhead.
+- **AST Guardian:** The Rust `wasmparser` inspects the incoming Abstract Syntax Tree. Any unauthorized host imports halt execution prior to instantiation.
+- **Wasmtime / WASI Sandboxing:** Bytecode Alliance's engine boots a constrained memory boundary. The logic processes host data locally without moving records across the network.
 
 ### 4. Mathematical Return (`ZK-Receipt`)
-- **Mathematical Proof:** Optionally, `RISC Zero` a zkVM generates a cryptographic Journal and cryptographically proven Seal (ZK-Receipt) of the execution.
-- **Result Streaming:** The microscopic findings return through the gRPC Yamux Multiplex, empowering the Agent with final mathematical certainty.
+- **Mathematical Proof:** Optionally, a zkVM generates a cryptographic Journal and seal (ZK-Receipt) of the execution.
+- **Result Streaming:** Compact aggregated results return through gRPC streams, accompanied by cryptographic verification proofs.
 
-This E2E architecture embodies the exact code in production, providing theoretical maximum speeds for Autonomous AI Agents along with Enterprise-grade Zero-Trust privacy that is fully auditable.
+This architecture combines in-situ computational efficiency with auditable, multi-layered Zero-Trust isolation.
 
 
 ---
@@ -753,13 +747,11 @@ The Agent sends a completely dynamic **WebAssembly Module (`.wasm`)** containing
 *   Instead of executing it natively, the Server spins up an ephemeral **WASI Sandbox** (using Bytecode Alliance's `Wasmtime`) and injects the WASM module into it.
 *   **Extreme Scalability:** Both the Rust backend and the TS SDK leverage advanced threading models (Native OS Threads and Node.js `piscina` Worker Pools) to process thousands of these sandboxes concurrently without blocking the Main Event Loop.
 
-This allows infinite capabilities without requiring the server administrator to constantly write new tool endpoints.
+This provides extensive analytical flexibility without requiring the server administrator to deploy new endpoint handlers for every query pattern.
 
 ## 2. Capabilities (The Resources)
 
-If the server executes arbitrary code via WASM, how is it secure? Through **Capabilities-Based Security**.
-
-Capabilities are the LIOP equivalent of MCP "Resources", but radically more secure. By default, a running WASM module in LIOP has **absolute zero access** to anything:
+Capabilities enforce security boundaries through a strict capability-based authorization model. By default, an executing WebAssembly module operates with no ambient authority:
 - No file system read/write.
 - No network socket access.
 - No environment variables.
@@ -769,7 +761,7 @@ Capabilities are the LIOP equivalent of MCP "Resources", but radically more secu
 When an Agent sends a Module, it must specify the Capabilities it requires to function. The Server verifies these requests against its configured manifest. If approved, the Server *dynamically maps* specific file descriptors directly into the Sandbox memory space.
 
 For example, a Capability might be: `READ_ONLY_ACCESS: /var/logs/nginx/`. 
-The WASM module can now read the nginx logs at blinding speed, but if the malicious logic attempts to read `/etc/passwd`, the Sandboxing Engine will trigger an immediate, uncatchable `WASI Trap`, instantly terminating the agent's logic.
+The WASM module can read the nginx logs directly within its assigned memory bounds. If the module attempts to access unmapped paths (such as `/etc/passwd`), the Wasmtime runtime triggers a `WASI Trap` and aborts execution immediately.
 
 ## 3. Watchdogs (Persistent Asynchronous Events)
 
@@ -807,7 +799,7 @@ The core computation does not run in the Host OS. It is pushed into a physical H
 Inside the TEE, the `Wasmtime` engine boots the WASI context. Since WebAssembly is Turing Complete, it could theoretically execute an infinite loop to starve the server. The **Fuel Monitor** defends against this by enforcing `.consume_fuel()`. Every operation deducts "fuel" limits; if exhausted, the engine unconditionally kills the execution thread, repelling DoS bombs.
 
 #### 4. ZK Prover (Mathematical Certainty)
-When the `.wasm` finishes outputting data, the result passes to the **Zero-Knowledge Prover** (e.g., `RISC Zero` integration). This module generates a mathematical *Receipt* (consisting of a Journal and a cryptographic Seal). The returned packet proves unconditionally to the Agent that the specific logic payload executed flawlessly, and the output was not tampered with by the execution Node.
+When the `.wasm` finishes outputting data, the result passes to the **Zero-Knowledge Prover** (e.g., `RISC Zero` integration). This module generates a mathematical *Receipt* (consisting of a Journal and a cryptographic Seal). The returned packet proves to the Agent that the specific logic payload executed without tampering by the execution Node.
 
 ## 5. TypeScript Server & MCP Bridge (The SDK Node)
 While the Rust Dataplane dominates heavy WASI Sandboxing and Mathematical Evidence, the LIOP Ecosystem also provides a lightweight, pure-TypeScript Server implementation (`@nekzus/liop`). 
@@ -821,12 +813,12 @@ This Server acts primarily as a backward-compatibility layer and local endpoint 
 
 ### How the Bridge handles Legacy MCP Clients:
 1. **JSON-RPC Interception**: Legacy tools (like older MCP Clients) dispatch standard text-heavy `tools/call` JSON-RPC 2.0 requests over traditional network ports.
-2. **LiopMcpBridge Adapter**: The SDK intercepts these primitive payloads and translates them into an internalized `CallToolRequest`. It also flawlessly exposes registered `resources/list` and `resources/read` endpoints, enabling *Zero-Shot Self-Discovery* of Data Schemas for generic LLMs.
+2. **LiopMcpBridge Adapter**: The SDK intercepts these primitive payloads and translates them into an internalized `CallToolRequest`. It exposes registered `resources/list` and `resources/read` endpoints, enabling schema discovery for LLM clients.
 3. **LiopServer Zod Validation**: Before any logic touches the Node.js Main Thread, the `LiopServer` imposes strict Zod schema runtime validations ensuring structural integrity.
 4. **Native Node.js Execution**: The registered Tool Handler executes locally (using standard Node.js/TypeScript code) rather than isolating itself in a sandboxed WebAssembly boundary.
-5. **JSON-RPC Response**: The finding returns seamlessly down the pipeline formatted as a legacy `result` block.
+5. **JSON-RPC Response**: The finding returns down the pipeline formatted as a standard MCP `result` block.
 
-This guarantees that developers can immediately adopt `@nekzus/liop` and serve their existing Tools into the LIOP ecosystem with **Zero-Code modifications**, slowly transitioning towards full *WASM Logic-on-Origin* payloads when required.
+This allows developers to deploy `@nekzus/liop` alongside existing Tools without code modifications, adopting WASM Logic-on-Origin payloads incrementally.
 
 ## 6. Advanced Security & Data Dictionary
 
@@ -1011,15 +1003,15 @@ The engine automatically derives **per-field sensitivity** based on the output k
 | Finance (SOX/PCI) | `2.0` | DOJ PET Guidelines |
 | Public Data | `4.0–8.0` | US Census, Google RAPPOR |
 
-See [Zero-Trust Security — Differential Privacy](/concepts/zero-trust#7-differential-privacy-engine-laplace-mechanism) for the full technical deep-dive.
+See [Zero-Trust Security — Differential Privacy](/concepts/zero-trust#7-differential-privacy-engine-laplace-mechanism) for the detailed technical specification.
 
 ### Dynamic Return Structure (Native Auto-i18n) [PLANNED]
-LIOP introduces an architectural pattern where cross-border language translation friction is non-existent. This feature is on the roadmap.
+LIOP introduces an architectural pattern where cross-border data translation occurs at execution time. This feature is on the roadmap.
 
-When a Data Node registers its capabilities, it intrinsically embeds a structural directive into the payload definition (`DYNAMIC RETURN STRUCTURE`). This forces the executing agent to output JSON schemas using keys mathematically mapped to the **exact language spoken by the user on the initial prompt.**
+When a Data Node registers its capabilities, it embeds a structural directive into the payload definition (`DYNAMIC RETURN STRUCTURE`). This instructs the executing agent to output JSON schemas using keys mapped to the **language detected in the user's initial prompt.**
 
-*   If the user queries *"¿Cuántos pacientes tienen hipertensión?"*, the Node naturally receives a response matching native Spanish taxonomy (e.g., `{"cantidad": 25, "edad_promedio": 45}`).
-*   This entirely eliminates the need for heavyweight frontend internationalization (i18n) libraries, dropping the cognitive load of data parsing right at the Origin without hallucination risks.
+*   If the user queries *"¿Cuántos pacientes tienen hipertensión?"*, the Node returns a response matching Spanish keys (such as `{"cantidad": 25, "edad_promedio": 45}`).
+*   This removes the need for client-side internationalization (i18n) layers, localizing schema taxonomy directly at Origin without requiring prompt re-translation.
 
 
 ---
@@ -1031,15 +1023,15 @@ title: "Client Concepts"
 description: "How Agent Nodes leverage the LIOP Mesh for discovery and execution"
 ---
 
-In the Logic-Injection-on-Origin Protocol, a "Client" is best understood as an **Agent Node** or an Intelligence orchestrator. While the Server guarantees safe execution, the Client is responsible for discovering data, defining intents, and weaving the logic that traverses the network.
+In the Logic-Injection-on-Origin Protocol, a "Client" is best understood as an **Agent Node** or an intelligence orchestrator. While the Server guarantees safe execution, the Client is responsible for discovering data, defining intents, and dispatching execution logic across the network.
 
-Agent Nodes harness the Mesh through three core mechanisms: **Discovery (DHT)**, **Elicitation Handshakes**, and **Logic Injection**.
+Agent Nodes interact with the Mesh through three core mechanisms: **Discovery (DHT)**, **Elicitation Handshakes**, and **Logic Injection**.
 
 ## 1. Network Discovery (Kademlia DHT)
 
 In traditional Client-Server architectures, the Client must know the exact IP address or Domain Name System (DNS) entry of the server it wishes to query (e.g., `https://api.internal.corp/`). 
 
-Agent Nodes in LIOP operate in a purely decentralized topology. Here is how they rapidly discover the resources they need:
+Agent Nodes in LIOP operate in a decentralized peer-to-peer topology:
 
 <Frame>
   <img className="block dark:hidden w-full" src="/images/client-dht-light.svg" alt="Distributed Hash Table Routing" />
@@ -1048,64 +1040,64 @@ Agent Nodes in LIOP operate in a purely decentralized topology. Here is how they
 
 - Every Agent and Data Node generates a cryptographic **Ed25519 Peer ID** upon startup.
 - Nodes connect to a peer-to-peer bootstrap network and form a **Kademlia Distributed Hash Table (DHT)**.
-- When an Agent needs to access a specific capability (e.g., `Company_SQL_Database`), it simply queries the entire swarm: *"Which Peer ID currently holds this capability?"*
-- The DHT algorithm mathematically calculates the shortest network path to the target node, resolving its dynamic IP automatically behind NATs and Firewalls without a central registry.
+- When an Agent needs to access a specific capability (e.g., `Company_SQL_Database`), it queries the peer network: *"Which Peer ID currently holds this capability?"*
+- The DHT algorithm calculates the routing path to the target node, resolving its dynamic IP automatically behind NATs and firewalls without a central registry.
 
-This grants AI ecosystems extreme resilience and automatic load balancing. 
+This provides fault tolerance and dynamic route resolution across distributed nodes.
 
 ## 2. Elicitation & Trust Handshakes
 
-Because the Mesh is decentralized, trust cannot be derived from standard centralized Certificate Authorities (CAs) used in mTLS.
+Because the Mesh is decentralized, trust cannot be derived from standard centralized Certificate Authorities (CAs) used in traditional mTLS.
 
 When an Agent Node locates a Data Node, it initiates a **Zero-Trust Handshake (Elicitation)** before any logic is executed.
-- LIOP uses the **Noise Protocol Framework**, meaning connections are encrypted natively at the transport layer (QUIC) using symmetric keys derived from the Agent's identity.
-- **Post-Quantum Cryptography (PQC)**: LIOP Client Elicitations encapsulate intents using ML-KEM-768. This prevents intercepting adversaries from recording the communication today and decrypting it a decade from now with quantum machines.
+- LIOP uses the **Noise Protocol Framework**, encrypting connections natively at the transport layer (QUIC) using symmetric keys derived from peer identity.
+- **Post-Quantum Cryptography (PQC)**: LIOP Client Elicitations encapsulate session keys using ML-KEM-768. This prevents adversary capture of encrypted traffic for retrospective decryption by future quantum hardware (*Harvest Now, Decrypt Later*).
 
-If the Data Node requires human consent or specific authorization tokens, it responds to the Elicitation request prompting the Agent/User for the required OAuth scopes natively.
+If the Data Node requires user consent or authorization tokens, it responds to the Elicitation request prompting the Agent for the required OAuth scopes.
 
 ## 3. Logic Injection (The Payload)
 
-Once trust is mathematically established, the Client performs its primary action: **Injecting Logic**.
+Once the secure channel is established, the Client executes its core function: **Logic Injection**.
 
-Instead of dispatching sequential JSON commands to retrieve raw text, the Agent relies on local logic-generation orchestrated natively by the TypeScript SDK:
+Instead of dispatching sequential JSON commands to retrieve raw text, the Agent relies on local logic compilation orchestrated by the TypeScript SDK:
 
 <Frame>
   <img className="block dark:hidden w-full" src="/images/sdk-flow-light.svg" alt="TypeScript SDK E2E Flow" />
   <img className="hidden dark:block w-full" src="/images/sdk-flow-dark.svg" alt="TypeScript SDK E2E Flow" />
 </Frame>
 
-1. **Compilation**: The Agent (often leveraging a Javy/Component Model subsystem provided by the `@nekzus/liop`) translates its high-level logic (JavaScript, Python) into a tiny binary WebAssembly module.
-2. **Client AST Sentinel (`GuardianTS`)**: Before departure, rigid Heuristic AST rules block malicious instructions within the `.wasm` file, averting "sandbox escape" strategies outright in zero-time.
-3. **Payload Stamping (`Crypto Module`)**: The Client encapsulates the session using `Kyber768` Post-Quantum Cryptography and seals the payload hermetically inside an `AES-256-GCM` envelope.
-4. **Streaming (`MeshNode`)**: The Client multiplexes the connection via `Yamux` along with `Noise` and streams the encrypted `.wasm` binary to the target Mesh exactly once.
-5. **ZK-Verification**: Upon result retrieval via the libp2p ingress, the Agent locally validates the ZK-Receipt, generating absolute trust in the foreign computational output.
+1. **Compilation**: The Agent translates its high-level logic (JavaScript, Python) into a compact WebAssembly module.
+2. **Client AST Sentinel (`GuardianTS`)**: Before transmission, static AST rules verify that the `.wasm` binary does not contain unauthorized host syscall imports.
+3. **Payload Sealing (`Crypto Module`)**: The Client encapsulates the session using `ML-KEM-768` (Kyber768) and encrypts the payload with `AES-256-GCM`.
+4. **Streaming (`MeshNode`)**: The Client multiplexes the connection via `Yamux` along with `Noise` and transmits the encrypted binary to the target peer.
+5. **ZK-Verification**: Upon result retrieval via libp2p ingress, the Agent verifies the ZK-Receipt to validate execution integrity.
 
-By offloading the computation *away* from its own core loop, the Agent Client remains highly lightweight, free to orchestrate hundreds of other concurrent data connections across the LIOP Mesh simultaneously while remote servers perform the heavy mathematical and memory-intensive lifting.
+By delegating execution to the Origin node, the Agent Client remains lightweight, coordinating concurrent connections across the Mesh while remote servers execute data processing locally.
 
-### Execution Runtime Model (Node.js Tier-0)
+### SDK Runtime Architecture (Node.js)
 
-Once the data is flowing, the Node.js Host orchestrates the process leveraging extreme concurrency. The overarching goal of the LIOP SDK is to execute rigorous cryptographic and security boundaries without ever blocking the **Main Event Loop**, securing the responsiveness needed for high-traffic Agent applications.
+The Node.js Host orchestrates this pipeline using asynchronous worker pools. The LIOP SDK executes cryptographic operations and verification tasks off the **Main Event Loop**, maintaining responsiveness under high query volumes.
 
 <Frame>
   <img className="block dark:hidden w-full" src="/images/animated-sdk-flow-light.svg" alt="Animated SDK Runtime Flow" />
   <img className="hidden dark:block w-full" src="/images/animated-sdk-flow-dark.svg" alt="Animated SDK Runtime Flow" />
 </Frame>
 
-The visual flow above details the four pivotal components inside the local `@nekzus/liop`:
+The visual flow above details the four core components inside the local `@nekzus/liop`:
 
 #### 1. Agent App (LLM Logic Emitter)
-This is the origin point representing your custom application. Whether it is an AI Auto-Coder, a data scraper, or a local utility, it dictates the "Intent" and outputs the initial raw capabilities that need to be packaged and pushed to the remote Mesh Network.
+The origin application layer (such as an analytical agent or internal orchestration service) that defines the query intent and provides the initial logic to be dispatched to the Mesh.
 
 #### 2. GuardianTS (AST Heuristics)
-Prior to network transmission, `GuardianTS` acts as the first defensive checkpoint. Utilizing V8's native `WebAssembly.compile()` pipeline as a dry-run heuristic, it scans the generated `.wasm` binary in *zero-time* for malicious syscall imports (e.g., trying to escape the `wasi_snapshot_preview1` sandbox). If illegal instructions are detected, the payload is destroyed before it even reaches the cryptography module.
+Prior to network transmission, `GuardianTS` validates module safety. Utilizing V8's native compilation pipeline as a static validation step, it scans the generated `.wasm` binary for unauthorized host imports outside `wasi_snapshot_preview1`. Payloads failing validation are discarded immediately.
 
 #### 3. Worker Pool (Piscina Cryptography)
-Instead of forcing the Node.js Main Thread to calculate intensive mathematical encryptions, LIOP implements parallel offloading using a native `piscina` Worker Pool. 
-- **Egress (Outbound):** Worker threads simultaneously lock the validated `.wasm` using `Kyber768` (Post-Quantum Cryptography) and seal it inside an `AES-256-GCM` envelope.
-- **Ingress (Return):** When the resulting `ZK-Receipt / AES Payload` arrives back from the network, it is immediately routed *back* into this Worker Pool to be decrypted and mathematically verified *concurrently*, completely saving the primary Node thread from blocking.
+To keep the Node.js event loop free of computational bottlenecks, cryptographic operations run inside a native `piscina` Worker Pool.
+- **Egress (Outbound):** Worker threads encrypt the validated `.wasm` module with ML-KEM-768 and seal it inside an `AES-256-GCM` envelope.
+- **Ingress (Return):** When the resulting payload and ZK-Receipt return, the Worker Pool decrypts and verifies the cryptographic proof concurrently, preventing main-thread blocking.
 
 #### 4. MeshNode (Yamux/Noise Multiplexing)
-The outermost border of the SDK. `MeshNode` opens a sustained `libp2p` gateway to the decentralized network, encapsulating the traffic in a `Noise` protocol tunnel and multiplexing streams via `Yamux`. This ensures that a single TLS/QUIC connection can handle hundreds of simultaneous Logic-on-Origin injections to different remote servers with zero latency overhead.
+The network boundary interface. `MeshNode` maintains a `libp2p` gateway to the decentralized network, encapsulating traffic in a `Noise` protocol tunnel and multiplexing streams via `Yamux`. This enables a single connection to support concurrent Logic-on-Origin executions with minimal framing overhead.
 
 
 ---
@@ -1125,7 +1117,7 @@ To solve this, LIOP relies entirely on mathematical CPU-level isolation provided
 
 When a Node.js or Python tool executes in MCP, it relies on the operating system's broad sandboxing (usually containerization like Docker). If a Python dependency is compromised, it could theoretically attempt full network escalation or escape.
 
-**WASI flips the security model.** WebAssembly is a memory-safe, purely mathematical compute format. By default, a `.wasm` module literally lacks the CPU instructions to talk to the operating system, disk, clock, or network. WASI is the strictly controlled bridge that re-introduces these features exactly, and only, when explicitly granted.
+**WASI establishes a capability-oriented security model.** WebAssembly is a memory-safe, portable compilation format. By default, a `.wasm` module does not include instructions to interact with the operating system, disk, clock, or network. WASI is the controlled bridge that re-introduces these system interfaces only when explicitly granted through host capabilities.
 
 ## The LIOP Sandbox Lifecycle
 
@@ -1137,22 +1129,22 @@ When an Agent Node injects a WebAssembly module into a Data Node, the following 
 </Frame>
 
 ### 1. Capability Verification
-The Agent declares the capabilities it requires upfront (e.g., `requires_capability: ["logs_read", "sql_readonly"]`). The Data Node checks its local manifest to see if it allows this specific Agent to access those capabilities.
+The Agent declares the capabilities it requires upfront (e.g., `requires_capability: ["logs_read", "sql_readonly"]`). The Data Node checks its local manifest to verify whether this specific Agent is authorized to access those capabilities.
 
-### 2. Microscopic Preopens
-If approved, the Data Node does **not** grant the WASM module access to the file system. Instead, it "pre-opens" very specific file descriptors and maps them into the WASM module's virtualized space.
-If the agent asks to read `/var/log/nginx/` and the server allows it as `/logs`, the Agent *only* sees `/logs` as the absolute root of its entire universe. Attempting to traverse directories with `../` stops dead at the Sandbox limit.
+### 2. Scoped Directory Preopens
+If approved, the Data Node does **not** grant the WASM module arbitrary file system access. Instead, it pre-opens designated directory descriptors and maps them into the virtualized file system space of the module.
+If the agent requests `/var/log/nginx/` and the server permits access as `/logs`, the Agent sees `/logs` as an isolated root directory. Directory traversal attempts using `../` are blocked at the sandbox boundary.
 
 ### 3. Execution & Memory Bounds
-`Wasmtime` boots the engine with strict limiters:
-- **Maximum Execution Time:** If the module enters an infinite loop, the runtime kills it via Out-Of-Fuel exhaustion.
-- **Maximum Memory Limit:** If the module attempts a buffer overflow or tries to allocate memory beyond its cap (e.g., 50MB), it triggers an uncatchable OOM Trap.
-- **Zero Sockets:** The Agent logic runs completely offline inside the Server. It cannot open a port, connect to the internet, or exfiltrate data directly over a TCP socket. Its only output is what it `returns` to the LIOP invocation orchestrator.
-- **Node.js Parity (V8 Isolation):** In local development or SDK Demos (where WebAssembly isn't pre-installed), LIOP utilizes identical strict boundaries via the `node:vm` module (`vm.createContext(Object.create(null))`). This establishes absolute hardware-level containment, explicitly stripping the Sandbox of **25 poisoned globals** (`process`, `require`, `eval`, `Function`, `Date`, `ArrayBuffer`, `Uint8Array`, and more), thereby eliminating any possibility of Host-System escalation.
-- **Timing Side-Channel Defense:** The `Date` object is poisoned within the sandbox to prevent injected logic from measuring execution time differences, which could be used to infer dataset size or internal execution patterns. Because the global `Date` class is set to `undefined` (calling `new Date()` or `Date.now()` will throw a ReferenceError), chronological sorting and filtering must be performed using lexicographical string comparisons on ISO 8601 strings (e.g., `record.date >= '2024-01-01'`).
-- **Heap Bomb Defense:** All 12 `TypedArray` constructors (`Uint8Array`, `Float64Array`, `DataView`, etc.) are neutralized to prevent allocation of massive binary buffers that could crash the worker process through V8 heap exhaustion. Each worker is additionally constrained to a configurable memory ceiling via `maxHeapMb` (default: 64 MB).
-- **Prototype Pollution Defense:** Eleven core JavaScript prototypes (`Object`, `Array`, `String`, `Number`, `Boolean`, `RegExp`, `Map`, `Set`, `Promise`, `Error`, and `Function` resolved dynamically) are frozen via `Object.freeze()` inside the sandbox IIFE before user code executes. By wrapping execution in `"use strict";`, any unauthorized attempts to pollute prototypes trigger immediate `TypeError` halts instead of silent failures, preventing injected logic from overriding built-in methods.
-- **Non-Blocking Pool:** The Sandbox execution is inherently computationally heavy. To prevent Node.js servers from freezing, the `@nekzus/liop` isolates this entire lifecycle inside native `worker_threads` (via `piscina`), achieving parallel throughput identical to the native Mesh-Node. The pool implements an asynchronous background warmup (No-Op Warmup) on initialization to eliminate V8 cold-start overhead (~820k fuel units).
+`Wasmtime` boots the engine with strict resource constraints:
+- **Maximum Execution Time:** If the module enters an infinite loop, the runtime halts execution via Out-Of-Fuel exhaustion.
+- **Maximum Memory Limit:** If the module attempts a buffer overflow or tries to allocate memory beyond its configured ceiling (e.g., 50MB), Wasmtime triggers a non-recoverable OOM Trap.
+- **Socket Prohibition:** Injected logic executes offline within the server boundary. It cannot open listener ports or initiate external TCP/UDP connections. Its only output is returned through the standard invocation channel.
+- **Node.js Parity (V8 Isolation):** In local development or SDK environments where native WebAssembly runtimes are not pre-configured, LIOP enforces equivalent isolation boundaries through `node:vm` (`vm.createContext(Object.create(null))`). The execution environment strips **25 restricted globals** (`process`, `require`, `eval`, `Function`, `Date`, `ArrayBuffer`, `Uint8Array`, and related constructors) to prevent host environment escalation.
+- **Timing Side-Channel Defense:** The `Date` object is disabled within the sandbox to prevent injected logic from measuring fine-grained execution durations to infer dataset volume. Because calling `new Date()` or `Date.now()` throws a `ReferenceError`, chronological sorting and filtering should use lexicographical comparisons on ISO 8601 strings (such as `record.date >= '2024-01-01'`).
+- **Heap Allocation Defense:** All 12 `TypedArray` constructors (`Uint8Array`, `Float64Array`, `DataView`, etc.) are neutralized to prevent large binary buffer allocations from causing V8 heap exhaustion. Each worker is constrained by a memory limit configured via `maxHeapMb` (default: 64 MB).
+- **Prototype Pollution Defense:** Eleven core JavaScript prototypes (`Object`, `Array`, `String`, `Number`, `Boolean`, `RegExp`, `Map`, `Set`, `Promise`, `Error`, and `Function`) are frozen via `Object.freeze()` inside the sandbox IIFE before executing user logic. By wrapping execution in `"use strict";`, prototype modification attempts throw a `TypeError`, preventing injected code from overriding built-in methods.
+- **Non-Blocking Worker Pool:** To prevent event loop contention in Node.js servers, `@nekzus/liop` offloads sandbox execution to worker threads (via `piscina`). The pool executes an asynchronous warm-up cycle upon initialization to eliminate V8 cold-start overhead (~820k fuel units).
 - **Safe Host Environment Isolation (`allowEnv`):** By default, the WASI sandbox completely isolates the execution from any environment variables. If host variables are strictly required by the business logic, you can enable environment propagation:
   ```typescript
   const server = new LiopServer(info, {
@@ -1181,50 +1173,50 @@ description: "The multi-layered defense architecture protecting the Logic Mesh"
 
 In an ecosystem where AI agents freely communicate and execute math on remote servers autonomously, traditional perimeter security (VPNs, IP Whitelisting, Passwords) is completely insufficient.
 
-The Logic-Injection-on-Origin Protocol (LIOP) assumes the network is inherently hostile, embracing a true **Extreme Zero-Trust Architecture**.
+The Logic-Injection-on-Origin Protocol (LIOP) assumes the network is inherently hostile, embracing an **Enterprise Zero-Trust Architecture**.
 
-Every layer of LIOP, from the physical connection to the code execution, integrates military-grade theoretical and cryptographic safety nets.
+Every layer of LIOP, from transport to execution, integrates defense-in-depth cryptographic and runtime isolation boundaries.
 
 ## 1. Transport Encryption (Noise & PQC)
 
-Instead of relying on centralized Certificate Authorities (like TLS/HTTPS), LIOP utilizes the **Noise Protocol Framework**, pioneered by applications like Signal, reinforced with Post-Quantum Cryptography:
+Instead of relying on centralized Certificate Authorities (like TLS/HTTPS), LIOP utilizes the **Noise Protocol Framework**, reinforced with Post-Quantum Cryptography:
 
 - **Ed25519 Identities**: Every Agent and Server generates an Ed25519 keypair. Your Public Key *is* your Peer ID on the internet.
-- **Mutual Authentication**: Connections in the Kademlia Mesh are mutually authenticated instantly. You know symmetrically who is invoking you, and they know who is answering.
+- **Mutual Authentication**: Connections in the Kademlia Mesh are mutually authenticated upon handshake. Both peers establish cryptographic proof of identity.
 - **Post-Quantum Key Agreement (ML-KEM-768)**: Handshakes utilize Kyber768 (ML-KEM-768) to derive the symmetric key for **AES-256-GCM** payload encapsulation, shielding logic transmission from "Harvest Now, Decrypt Later" quantum attacks.
 - **Post-Quantum Digital Signatures (ML-DSA-65)**: Manifests, capabilities, and revocation commitments are sealed with Dilithium65 (ML-DSA-65).
-- **1-Hour Strict Session Lifetime**: Derived symmetric keys strictly expire after 3600 seconds to minimize exposure windows and prevent replay attacks.
+- **1-Hour Strict Session Lifetime**: Derived symmetric keys expire after 3600 seconds to minimize exposure windows and mitigate replay attacks.
 - **Mutual TLS with CertManager**: Supports enterprise X.509 client authentication with zero-downtime certificate hot-reloading.
 
-## 2. Payload Inspection (Zero-Time Guardian & Taint Analyzer)
+## 2. Payload Inspection (Static Guardian & Taint Analyzer)
 
-Before the Data Node even allows execution of the injected code, it undergoes static Abstract Syntax Tree (AST) analysis at both binary and script levels.
+Before the Data Node permits execution of the injected code, the payload undergoes static Abstract Syntax Tree (AST) analysis at both binary and script levels.
 
 <Frame>
   <img className="block dark:hidden w-full" src="/images/zero-trust-ast-light.svg" alt="Guardian AST Inspection" />
   <img className="hidden dark:block w-full" src="/images/zero-trust-ast-dark.svg" alt="Guardian AST Inspection" />
 </Frame>
 
-The **Guardian Module** inspects the WebAssembly Abstract Syntax Tree (AST). Since WebAssembly is strongly typed and mathematically verifiable without execution, the LIOP Server validates that the binary contains no malformed instructions, infinite recursive branching, or unexpected system hook imports.
+The **Guardian Module** inspects the WebAssembly Abstract Syntax Tree (AST). Since WebAssembly is strongly typed and verifiable without execution, the LIOP Server validates that the binary contains no malformed instructions, unconstrained recursive branching, or unauthorized host system imports.
 
 For interpreted scripts (such as JavaScript payloads), the **Taint Analyzer** executes a static **Information Flow Control (IFC)** check. This tracker inspects the AST to ensure PII variables do not leak into scalar outputs.
 
 **Generator & Iterator Evasion Protection**:
-To prevent sophisticated bypass attempts that use generators or iterators (`function*` / `yield`) to extract records without triggering standard property checks, the Taint Analyzer performs deep static traversal of function scopes:
+To prevent bypass attempts that use generators or iterators (`function*` / `yield`) to extract records without triggering standard property checks, the Taint Analyzer performs deep static traversal of function scopes:
 - **`YieldExpression` Tracking**: The engine recursively evaluates yield arguments, ensuring PII-derived values are flagged even when encapsulated in generator yields.
 - **Function/Generator Scope Tainting**: Local functions (`FunctionDeclaration`, `FunctionExpression`, `ArrowFunctionExpression`) that return or yield tainted fields are marked as *tainted*.
 - **Iterator Method Chains**: When a tainted function is invoked (`gen()`), its resulting iterator and subsequent operations (like `.next().value`) are flagged, transferring the taint dynamically through the expression tree and neutralizing generator-based exfiltration.
 
-This effectively neutralizes entire classes of evasive logic and malware in *zero-time* before execution begins.
+This neutralizes evasive patterns and unauthorized host access statically before execution commences.
 
 ## 3. Anti-Exfiltration (Egress Filter)
 
-Even if a malicious payload miraculously bypasses the Sandbox limits to produce unauthorized data, the LIOP Server enforces a final **Layer 3 Egress Filter** before transmitting the response back across the QUIC pipeline.
+If an injected module attempts unauthorized data emission outside sandbox bounds, the LIOP Server enforces a **Layer 3 Egress Filter** before transmitting the response across the transport pipeline.
 
-This filter dynamically analyzes the output buffer (checking for Personally Identifiable Information, API keys, or restricted schema patterns like `patientId`). If privacy violations are detected, the response is instantly blocked and the payload drops.
+This filter analyzes the output buffer (checking for Personally Identifiable Information, API keys, or restricted schema patterns like `patientId`). If privacy violations are detected, the response is blocked and the payload dropped.
 
 **Double JSON Encoding Defense (Deep-Parsing Recursion)**:
-AI Agents may attempt to bypass static regex scanners by double-serializing strings (`"\"id\":\"...\""`). To counteract this, the `PiiScanner` implements recursive deep-parsing. If a returned string resembles an object, the Shield dynamically de-serializes it internally to expose the obfuscated schema before applying the matching algorithms, rendering string-contraband techniques entirely ineffective.
+AI Agents may attempt to bypass static pattern matching by double-serializing strings (`"\"id\":\"...\""`). To counteract this, the `PiiScanner` implements recursive deep-parsing. If a returned string resembles an object, the filter deserializes it internally to expose the underlying schema before applying matching rules, preventing nested serialization evasion.
 
 **Aggregation-First Policy**:
 Beyond PII scanning, the Egress Filter enforces an **Aggregation-First** heuristic that blocks raw row-level data exports. If the sandbox output contains arrays with more object elements than the configured threshold (default: 10), the response is rejected. Only aggregated results (counts, averages, summaries) pass through, preventing bulk data exfiltration even when individual records contain no PII.
@@ -1351,7 +1343,7 @@ For AI-centric risks, LIOP maps directly to the core domains of **PLOT4ai** (Pri
 
 ---
 title: "TypeScript SDK Overview"
-description: "Bringing the power of the Logic-Injection-on-Origin Protocol to the Node.js ecosystem"
+description: "TypeScript implementation and runtime architecture for LIOP nodes"
 ---
 
 The official `@nekzus/liop` provides a complete, strongly-typed toolkit for building LIOP Clients (Agent Nodes) and LIOP Servers (Data Nodes) in TypeScript and JavaScript.
@@ -1380,7 +1372,7 @@ yarn add @nekzus/liop@latest zod
 
 ## Zero-Bloat Architecture (Opt-Out Installations)
 
-By default, `@nekzus/liop` provides out-of-the-box backward compatibility with the Model Context Protocol (MCP) via the `LiopMcpBridge` module. To make this integration seamless, the package lists `@modelcontextprotocol/sdk` as an optional and peer dependency, meaning standard installations (`npm install @nekzus/liop`) will automatically resolve and install it.
+By default, `@nekzus/liop` provides backward compatibility with the Model Context Protocol (MCP) via the `LiopMcpBridge` module. To simplify this integration, the package lists `@modelcontextprotocol/sdk` as an optional and peer dependency, meaning standard installations (`npm install @nekzus/liop`) will automatically resolve and install it.
 
 However, for constrained production environments (such as Docker edge containers, AWS Lambda, or IoT deployments) where every megabyte counts, you can perform a **pure, zero-bloat LIOP installation** by opting out of the optional dependencies:
 
@@ -1396,25 +1388,25 @@ yarn add @nekzus/liop@latest --ignore-optional
 ```
 </CodeGroup>
 
-This drops the installation size dramatically. The SDK uses dynamic `import()` under the hood, meaning the MCP bridge logic is only loaded if requested, maintaining a pristine runtime memory footprint.
+This drops the installation size significantly. The SDK uses dynamic `import()` internally, meaning the MCP bridge logic is only loaded if requested, maintaining a lightweight runtime memory footprint.
 
-## Under the Hood: The Javy Compiler
+## WebAssembly Compilation via Component Builder
 
-You might be wondering: *If LIOP relies on injecting compiled WebAssembly (`.wasm`) logic, how can I build Agents purely in TypeScript?*
+While LIOP transmits compiled WebAssembly (`.wasm`) logic across the network, agents can be authored entirely in TypeScript.
 
-The `@nekzus/liop` includes a native compilation bridge (the **Component Builder**). When your TypeScript Agent invokes `.execute()`, the SDK transparently serializes the JavaScript payload, bundles it utilizing a Javy-like engine into a highly restrictive `.wasm` payload, strings it through the Protobuf `LogicRequest`, and injects it into the Mesh. 
+The `@nekzus/liop` package includes a native compilation bridge (the **Component Builder**). When your TypeScript Agent invokes `.execute()`, the SDK serializes the JavaScript payload, bundles it into a scoped `.wasm` payload, encapsulates it within a Protobuf `LogicRequest`, and transmits it to the Mesh.
 
-The developer never has to manually write or compile Rust/Wasm.
+This removes the need to write or compile Rust/Wasm modules manually.
 
-## Vanguard Enterprise Features
+## Enterprise Security and Performance Features
 
-The TypeScript SDK operates at strict architectural parity with the high-performance Rust core, ensuring true Zero-Trust enterprise constraints:
+The TypeScript SDK operates at strict architectural parity with the high-performance Rust core, ensuring Zero-Trust constraints:
 
 - **Post-Quantum Cryptography (ML-KEM-768):** End-to-end asymmetric encapsulation (`crystals-kyber`) and symmetric AES-256-GCM authentication.
-- **Hybrid Mesh Transport:** Unrestricted Node.js & browser peering through WebSockets (WS) and TCP (Yamux) libp2p listeners.
-- **Guardian-TS (Zero-Time AST Inspection):** Proactive sandbox-escape mitigation that blocks illegal host capabilities *before* `node:wasi` execution logic triggers.
+- **Hybrid Mesh Transport:** Node.js & browser peering through WebSockets (WS) and TCP (Yamux) libp2p listeners.
+- **Guardian-TS (Static AST Inspection):** Proactive sandbox-escape mitigation that blocks illegal host capabilities *before* `node:wasi` execution logic triggers.
 - **ZK-Receipt Ready:** Native architectural support for trustless Mathematical Execution Proofs against Zero-Knowledge Virtual Machines (zkVMs).
-- **Multi-Core Scaling (Worker Pool):** Hardware-accelerated transactional performance using `piscina`. Bypasses V8's Single-Thread Event Loop bottleneck by offloading PQC decryption, AST inspection, and WASI Sandboxing to isolated OS-level threads.
+- **Multi-Core Scaling (Worker Pool):** Parallel processing using `piscina`. Avoids single-thread event loop contention by offloading PQC decryption, AST inspection, and WASI Sandboxing to isolated OS-level threads.
 
 ## Key Exports
 
@@ -1428,25 +1420,23 @@ The SDK exports three primary classes for orchestrating Mesh applications:
     The Intelligence Node. Searches the DHT Mesh for available capabilities and injects the dynamic WebAssembly payload to process data.
   </Card>
   <Card title="LiopMcpBridge" icon="bridge-water" href="/typescript-sdk/server#liopmcpbridge">
-    The Legacy Translator. Instantly bridges `tools` and `resources` between legacy JSON-RPC MCP clients and your high-performance LIOP network. 
+    The Legacy Translator. Bridges `tools` and `resources` between legacy JSON-RPC MCP clients and your LIOP network. 
   </Card>
 </CardGroup>
 
-## Architectural Deep Dive: Multi-Core Transactional Pool
+## Multi-Core Worker Architecture
 
-A severe limitation historically cited regarding Node.js was its single-threaded Event Loop bottleneck under grueling CPU workloads. The SDK shatters this limit by routing cryptographic ingestion to isolated OS Threads via `piscina`.
+Under heavy cryptographic or parsing loads, the SDK routes computation to isolated OS worker threads via `piscina`, keeping the main Node.js event loop unblocked.
 
 <Frame>
   <img className="block dark:hidden w-full" src="/images/animated-sdk-flow-light.svg" alt="LIOP SDK Architecture Flow" />
   <img className="hidden dark:block w-full" src="/images/animated-sdk-flow-dark.svg" alt="LIOP SDK Architecture Flow" />
 </Frame>
 
-## Getting Started
+## Next Steps
 
-Ready to write your first line of LIOP code? Jump straight into building either side of the Mesh constraint:
-
-- Construct a [Logic Server](/typescript-sdk/server) to protect your data.
-- Design a [Logic Client](/typescript-sdk/client) to search out intelligence.
+- Build a [Data Server](/typescript-sdk/server) to host and protect resources.
+- Build an [Intelligence Client](/typescript-sdk/client) to dispatch analytical logic across the mesh.
 
 
 ---
@@ -1546,13 +1536,13 @@ npx @nekzus/liop@latest /ip4/1.2.3.4/tcp/4001/p2p/PEER_ID
 The agent only communicates via **STDIO**. It prints status logs and discovery events strictly to `stderr`, ensuring that the `stdout` channel remains clean for valid JSON-RPC 2.0 messages required by the LLM client.
 
 ### Local Mesh Diagnostics (`LiopMeshStatus`)
-The agent automatically exposes a local diagnostic tool called **`LiopMeshStatus`**. When an LLM calls this tool, the agent intercepts it locally instead of routing it over the P2P network. It instantly returns a rich, human-readable report detailing:
+The agent automatically exposes a local diagnostic tool called **`LiopMeshStatus`**. When an LLM calls this tool, the agent intercepts it locally instead of routing it over the P2P network. It returns a structured operational report detailing:
 - Connected Bootstrappers and Peer IDs
 - Active Nodes (Vault, Bank, Oracle)
 - Tool routing tables and Kademlia DHT state
 - Token consumption and telemetry estimates
 
-This allows AI clients to autonomously diagnose connection drops or verify which tools are available without burning bandwidth or duplicating diagnostic requests across multiple nodes.
+This allows AI clients to autonomously diagnose connection drops or verify which tools are available without generating unnecessary network traffic or duplicating diagnostic requests across multiple nodes.
 
 ### Environment Variables
 
@@ -1714,7 +1704,7 @@ try {
 
 ## Error Handling & Zero-Trust Rejections
 
-Because the Server enforces a strict `WASI` sandbox and uses the *Zero-Time Guardian* to inspect your `.wasm` payload BEFORE execution, your client must be prepared to handle sandbox rejections.
+Because the Server enforces a strict `WASI` sandbox and uses the *Guardian AST* to inspect your `.wasm` payload before execution, your client must be prepared to handle sandbox rejections.
 
 ```typescript
 try {
@@ -1871,13 +1861,13 @@ This automatically registers the `liop_blind_analyst` intelligent prompt into th
 
 ## Security & Memory Management
 
-When a Data Node receives a `.wasm` or `.js` payload, the **`GuardianTS`** module performs a Zero-Time Heuristic Inspection on its Abstract Syntax Tree (AST) to ensure absolute security. 
+When a Data Node receives a `.wasm` or `.js` payload, the **`GuardianTS`** module performs a pre-execution heuristic inspection on its Abstract Syntax Tree (AST) to verify security constraints.
 
-Before any WebAssembly module is even instantiated or executed, `GuardianTS` scans all imports. It strictly rejects any payload that attempts to bind to unauthorized host APIs. Only standard WASI APIs (`wasi_snapshot_preview1`) and native `LIOP` sandboxed functions are allowed, categorically preventing sandbox escapes.
+Before any WebAssembly module is instantiated or executed, `GuardianTS` scans all imports. It rejects payloads attempting to bind to unauthorized host APIs. Only standard WASI APIs (`wasi_snapshot_preview1`) and native `LIOP` sandboxed functions are permitted, preventing sandbox escapes.
 
-This rigorous AST evaluation is aggressively cached in memory `O(1)` for blazing-fast subsequent executions of the exact same logic payload.
+AST evaluation results are cached in memory `O(1)` to optimize subsequent executions of the same payload.
 
-If you are hot-deploying Zero-Day security patches on the host or need to forcefully invalidate the execution memory, you can purge the AST cache manually:
+If you are deploying security updates on the host or need to invalidate the execution memory, you can purge the AST cache manually:
 
 ```typescript
 server.clearAstCache();
@@ -1976,7 +1966,7 @@ await gateway.stop();
 
 ## LiopMcpRouter & Dual-Era Compliance
 
-`LiopMcpRouter` is the request dispatcher used by the gateway and CLI agents. It provides seamless **Dual-Era MCP Protocol Compliance**:
+`LiopMcpRouter` is the request dispatcher used by the gateway and CLI agents. It provides **Dual-Era MCP Protocol Compliance**:
 
 - **Modern MCP v2 Era (2026-07-28)**: Supports stateless routing, non-polling resource updates via `subscriptions/listen`, dynamic resource template discovery (`resources/templates/list`), SEP-2243 header routing, and deterministically sorted results (SEP-2549).
 - **Legacy MCP Era (2025-11-25)**: Automatically negotiates handshake capabilities and strips unsupported fields via `adaptResponseForLegacyClient()` for legacy MCP clients (Claude Desktop, Cursor).
@@ -1990,7 +1980,7 @@ For edge networks, web browsers, and environments where native HTTP/2 gRPC frami
 - Emulates gRPC 5-byte length-prefixed binary frames (`[flags (1B)][length (4B BE)][payload]`) over standard HTTP/1.1 POST streams.
 - Encodes gRPC status trailers in HTTP response headers (`grpc-status`, `grpc-message`).
 
-## Industrial Observability & Health Probes
+## Observability & Health Probes
 
 `LiopHybridGateway` natively serves standard Kubernetes and Prometheus endpoints:
 
@@ -2057,6 +2047,50 @@ const { access_token, expires_in } = await tokenResponse.json();
 
 ---
 
+## Sliding-Window Rate Limiter (`InMemoryRateLimiter`)
+
+To defend edge gateways, MCP endpoints, and worker pools against Denial of Service (DoS) attacks and brute-force token enumeration, the SDK provides a high-throughput, zero-dependency `InMemoryRateLimiter`.
+
+It strictly adheres to **OWASP API Security Top 10 (API4:2023 - Unrestricted Resource Consumption)** by enforcing per-client sliding-window quotas.
+
+```typescript
+import { InMemoryRateLimiter } from "@nekzus/liop";
+
+const limiter = new InMemoryRateLimiter({
+  windowMs: 60_000,    // 1-minute evaluation window
+  maxRequests: 120     // Up to 120 requests per window
+});
+
+// Middleware evaluation per incoming client IP or OAuth client ID
+const status = limiter.check(req.socket.remoteAddress || "anonymous");
+if (!status.allowed) {
+  res.writeHead(429, {
+    "Content-Type": "application/json",
+    "Retry-After": Math.ceil(status.resetMs / 1000).toString(),
+    "X-RateLimit-Limit": status.limit.toString(),
+    "X-RateLimit-Remaining": status.remaining.toString(),
+    "X-RateLimit-Reset": Math.ceil(status.resetMs / 1000).toString()
+  });
+  res.end(JSON.stringify({ error: "Too Many Requests", retryAfterMs: status.resetMs }));
+  return;
+}
+```
+
+### RateLimiter API Reference
+
+| Method | Signature | Description |
+|---|---|---|
+| `check(key)` | `(key: string) => RateLimitStatus` | Evaluates whether the client quota allows another request. Returns remaining quota, status, and reset millisecond countdown. |
+| `reset(key)` | `(key: string) => void` | Manually clears the bucket counter for a specific client key (useful post-successful MFA/OIDC challenge). |
+| `cleanup()` | `() => void` | Prunes expired client records from the internal `Map` to prevent memory leaks during long-running sessions. |
+| `close()` | `() => void` | Clears internal interval timers and destroys all cached quota buckets during graceful node shutdown. |
+
+<Tip>
+  The internal cleanup timer runs every 30 seconds and invokes `unref()`. This ensures the background maintenance loop never prevents the Node.js event loop from terminating cleanly during process exits or testing suites.
+</Tip>
+
+---
+
 ## Security Notes
 
 - `LiopStreamBridge` supports Zero-Trust bearer enforcement via `ZERO_TRUST_TOKEN`.
@@ -2078,9 +2112,9 @@ The SDK ships with a token economy module designed to estimate cost and expose t
 
 ## Estimators
 
-The SDK includes a built-in, zero-runtime-dependency **`o200k_base`** Byte-Pair Encoding (BPE) tokenizer — the industry standard encoding scheme for modern OpenAI models (GPT-4o, o1, o3-mini) and an accurate baseline across major LLM providers (Anthropic Claude 3.5/3.7, Google Gemini 2.0).
+The SDK includes a built-in, zero-runtime-dependency **`o200k_base`** Byte-Pair Encoding (BPE) tokenizer, the industry standard encoding scheme for modern OpenAI models (GPT-4o, o1, o3-mini) and an accurate baseline across major LLM providers (Anthropic Claude 3.5/3.7, Google Gemini 2.0).
 
-Through build-time inlining and AST tree-shaking via `tsup`, the `o200k_base` vocabulary is bundled directly into the compiled distribution. This eliminates **25.95 MB** of external legacy tokenizer dependencies, reducing the installed `node_modules` footprint from **100.95 MB** to **84.43 MB** (-17.1% net reduction).
+Through build-time inlining and AST tree-shaking via `tsup`, the `o200k_base` vocabulary is bundled directly into the compiled distribution. This removes **25.95 MB** of external legacy tokenizer dependencies, reducing the installed `node_modules` footprint from **100.95 MB** to **84.43 MB** (-17.1% net reduction).
 
 Both `createTokenEstimator()` (async factory) and `createSyncTokenEstimator()` (synchronous factory) provide immediate, synchronous access to `RealTokenEstimator` out-of-the-box:
 
@@ -2131,7 +2165,7 @@ telemetry.record({
 
 ## LiopOTelBridge
 
-`LiopOTelBridge` maps token telemetry into **OpenTelemetry `gen_ai.*` semantics** so external observability backends can ingest LIOP token data seamlessly.
+`LiopOTelBridge` maps token telemetry into **OpenTelemetry `gen_ai.*` semantics** so external observability backends can ingest LIOP token data directly.
 
 The bridge automatically binds to your global `MeterProvider` and emits the following metrics:
 - `gen_ai.client.token.usage` (Histogram)
@@ -2141,13 +2175,13 @@ Use this module when you need production cost visibility across local and mesh-r
 
 ## LiopMeshStatus Integration
 
-The LIOP Agent exposes a local diagnostic tool called **`LiopMeshStatus`** that consumes the `TokenTelemetryEngine` internally to produce a rich, human-readable status block via `formatStatusBlock()`. When an LLM calls this tool, it receives a structured report containing:
+The LIOP Agent exposes a local diagnostic tool called **`LiopMeshStatus`** that consumes the `TokenTelemetryEngine` internally to produce a structured operational status report via `formatStatusBlock()`. When an LLM calls this tool, it receives a structured report containing:
 
 - **Session ID** and uptime
 - **Estimator model** (`o200k_base` or heuristic)
-- **Operation breakdown** — each MCP method called, with input/output token estimates
-- **Cumulative totals** — total tokens consumed across the session
-- **Cost projection** — estimated cost based on configurable per-token pricing
+- **Operation breakdown** (each MCP method called, with input/output token estimates)
+- **Cumulative totals** (total tokens consumed across the session)
+- **Cost projection** (estimated cost based on configurable per-token pricing)
 
 <Tip>
   The token economy telemetry is **intentionally visible** in the `LiopMeshStatus` output. This transparency enables B2B clients to audit consumption patterns and allows AI agents to autonomously manage their context window budgets without requiring external monitoring infrastructure.
@@ -2246,7 +2280,7 @@ title: "Security Architecture"
 description: "Defense-in-depth layers, cryptographic pipelines, and data protection mechanisms in the LIOP TypeScript SDK"
 ---
 
-The LIOP TypeScript SDK enforces a **defense-in-depth** security model composed of six independent layers. Each layer addresses a distinct threat surface — from static code analysis to post-execution data filtering — ensuring that no single point of failure can compromise the system.
+The LIOP TypeScript SDK enforces a **defense-in-depth** security model composed of six independent layers. Each layer addresses a distinct threat surface (from static code analysis to post-execution data filtering), ensuring that no single point of failure can compromise the system.
 
 <Note>
   Features marked with **[ROADMAP]** are architecturally defined but not yet available in the current release.
@@ -2439,13 +2473,13 @@ Preflight policy rejected: PII side-channel detected: output contains values der
 
 ## Layer 4: PII Egress Shield
 
-The PII Scanner intercepts all sandbox output **before** results are returned to the caller. Starting from v3, it operates a **four-stage detection pipeline** that combines structural analysis, pattern matching, and natural language processing. Each stage is independent — the system blocks data if **any** stage detects a violation.
+The PII Scanner intercepts all sandbox output **before** results are returned to the caller. Starting from v3, it operates a **four-stage detection pipeline** that combines structural analysis, pattern matching, and natural language processing. Each stage is independent: the system blocks data if **any** stage detects a violation.
 
 ### Detection Pipeline
 
 | Stage | Mechanism | Purpose |
 |:------|:----------|:--------|
-| **1. Exact Key Match** | `Set<string>.has()` — O(1) | Blocks well-known PII field names (`ssn`, `email`, `password`) |
+| **1. Exact Key Match** | `Set<string>.has()` (O(1)) | Blocks well-known PII field names (`ssn`, `email`, `password`) |
 | **2. Fuzzy Key Match** | Boundary regex + substring | Catches aliases and variations (`patientId`, `names`, `fullName`) |
 | **3. Pattern Validators** | Regex + algorithmic checks | Detects PII values regardless of key naming (emails, credit cards, IBANs) |
 | **4. NER Content Scan** | `compromise` NLP engine | Identifies person names, places, and organizations in free text |
@@ -2475,7 +2509,7 @@ A **safelist** of common English words and LIOP protocol internal keys prevents 
 
 ### Stage 4: Named Entity Recognition (NER)
 
-When `enableNerScanning` is set to `true`, the scanner leverages the [`compromise`](https://github.com/spencermountain/compromise) NLP library to detect person names, geographic locations, and organization names embedded in output values — regardless of the key used to store them.
+When `enableNerScanning` is set to `true`, the scanner leverages the [`compromise`](https://github.com/spencermountain/compromise) NLP library to detect person names, geographic locations, and organization names embedded in output values, regardless of the key used to store them.
 
 ```typescript
 const server = new LiopServer(
@@ -2509,7 +2543,7 @@ Presets can be merged with custom regex rules for organization-specific complian
 
 - **Nested JSON Defense**: Recursive parsing of JSON-encoded strings defeats obfuscation through `JSON.stringify()` wrapping
 - **Circular Reference Guard**: `WeakSet` tracking prevents infinite recursion on self-referencing objects
-- **Aggregation-First Policy**: Blocks raw row-level data export — only aggregated results (counts, averages, summaries) pass through
+- **Aggregation-First Policy**: Blocks raw row-level data export; only aggregated results (counts, averages, summaries) pass through
 - **Output Schema Enforcement**: When a `Zod` output schema is defined, `.strict()` mode is automatically applied, rejecting any keys not explicitly allowed in the schema
 - **Cryptographic & Envelope Unwrapping**: Automatically isolates and extracts the raw business data payload from MCP/LIOP envelopes and gRPC proxied responses (via `unwrapForAggregationPolicyScan`) before scanning. This prevents false positives from binary metadata and cryptographic seals (like HMAC-SHA256 ZK-Receipt signatures).
 - **Recursive In-Memory Numerical Sanitization**: Before scanning, all numeric values inside the returned payload are processed recursively: positive floats are clamped to a maximum of 4 decimal places, and negative values are safely clamped to `0` (via `sanitizeOutput()`). This is executed fully in-memory to prevent float-representation side-channels and avoids redundant string conversions.
@@ -2758,6 +2792,94 @@ To defend against CPU exhaustion attacks that execute hidden computational loops
 
 ---
 
+## Static Information Flow Control (`TaintAnalyzer`)
+
+Layer 3 of the LIOP defense-in-depth model implements **Static Information Flow Control (IFC)** via the `TaintAnalyzer` class. Built on top of the Acorn ESTree parser and `acorn-walk`, it inspects injected JavaScript logic inside the `@LIOP{...}` envelope *before* bytecode compilation or isolate execution.
+
+```typescript
+import { TaintAnalyzer } from "@nekzus/liop";
+
+const analyzer = new TaintAnalyzer(
+  ["ssn", "credit_card", "email", "password", "medical_record"], // Forbidden PII
+  ["salary", "account_balance"]                                    // Policy-sensitive
+);
+
+const violation = analyzer.analyze(sourceCode, recordCount, 50);
+if (violation) {
+  throw new Error(`Execution rejected by Layer 3 IFC: ${violation.reason} (line ${violation.line})`);
+}
+```
+
+### Multi-Pass AST Static Analysis
+
+The analyzer runs a deterministic 5-pass inspection pipeline:
+
+1. **Record-Bound Variable Identification (Pass 1)**: Traverses the AST to detect variables bound to individual confidential records inside iteration callbacks (`map`, `filter`, `forEach`, `flatMap`, `find`, `some`, `every`, and `reduce`/`reduceRight`).
+2. **Taint Propagation (Pass 2)**: Tracks data flows through variable assignments, object destructuring, binary arithmetic, string concatenations, and method invocations. A comprehensive set of character-extraction methods are flagged as taint propagators:
+   - *Character extraction*: `charCodeAt`, `codePointAt`, `charAt`, `at`
+   - *Search & Structural discovery*: `indexOf`, `lastIndexOf`, `search`, `startsWith`, `endsWith`, `includes`
+   - *Transformations*: `substring`, `slice`, `substr`, `split`, `match`, `replace`, `toLowerCase`, `trim`
+3. **Return Statement Escapes (Pass 3)**: Validates that no scalar variable derived from a tainted PII field flows into the function's `return` statement or export object.
+4. **Correlation Guard (Pass 4 - F-01 Mitigation)**: On datasets with fewer than 50 records, detects multiple distinct `reduce` operations targeting the same sensitive field, which could allow attackers to reconstruct values via differential equations.
+5. **Min/Max Extrema Gate (Pass 5 - F-02 Mitigation)**: Intercepts single-record extraction attempts (such as sorting records by PII fields or extracting maximum/minimum bounds on tiny cohorts) that facilitate binary search attacks.
+
+### Field Sensitivity Classification (NIST SP 800-226)
+
+Fields are evaluated against a 3-tier classification matrix:
+
+| Sensitivity Tier | Behavior | Example Attributes |
+|---|---|---|
+| `forbidden` | Direct exfiltration or derivation unconditionally blocked by Layer 3 AST pass | `ssn`, `iban`, `passport_number`, `password_hash` |
+| `sensitive` | Permitted only through verified aggregation algorithms with DP noise injection | `balance`, `transaction_amount`, `health_diagnosis` |
+| `public` | Unrestricted aggregation and export | `country_code`, `currency`, `timestamp_epoch` |
+
+---
+
+## Differential Privacy Engine (`DpEngine`)
+
+To defend against statistical reconstruction and membership inference attacks on small or sensitive datasets, the LIOP SDK integrates a high-performance **Differential Privacy Engine** conforming to **NIST SP 800-226** and Google DP library specifications.
+
+```typescript
+import { applyDpToOutput, addLaplaceNoise, type DpConfig } from "@nekzus/liop";
+
+const dpConfig: DpConfig = {
+  epsilon: 1.5,                 // Privacy budget (lower = more noise)
+  sensitivity: 1000,            // Maximum plausible delta for SUM operations
+  smallDatasetThreshold: 50,    // Only inject noise when cohort n < 50
+  seed: "tenant_audit_seed_42"  // Optional seed for Deterministic DP (DDP)
+};
+
+const sanitizedResult = applyDpToOutput(rawOutput, dpConfig, datasetSize);
+```
+
+### Laplace Mechanism & Cryptographic Entropy
+
+The engine samples noise from the continuous Laplace distribution $\text{Lap}(0, \lambda)$ where scale $\lambda = \frac{\Delta f}{\varepsilon}$:
+
+$$f(x) = \frac{1}{2\lambda} \exp\left(-\frac{|x|}{\lambda}\right)$$
+
+#### Security Decisions (Industrial Recalibration)
+
+1. **CSPRNG Source (`crypto.randomBytes`)**: Unlike generic implementations that rely on `Math.random()` (Xorshift128+), `DpEngine` generates entropy using `crypto.randomBytes(4)` mapped into $[-0.5, 0.5)$. This prevents state-reconstruction attacks where an adversary observing 3–5 outputs could predict future pseudo-random states and subtract the noise.
+2. **Query-Aware Sensitivity**: Sensitivity ($\Delta f$) is derived automatically according to key semantics:
+   - **`COUNT` Queries**: Sensitivity is fixed at $\Delta f = 1$ (axiom: adding/removing one individual alters count by at most 1).
+   - **`AVG` / `VARIANCE` Queries**: Sensitivity is scaled dynamically by cohort size: $\Delta f = \frac{\text{sensitivity}}{n}$.
+   - **`SUM` Queries**: Uses the operator-configured global sensitivity cap.
+3. **Epsilon Floor ($\varepsilon \ge 1.0$)**: For extremely small cohorts ($n < 10$), the engine enforces an $\varepsilon$ floor of $1.0$ to prevent utility destruction (running $\varepsilon < 1.0$ on $n < 10$ yields purely random noise with zero analytical value).
+4. **Deterministic Differential Privacy (DDP)**: When an audit `seed` is supplied, entropy is derived via an HMAC-SHA-256 counter sequence. This allows verified reproducibility of ZK-Receipts in compliance audits while maintaining rigorous mathematical privacy.
+5. **Structural Preservation**: Original integers remain rounded integers (`Math.round`), and non-negative attributes remain clamped to $\ge 0$, adhering to US Census TopDown post-processing standards.
+
+### Configuration Reference (`DpConfig`)
+
+| Property | Type | Default | Purpose |
+|---|---|---|---|
+| `epsilon` | `number` | `1.0` | Privacy loss parameter $\varepsilon$. Controls trade-off between privacy and numerical precision. |
+| `sensitivity` | `number` | `1.0` | Global sensitivity cap $\Delta f$ representing the maximum plausible contribution of a single record. |
+| `smallDatasetThreshold` | `number` | `50` | Record count threshold below which DP noise is activated (aligned with HIPAA Safe Harbor). |
+| `seed` | `string` | `undefined` | Cryptographic seed string for deterministic audit reproducibility. |
+
+---
+
 ## Roadmap
 
 The following capabilities are architecturally defined and planned for future releases:
@@ -2782,7 +2904,7 @@ title: "Rust Core"
 description: "The high-performance Protocol Buffers and Network foundation"
 ---
 
-While the `@nekzus/liop` provides a beautiful developer experience in Node.js and TypeScript, the absolute truth of the protocol exists in its core **Rust Backend**.
+While `@nekzus/liop` provides the developer experience in Node.js and TypeScript, the protocol implementation is rooted in its **Rust Backend**.
 
 This workspace (`servers/liop-node/`) contains the hyper-optimized data structures, the `Wasmtime` engine execution loop, and the raw Libp2p network primitives. 
 
@@ -2812,29 +2934,27 @@ The Cargo Workspace is strictly modularized into functional components:
 
 ## Network Transport Stack
 
-## Network Transport Stack
+Unlike simple HTTP/REST APIs, LIOP requires a persistent, bidirectional, and multiplexed connection to support persistent Watchdogs and low-latency logic execution.
 
-Unlike simple HTTP/REST APIs, LIOP requires a persistent, bidirectional, and highly multiplexed connection to support persistent Watchdogs and low-latency logic execution.
-
-The Rust backend implements this by combining two state-of-the-art technologies:
+The Rust backend implements this by combining two networking layers:
 
 1. **Tonic (gRPC):** 
-   Tonic handles the message framing. Every `LogicRequest` and `LogicResponse` is streamed as binary Protobuf. Tonic automatically manages backpressure and streaming contexts asynchronously using the `tokio` runtime.
+   Tonic handles the message framing. Every `LogicRequest` and `LogicResponse` is streamed as binary Protobuf. Tonic manages backpressure and streaming contexts asynchronously using the `tokio` runtime.
 2. **Libp2p (QUIC & Noise):**
-   Instead of running Tonic over standard TCP/TLS, the `liop-core` tunnels the entirety of the gRPC traffic inside a **QUIC** stream managed by Libp2p. This allows Kademlia Peer discovery and Ed25519 identity verification instantly upon handshake, entirely dispensing the need for centralized CAs or DNS registrars.
+   Instead of running Tonic over standard TCP/TLS, `liop-core` tunnels gRPC traffic inside a **QUIC** stream managed by Libp2p. This allows Kademlia peer discovery and Ed25519 identity verification upon handshake, removing the need for centralized CAs or DNS registrars.
 
 ## Execution Engine
 
-The core differentiator of the entire Logic-Injection-on-Origin Protocol resides in `servers/liop-node/src/executor.rs`.
+The core execution path of the Logic-Injection-on-Origin Protocol resides in `servers/liop-node/src/executor.rs`.
 
-Here, the native Rust binary receives a byte array representing the AI Agent's intention. Before execution, the engine limits the memory dynamically based on the Agent's authorization token, preopens strict file descriptors using `WasiCtxBuilder`, and hands the payload to the virtual CPU.
+Here, the native Rust binary receives a byte array representing the AI Agent's intention. Before execution, the engine limits memory dynamically based on the Agent's authorization token, pre-opens directory descriptors using `WasiCtxBuilder`, and passes the payload to the virtual CPU.
 
-This ensures total panic-isolation: if the Agent's `.wasm` encounters a memory leak, the Host OS remains unharmed.
+This ensures crash isolation: if the Agent's `.wasm` encounters a memory trap, the Host OS remains unaffected.
 
-### Vanguard Features (Truth Protocol)
-Entering the Tier-0 Endgame, `liop-node` operates beyond standard sandboxing:
-- **Zero-Knowledge Hooks**: Before returning a response, the logic can be wrapped in a zkVM to generate a deterministic mathematical Receipt of the exact AST applied over the localized data.
-- **Blind Computation**: Through the `EnclaveProvider` trait, the execution engine can be seamlessly booted inside isolated Hardware capabilities, preventing hypervisor and host-OS level memory dumping.
+### Enterprise Verification Features
+In environments with strict computational verification requirements, `liop-node` extends beyond basic sandboxing:
+- **Zero-Knowledge Hooks**: Before returning a response, logic can be executed inside a zkVM to generate a deterministic mathematical Receipt of the exact AST applied over the localized data.
+- **Blind Computation**: Through the `EnclaveProvider` trait, the execution engine can be deployed inside isolated Hardware capabilities, preventing hypervisor and host-OS level memory inspection.
 
 
 ---
@@ -2843,7 +2963,7 @@ Entering the Tier-0 Endgame, `liop-node` operates beyond standard sandboxing:
 
 ---
 title: "Compiling WASM Payloads"
-description: "Creating binary Intelligence for the Mesh Sandbox"
+description: "Compile binary modules targeting the WASI sandbox"
 ---
 
 When developing directly in the Rust Core (specifically within the `wasm-filters` crate), you are writing the exact logic that an Agent will inject into remote Data Nodes.
@@ -2896,7 +3016,7 @@ To compile your logic into the `.wasm` injection payload, run Cargo targeting th
 cargo build --target wasm32-wasi --release
 ```
 
-The resulting microscopic file (e.g., `target/wasm32-wasi/release/filter.wasm`) is what the `liop-client` loads into memory and streams to the peer over the network.
+The compiled module (e.g., `target/wasm32-wasi/release/filter.wasm`) is what the `liop-client` loads into memory and streams to the destination node over gRPC.
 
 ## Testing Locally
 
@@ -2974,7 +3094,7 @@ gantt
 * **Core Runtime**: V8 Isolate sandboxing with 25 poisoned globals, deep-frozen prototypes (11 core prototypes), and a 32KB AST Taint Analyzer (Information Flow Control) to prevent PII derivation and side channels.
 * **Cryptography**: Post-Quantum ML-KEM-768 (`mlkem@2.7.0`, NIST FIPS 203) key encapsulation for gRPC intent handshakes, AES-256-GCM authenticated payload encryption, and HMAC-SHA256 ZK-Receipts binding output to logic and SOX-compliant dataset hashes.
 * **Differential Privacy**: Laplace mechanism with CSPRNG (`crypto.randomBytes()`) and a 3-tier query budget (`FORBIDDEN`, `SENSITIVE`, `PUBLIC`) aligned with NIST SP 800-226.
-* **Dual-Era MCP Bridge**: Seamless protocol transcoding supporting both MCP v2 (2026-07-28) and v1 legacy (2025-11-25) clients.
+* **Dual-Era MCP Bridge**: Protocol transcoding supporting both MCP v2 (2026-07-28) and v1 legacy (2025-11-25) clients.
 
 ### 1.2 Phase Beta-1: Global Network Connectivity & Firewall Resilience
 * **Status**: Complete & Verified against live 4-node Docker mesh (`nexus`, `bank`, `vault`, `oracle`).
@@ -3069,7 +3189,7 @@ gantt
      - Automated test suite verifying mesh behavior under simulated transcontinental WAN latency (300ms), packet loss, partition splits, and abrupt bootstrap node termination.
      - *Target Files*: `tests/chaos/network-partition.test.ts`, `tests/chaos/bootstrap-drain.test.ts`.
   4. **Geo-Proximity Routing & Multi-Region Failover**:
-     - RTT-aware and region-aware routing prioritizing closest geographic nodes with seamless failover.
+     - RTT-aware and region-aware routing prioritizing closest geographic nodes with automated circuit-breaker failover.
      - *Target Files*: `src/gateway/router.ts`.
 
 ---
