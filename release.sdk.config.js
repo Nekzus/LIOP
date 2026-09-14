@@ -61,6 +61,7 @@ plugins.push([
 plugins.push("@semantic-release/github");
 
 export default {
+	tagFormat: "v${version}",
 	branches: [
 		"main",
 		{ name: "beta", prerelease: true },

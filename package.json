@@ -15,7 +15,7 @@
     "format": "pnpm --filter @nekzus/liop format",
     "check": "pnpm --filter @nekzus/liop check",
     "license:check": "pnpm --filter @nekzus/liop exec tsx ../../scripts/check-licenses.ts",
-    "semantic-release": "semantic-release --branches main",
+    "semantic-release": "semantic-release -e ./release.sdk.config.js",
     "commit": "cz",
     "sync-metadata": "pnpm --filter @nekzus/liop exec tsx scripts/sync-metadata.ts",
     "generate:llms": "pnpm --filter @nekzus/liop exec tsx ../../scripts/generate-llms-full.ts",
