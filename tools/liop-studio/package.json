@@ -30,7 +30,7 @@
   "scripts": {
     "build": "tsup",
     "build:ui": "pnpm --filter @nekzus/liop-studio-ui build",
-    "build:all": "pnpm build:ui && pnpm build",
+    "build:all": "pnpm --filter @nekzus/liop build && pnpm build:ui && pnpm build",
     "start": "node bin/liop-studio.js",
     "scan": "node bin/liop-studio.js scan",
     "test": "vitest run",

@@ -147,6 +147,9 @@ jobs:
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Build Core SDK
+        run: pnpm --filter @nekzus/liop build
+
       - name: Run Build Studio All
         run: pnpm --filter @nekzus/liop-studio build:all
 
@@ -264,6 +267,9 @@ jobs:
 
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Build Core SDK
+        run: pnpm --filter @nekzus/liop build
 
       - name: Run Build Studio All
         run: pnpm --filter @nekzus/liop-studio build:all
