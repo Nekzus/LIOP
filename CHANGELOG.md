@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.4.0-alpha.9](https://github.com/Nekzus/LIOP/compare/v2.4.0-alpha.8...v2.4.0-alpha.9) (2026-09-14)
+
+
+### Bug Fixes
+
+* **studio:** resolve node types in tsconfig and explicitly import process across modules ([0068b31](https://github.com/Nekzus/LIOP/commit/0068b31a403ea2b03bfe77df6cf2e54d39ddd32d))
+
 # [2.4.0-alpha.8](https://github.com/Nekzus/LIOP/compare/v2.4.0-alpha.7...v2.4.0-alpha.8) (2026-09-14)
 
 
