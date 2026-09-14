@@ -57,7 +57,7 @@ export function createStudioServer(options: ServerOptions = {}) {
 	app.use(
 		"/*",
 		serveStatic({
-			root: path.relative(process.cwd(), distPath).replace(/\\/g, "/"),
+			root: distPath,
 			rewriteRequestPath: (pathStr) => {
 				if (
 					!pathStr.includes(".") &&
