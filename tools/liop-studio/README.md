@@ -1,5 +1,9 @@
 # @nekzus/liop-studio
 
+[![npm version](https://img.shields.io/npm/v/@nekzus/liop-studio.svg)](https://www.npmjs.com/package/@nekzus/liop-studio)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Documentation](https://img.shields.io/badge/docs-mintlify-4E46E5.svg)](https://nekzus-32.mintlify.app/)
+
 > **LIOP Sovereign Studio & Mesh Scanner**: Developer studio, interactive testbed, and network scanner for the Logic-Injection-on-Origin Protocol (LIOP) and Model Context Protocol (MCP).
 
 ---
@@ -37,6 +41,11 @@ npx @nekzus/liop-studio scan /ip4/127.0.0.1/tcp/4000/p2p/12D3KooW...
 - **CWE-918 SSRF Protection**: All outbound HTTP probes validate URLs and block cloud metadata IP addresses (`169.254.169.254`).
 - **NIST SP 800-53 Timing Side-Channel Protection**: Deterministic instruction fuel quantized to 100 units.
 - **Zero-Trust Origin Execution**: V8 Isolate sandboxing with poisoned globals and frozen prototypes.
+
+---
+
+## 📚 Documentation
+For complete guides, API references, and architecture specifications, visit the [official LIOP documentation](https://nekzus-32.mintlify.app/).
 
 ---
 

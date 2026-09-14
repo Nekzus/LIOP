@@ -7,6 +7,21 @@
   "license": "Apache-2.0",
   "type": "module",
   "homepage": "https://nekzus-32.mintlify.app/",
+  "keywords": [
+    "liop",
+    "mcp",
+    "model-context-protocol",
+    "logic-on-origin",
+    "logic-injection",
+    "webassembly",
+    "wasi",
+    "ai-agents",
+    "agentic-ai",
+    "zero-trust",
+    "pqc",
+    "grpc",
+    "libp2p"
+  ],
   "scripts": {
     "build": "pnpm --filter @nekzus/liop build",
     "sanitize-changelog": "node scripts/sanitize-changelog.js",

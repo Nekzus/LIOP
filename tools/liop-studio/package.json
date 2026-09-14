@@ -4,6 +4,35 @@
   "description": "LIOP Sovereign Studio — Developer studio, mesh scanner, and logic-on-origin inspector for LIOP & MCP.",
   "author": "Nekzus Solutions and contributors",
   "license": "Apache-2.0",
+  "homepage": "https://nekzus-32.mintlify.app/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Nekzus/LIOP.git",
+    "directory": "tools/liop-studio"
+  },
+  "bugs": {
+    "url": "https://github.com/Nekzus/LIOP/issues"
+  },
+  "keywords": [
+    "liop",
+    "mcp",
+    "model-context-protocol",
+    "logic-on-origin",
+    "logic-injection",
+    "ai-agents",
+    "agentic-ai",
+    "webassembly",
+    "wasi",
+    "inspector",
+    "scanner",
+    "debugger",
+    "devtools",
+    "studio",
+    "testbed",
+    "zero-trust",
+    "grpc",
+    "p2p"
+  ],
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

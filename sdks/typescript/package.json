@@ -7,6 +7,24 @@
   "bin": {
     "liop": "./dist/bin/agent.js"
   },
+  "keywords": [
+    "liop",
+    "mcp",
+    "model-context-protocol",
+    "logic-on-origin",
+    "logic-injection",
+    "ai-agents",
+    "agentic-ai",
+    "webassembly",
+    "wasi",
+    "zero-trust",
+    "pqc",
+    "grpc",
+    "libp2p",
+    "privacy-preserving",
+    "differential-privacy",
+    "zk-receipts"
+  ],
   "sideEffects": false,
   "files": [
     "dist",
