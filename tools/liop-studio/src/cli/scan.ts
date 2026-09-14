@@ -1,6 +1,7 @@
 // Copyright 2026 Nekzus Solutions and contributors
 // SPDX-License-Identifier: Apache-2.0
 
+import process from "node:process";
 import { createTransport } from "../transports/index.js";
 import type { TargetConnectionConfig } from "../transports/transport.interface.js";
 import { formatScanTable } from "./table-formatter.js";

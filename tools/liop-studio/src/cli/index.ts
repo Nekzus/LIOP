@@ -1,6 +1,8 @@
 // Copyright 2026 Nekzus Solutions and contributors
 // SPDX-License-Identifier: Apache-2.0
 
+import { exec } from "node:child_process";
+import process from "node:process";
 import { Command } from "commander";
 import pc from "picocolors";
 import { createStudioServer } from "../server/index.js";
@@ -71,14 +73,13 @@ export async function main() {
 
 			if (options.open !== false) {
 				try {
-					const open = (await import("node:child_process")).exec;
 					const startCmd =
 						process.platform === "darwin"
 							? "open"
 							: process.platform === "win32"
 								? "start"
 								: "xdg-open";
-					open(`${startCmd} http://127.0.0.1:${port}`);
+					exec(`${startCmd} http://127.0.0.1:${port}`);
 				} catch {
 					// Silent fallback if open fails
 				}

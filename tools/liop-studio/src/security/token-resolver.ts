@@ -1,6 +1,8 @@
 // Copyright 2026 Nekzus Solutions and contributors
 // SPDX-License-Identifier: Apache-2.0
 
+import process from "node:process";
+
 /**
  * Nexus OIDC Token Resolver for LIOP Studio.
  *

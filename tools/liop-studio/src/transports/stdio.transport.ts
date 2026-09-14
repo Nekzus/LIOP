@@ -3,6 +3,7 @@
 
 import { type ChildProcess, spawn } from "node:child_process";
 import crypto from "node:crypto";
+import process from "node:process";
 import {
 	calculateAstInstructionFuel,
 	TokenTelemetryEngine,
