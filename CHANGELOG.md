@@ -3,6 +3,35 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.4.0-alpha.8](https://github.com/Nekzus/LIOP/compare/v2.4.0-alpha.7...v2.4.0-alpha.8) (2026-09-14)
+
+
+### Bug Fixes
+
+* **audit:** harden docker entrypoint wrapper and declare default CMD for test runner ([4e146db](https://github.com/Nekzus/LIOP/commit/4e146db70911aed1a0df922984903a3389e38e54))
+* **client:** adaptive OAuth 2.1 M2M token auto-refresh and resilient intent negotiation ([16257c7](https://github.com/Nekzus/LIOP/commit/16257c7d3e87c5db6db3cf760b7386801c02b0b8))
+* **deps:** override browserslist to >=4.28.7 resolving GHSA-c83g-rgw3-j3cx and GHSA-73wf-gq98-2v4g ([e6cbf0c](https://github.com/Nekzus/LIOP/commit/e6cbf0c22f78dbdea0826dd81ee8d77473f60773))
+* **liop-studio:** enforce radical zero-trust offline network transparency and eliminate fallback mocks ([1a3d22d](https://github.com/Nekzus/LIOP/commit/1a3d22d7d161d1ea3dacef620dcd31da678ec50f))
+* **playground:** eliminate hardcoded node counts and synchronize dynamic topology stats ([743205a](https://github.com/Nekzus/LIOP/commit/743205a07342528c3d27d02fb3a06aa8aa4cf335))
+* **studio-ui:** guard telemetry rendering and inject bandwidth metrics across all transports ([7aebf87](https://github.com/Nekzus/LIOP/commit/7aebf87f0ca89a569c078b3772847af84bf91009))
+* **studio:** implement genuine ML-KEM-768 encapsulation and AES-256-GCM sealing for gRPC transport ([5478ce1](https://github.com/Nekzus/LIOP/commit/5478ce18c07952285587e13746a53e1d77ea7eea))
+* **studio:** relocate ignoreDeprecations to tsup config resolving IDE schema validation ([c34a408](https://github.com/Nekzus/LIOP/commit/c34a4084ebacc8cdffbfb7ca8d8b3cce2732260d))
+* **studio:** use pathToFileURL for Windows dynamic ESM loader compatibility ([dc68588](https://github.com/Nekzus/LIOP/commit/dc68588b936f5d684cea13049b6022295fb4604a))
+
+
+### Features
+
+* **mesh:** implement adaptive topology runtime, dual-era mcp v2 and pnet enclave architecture ([8509716](https://github.com/Nekzus/LIOP/commit/85097168cf0695203faad596d15d97956c35d072))
+* **observability:** deploy enterprise telemetry stack, wire egress tracking, and cluster stabilization ([de35cdf](https://github.com/Nekzus/LIOP/commit/de35cdf2cd535bd498ff4d1c701c04f4ff708225))
+* **playground:** integrate AST fuel, token economy telemetry, and contrast themes ([fcfecb3](https://github.com/Nekzus/LIOP/commit/fcfecb32a552193e0ad8dfdc068543628289c7f7)), closes [#000000](https://github.com/Nekzus/LIOP/issues/000000) [#0f172a](https://github.com/Nekzus/LIOP/issues/0f172a)
+* **studio:** contextual node capability resolution and domain discrimination in gRPC transport ([c869785](https://github.com/Nekzus/LIOP/commit/c869785c95af6b8f2573c92174c20530c69e69f3))
+* **studio:** distill UI with impeccable standards, pure live telemetry, and zero AI slop ([f44b0fc](https://github.com/Nekzus/LIOP/commit/f44b0fcf805c74eca50541641066a129ac5bc596))
+* **studio:** dynamic server scan node discovery and proactive template domain guards ([b35a048](https://github.com/Nekzus/LIOP/commit/b35a048e14c7d3dbee818889792d5c4d7bb836a8))
+* **studio:** enterprise observability and sovereignty cockpit architecture ([67eeba3](https://github.com/Nekzus/LIOP/commit/67eeba33fc7039d547388a0c9a7d66d620620891))
+* **studio:** implement sovereign liop-studio package with multi-transport architecture ([64e9a2d](https://github.com/Nekzus/LIOP/commit/64e9a2de19914b50d6a390da439d3ed68fb0c642))
+* **studio:** sovereignty dj command deck and dual persona showcase architecture ([c0636eb](https://github.com/Nekzus/LIOP/commit/c0636ebae26f592933709518242a293f5b3a1c96))
+* **studio:** transform into developer workbench with schema inspector, code exporter, ast validator, and 4-tab debug console (Phase 196) ([87fc644](https://github.com/Nekzus/LIOP/commit/87fc644b239f6ae031bae0b041c53cbb56bdbbb0))
+
 # [2.4.0-alpha.7](https://github.com/Nekzus/LIOP/compare/v2.4.0-alpha.6...v2.4.0-alpha.7) (2026-09-01)
 
 
