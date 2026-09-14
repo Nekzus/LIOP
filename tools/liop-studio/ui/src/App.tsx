@@ -204,12 +204,21 @@ return {
 			const providerNode = nodes.find(
 				(n) =>
 					n.status === "online" &&
-					n.tools &&
-					n.tools.some(
-						(tn) =>
-							tn.toLowerCase() === t.tool.toLowerCase() ||
-							tn.toLowerCase().replace(/_/g, "") === cleanTTool,
-					),
+					((n.tools &&
+						n.tools.some(
+							(tn) =>
+								tn.toLowerCase() === t.tool.toLowerCase() ||
+								tn.toLowerCase().replace(/_/g, "") === cleanTTool,
+						)) ||
+						(t.id === "perimeter" && n.id === "blg") ||
+						(t.id === "blg_banking" && n.id === "blg") ||
+						(t.id === "blg_healthcare" && n.id === "blg") ||
+						(t.id === "bank" && n.id === "bank") ||
+						(t.id === "vault" && n.id === "vault") ||
+						(t.id === "market" && n.id === "oracle") ||
+						(t.id === "iot" && n.id === "edge") ||
+						(t.id === "pii_attack" && n.id === "bank") ||
+						(t.id === "mesh" && (n.id === "relay" || n.id === "oracle"))),
 			);
 
 			if (providerNode) {
@@ -383,7 +392,6 @@ return {
 						isScanning={isScanning}
 						loadingTools={loadingTools}
 						targetType={targetType}
-						grpcTarget={grpcTarget}
 						activeConnectedTarget={activeConnectedTarget}
 						selectedToolName={selectedToolName}
 						onSelectTool={handleSelectTool}

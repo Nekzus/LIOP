@@ -87,6 +87,7 @@ export function NodeCard({
 	};
 
 	const handleToolClick = (tool: string) => {
+		onSelectTool(tool);
 		if (!isConnected) {
 			const port = node.ports?.grpc ?? node.ports?.http;
 			const type = node.ports?.grpc ? "grpc" : "http";
@@ -95,8 +96,6 @@ export function NodeCard({
 					? `${node.host}:${port}`
 					: `http://${node.host}:${port}/mcp`;
 			onSwitchTarget(targetStr, type, tool);
-		} else {
-			onSelectTool(tool);
 		}
 	};
 

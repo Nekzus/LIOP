@@ -32,7 +32,6 @@ interface ServerScanPanelProps {
 	isScanning: boolean;
 	loadingTools: boolean;
 	targetType: string;
-	grpcTarget: string;
 	activeConnectedTarget: string;
 	selectedToolName: string;
 	onSelectTool: (toolName: string) => void;
@@ -53,7 +52,6 @@ export function ServerScanPanel({
 	isScanning,
 	loadingTools,
 	targetType,
-	grpcTarget,
 	activeConnectedTarget,
 	selectedToolName,
 	onSelectTool,
@@ -132,29 +130,30 @@ export function ServerScanPanel({
 	);
 
 	const isConnectedToNode = (n: ScannedNode): boolean => {
+		if (!activeConnectedTarget) return false;
 		if (targetType === "grpc") {
-			const targetPort = grpcTarget.split(":")[1] || "";
 			const activePort = activeConnectedTarget.split(":")[1] || "";
 			return Boolean(
-				(n.ports?.grpc &&
-					(String(n.ports.grpc) === targetPort ||
-						String(n.ports.grpc) === activePort)) ||
+				(n.ports?.grpc && String(n.ports.grpc) === activePort) ||
 					(n.host &&
-						(grpcTarget.includes(n.host) ||
-							activeConnectedTarget.includes(n.host)) &&
-						targetPort === String(n.ports?.grpc)) ||
-					grpcTarget.toLowerCase().includes(n.id.toLowerCase()) ||
-					activeConnectedTarget.toLowerCase().includes(n.id.toLowerCase()),
+						activeConnectedTarget.includes(n.host) &&
+						activePort === String(n.ports?.grpc)) ||
+					(activeConnectedTarget &&
+						activeConnectedTarget.toLowerCase().includes(n.id.toLowerCase())),
 			);
 		}
 		if (targetType === "http") {
 			const portMatch = activeConnectedTarget.match(/:(\d+)/)?.[1] || "";
 			return Boolean(
 				(n.ports?.http && String(n.ports.http) === portMatch) ||
-					activeConnectedTarget.toLowerCase().includes(n.id.toLowerCase()),
+					(activeConnectedTarget &&
+						activeConnectedTarget.toLowerCase().includes(n.id.toLowerCase())),
 			);
 		}
-		return n.id === "bank" || n.status === "online";
+		return (
+			n.status === "online" &&
+			activeConnectedTarget.toLowerCase().includes(n.id.toLowerCase())
+		);
 	};
 
 	return (

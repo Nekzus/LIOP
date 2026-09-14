@@ -17,6 +17,7 @@ interface KnownNodeProfile {
 	isolation: string;
 	dataset?: string;
 	defaultTool?: string;
+	defaultTools?: string[];
 }
 
 const DEFAULT_PRESET_PROFILES: KnownNodeProfile[] = [
@@ -31,6 +32,7 @@ const DEFAULT_PRESET_PROFILES: KnownNodeProfile[] = [
 		isolation: "pnet Swarm Key (PSK) + HIPAA Strict Mode",
 		dataset: "2,500 clinical EHR patient records",
 		defaultTool: "Analyze_Synthetic_Medical_Records",
+		defaultTools: ["Analyze_Synthetic_Medical_Records"],
 	},
 	{
 		id: "bank",
@@ -43,6 +45,7 @@ const DEFAULT_PRESET_PROFILES: KnownNodeProfile[] = [
 		isolation: "pnet Swarm Key (PSK) + Differential Privacy",
 		dataset: "1,500 synthetic accounts ($148M balance)",
 		defaultTool: "Analyze_Synthetic_Bank_Transactions",
+		defaultTools: ["Analyze_Synthetic_Bank_Transactions"],
 	},
 	{
 		id: "blg",
@@ -54,6 +57,11 @@ const DEFAULT_PRESET_PROFILES: KnownNodeProfile[] = [
 		role: "Dual-NIC Perimeter Security Bridge (Tier 1 <-> Tier 2)",
 		isolation: "6-Layer Zero-Trust + AST Guardian + Egress Shield",
 		defaultTool: "BLG_Inspect_Enclave_Perimeter",
+		defaultTools: [
+			"BLG_Inspect_Enclave_Perimeter",
+			"BLG_Execute_Healthcare_Analytics",
+			"BLG_Execute_Banking_Analytics",
+		],
 	},
 	{
 		id: "oracle",
@@ -66,6 +74,7 @@ const DEFAULT_PRESET_PROFILES: KnownNodeProfile[] = [
 		isolation: "Consortium Node + 50ms Tick Streaming Buffer",
 		dataset: "8 Instruments + L2 Orderbook",
 		defaultTool: "Analyze_HFT_Market_Data",
+		defaultTools: ["Analyze_HFT_Market_Data", "LiopMeshStatus"],
 	},
 	{
 		id: "relay",
@@ -76,6 +85,7 @@ const DEFAULT_PRESET_PROFILES: KnownNodeProfile[] = [
 		role: "Kademlia DHT & libp2p Circuit Relay v2 Node",
 		isolation: "Public Swarm Mesh Relay",
 		defaultTool: "LiopMeshStatus",
+		defaultTools: ["LiopMeshStatus"],
 	},
 	{
 		id: "nexus",
@@ -86,6 +96,7 @@ const DEFAULT_PRESET_PROFILES: KnownNodeProfile[] = [
 		role: "OAuth 2.1 RFC 8707 Auth Server & Mesh Authority",
 		isolation: "Zero-Trust Identity Provider",
 		defaultTool: "Authenticate_Client",
+		defaultTools: ["Authenticate_Client"],
 	},
 	{
 		id: "edge",
@@ -98,6 +109,7 @@ const DEFAULT_PRESET_PROFILES: KnownNodeProfile[] = [
 		isolation: "WAN Jitter/Loss Resistant Client",
 		dataset: "Edge Telemetry Sensors (Pressure, RPM, Temp)",
 		defaultTool: "Analyze_IoT_Sensor_Data",
+		defaultTools: ["Analyze_IoT_Sensor_Data"],
 	},
 ];
 
@@ -139,7 +151,7 @@ export class NetworkDiscoveryEngine {
 	public async probeHttpNode(
 		host: string,
 		port: number,
-		timeoutMs = 1200,
+		timeoutMs = 3500,
 	): Promise<{
 		name?: string;
 		version?: string;
@@ -254,7 +266,11 @@ export class NetworkDiscoveryEngine {
 						peerId: probe.peerId || `peer-${profile.id}`,
 						multiaddrs: probe.multiaddrs || [],
 						version: probe.version || "2.5.0",
-						tools: probe.tools && probe.tools.length > 0 ? probe.tools : [],
+						tools:
+							probe.tools && probe.tools.length > 0
+								? probe.tools
+								: profile.defaultTools ||
+									(profile.defaultTool ? [profile.defaultTool] : []),
 						role: profile.role,
 						isolation: profile.isolation,
 						dataset: profile.dataset,
@@ -277,7 +293,9 @@ export class NetworkDiscoveryEngine {
 						peerId: `peer-${profile.id}`,
 						multiaddrs: [],
 						version: "2.5.0",
-						tools: [],
+						tools:
+							profile.defaultTools ||
+							(profile.defaultTool ? [profile.defaultTool] : []),
 						role: profile.role,
 						isolation: profile.isolation,
 						dataset: profile.dataset,
@@ -337,9 +355,11 @@ export class NetworkDiscoveryEngine {
 				probe?.name?.replace("PRODUCTION-", "").replace(/-/g, " ") ||
 				matchedProfile.defaultName;
 
-			const defaultTools = matchedProfile.defaultTool
-				? [matchedProfile.defaultTool]
-				: ["Execute_WASI_Logic"];
+			const defaultTools =
+				matchedProfile.defaultTools ||
+				(matchedProfile.defaultTool
+					? [matchedProfile.defaultTool]
+					: ["Execute_WASI_Logic"]);
 
 			const tools = isOnline
 				? probe?.tools && probe.tools.length > 0
