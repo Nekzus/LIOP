@@ -1,6 +1,6 @@
 ---
 title: "Inicio Rápido"
-description: "Comienza con LIOP en menos de 5 minutos usando el SDK de TypeScript"
+description: "Inicio rápido con LIOP en menos de 5 minutos mediante el SDK de TypeScript"
 ---
 
 El ecosistema `@nekzus/liop` está diseñado para ser potente pero familiar. Si has construido servidores para MCP, la transición a LIOP es casi directa.
@@ -8,7 +8,7 @@ El ecosistema `@nekzus/liop` está diseñado para ser potente pero familiar. Si 
 En esta guía, crearemos un Servidor LIOP que expone una herramienta y un Cliente que la invoca.
 
 <Note>
-  Internamente, LIOP compila tu lógica a WebAssembly y la inyecta vía P2P. El SDK abstrae todo esto para que te enfoques en la lógica de negocio.
+  Internamente, LIOP compila la lógica en módulos aislados y la distribuye por la malla. El SDK gestiona el transporte gRPC y P2P subyacente, proporcionando métodos estándar de registro e invocación de herramientas.
 </Note>
 
 ## 1. Instalación

@@ -3,15 +3,17 @@ title: "Introducción"
 description: "Bienvenido a la documentación del Logic-Injection-on-Origin Protocol (LIOP)"
 ---
 
-LIOP es un protocolo de transporte binario de alto rendimiento diseñado específicamente para la comunicación avanzada y segura entre Agentes de Inteligencia Artificial. Concebido como la evolución técnica de los protocolos de contexto (como el **Model Context Protocol**), LIOP cambia el paradigma de la transferencia masiva de datos hacia la **inyección segura de Logic-Injection-on-Origin (LIO)** (Lógica Inyectada en el Origen).
+LIOP es un protocolo de transporte binario de alto rendimiento diseñado para la comunicación entre agentes autónomos. Extiende protocolos a nivel de aplicación como el Model Context Protocol (MCP) reemplazando la extracción masiva de contexto por la **inyección segura de lógica en origen (Logic-Injection-on-Origin - LIO)**.
 
-LIO es el **Postulado de Origen (Núcleo de Ejecución)** de la arquitectura: los datos son sagrados y nunca deben abandonar su ubicación física a menos que sean agregados matemáticamente.
+El **Postulado de Origen (LIO)** establece la regla arquitectónica fundamental: los datos son soberanos y permanecen en su frontera física de origen. Únicamente resultados matemáticamente agregados o atestaciones criptográficas cruzan la red.
 
-Si MCP es el "puerto USB-C para aplicaciones de IA", **LIOP es el sistema nervioso de fibra óptica** que habilita una verdadera inteligencia descentralizada.
+Mientras MCP estandariza herramientas a nivel de cliente y entornos de desarrollo, **LIOP proporciona infraestructura de transporte y cómputo soberano distribuido** para entornos corporativos y de misión crítica.
 
-## ¿Por qué LIOP?
+## Contexto Arquitectónico
 
-En las arquitecturas tradicionales, transferir gigabytes de datos (logs, bases de datos) para que un LLM los analice es ineficiente y muy costoso en términos de latencia y tokens. LIOP invierte la arquitectura: **llevamos la lógica a los datos, no los datos a la lógica.**
+Las arquitecturas cliente-servidor tradicionales generan cuellos de botella severos al integrar agentes autónomos. Transferir registros crudos (logs, volcados de bases de datos, libros contables) sobre HTTP/JSON para que un LLM los analice y filtre introduce latencia elevada, consumo innecesario de ancho de banda y agotamiento de la ventana de contexto.
+
+LIOP invierte este flujo de trabajo: **el cómputo se desplaza hacia la fuente de datos en lugar de extraer los datos hacia el contexto del modelo.**
 
 <CardGroup cols={2}>
   <Card title="Logic-Injection-on-Origin" icon="bolt">

@@ -1,6 +1,6 @@
 ---
 title: "LiopServer"
-description: "Construyendo Nodos de Datos autónomos y migrando herramientas MCP heredadas"
+description: "Construcción de Nodos de Datos autónomos y migración de herramientas MCP heredadas"
 ---
 
 La clase `LiopServer` es el corazón del Nodo de Datos. Representa la infraestructura host que orquesta de manera segura las intenciones entrantes de Logic-Injection-on-Origin provenientes de Agentes remotos.
@@ -57,7 +57,7 @@ Al instanciar un `LiopServer`, el segundo parámetro permite definir caracterís
 *   **`taxonomy` (Clasificación de Dominio):** Metadatos opcionales que clasifican el dominio de datos del servidor (`domain`), el nivel de autorización de seguridad expresado como un `number` (`clearanceTier`), y los tipos de ejecución soportados (`executionTypes`). Estos metadatos se anuncian en la DHT y se usan para enrutamiento inteligente.
 *   **Estructura Dinámica de Retorno (Auto-i18n) [PLANIFICADO]:** Esta funcionalidad está en el roadmap. Cuando se implemente, el `LiopServer` inyectará automáticamente directivas *Dynamic Return Structure* en los payloads, obligando a la IA a respetar y devolver las llaves JSON exactamente en el mismo idioma nativo que utilizó el cliente al hacer la solicitud, eliminando la necesidad de librerías de internacionalización (i18n) en tu frontend.
 
-## Creando Capacidades (Tools)
+## Creación de Capacidades (Tools)
 
 En MCP, estas se llaman Tools (Herramientas). En LIOP, nos referimos a ellas como **Capacidades** (Capabilities). 
 
@@ -148,13 +148,13 @@ Si despliegas actualizaciones de seguridad en el host o requieres invalidar la m
 server.clearAstCache();
 ```
 
-## Conectando Servidores MCP Heredados (Legacy)
+## Conexión con Servidores MCP Heredados (Legacy)
 
 El objetivo principal de LIOP es una rápida adopción por parte de la industria. Si has pasado meses construyendo un servidor estándar del Protocolo de Contexto de Modelos (MCP), no necesitas reescribirlo para unirte a la red.
 
-El `@nekzus/liop` incluye el `LiopMcpBridge`.
+El paquete `@nekzus/liop` incluye el módulo `LiopMcpBridge`.
 
-Este poderoso adaptador intercepta las peticiones binarias entrantes de la malla LIOP, las traduce a estándar JSON-RPC 2.0 localmente, las reenvía a tu Servidor MCP sin modificar vía stdio o SSE, y empaqueta la respuesta estándar de MCP de vuelta hacia la red P2P ultra rápida.
+Este adaptador intercepta las peticiones binarias entrantes de la malla LIOP, las traduce al estándar JSON-RPC 2.0 localmente, las reenvía a tu servidor MCP sin modificar vía stdio o SSE, y empaqueta la respuesta de vuelta hacia la red P2P.
 
 ```typescript
 import { LiopMcpBridge } from "@nekzus/liop/bridge";
@@ -178,7 +178,7 @@ const bridge = new LiopMcpBridge(mcpServer, {
 await bridge.connect();
 ```
 
-Tu aplicación heredada es ahora completamente accesible para Agentes de IA Web3, descentralizados y Post-Cuánticos en todo el mundo sin cambiar una sola línea de tu lógica MCP original.
+El servicio MCP queda disponible para agentes en la malla sin requerir modificaciones en el código original.
 
 ## API de Runtime y Ciclo de Vida
 
@@ -203,9 +203,9 @@ const grpcPort = server.getBoundPort();
 await server.close();
 ```
 
-## Iniciando el Servidor
+## Inicio del Servidor
 
-Una vez que tus herramientas, watchdogs y puentes están configurados, lanzas el Nodo de Datos vinculándolo a la red:
+Una vez que tus herramientas, watchdogs y puentes están configurados, inicias el Nodo de Datos vinculándolo a la red:
 
 ```typescript
 await server.connect();

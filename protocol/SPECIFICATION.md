@@ -18,7 +18,7 @@ The Logic-Injection-on-Origin Protocol (LIOP) is a decentralized, high-performan
 ### 2. The Logic-Injection-on-Origin (LIO) Postulate
 **Postulate of Origin (Execution Core):** Data must never be pulled to intelligence. Intelligence must be pushed to the data.
 
-An LIOP Agent interacting with an LIOP Server pushes executable logic (in the form of microscopic `.wasm` modules or dynamically transpiled algorithms). The server securely executes this logic within a strict sandbox and returns only the aggregated mathematical results or filtered lists, mathematically negating the possibility of unintentional PII (Personally Identifiable Information) exfiltration due to large-context extraction.
+An LIOP Agent interacting with an LIOP Server pushes executable logic (in the form of sandboxed `.wasm` modules or dynamically transpiled algorithms). The server securely executes this logic within a strict sandbox and returns only the aggregated mathematical results or filtered lists, mathematically negating the possibility of unintentional PII (Personally Identifiable Information) exfiltration due to large-context extraction.
 
 ### 3. Topographical Architecture
 
@@ -99,7 +99,7 @@ El Logic-Injection-on-Origin Protocol (LIOP) es una red de transporte binario de
 ### 2. El Postulado Logic-Injection-on-Origin (LIO)
 **Postulado de Origen (Núcleo de Ejecución):** Los datos nunca deben ser extraídos hacia la inteligencia. La inteligencia debe ser inyectada hacia los datos.
 
-Un Agente LIOP interactuando con un Servidor LIOP inyecta lógica ejecutable (en forma de módulos `.wasm` microscópicos o algoritmos transpilados dinámicamente). El servidor ejecuta de forma segura esta lógica dentro de un estricto sandbox y retorna únicamente resultados matemáticos agregados o listas filtradas, eliminando matemáticamente la posibilidad de exfiltración involuntaria de PII (Información de Identificación Personal) a causa de extracciones masivas de contexto.
+Un Agente LIOP interactuando con un Servidor LIOP inyecta lógica ejecutable (en forma de módulos `.wasm` aislados o algoritmos transpilados dinámicamente). El servidor ejecuta de forma segura esta lógica dentro de un estricto sandbox y retorna únicamente resultados matemáticos agregados o listas filtradas, eliminando matemáticamente la posibilidad de exfiltración involuntaria de PII (Información de Identificación Personal) a causa de extracciones masivas de contexto.
 
 ### 3. Arquitectura Topográfica
 
