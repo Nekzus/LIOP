@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.4.0-alpha.11](https://github.com/Nekzus/LIOP/compare/v2.4.0-alpha.10...v2.4.0-alpha.11) (2026-09-15)
+
+
+### Bug Fixes
+
+* **studio:** stabilize UI network polling dependencies and deterministic template routing ([0cc91db](https://github.com/Nekzus/LIOP/commit/0cc91dbd731b011980ff1a849866be25fa98dcfa))
+
 # [2.4.0-alpha.10](https://github.com/Nekzus/LIOP/compare/v2.4.0-alpha.9...v2.4.0-alpha.10) (2026-09-14)
 
 
