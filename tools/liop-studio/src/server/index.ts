@@ -26,6 +26,11 @@ export interface ServerOptions {
 }
 
 export function createStudioServer(options: ServerOptions = {}) {
+	// Guard against unconfigured TLS warnings in Studio CLI environment
+	if (!process.env.LIOP_SUPPRESS_TLS_WARNING) {
+		process.env.LIOP_SUPPRESS_TLS_WARNING = "true";
+	}
+
 	const app = new Hono();
 	const port = options.port || 16000;
 	const distPath = options.distPath || path.resolve(__dirname, "../../ui/dist");

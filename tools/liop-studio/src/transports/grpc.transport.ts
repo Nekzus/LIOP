@@ -7,6 +7,7 @@ import {
 	calculateAstInstructionFuel,
 	Kyber768Wrapper,
 	LiopRpcClient,
+	type LiopTlsOptions,
 	TokenTelemetryEngine,
 } from "@nekzus/liop";
 import { NetworkDiscoveryEngine } from "../discovery/network-scanner.js";
@@ -24,6 +25,7 @@ export interface GrpcTransportOptions {
 	target: string;
 	useTls?: boolean;
 	token?: string;
+	tls?: LiopTlsOptions;
 }
 
 export class GrpcTransport implements StudioTransport {
@@ -32,10 +34,12 @@ export class GrpcTransport implements StudioTransport {
 	private connected = false;
 	private target: string;
 	private token?: string;
+	private tlsConfig?: LiopTlsOptions;
 
 	constructor(options: GrpcTransportOptions) {
 		this.target = options.target.replace(/^grpc:\/\//, "");
 		this.token = options.token;
+		this.tlsConfig = options.tls;
 	}
 
 	public isConnected(): boolean {
@@ -44,7 +48,11 @@ export class GrpcTransport implements StudioTransport {
 
 	public async connect(): Promise<void> {
 		const tokenProvider = this.token || createStudioTokenProvider();
-		this.client = new LiopRpcClient(this.target, undefined, tokenProvider);
+		const tls: LiopTlsOptions = this.tlsConfig || {
+			insecure: true,
+			suppressWarning: true,
+		};
+		this.client = new LiopRpcClient(this.target, tls, tokenProvider);
 		this.connected = true;
 	}
 

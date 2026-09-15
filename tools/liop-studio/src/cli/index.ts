@@ -31,8 +31,23 @@ export async function main() {
 			"--token <token>",
 			"Bearer or access token for target authentication",
 		)
+		.option("--tls-ca <path>", "Path to root CA certificate for gRPC target")
+		.option(
+			"--tls-cert <path>",
+			"Path to client certificate chain for gRPC target",
+		)
+		.option("--tls-key <path>", "Path to client private key for gRPC target")
+		.option(
+			"--insecure",
+			"Explicitly permit unencrypted gRPC credentials",
+			true,
+		)
 		.action(async (options) => {
 			const port = Number.parseInt(options.port, 10) || 16000;
+
+			if (!options.tlsCa && !options.tlsCert && !options.tlsKey) {
+				process.env.LIOP_SUPPRESS_TLS_WARNING = "true";
+			}
 
 			let initialTarget: TargetConnectionConfig | undefined;
 			if (options.stdio) {
@@ -49,7 +64,20 @@ export async function main() {
 			} else if (options.grpc) {
 				initialTarget = {
 					type: "grpc",
-					grpc: { target: options.grpc, token: options.token },
+					grpc: {
+						target: options.grpc,
+						token: options.token,
+						tls: options.tlsCa
+							? {
+									rootCert: options.tlsCa,
+									certChain: options.tlsCert,
+									privateKey: options.tlsKey,
+								}
+							: {
+									insecure: true,
+									suppressWarning: true,
+								},
+					},
 				};
 			} else if (options.mesh) {
 				initialTarget = {

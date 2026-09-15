@@ -60,7 +60,11 @@ export function resolveTargetConfig(
 	) {
 		return {
 			type: "grpc",
-			grpc: { target: trimmed, token },
+			grpc: {
+				target: trimmed,
+				token,
+				tls: { insecure: true, suppressWarning: true },
+			},
 		};
 	}
 
@@ -79,6 +83,9 @@ export async function runScan(
 	targetStr: string,
 	options: { token?: string; json?: boolean },
 ): Promise<void> {
+	if (!process.env.LIOP_SUPPRESS_TLS_WARNING) {
+		process.env.LIOP_SUPPRESS_TLS_WARNING = "true";
+	}
 	const config = resolveTargetConfig(targetStr, options.token);
 	const transport = createTransport(config);
 

@@ -21,6 +21,7 @@ export * from "./rpc/crypto/aes.js";
 export * from "./rpc/crypto/dilithium.js";
 export * from "./rpc/crypto/kyber.js";
 export * from "./rpc/server.js";
+export * from "./rpc/tls.js";
 export * from "./runtime/routing-table.js";
 export * from "./runtime/token-manager.js";
 export * from "./runtime/topology-probe.js";

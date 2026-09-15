@@ -1,6 +1,8 @@
 // Copyright 2026 Nekzus Solutions and contributors
 // SPDX-License-Identifier: Apache-2.0
 
+import type { LiopTlsOptions } from "@nekzus/liop";
+
 export type TargetTransportType = "stdio" | "http" | "grpc" | "mesh";
 
 export interface TargetConnectionConfig {
@@ -19,6 +21,7 @@ export interface TargetConnectionConfig {
 		target: string;
 		useTls?: boolean;
 		token?: string;
+		tls?: LiopTlsOptions;
 	};
 	mesh?: {
 		bootstrapNodes?: string[];

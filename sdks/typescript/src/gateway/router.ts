@@ -1555,7 +1555,7 @@ export class LiopMcpRouter {
 
 		const remoteClient = new liopV1.LogicMesh(
 			targetAddr,
-			createChannelCredentials(),
+			createChannelCredentials({ insecure: true, suppressWarning: true }),
 			GRPC_CHANNEL_OPTIONS,
 		);
 		return this.performTranscoding(
