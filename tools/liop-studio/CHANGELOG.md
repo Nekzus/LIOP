@@ -2,6 +2,13 @@
 
 All notable changes to @nekzus/liop-studio will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.0.0-alpha.5](https://github.com/Nekzus/LIOP/compare/studio-v1.0.0-alpha.4...studio-v1.0.0-alpha.5) (2026-09-15)
+
+
+### Bug Fixes
+
+* **studio:** stabilize UI network polling dependencies and deterministic template routing ([0cc91db](https://github.com/Nekzus/LIOP/commit/0cc91dbd731b011980ff1a849866be25fa98dcfa))
+
 # [1.0.0-alpha.4](https://github.com/Nekzus/LIOP/compare/studio-v1.0.0-alpha.3...studio-v1.0.0-alpha.4) (2026-09-14)
 
 
