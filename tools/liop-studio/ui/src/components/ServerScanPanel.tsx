@@ -138,16 +138,14 @@ export function ServerScanPanel({
 					(n.host &&
 						activeConnectedTarget.includes(n.host) &&
 						activePort === String(n.ports?.grpc)) ||
-					(activeConnectedTarget &&
-						activeConnectedTarget.toLowerCase().includes(n.id.toLowerCase())),
+					activeConnectedTarget?.toLowerCase().includes(n.id.toLowerCase()),
 			);
 		}
 		if (targetType === "http") {
 			const portMatch = activeConnectedTarget.match(/:(\d+)/)?.[1] || "";
 			return Boolean(
 				(n.ports?.http && String(n.ports.http) === portMatch) ||
-					(activeConnectedTarget &&
-						activeConnectedTarget.toLowerCase().includes(n.id.toLowerCase())),
+					activeConnectedTarget?.toLowerCase().includes(n.id.toLowerCase()),
 			);
 		}
 		return (

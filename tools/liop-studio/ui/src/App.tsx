@@ -86,7 +86,10 @@ export default function App() {
 		},
 	});
 
-	// Pending tool selection queue to guarantee deterministic sync across async loads
+	// Pending template and tool selection queue to guarantee deterministic sync across async loads
+	const [pendingTemplateId, setPendingTemplateId] = useState<string | null>(
+		null,
+	);
 	const [pendingToolName, setPendingToolName] = useState<string | null>(null);
 
 	// Templates & Code State
@@ -160,9 +163,23 @@ return {
 		return matched.length > 0 ? matched : CANONICAL_TEMPLATES;
 	}, [tools, nodes]);
 
-	// Auto-align selected template and code when availableTemplates changes or pending tool is set
+	// Auto-align selected template and code when availableTemplates changes or pending selection is set
 	useEffect(() => {
 		if (availableTemplates.length > 0) {
+			if (pendingTemplateId) {
+				const matching = availableTemplates.find(
+					(t) => t.id === pendingTemplateId,
+				);
+				if (matching) {
+					setSelectedTemplateId(matching.id);
+					setSelectedToolName(matching.tool);
+					setCode(matching.code);
+					setPendingTemplateId(null);
+					setPendingToolName(null);
+					return;
+				}
+			}
+
 			if (pendingToolName) {
 				const matching = availableTemplates.find(
 					(t) =>
@@ -189,7 +206,12 @@ return {
 				setCode(first.code);
 			}
 		}
-	}, [availableTemplates, selectedTemplateId, pendingToolName]);
+	}, [
+		availableTemplates,
+		selectedTemplateId,
+		pendingToolName,
+		pendingTemplateId,
+	]);
 
 	// Smart Auto-Routing: selects template and seamlessly switches target node if required
 	const handleSelectTemplate = useCallback(
@@ -204,12 +226,11 @@ return {
 			const providerNode = nodes.find(
 				(n) =>
 					n.status === "online" &&
-					((n.tools &&
-						n.tools.some(
-							(tn) =>
-								tn.toLowerCase() === t.tool.toLowerCase() ||
-								tn.toLowerCase().replace(/_/g, "") === cleanTTool,
-						)) ||
+					(n.tools?.some(
+						(tn) =>
+							tn.toLowerCase() === t.tool.toLowerCase() ||
+							tn.toLowerCase().replace(/_/g, "") === cleanTTool,
+					) ||
 						(t.id === "perimeter" && n.id === "blg") ||
 						(t.id === "blg_banking" && n.id === "blg") ||
 						(t.id === "blg_healthcare" && n.id === "blg") ||
@@ -233,6 +254,7 @@ return {
 
 				// If we are not connected to this node, switch seamlessly
 				if (activeConnectedTarget !== targetStr) {
+					setPendingTemplateId(t.id);
 					setPendingToolName(t.tool);
 					setSelectedTemplateId(t.id);
 					setCode(t.code);

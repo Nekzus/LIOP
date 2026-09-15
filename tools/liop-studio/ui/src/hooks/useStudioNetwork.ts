@@ -13,6 +13,10 @@ interface UseStudioNetworkOptions {
 
 export function useStudioNetwork(options: UseStudioNetworkOptions = {}) {
 	const { onTargetSwitched, onError } = options;
+	const onTargetSwitchedRef = useRef(onTargetSwitched);
+	onTargetSwitchedRef.current = onTargetSwitched;
+	const onErrorRef = useRef(onError);
+	onErrorRef.current = onError;
 
 	// Network & nodes state
 	const [network, setNetwork] = useState<NetworkInfo | null>(null);
@@ -22,6 +26,8 @@ export function useStudioNetwork(options: UseStudioNetworkOptions = {}) {
 
 	// Target Connection State
 	const [targetType, setTargetType] = useState<TargetType>("http");
+	const targetTypeRef = useRef(targetType);
+	targetTypeRef.current = targetType;
 	const [stdioCmd, setStdioCmd] = useState(
 		"npx -y @modelcontextprotocol/server-filesystem /tmp",
 	);
@@ -86,7 +92,8 @@ export function useStudioNetwork(options: UseStudioNetworkOptions = {}) {
 	const handleSwitchTarget = useCallback(
 		async (
 			newTarget: string,
-			type: "grpc" | "http" = targetType as "grpc" | "http",
+			type: "grpc" | "http" = (targetTypeRef.current as "grpc" | "http") ||
+				"http",
 			toolToSelect?: string,
 		) => {
 			setIsConnecting(true);
@@ -121,17 +128,17 @@ export function useStudioNetwork(options: UseStudioNetworkOptions = {}) {
 				await fetchHealth();
 				await fetchTools();
 
-				if (onTargetSwitched && toolToSelect) {
-					onTargetSwitched(toolToSelect);
+				if (onTargetSwitchedRef.current && toolToSelect) {
+					onTargetSwitchedRef.current(toolToSelect);
 				}
 			} catch (err: unknown) {
 				const msg = err instanceof Error ? err.message : String(err);
-				onError?.({ title: "Target Switch Failed", desc: msg });
+				onErrorRef.current?.({ title: "Target Switch Failed", desc: msg });
 			} finally {
 				setIsConnecting(false);
 			}
 		},
-		[targetType, fetchHealth, fetchTools, onTargetSwitched, onError],
+		[fetchHealth, fetchTools],
 	);
 
 	// Fetch mesh nodes & topology
@@ -219,7 +226,7 @@ export function useStudioNetwork(options: UseStudioNetworkOptions = {}) {
 			await fetchNodes(true);
 		} catch (err: unknown) {
 			const msg = err instanceof Error ? err.message : String(err);
-			onError?.({ title: "Connection Failed", desc: msg });
+			onErrorRef.current?.({ title: "Connection Failed", desc: msg });
 		} finally {
 			setIsConnecting(false);
 		}
@@ -231,10 +238,9 @@ export function useStudioNetwork(options: UseStudioNetworkOptions = {}) {
 		fetchHealth,
 		fetchTools,
 		fetchNodes,
-		onError,
 	]);
 
-	// Initial mount load
+	// Initial mount load (runs strictly once)
 	useEffect(() => {
 		fetchHealth();
 		fetchTools();
