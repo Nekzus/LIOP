@@ -77,10 +77,13 @@ describe("LIOP Studio: Security Sanitizer", () => {
 		).toThrow(/Access to link-local metadata address is strictly prohibited/);
 	});
 
-	it("should validate host header for DNS rebinding protection", () => {
+	it("should validate host header for DNS rebinding protection including IPv6", () => {
 		expect(validateHostHeader("localhost:16000")).toBe(true);
 		expect(validateHostHeader("127.0.0.1:16000")).toBe(true);
 		expect(validateHostHeader("0.0.0.0:16000")).toBe(true);
+		expect(validateHostHeader("[::1]:16000")).toBe(true);
+		expect(validateHostHeader("::1")).toBe(true);
+		expect(validateHostHeader("[::1]")).toBe(true);
 		expect(validateHostHeader("evil-attacker.com:16000")).toBe(false);
 	});
 });

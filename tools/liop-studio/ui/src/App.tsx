@@ -6,12 +6,42 @@ import { EnvironmentExplorer } from "./components/EnvironmentExplorer";
 import { LogicEditor } from "./components/LogicEditor";
 import { ResultsConsole, type ResultsTab } from "./components/ResultsConsole";
 import { ServerScanPanel } from "./components/ServerScanPanel";
+import { SessionTelemetryBar } from "./components/SessionTelemetryBar";
 import { StudioHeader } from "./components/StudioHeader";
 import { TargetConnectionBar } from "./components/TargetConnectionBar";
 import { useStudioExecution } from "./hooks/useStudioExecution";
 import { useStudioNetwork } from "./hooks/useStudioNetwork";
 import { CANONICAL_TEMPLATES } from "./templates";
 import type { CanonicalTemplate } from "./types";
+
+const getSavedTemplateCode = (
+	templateId: string,
+	defaultCode: string,
+): string => {
+	try {
+		const saved = localStorage.getItem(`liop_studio_custom_code_${templateId}`);
+		if (saved?.trim()) return saved;
+	} catch {
+		// Ignore
+	}
+	return defaultCode;
+};
+
+const saveTemplateCode = (templateId: string, newCode: string) => {
+	try {
+		localStorage.setItem(`liop_studio_custom_code_${templateId}`, newCode);
+	} catch {
+		// Ignore
+	}
+};
+
+const removeSavedTemplateCode = (templateId: string) => {
+	try {
+		localStorage.removeItem(`liop_studio_custom_code_${templateId}`);
+	} catch {
+		// Ignore
+	}
+};
 
 export default function App() {
 	// Theme state
@@ -47,12 +77,18 @@ export default function App() {
 		errorAlert,
 		setErrorAlert,
 		timeline,
+		executionHistory,
+		selectHistoryEntry,
+		clearHistory,
 		handleExecute: executeCore,
+		cancelExecution,
 	} = useStudioExecution();
 
 	// Network state hook
 	const {
 		network,
+		version,
+		sessionTelemetry,
 		tools,
 		nodes,
 		scanSummary,
@@ -99,7 +135,20 @@ export default function App() {
 	const [selectedToolName, setSelectedToolName] = useState(
 		CANONICAL_TEMPLATES[0].tool,
 	);
-	const [code, setCode] = useState(CANONICAL_TEMPLATES[0].code);
+	const [code, setCode] = useState(() =>
+		getSavedTemplateCode(
+			CANONICAL_TEMPLATES[0].id,
+			CANONICAL_TEMPLATES[0].code,
+		),
+	);
+
+	const handleCodeChange = useCallback(
+		(newCode: string) => {
+			setCode(newCode);
+			saveTemplateCode(selectedTemplateId, newCode);
+		},
+		[selectedTemplateId],
+	);
 
 	// Dynamic available templates: strictly matching tools exposed on the active target or mesh nodes
 	const availableTemplates = useMemo(() => {
@@ -254,10 +303,11 @@ return {
 
 				// If we are not connected to this node, switch seamlessly
 				if (activeConnectedTarget !== targetStr) {
+					const codeToUse = getSavedTemplateCode(t.id, t.code);
 					setPendingTemplateId(t.id);
 					setPendingToolName(t.tool);
 					setSelectedTemplateId(t.id);
-					setCode(t.code);
+					setCode(codeToUse);
 					setSelectedToolName(t.tool);
 					handleSwitchTarget(targetStr, type, t.tool);
 					return;
@@ -265,8 +315,9 @@ return {
 			}
 
 			// Same target or standalone
+			const codeToUse = getSavedTemplateCode(t.id, t.code);
 			setSelectedTemplateId(t.id);
-			setCode(t.code);
+			setCode(codeToUse);
 			setSelectedToolName(t.tool);
 		},
 		[availableTemplates, nodes, activeConnectedTarget, handleSwitchTarget],
@@ -291,7 +342,11 @@ return {
 				);
 			if (matchingTemplate) {
 				setSelectedTemplateId(matchingTemplate.id);
-				setCode(matchingTemplate.code);
+				const codeToUse = getSavedTemplateCode(
+					matchingTemplate.id,
+					matchingTemplate.code,
+				);
+				setCode(codeToUse);
 			}
 		},
 		[availableTemplates],
@@ -300,6 +355,7 @@ return {
 	const handleResetTemplate = useCallback(() => {
 		const t = availableTemplates.find((x) => x.id === selectedTemplateId);
 		if (t) {
+			removeSavedTemplateCode(selectedTemplateId);
 			setCode(t.code);
 		}
 	}, [availableTemplates, selectedTemplateId]);
@@ -376,6 +432,8 @@ return {
 				isScanning={isScanning}
 				secondsAgo={secondsAgo}
 				theme={theme}
+				version={version}
+				activeTiersCount={activeTiers.size}
 				onThemeChange={setTheme}
 				onRescan={() => {
 					fetchNodes(true, false);
@@ -399,6 +457,9 @@ return {
 				activeConnectedTarget={activeConnectedTarget}
 				connected={network?.status === "healthy"}
 			/>
+
+			{/* Session-wide Telemetry Banner */}
+			<SessionTelemetryBar telemetry={sessionTelemetry} />
 
 			{/* Main Workstation Layout */}
 			<main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 flex flex-col gap-6">
@@ -431,8 +492,9 @@ return {
 							selectedToolName={selectedToolName}
 							onSelectTool={handleSelectTool}
 							code={code}
-							onCodeChange={setCode}
+							onCodeChange={handleCodeChange}
 							isRunning={isRunning}
+							onCancel={cancelExecution}
 							tools={tools}
 							isCurrentToolSupported={isCurrentToolSupported}
 							currentTemplate={currentTemplate}
@@ -461,6 +523,9 @@ return {
 							grpcTarget={grpcTarget}
 							httpUrl={httpUrl}
 							stdioCmd={stdioCmd}
+							history={executionHistory}
+							onSelectHistoryEntry={selectHistoryEntry}
+							onClearHistory={clearHistory}
 							activeTab={activeConsoleTab}
 							onTabChange={setActiveConsoleTab}
 						/>

@@ -16,6 +16,7 @@ import type {
 	StudioTransport,
 	TargetConnectionConfig,
 } from "../transports/transport.interface.js";
+import { STUDIO_VERSION } from "../version.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -82,7 +83,7 @@ export function createStudioServer(options: ServerOptions = {}) {
 			activeTransport.isConnected() && lastReport?.status === "online";
 		return c.json({
 			status: isConnected ? "healthy" : "offline",
-			version: "1.0.0",
+			version: STUDIO_VERSION,
 			targetType: activeConfig.type,
 			connected: isConnected,
 		});
@@ -100,7 +101,7 @@ export function createStudioServer(options: ServerOptions = {}) {
 			connected: isConnected,
 			toolsCount: isConnected ? lastReport?.totalTools || 0 : 0,
 			latencyMs: isConnected ? lastReport?.latencyMs || 0 : 0,
-			version: "1.0.0",
+			version: STUDIO_VERSION,
 			serverInfo: lastReport?.serverInfo,
 		});
 	});

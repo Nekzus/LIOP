@@ -3,8 +3,15 @@
 
 import { describe, expect, it } from "vitest";
 import { NetworkDiscoveryEngine } from "../src/discovery/network-scanner.js";
+import { STUDIO_VERSION } from "../src/version.js";
 
 describe("LIOP Studio: Dynamic Network Discovery Engine", () => {
+	it("should resolve dynamic studio version matching semver format", () => {
+		expect(STUDIO_VERSION).toBeDefined();
+		expect(typeof STUDIO_VERSION).toBe("string");
+		expect(STUDIO_VERSION).toMatch(/^\d+\.\d+\.\d+/);
+	});
+
 	it("should provide a singleton instance", () => {
 		const instance1 = NetworkDiscoveryEngine.getInstance();
 		const instance2 = NetworkDiscoveryEngine.getInstance();

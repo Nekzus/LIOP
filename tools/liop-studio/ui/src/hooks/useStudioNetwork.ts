@@ -2,7 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { NetworkInfo, ScannedNode, ScanSummary, Tool } from "../types";
+import type {
+	NetworkInfo,
+	ScannedNode,
+	ScanSummary,
+	SessionTelemetry,
+	Tool,
+} from "../types";
 
 export type TargetType = "stdio" | "http" | "grpc" | "mesh";
 
@@ -23,6 +29,8 @@ export function useStudioNetwork(options: UseStudioNetworkOptions = {}) {
 	const [tools, setTools] = useState<Tool[]>([]);
 	const [nodes, setNodes] = useState<ScannedNode[]>([]);
 	const [scanSummary, setScanSummary] = useState<ScanSummary | null>(null);
+	const [sessionTelemetry, setSessionTelemetry] =
+		useState<SessionTelemetry | null>(null);
 
 	// Target Connection State
 	const [targetType, setTargetType] = useState<TargetType>("http");
@@ -85,6 +93,30 @@ export function useStudioNetwork(options: UseStudioNetworkOptions = {}) {
 			console.error("Error fetching tools:", err);
 		} finally {
 			setLoadingTools(false);
+		}
+	}, []);
+
+	// Fetch session-level accumulated telemetry
+	const fetchTelemetry = useCallback(async () => {
+		try {
+			const res = await fetch("/api/telemetry");
+			if (res.ok) {
+				const data = await res.json();
+				if (data.session) {
+					setSessionTelemetry({
+						sessionId: data.session.sessionId || "unknown",
+						totalInputTokens: data.session.totalInputTokens || 0,
+						totalOutputTokens: data.session.totalOutputTokens || 0,
+						totalOperations: Array.isArray(data.session.operations)
+							? data.session.operations.length
+							: 0,
+						sessionUptimeMs: data.session.sessionUptimeMs || 0,
+						estimatorName: data.session.estimatorName || "o200k_base",
+					});
+				}
+			}
+		} catch (err) {
+			console.error("Error fetching session telemetry:", err);
 		}
 	}, []);
 
@@ -245,16 +277,18 @@ export function useStudioNetwork(options: UseStudioNetworkOptions = {}) {
 		fetchHealth();
 		fetchTools();
 		fetchNodes(true);
-	}, [fetchHealth, fetchTools, fetchNodes]);
+		fetchTelemetry();
+	}, [fetchHealth, fetchTools, fetchNodes, fetchTelemetry]);
 
-	// Background polling every 5s (health & nodes topology only)
+	// Background polling every 5s (health, nodes topology & telemetry)
 	useEffect(() => {
 		const interval = setInterval(() => {
 			fetchHealth();
 			fetchNodes(false, true);
+			fetchTelemetry();
 		}, 5000);
 		return () => clearInterval(interval);
-	}, [fetchHealth, fetchNodes]);
+	}, [fetchHealth, fetchNodes, fetchTelemetry]);
 
 	// Seconds counter tick
 	useEffect(() => {
@@ -266,9 +300,11 @@ export function useStudioNetwork(options: UseStudioNetworkOptions = {}) {
 
 	return {
 		network,
+		version: network?.version || "1.0.0-alpha.5",
 		tools,
 		nodes,
 		scanSummary,
+		sessionTelemetry,
 		targetType,
 		setTargetType,
 		stdioCmd,
@@ -289,6 +325,7 @@ export function useStudioNetwork(options: UseStudioNetworkOptions = {}) {
 		fetchHealth,
 		fetchTools,
 		fetchNodes,
+		fetchTelemetry,
 		handleSwitchTarget,
 		handleConnectTarget,
 	};
