@@ -19,6 +19,7 @@ import {
 import { useMemo, useState } from "react";
 import { copyToClipboard } from "../lib/clipboard";
 import type { CanonicalTemplate, Tool } from "../types";
+import { CodeEditor } from "./CodeEditor";
 import { DynamicToolForm } from "./DynamicToolForm";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
@@ -47,6 +48,7 @@ interface LogicEditorProps {
 	onFormArgChange: (field: string, val: any) => void;
 	onResetTemplate: () => void;
 	onExecute: () => void;
+	onCancel?: () => void;
 	onOpenExportTab: () => void;
 	onOpenEnvModal: () => void;
 }
@@ -72,6 +74,7 @@ export function LogicEditor({
 	onFormArgChange,
 	onResetTemplate,
 	onExecute,
+	onCancel,
 	onOpenExportTab,
 	onOpenEnvModal,
 }: LogicEditorProps) {
@@ -373,15 +376,14 @@ export function LogicEditor({
 							</div>
 						</div>
 
-						<textarea
-							value={code}
-							onChange={(e) => onCodeChange(e.target.value)}
-							className="w-full h-[220px] p-3.5 bg-transparent font-mono text-xs md:text-sm text-[#7dd3fc] focus:outline-none resize-none leading-relaxed"
-							style={{ fontFamily: "'JetBrains Mono', monospace" }}
-							placeholder="// Write logic to inject on origin node..."
-							disabled={isRunning}
-							spellCheck={false}
-						/>
+						<div className="w-full h-[220px] bg-surface1/30 border-y border-border/40 overflow-hidden">
+							<CodeEditor
+								value={code}
+								onChange={onCodeChange}
+								readOnly={isRunning}
+								className="h-full"
+							/>
+						</div>
 
 						{/* Editor Status Footer with Real-time AST Validator */}
 						<div className="flex items-center justify-between px-3 py-1 bg-secondary/30 border-t border-border/50 text-[10px] font-mono text-zinc-400">
@@ -458,50 +460,63 @@ export function LogicEditor({
 							</Badge>
 						)}
 					</div>
-					<Button
-						onClick={onExecute}
-						disabled={
-							isRunning ||
-							!selectedToolName ||
-							tools.length === 0 ||
-							!isCurrentToolSupported ||
-							(executionMode === "logic" && !astValidation.valid)
-						}
-						className={`h-9 px-6 font-bold tracking-wide shadow-md transition-all active:scale-[0.98] ${
-							tools.length === 0 ||
-							!isCurrentToolSupported ||
-							(executionMode === "logic" && !astValidation.valid)
-								? "opacity-60 cursor-not-allowed bg-zinc-800 hover:bg-zinc-800 text-zinc-400 border border-zinc-700"
-								: ""
-						}`}
-					>
-						{isRunning ? (
-							<>
-								<Loader2 className="mr-2 h-4 w-4 animate-spin" />
-								{executionMode === "logic" ? "Injecting..." : "Calling..."}
-							</>
-						) : tools.length === 0 ? (
-							<>
-								<ShieldBan className="mr-2 h-4 w-4 text-rose-400" />
-								Target Offline
-							</>
-						) : !isCurrentToolSupported ? (
-							<>
-								<ShieldBan className="mr-2 h-4 w-4 text-red-400" />
-								Blocked on Target
-							</>
-						) : executionMode === "logic" && !astValidation.valid ? (
-							<>
-								<AlertTriangle className="mr-2 h-4 w-4 text-rose-400" />
-								Syntax Error
-							</>
-						) : (
-							<>
-								<Play className="mr-2 h-4 w-4 fill-current" />
-								{executionMode === "logic" ? "Execute Logic" : "Execute Tool"}
-							</>
+					<div className="flex items-center gap-2">
+						{isRunning && onCancel && (
+							<Button
+								type="button"
+								variant="outline"
+								onClick={onCancel}
+								className="h-9 px-3 border-rose-500/40 text-rose-300 hover:bg-rose-500/10 hover:text-rose-200 text-xs font-mono"
+								title="Cancel in-flight execution"
+							>
+								Cancel
+							</Button>
 						)}
-					</Button>
+						<Button
+							onClick={onExecute}
+							disabled={
+								isRunning ||
+								!selectedToolName ||
+								tools.length === 0 ||
+								!isCurrentToolSupported ||
+								(executionMode === "logic" && !astValidation.valid)
+							}
+							className={`h-9 px-6 font-bold tracking-wide shadow-md transition-all active:scale-[0.98] ${
+								tools.length === 0 ||
+								!isCurrentToolSupported ||
+								(executionMode === "logic" && !astValidation.valid)
+									? "opacity-60 cursor-not-allowed bg-zinc-800 hover:bg-zinc-800 text-zinc-400 border border-zinc-700"
+									: ""
+							}`}
+						>
+							{isRunning ? (
+								<>
+									<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+									{executionMode === "logic" ? "Injecting..." : "Calling..."}
+								</>
+							) : tools.length === 0 ? (
+								<>
+									<ShieldBan className="mr-2 h-4 w-4 text-rose-400" />
+									Target Offline
+								</>
+							) : !isCurrentToolSupported ? (
+								<>
+									<ShieldBan className="mr-2 h-4 w-4 text-red-400" />
+									Blocked on Target
+								</>
+							) : executionMode === "logic" && !astValidation.valid ? (
+								<>
+									<AlertTriangle className="mr-2 h-4 w-4 text-rose-400" />
+									Syntax Error
+								</>
+							) : (
+								<>
+									<Play className="mr-2 h-4 w-4 fill-current" />
+									{executionMode === "logic" ? "Execute Logic" : "Execute Tool"}
+								</>
+							)}
+						</Button>
+					</div>
 				</div>
 			</CardContent>
 		</Card>

@@ -7,14 +7,17 @@ import {
 	Bug,
 	CheckCircle2,
 	FileCode,
+	History,
 	Loader2,
 	Terminal,
 	XCircle,
 } from "lucide-react";
 import { useState } from "react";
+import type { ExecutionHistoryEntry } from "../hooks/useStudioExecution";
 import type { ExecutionMeta, TimelineStep } from "../types";
 import { DebugTab } from "./results/DebugTab";
 import { ExportTab } from "./results/ExportTab";
+import { HistoryTab } from "./results/HistoryTab";
 import { OutputTab } from "./results/OutputTab";
 import { TelemetryTab } from "./results/TelemetryTab";
 import { Badge } from "./ui/badge";
@@ -22,7 +25,12 @@ import { Card, CardContent, CardHeader } from "./ui/card";
 import { ScrollArea } from "./ui/scroll-area";
 import { Tabs } from "./ui/tabs";
 
-export type ResultsTab = "output" | "debug" | "export" | "telemetry";
+export type ResultsTab =
+	| "output"
+	| "debug"
+	| "export"
+	| "telemetry"
+	| "history";
 
 interface ResultsConsoleProps {
 	timeline: TimelineStep[];
@@ -36,6 +44,9 @@ interface ResultsConsoleProps {
 	grpcTarget: string;
 	httpUrl: string;
 	stdioCmd: string;
+	history?: ExecutionHistoryEntry[];
+	onSelectHistoryEntry?: (entry: ExecutionHistoryEntry) => void;
+	onClearHistory?: () => void;
 	activeTab?: ResultsTab;
 	onTabChange?: (tab: ResultsTab) => void;
 }
@@ -52,6 +63,9 @@ export function ResultsConsole({
 	grpcTarget,
 	httpUrl,
 	stdioCmd,
+	history = [],
+	onSelectHistoryEntry,
+	onClearHistory,
 	activeTab: controlledTab,
 	onTabChange,
 }: ResultsConsoleProps) {
@@ -289,6 +303,52 @@ export function ResultsConsole({
 										Live Telemetry
 									</span>
 								</button>
+
+								{/* Tab 5: History */}
+								<button
+									type="button"
+									onClick={() => handleTabClick("history")}
+									className="relative z-10 text-xs px-2.5 py-1 font-medium transition-colors duration-200 flex items-center gap-1.5 cursor-pointer"
+								>
+									{activeResultsTab === "history" && (
+										<motion.div
+											layoutId="resultsTabPill"
+											className="absolute inset-0 bg-primary rounded shadow-sm"
+											transition={{
+												type: "spring",
+												stiffness: 450,
+												damping: 35,
+											}}
+										/>
+									)}
+									<History
+										className={`h-3.5 w-3.5 relative z-20 ${
+											activeResultsTab === "history"
+												? "text-black"
+												: "text-amber-400"
+										}`}
+									/>
+									<span
+										className={`relative z-20 font-medium transition-colors duration-200 ${
+											activeResultsTab === "history"
+												? "text-black font-semibold"
+												: "text-zinc-300 hover:text-white"
+										}`}
+									>
+										History
+									</span>
+									{history.length > 0 && (
+										<span
+											className={`relative z-20 text-[9px] font-mono px-1 py-0 rounded ${
+												activeResultsTab === "history"
+													? "bg-black/20 text-black font-bold"
+													: "bg-white/10 text-zinc-400"
+											}`}
+										>
+											{history.length}
+										</span>
+									)}
+								</button>
 							</div>
 						</div>
 
@@ -328,6 +388,19 @@ export function ResultsConsole({
 							/>
 
 							<TelemetryTab meta={meta} />
+
+							{activeResultsTab === "history" && (
+								<div className="py-4">
+									<HistoryTab
+										history={history}
+										onSelectEntry={(entry) => {
+											onSelectHistoryEntry?.(entry);
+											handleTabClick("output");
+										}}
+										onClearHistory={() => onClearHistory?.()}
+									/>
+								</div>
+							)}
 						</ScrollArea>
 					</CardContent>
 				</Tabs>

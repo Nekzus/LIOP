@@ -7,6 +7,7 @@ import { Command } from "commander";
 import pc from "picocolors";
 import { createStudioServer } from "../server/index.js";
 import type { TargetConnectionConfig } from "../transports/transport.interface.js";
+import { STUDIO_VERSION } from "../version.js";
 import { runScan } from "./scan.js";
 
 export async function main() {
@@ -17,7 +18,7 @@ export async function main() {
 		.description(
 			"LIOP Sovereign Studio & Mesh Scanner (Universal MCP / LIOP Inspector)",
 		)
-		.version("1.0.0-alpha.0")
+		.version(STUDIO_VERSION)
 		.option("-p, --port <port>", "Port to bind local Studio server", "16000")
 		.option("--no-open", "Do not automatically open browser on launch")
 		.option(

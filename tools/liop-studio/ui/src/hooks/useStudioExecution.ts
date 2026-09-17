@@ -1,8 +1,21 @@
 // Copyright 2026 Nekzus Solutions and contributors
 // SPDX-License-Identifier: Apache-2.0
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { ExecutionMeta, TimelineStep } from "../types";
+
+export interface ExecutionHistoryEntry {
+	id: string;
+	tool: string;
+	mode: "logic" | "form";
+	timestamp: number;
+	durationMs?: number;
+	status: "success" | "error" | "cancelled";
+	result?: Record<string, unknown> | null;
+	meta?: ExecutionMeta | null;
+	errorAlert?: { title: string; desc: string } | null;
+	timeline: TimelineStep[];
+}
 
 const INITIAL_TIMELINE: TimelineStep[] = [
 	{
@@ -61,6 +74,11 @@ export function useStudioExecution() {
 		desc: string;
 	} | null>(null);
 	const [timeline, setTimeline] = useState<TimelineStep[]>(INITIAL_TIMELINE);
+	const [executionHistory, setExecutionHistory] = useState<
+		ExecutionHistoryEntry[]
+	>([]);
+
+	const abortControllerRef = useRef<AbortController | null>(null);
 
 	const updateTimelineStep = useCallback(
 		(
@@ -101,17 +119,34 @@ export function useStudioExecution() {
 		[],
 	);
 
+	const cancelExecution = useCallback(() => {
+		if (abortControllerRef.current) {
+			abortControllerRef.current.abort();
+			abortControllerRef.current = null;
+		}
+	}, []);
+
 	const handleExecute = useCallback(
 		async (params: ExecuteParams) => {
 			const { targetTool, executionMode, code, formArgs, targetType } = params;
 			if (!targetTool || isRunning) return;
+
+			// Abort any prior in-flight execution
+			if (abortControllerRef.current) {
+				abortControllerRef.current.abort();
+			}
+			const controller = new AbortController();
+			abortControllerRef.current = controller;
 
 			setIsRunning(true);
 			setResult(null);
 			setMeta(null);
 			setErrorAlert(null);
 
-			setTimeline([
+			const executionStartTime = Date.now();
+			const executionId = `exec-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+
+			const initialRunTimeline: TimelineStep[] = [
 				{
 					phase: "bootstrap",
 					label: "Channel Bootstrap",
@@ -148,7 +183,13 @@ export function useStudioExecution() {
 					detail: "Cryptographic proof validation...",
 					status: "pending",
 				},
-			]);
+			];
+			setTimeline(initialRunTimeline);
+
+			let finalResult: Record<string, unknown> | null = null;
+			let finalMeta: ExecutionMeta | null = null;
+			let finalError: { title: string; desc: string } | null = null;
+			let outcomeStatus: "success" | "error" | "cancelled" = "success";
 
 			try {
 				const reqBody =
@@ -160,6 +201,7 @@ export function useStudioExecution() {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
 					body: JSON.stringify(reqBody),
+					signal: controller.signal,
 				});
 
 				if (!response.ok) {
@@ -198,17 +240,23 @@ export function useStudioExecution() {
 										event.durationMs,
 									);
 								} else if (event.type === "result") {
-									setResult(event.payload);
-									setMeta(event.meta || null);
+									finalResult = event.payload;
+									finalMeta = event.meta || null;
+									outcomeStatus = "success";
+									setResult(finalResult);
+									setMeta(finalMeta);
 									setIsRunning(false);
 								} else if (event.type === "error") {
-									setErrorAlert({
+									finalError = {
 										title: event.payload.title || "Execution Error",
 										desc:
 											event.payload.desc ||
 											"A sandbox failure occurred on origin node",
-									});
-									setMeta(event.meta || null);
+									};
+									finalMeta = event.meta || null;
+									outcomeStatus = "error";
+									setErrorAlert(finalError);
+									setMeta(finalMeta);
 									setIsRunning(false);
 								}
 							} catch (e) {
@@ -218,23 +266,84 @@ export function useStudioExecution() {
 					}
 				}
 			} catch (err: unknown) {
-				const errMsg = err instanceof Error ? err.message : String(err);
-				setErrorAlert({
-					title: "Connection Error",
-					desc: errMsg || "Failed to communicate with Playground Gateway",
-				});
+				const isAbort =
+					controller.signal.aborted ||
+					(err instanceof Error && err.name === "AbortError");
+
+				if (isAbort) {
+					outcomeStatus = "cancelled";
+					finalError = {
+						title: "Execution Cancelled",
+						desc: "The in-flight origin execution was terminated by user request.",
+					};
+					setErrorAlert(finalError);
+					setTimeline((prev) =>
+						prev.map((step) =>
+							step.status === "running"
+								? {
+										...step,
+										status: "failed",
+										detail: "Cancelled by user abort",
+									}
+								: step,
+						),
+					);
+				} else {
+					outcomeStatus = "error";
+					const errMsg = err instanceof Error ? err.message : String(err);
+					finalError = {
+						title: "Connection Error",
+						desc: errMsg || "Failed to communicate with Studio Gateway",
+					};
+					setErrorAlert(finalError);
+					setTimeline((prev) =>
+						prev.map((step) =>
+							step.status === "running"
+								? {
+										...step,
+										status: "failed",
+										detail: "Connection interrupted",
+									}
+								: step,
+						),
+					);
+				}
 				setIsRunning(false);
-				setTimeline((prev) =>
-					prev.map((step) =>
-						step.status === "running"
-							? { ...step, status: "failed", detail: "Connection interrupted" }
-							: step,
-					),
-				);
+			} finally {
+				abortControllerRef.current = null;
+				// Record entry in session history (capped to last 20 executions)
+				setExecutionHistory((prev) => [
+					{
+						id: executionId,
+						tool: targetTool,
+						mode: executionMode,
+						timestamp: executionStartTime,
+						durationMs: Date.now() - executionStartTime,
+						status: outcomeStatus,
+						result: finalResult,
+						meta: finalMeta,
+						errorAlert: finalError,
+						timeline: initialRunTimeline,
+					},
+					...prev.slice(0, 19),
+				]);
 			}
 		},
 		[isRunning, updateTimelineStep],
 	);
+
+	const selectHistoryEntry = useCallback((entry: ExecutionHistoryEntry) => {
+		setResult(entry.result || null);
+		setMeta(entry.meta || null);
+		setErrorAlert(entry.errorAlert || null);
+		if (entry.timeline && entry.timeline.length > 0) {
+			setTimeline(entry.timeline);
+		}
+	}, []);
+
+	const clearHistory = useCallback(() => {
+		setExecutionHistory([]);
+	}, []);
 
 	const resetExecution = useCallback(() => {
 		setResult(null);
@@ -250,7 +359,11 @@ export function useStudioExecution() {
 		errorAlert,
 		setErrorAlert,
 		timeline,
+		executionHistory,
+		selectHistoryEntry,
+		clearHistory,
 		handleExecute,
+		cancelExecution,
 		resetExecution,
 		updateTimelineStep,
 	};

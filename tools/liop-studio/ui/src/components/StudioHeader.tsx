@@ -69,6 +69,8 @@ interface StudioHeaderProps {
 	isScanning: boolean;
 	secondsAgo: number;
 	theme: "obsidian" | "slate";
+	version?: string;
+	activeTiersCount?: number;
 	onThemeChange: (theme: "obsidian" | "slate") => void;
 	onRescan: () => void;
 }
@@ -80,6 +82,8 @@ export function StudioHeader({
 	isScanning,
 	secondsAgo,
 	theme,
+	version,
+	activeTiersCount,
 	onThemeChange,
 	onRescan,
 }: StudioHeaderProps) {
@@ -94,7 +98,7 @@ export function StudioHeader({
 							<h1 className="text-base font-bold tracking-tight text-white flex items-center gap-2">
 								<span>LIOP Studio</span>
 								<span className="text-[10px] font-mono font-medium px-1.5 py-0.2 text-cyan-300 border border-cyan-500/30 rounded bg-cyan-500/10">
-									v1.0.0-alpha.0
+									{version ? `v${version}` : "v1.0.0-alpha.5"}
 								</span>
 							</h1>
 							<p className="text-[10px] text-zinc-400 -mt-0.5 hidden sm:block">
@@ -130,9 +134,11 @@ export function StudioHeader({
 									? "Scanning Mesh Nodes..."
 									: "Topology Offline"}
 						</span>
-						<span className="text-cyan-400 font-mono text-[10px] hidden sm:inline">
-							(3 Tiers)
-						</span>
+						{activeTiersCount !== undefined && activeTiersCount > 0 && (
+							<span className="text-cyan-400 font-mono text-[10px] hidden sm:inline">
+								({activeTiersCount} {activeTiersCount === 1 ? "Tier" : "Tiers"})
+							</span>
+						)}
 						<span className="text-zinc-400 font-mono text-[10px] border-l border-white/15 pl-1.5 hidden md:inline">
 							{secondsAgo === 0 ? "live" : `${secondsAgo}s ago`}
 						</span>

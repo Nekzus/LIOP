@@ -123,3 +123,12 @@ export interface CanonicalTemplate {
 	description: string;
 	code: string;
 }
+
+export interface SessionTelemetry {
+	sessionId: string;
+	totalInputTokens: number;
+	totalOutputTokens: number;
+	totalOperations: number;
+	sessionUptimeMs: number;
+	estimatorName: string;
+}

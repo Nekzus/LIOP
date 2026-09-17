@@ -141,4 +141,27 @@ describe("LiopClient", () => {
 		expect(readOp?.estimatedOutputTokens).toBeGreaterThan(0);
 		expect(readOp?.durationMs).toBeGreaterThanOrEqual(0);
 	});
+
+	it("should provide safe public mesh introspection getters", async () => {
+		const client = new LiopClient();
+
+		// Pre-connect: getters return safe defaults
+		expect(client.peerId).toBeNull();
+		expect(client.isMeshActive).toBe(false);
+		expect(client.connectionCount).toBe(0);
+
+		// Connect dynamic mesh
+		await client.connect();
+
+		// Post-connect: getters return active state
+		expect(client.peerId).toBeDefined();
+		expect(typeof client.peerId).toBe("string");
+		expect(client.peerId?.length).toBeGreaterThan(0);
+		expect(client.isMeshActive).toBe(true);
+		expect(client.connectionCount).toBeGreaterThanOrEqual(0);
+
+		// Post-close: isMeshActive reflects stopped state
+		await client.close();
+		expect(client.isMeshActive).toBe(false);
+	});
 });

@@ -71,12 +71,41 @@ export const sanitizeUrl = validateHttpTarget;
 
 /**
  * Validates Host headers to prevent DNS Rebinding attacks on local ports.
+ * Supports IPv4, localhost and IPv6 loopback ([::1] / ::1).
  */
 export function validateHostHeader(
 	host: string | undefined,
-	allowedHosts: string[] = ["localhost", "127.0.0.1", "0.0.0.0"],
+	allowedHosts: string[] = [
+		"localhost",
+		"127.0.0.1",
+		"0.0.0.0",
+		"::1",
+		"[::1]",
+	],
 ): boolean {
 	if (!host) return false;
-	const hostname = host.split(":")[0].toLowerCase();
-	return allowedHosts.includes(hostname);
+	const trimmed = host.trim();
+	let hostname: string;
+	if (trimmed.startsWith("[")) {
+		const closingIndex = trimmed.indexOf("]");
+		hostname =
+			closingIndex !== -1 ? trimmed.slice(0, closingIndex + 1) : trimmed;
+	} else if (
+		trimmed.includes(":") &&
+		trimmed.indexOf(":") !== trimmed.lastIndexOf(":")
+	) {
+		// Multiple colons without brackets indicate raw IPv6 address (e.g. ::1)
+		hostname = trimmed;
+	} else {
+		hostname = trimmed.split(":")[0];
+	}
+	hostname = hostname.toLowerCase();
+	return allowedHosts.some((allowed) => {
+		const normAllowed = allowed.toLowerCase();
+		return (
+			normAllowed === hostname ||
+			(hostname === "[::1]" && normAllowed === "::1") ||
+			(hostname === "::1" && normAllowed === "[::1]")
+		);
+	});
 }
