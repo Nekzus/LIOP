@@ -2,6 +2,13 @@
 
 All notable changes to @nekzus/liop-studio will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.0.0-alpha.6](https://github.com/Nekzus/LIOP/compare/studio-v1.0.0-alpha.5...studio-v1.0.0-alpha.6) (2026-09-15)
+
+
+### Features
+
+* **rpc:** add granular TLS options and warning suppression for local and studio targets ([4c606f8](https://github.com/Nekzus/LIOP/commit/4c606f86db522aac94dcf2b5a3e96fab094c5ce7))
+
 # [1.0.0-alpha.5](https://github.com/Nekzus/LIOP/compare/studio-v1.0.0-alpha.4...studio-v1.0.0-alpha.5) (2026-09-15)
 
 
