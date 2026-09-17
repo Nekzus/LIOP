@@ -23,9 +23,9 @@ overrides:
   uint8arrays: 6.1.1
   vitest: 4.1.8
   '@vitest/coverage-v8': 4.1.8
-  piscina: 5.3.1
+  piscina: 5.3.2
   ws: ^8.21.0
-  hono: 4.13.5
+  hono: 4.13.8
   fast-uri: ^3.1.5
   brace-expansion: ^1.1.18
   ip-address: ^10.3.1
@@ -134,8 +134,8 @@ importers:
         specifier: 0.6.5
         version: 0.6.5
       piscina:
-        specifier: 5.3.1
-        version: 5.3.1
+        specifier: 5.3.2
+        version: 5.3.2
       zod:
         specifier: 3.25.76
         version: 3.25.76
@@ -166,7 +166,7 @@ importers:
         version: 0.8.1
       '@hono/node-server':
         specifier: '>=1.19.15'
-        version: 2.1.1(hono@4.13.5)
+        version: 2.1.1(hono@4.13.8)
       '@libp2p/autonat':
         specifier: ^3.0.27
         version: 3.0.27
@@ -219,8 +219,8 @@ importers:
         specifier: 8.3.5
         version: 8.3.5
       hono:
-        specifier: 4.13.5
-        version: 4.13.5
+        specifier: 4.13.8
+        version: 4.13.8
       it-pipe:
         specifier: 3.0.1
         version: 3.0.1
@@ -243,8 +243,8 @@ importers:
         specifier: 0.1.4
         version: 0.1.4
       piscina:
-        specifier: 5.3.1
-        version: 5.3.1
+        specifier: 5.3.2
+        version: 5.3.2
       uint8arrays:
         specifier: 6.1.1
         version: 6.1.1
@@ -443,7 +443,7 @@ importers:
     dependencies:
       '@hono/node-server':
         specifier: '>=1.19.15'
-        version: 2.1.1(hono@4.13.5)
+        version: 2.1.1(hono@4.13.8)
       '@nekzus/liop':
         specifier: workspace:*
         version: link:../../sdks/typescript
@@ -451,8 +451,8 @@ importers:
         specifier: ^13.1.0
         version: 13.1.0
       hono:
-        specifier: 4.13.5
-        version: 4.13.5
+        specifier: 4.13.8
+        version: 4.13.8
       picocolors:
         specifier: ^1.1.1
         version: 1.1.1
@@ -955,7 +955,7 @@ packages:
     resolution: {integrity: sha512-ELuehkj5VCBdgEw9zs+ivkKwyzzUCSQuE96YmiPvn1ECBoZCczbFXJLeEGMTYjphP6gydh4pHMqEYPVMYUVgQg==}
     engines: {node: '>=20'}
     peerDependencies:
-      hono: 4.13.5
+      hono: 4.13.8
 
   '@inquirer/external-editor@1.0.3':
     resolution: {integrity: sha512-RWbSrDiYmO4LbejWY7ttpxczuwQyZLBUyygsA9Nsv95hpzUWwnNTVQmAq3xuh7vNwCp07UTmE5i11XAEExx4RA==}
@@ -3090,8 +3090,8 @@ packages:
     resolution: {integrity: sha512-eSmmWE5bZTK2Nou4g0AI3zZ9rswp7GRKoKXS1BLUkvPviOqs4YTN1djQIqrXy9k5gEtdLPy86JjRwsNM9tnDcA==}
     engines: {node: '>=0.10.0'}
 
-  hono@4.13.5:
-    resolution: {integrity: sha512-O6+/eCYRkzzzy0rPWwKLiGBR1nFuUPZynnwjxN1MBA62NNqbT0wQEzQyK2gSO5yDIDB336sXQleAhOHrzlYyKw==}
+  hono@4.13.8:
+    resolution: {integrity: sha512-/Gng7NfoykZl2pjukW5Z6+8Yxm3BPRf86GTbQnt0SbySkvax4fyL4H3HhY1cCpBGmiW9XDRFzRV+CXK2W8QudQ==}
     engines: {node: '>=16.9.0'}
 
   hook-std@4.0.0:
@@ -3979,8 +3979,8 @@ packages:
     resolution: {integrity: sha512-TfySrs/5nm8fQJDcBDuUng3VOUKsd7S+zqvbOTiGXHfxX4wK31ard+hoNuvkicM/2YFzlpDgABOevKSsB4G/FA==}
     engines: {node: '>= 6'}
 
-  piscina@5.3.1:
-    resolution: {integrity: sha512-LYbVUyHb5CzavqNgs64Uv+gHkrCdEt73kfPazdsJnndDSJiaEDIzMUIAHbtV3plzaoBUphZfXZCQKF01LHMgXw==}
+  piscina@5.3.2:
+    resolution: {integrity: sha512-vv7l/mM7B9WgrhDaudIqv1x6v4LOBRYYmpWGdWushhpbCmVHp11sUB2v4hj1CAeTGXVxuZFz6xOU1RalAiPKfQ==}
     engines: {node: '>=20.x'}
 
   pkce-challenge@5.0.1:
@@ -5335,9 +5335,9 @@ snapshots:
       protobufjs: 7.6.5
       yargs: 17.7.2
 
-  '@hono/node-server@2.1.1(hono@4.13.5)':
+  '@hono/node-server@2.1.1(hono@4.13.8)':
     dependencies:
-      hono: 4.13.5
+      hono: 4.13.8
 
   '@inquirer/external-editor@1.0.3(@types/node@26.4.0)':
     dependencies:
@@ -5729,7 +5729,7 @@ snapshots:
 
   '@modelcontextprotocol/sdk@1.30.0(supports-color@10.2.2)(zod@4.6.5)':
     dependencies:
-      '@hono/node-server': 2.1.1(hono@4.13.5)
+      '@hono/node-server': 2.1.1(hono@4.13.8)
       ajv: 8.18.0
       ajv-formats: 3.0.1(ajv@8.18.0)
       content-type: 1.0.5
@@ -5739,7 +5739,7 @@ snapshots:
       eventsource-parser: 3.0.6
       express: 5.2.1(supports-color@10.2.2)
       express-rate-limit: 8.3.1(express@5.2.1(supports-color@10.2.2))
-      hono: 4.13.5
+      hono: 4.13.8
       jose: 6.2.12
       json-schema-typed: 8.0.2
       pkce-challenge: 5.0.1
@@ -7717,7 +7717,7 @@ snapshots:
     dependencies:
       parse-passwd: 1.0.0
 
-  hono@4.13.5: {}
+  hono@4.13.8: {}
 
   hook-std@4.0.0: {}
 
@@ -8511,7 +8511,7 @@ snapshots:
 
   pirates@4.0.7: {}
 
-  piscina@5.3.1:
+  piscina@5.3.2:
     optionalDependencies:
       '@napi-rs/nice': 1.1.1
 

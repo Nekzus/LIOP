@@ -71,7 +71,7 @@
     "@hono/node-server": "2.1.1",
     "@nekzus/liop": "workspace:*",
     "commander": "^13.1.0",
-    "hono": "4.13.5",
+    "hono": "4.13.8",
     "picocolors": "^1.1.1",
     "zod": "4.6.5"
   },
