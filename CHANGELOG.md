@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.4.0-alpha.12](https://github.com/Nekzus/LIOP/compare/v2.4.0-alpha.11...v2.4.0-alpha.12) (2026-09-17)
+
+
+### Features
+
+* **rpc:** add granular TLS options and warning suppression for local and studio targets ([4c606f8](https://github.com/Nekzus/LIOP/commit/4c606f86db522aac94dcf2b5a3e96fab094c5ce7))
+* **sdk:** public mesh introspection getters and unsafe cast elimination ([0c66cb9](https://github.com/Nekzus/LIOP/commit/0c66cb9f8639cde7b5cceae84ec7baef41e78e20))
+* **studio:** comprehensive audit, codemirror 6 editor, and public mesh getters ([b34a97a](https://github.com/Nekzus/LIOP/commit/b34a97a1d0ff5b5d1accd52da7eedcc17aae36aa))
+* **studio:** comprehensive audit, codemirror 6 editor, session telemetry and persistent history ([ef9dda0](https://github.com/Nekzus/LIOP/commit/ef9dda015078ebc203caca8924ef6cc784ff1c40))
+
 # [2.4.0-alpha.11](https://github.com/Nekzus/LIOP/compare/v2.4.0-alpha.10...v2.4.0-alpha.11) (2026-09-15)
 
 
