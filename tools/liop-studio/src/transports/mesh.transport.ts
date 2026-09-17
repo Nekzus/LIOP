@@ -81,15 +81,7 @@ export class MeshTransport implements StudioTransport {
 				await this.connect();
 			}
 
-			const clientAny = this.client as unknown as {
-				meshNode?: {
-					getPeerId?: () => { toString: () => string };
-					node?: { getConnections?: () => unknown[] };
-				};
-			};
-			const peerId =
-				clientAny.meshNode?.getPeerId?.()?.toString() || "UnknownPeer";
-			const _connections = clientAny.meshNode?.node?.getConnections?.() || [];
+			const peerId = this.client.peerId ?? "UnknownPeer";
 			const latencyMs = Math.max(1, Math.round(performance.now() - tStart));
 
 			const discovery = NetworkDiscoveryEngine.getInstance();

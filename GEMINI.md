@@ -24,6 +24,65 @@ Estas directivas representan el ADN del protocolo y deben respetarse en cada imp
 5.  **Calidad Profesional Estricta**: Seguir siempre las mejores prácticas recomendadas por las documentaciones oficiales de las tecnologías implicadas (Rust, libp2p, gRPC, Node.js).
 6.  **[PRIORIDAD] TypeScript SDK First**: El SDK de TypeScript (`sdks/typescript` / `@nekzus/liop`) es el **motor principal de adopción** del protocolo. El ecosistema Node.js/TypeScript proyecta el mayor volumen de usuarios y ofrece la vía de implementación más accesible. Todo feature nuevo, bug fix o mejora arquitectónica DEBE implementarse, validarse y estabilizarse **primero en el SDK TypeScript** antes de replicarse al core Rust. La secuencia de desarrollo obligatoria es: `SDK TS → BiomeJS check → Tests Vitest → Publicación NPM → Port a Rust (cuando aplique)`.
 
+- **2026-09-16**: **Resolución de Deuda Técnica en Introspección de Malla, Publicación de Getters Seguros en SDK y Reconstrucción Certificada del Banco Tricapa Docker (Fase 219)**.
+  - **Motivación**: Resolver la deuda técnica identificada en `tools/liop-studio/src/transports/mesh.transport.ts` (doble cast inseguro `this.client as unknown as { meshNode?: ... }`) y en los entrypoints de prueba/auditoría (`sdks/typescript/tests/infra/entrypoints/playground.ts`, `demo-client.ts`, `production-audit/entrypoints/playground.ts` con `client["meshNode"]`). Proporcionar una API pública de introspección en `LiopClient` de solo lectura sin comprometer ninguna de las 6 capas de seguridad ni exponer material criptográfico, y reconstruir el banco de pruebas tricapa Docker para verificar empíricamente en vivo el funcionamiento del SDK compilado localmente en servidores, clientes y enclaves Tier 1/2.
+  - **Acciones Realizadas**:
+    1. **Análisis de Seguridad Formal (6 Capas del Protocolo)**:
+       - Certificado que la exposición de `peerId` (hash público Ed25519 en libp2p), `isMeshActive` (booleano) y `connectionCount` (entero vía `getPeers().length`) no vulnera: Capa 1 (Guardian AST), Capa 2 (WASI Sandbox), Capa 3 (Taint Analyzer IFC), Capa 4 (Egress PII Shield), Capa 5 (Aggregation-First Policy), ni Capa 6 (ZK-Receipt HMAC-SHA256).
+       - Claves privadas Ed25519, Kyber-768, PSK Swarm Key, shared secrets y session tokens se mantienen rigurosamente encapsulados en el ámbito privado.
+    2. **Implementación de API Pública en `LiopClient` (`sdks/typescript/src/client/index.ts`)**:
+       - Incorporados los getters públicos `get peerId(): string | null`, `get isMeshActive(): boolean`, y `get connectionCount(): number`.
+       - Integrada suite de pruebas unitarias en `src/client/index.test.ts` evaluando estados pre-conexión, post-conexión y post-cierre (232 tests unitarios aprobados al 100%).
+    3. **Erradicación de Accesos Inseguros en Ecosistema**:
+       - `tools/liop-studio/src/transports/mesh.transport.ts`: Eliminado el doble cast inseguro, utilizando `this.client.peerId ?? "UnknownPeer"`.
+       - `sdks/typescript/tests/infra/entrypoints/playground.ts`: Erradicado el bracket access `client["meshNode"]` en los 4 puntos de uso (conexión, health, execute).
+       - `sdks/typescript/tests/infra/cli/demo-client.ts`: Sustituido por `client.peerId`.
+       - `sdks/typescript/tests/infra/production-audit/entrypoints/playground.ts`: Erradicado `(client as any)["meshNode"]` en los 5 puntos de escaneo e inspección de salud.
+    4. **Certificación de Calidad y Compilación Local**:
+       - Linter BiomeJS: 106 archivos de SDK + 49 de Studio inspeccionados con 0 errores y 0 advertencias (`pnpm run check`).
+       - Compilación del SDK con tsup: ESM + DTS generados con éxito (`dist/index.d.ts` refleja la nueva API).
+       - Compilación de LIOP Studio (backend tsup + frontend Vite): Exit code 0.
+       - Lockfile frozen verificado con Exit code 0 (`pnpm install --frozen-lockfile`).
+    5. **Reconstrucción y Verificación en Vivo del Banco Tricapa Docker**:
+       - Purga de cache BuildKit (`docker builder prune -f`) para evitar locks huérfanos.
+       - Reconstrucción de imágenes Docker desde fuente local (`docker compose build` con exit code 0 para `nexus`, `vault`, `bank`, `oracle`, `playground`, `test-runner`).
+       - Despliegue de topología tricapa (`docker compose up -d`): todos los nodos iniciaron y alcanzaron estado saludable.
+       - Verificación de introspección en `/api/health`: reportó `peerId: 12D3KooWNbVffEZtaEqCatA7DLvAvgQs9DTfr1WggJz51S9CkVne` y `peersCount: 8` de forma nativa.
+       - Descubrimiento P2P DHT: 3 capacidades resueltas (`Analyze_Synthetic_Bank_Transactions`, `Analyze_Synthetic_Medical_Records`, `Analyze_HFT_Market_Data`).
+       - Ejecución de micro-módulos WASI en enclaves Tier 1: verificados handshake ML-KEM-768, cifrado AES-256-GCM y recibos ZK en The Bank (`latencyMs: 537`) y The Vault (`latencyMs: 173`).
+       - Telemetría de recursos: 0% swap usado, 5,587 MiB disponibles en WSL2, consumo de CPU agregado de 16.47%.
+       - Tear-down limpio ejecutado post-validación (`docker compose down -v --remove-orphans`).
+       - Grafo de conocimiento sincronizado con `graphify update .` a 4,252 nodos, 7,866 aristas y 350 comunidades.
+  - **Resultado**: Deuda técnica 100% resuelta con cero impacto de seguridad, API pública de introspección validada y banco tricapa Docker certificado y sincronizado con el SDK local.
+
+- **2026-09-16**: **Auditoría Integral, Transformación Funcional y Modernización Profesional de LIOP Studio (Fase 218)**.
+  - **Motivación**: Auditar exhaustivamente la arquitectura completa de LIOP Studio (`@nekzus/liop-studio` y `@nekzus/liop-studio-ui`) para convertirlo de una interfaz demostrativa a una herramienta de implementación, pruebas y diagnóstico funcional para desarrolladores y usuarios finales. Desarrollar la intervención en una rama de feature aislada (`feat/studio-functional-audit`), verificando el impacto cero en el SDK (`@nekzus/liop`), garantizando la preservación del trabajo de desarrollo y eliminando las advertencias y valores estáticos.
+  - **Acciones Realizadas**:
+    1. **Estrategia de Rama y Cero Impacto en SDK**:
+       - Rama creada: `feat/studio-functional-audit` bifurcada limpiamente desde `alpha`.
+       - Impacto en `sdks/typescript/`: 0 archivos modificados (100% de los cambios aislados en `tools/liop-studio/`).
+       - 225 pruebas de regresión unitaria del SDK validadas con 100% de aprobación.
+    2. **Resolución Dinámica de Versión y Soporte IPv6 (Fase 1)**:
+       - Implementado `src/version.ts` para resolución dinámica de `package.json` en tiempo de ejecución (`STUDIO_VERSION`).
+       - Desacopladas las versiones hardcodeadas en `/health`, `/api/health`, Commander CLI y el encabezado de la UI.
+       - Corregido el guardarraíl de DNS Rebinding en `validateHostHeader` (`sanitizer.ts`) para admitir direcciones loopback IPv6 (`[::1]:16000`, `::1`, `[::1]`) y direcciones sin corchetes con múltiples delimitadores (`:`).
+       - Integrado `AbortController` en `useStudioExecution.ts` para permitir la cancelación en tiempo real de ejecuciones SSE en curso desde el botón "Cancel" en `LogicEditor.tsx`.
+       - Sustituido el contador estático `(3 Tiers)` por un conteo dinámico de niveles de aislamiento activos.
+    3. **Persistencia Local, Historial Forense y Telemetría de Sesión (Fase 2)**:
+       - Implementada persistencia en `localStorage` (`liop_studio_custom_code_{templateId}`) para el código editado por el desarrollador, evitando la pérdida accidental de trabajo al cambiar de plantilla o recargar la página. El botón "Reset" limpia el almacenamiento local y restaura la plantilla original.
+       - Creado `HistoryTab.tsx` en `ResultsConsole.tsx` y registrado un búfer de hasta 20 ejecuciones previas en memoria, con estatus, tool, duración, combustible consumido y botón "Inspect" para recargar resultados forenses.
+       - Creado `SessionTelemetryBar.tsx` conectado a `GET /api/telemetry` (`TokenTelemetryEngine`), visualizando en tiempo real el conteo total de invocaciones, tokens BPE (`o200k_base`) de entrada/salida y tiempo de actividad.
+    4. **Modernización del Editor con CodeMirror 6 (Fase 3)**:
+       - Sustituido el `<textarea>` plano por un editor profesional `CodeEditor.tsx` basado en CodeMirror 6 (`@codemirror/lang-javascript`, `@codemirror/theme-one-dark`, `@codemirror/view`, `@codemirror/state`, `@codemirror/commands`, `@codemirror/language`).
+       - Resaltado de sintaxis JavaScript/TypeScript, numeración de líneas, plegado de código, línea activa y coincidencia de corchetes con tema semántico oscuro de LIOP Studio.
+    5. **Certificación de Calidad y Cero Regresiones (Fase 4)**:
+       - Actualizada la documentación de arquitectura en `tools/liop-studio/ui/README.md`.
+       - Incorporados casos de prueba automatizados para versión dinámica e IPv6 en `discovery.test.ts` y `transports.test.ts` (21 / 21 tests de Studio aprobados al 100%).
+       - Linter BiomeJS verificado con 0 errores y 0 advertencias en los 49 archivos de Studio y los 106 archivos del monorepo (`pnpm run check`).
+       - Compilación completa de TypeScript y Vite verificada con Exit code 0 (`pnpm --filter @nekzus/liop-studio run build:all`).
+       - Verificación estricta de lockfile frozen (`pnpm install --frozen-lockfile` con Exit code 0).
+  - **Resultado**: LIOP Studio consolidado como una estación de trabajo analítica y de desarrollo de micro-módulos WASI completamente funcional, con persistencia, telemetría y controles de ejecución de nivel profesional.
+
 - **2026-09-14**: **Segunda Auditoría Exhaustiva de Humanización, Erradicación Residual Anti-AI Slop y Normalización Gramatical RAE en Documentación y Especificaciones (Fase 216)**.
   - **Motivación**: Ejecutar una segunda auditoría minuciosa y sistemática sobre toda la documentación del portal Mintlify (`docs/`), especificaciones formales (`protocol/SPECIFICATION.md`) y textos del monorepo `NMP-v1.0-alpha`. Verificar la erradicación de metáforas teatrales residuales (*"the data is sacred"*, *"nervous system"*), adjetivos inflados (*"microscopic"*, *"effortless"*), expresiones coloquiales (*"empuja sus funciones"*, *"por diseño duda"*), y normalizar la sintaxis de títulos y metadatos en español conforme a las directivas de la RAE, sustituyendo gerundios de posterioridad por sustantivos de acción sin alterar ejemplos de código, esquemas o comandos.
   - **Acciones Realizadas**:

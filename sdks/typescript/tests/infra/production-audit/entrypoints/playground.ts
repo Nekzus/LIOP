@@ -265,8 +265,7 @@ let allDiscoveredTools: EnrichedTool[] = [];
 
 async function scanSingleNode(node: TargetNodeDef): Promise<ScannedNodeInfo> {
 	if (node.id === "playground") {
-		// biome-ignore lint/suspicious/noExplicitAny: internal mesh inspection
-		const peerId = (client as any)["meshNode"]?.getPeerId()?.toString() || "12D3KooWPlaygroundClient";
+		const peerId = client.peerId ?? "12D3KooWPlaygroundClient";
 		return {
 			id: node.id,
 			name: node.name,
@@ -481,8 +480,7 @@ const connectClient = async () => {
 			},
 		});
 		isConnected = true;
-		// biome-ignore lint/suspicious/noExplicitAny: internal peerId inspection
-		const peerId = (client as any)["meshNode"]?.getPeerId()?.toString();
+		const peerId = client.peerId;
 		console.log(`[Playground-Prod] LiopClient connected successfully. PeerID: ${peerId}`);
 
 		await scanMeshTopology();
@@ -508,20 +506,15 @@ app.get("/health", async (c) => {
 });
 
 app.get("/api/health", async (c) => {
-	// biome-ignore lint/suspicious/noExplicitAny: internal inspection
-	const peerId = (client as any)["meshNode"]?.getPeerId()?.toString() || "12D3KooWPlaygroundClient";
-	// biome-ignore lint/suspicious/noExplicitAny: internal inspection
-	const connections = (client as any)["meshNode"]?.["node"]?.getConnections() || [];
-	const uniquePeers = new Set(
-		// biome-ignore lint/suspicious/noExplicitAny: peer id extraction
-		connections.map((conn: any) => conn.remotePeer?.toString()).filter(Boolean),
-	).size;
+	const peerId = client.peerId ?? "12D3KooWPlaygroundClient";
+	const connectionsCount = client.connectionCount;
+	const uniquePeers = connectionsCount;
 
 	return c.json({
 		status: isConnected ? "healthy" : "connecting",
 		peerId,
 		peersCount: uniquePeers,
-		connectionsCount: connections.length,
+		connectionsCount,
 		role: "client",
 		address: "172.21.0.200:3000",
 		version: "2.5.0",
@@ -607,8 +600,7 @@ app.post("/api/execute", async (c) => {
 
 		try {
 			// Step 1: Bootstrap Phase
-			// biome-ignore lint/suspicious/noExplicitAny: internal inspection
-			const peerId = (client as any)["meshNode"]?.getPeerId()?.toString() || "12D3KooWPlaygroundClient";
+			const peerId = client.peerId ?? "12D3KooWPlaygroundClient";
 			await sendStep("bootstrap", `Active mesh — PeerID: ${peerId.slice(-8)}`, "success", 0);
 
 			// Step 2: Discovery Phase

@@ -882,6 +882,28 @@ export class LiopClient {
 		return result;
 	}
 
+	/**
+	 * Returns the local PeerId string if the mesh node is active, null otherwise.
+	 * PeerIds are public identifiers by libp2p protocol design (Ed25519 public key hash).
+	 */
+	public get peerId(): string | null {
+		return this.meshNode?.getPeerId() ?? null;
+	}
+
+	/**
+	 * Returns true if the mesh node is initialized and running.
+	 */
+	public get isMeshActive(): boolean {
+		return this.meshNode?.isStarted() ?? false;
+	}
+
+	/**
+	 * Returns the number of active P2P connections, or 0 if the mesh is inactive.
+	 */
+	public get connectionCount(): number {
+		return this.meshNode?.getPeers().length ?? 0;
+	}
+
 	public getServerInfo(): { name: string; version: string } | undefined {
 		return this.serverInfo;
 	}

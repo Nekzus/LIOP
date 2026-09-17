@@ -53,6 +53,32 @@ scrape_configs:
           node_role: "relay-backbone"
           tier: "tier3-backbone"
 
+      # Demo Testnet Targets (Active Tricapa Ports 13xxx)
+      - targets: ["host.docker.internal:13000"]
+        labels:
+          environment: "demo-testnet"
+          cluster: "tri-layer-mesh"
+          node_role: "nexus-seed"
+          tier: "tier3-backbone"
+      - targets: ["host.docker.internal:13014"]
+        labels:
+          environment: "demo-testnet"
+          cluster: "tri-layer-mesh"
+          node_role: "bank-enclave"
+          tier: "tier1-enclave"
+      - targets: ["host.docker.internal:13013"]
+        labels:
+          environment: "demo-testnet"
+          cluster: "tri-layer-mesh"
+          node_role: "vault-enclave"
+          tier: "tier1-enclave"
+      - targets: ["host.docker.internal:13015"]
+        labels:
+          environment: "demo-testnet"
+          cluster: "tri-layer-mesh"
+          node_role: "oracle-consortium"
+          tier: "tier2-consortium"
+
   - job_name: "prometheus"
     metrics_path: "/metrics"
     scrape_interval: 10s
