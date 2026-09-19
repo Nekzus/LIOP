@@ -2097,6 +2097,7 @@ if (!status.allowed) {
 - Sessions are isolated and evicted when idle to reduce long-lived attack surfaces.
 - Gateway/router components preserve full MCP JSON-RPC compatibility while maintaining mesh-native routing behavior.
 - The Border LIO Gateway caches RFC 6749 credentials in-memory with automatic refresh 30 seconds prior to expiration, eliminating transient 401 Unauthorized errors during high-frequency batch executions.
+- For semantic perimeter filtering, see [Gateway Interceptor](/typescript-sdk/gateway-interceptor).
 
 
 ---
