@@ -2,6 +2,13 @@
 
 All notable changes to @nekzus/liop-studio will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.0.0-alpha.8](https://github.com/Nekzus/LIOP/compare/studio-v1.0.0-alpha.7...studio-v1.0.0-alpha.8) (2026-09-19)
+
+
+### Features
+
+* **gateway:** implement perimeter admission hook with Jev validation (Phase 222) ([810047d](https://github.com/Nekzus/LIOP/commit/810047d1a9ed1ebbcb5b1f258976be27f251bcdb))
+
 # [1.0.0-alpha.7](https://github.com/Nekzus/LIOP/compare/studio-v1.0.0-alpha.6...studio-v1.0.0-alpha.7) (2026-09-17)
 
 
