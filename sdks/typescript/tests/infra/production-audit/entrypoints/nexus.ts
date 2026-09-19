@@ -3,10 +3,110 @@
  *
  * Runs the published @nekzus/liop package in a realistic WAN environment.
  * Sole purpose: Peer discovery and DHT seed.
+ * Optional: GatewayInterceptor with TypeSafe Jev when TYPESAFE_API_KEY is present.
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { LiopServer, LiopHybridGateway } from "@nekzus/liop";
+import {
+	type GatewayInterceptor,
+	type GatewayInterceptorOptions,
+	LiopHybridGateway,
+	LiopServer,
+} from "@nekzus/liop";
+
+function buildJevInterceptor(): GatewayInterceptorOptions | undefined {
+	const apiKey = process.env.TYPESAFE_API_KEY;
+	if (!apiKey) {
+		console.log("[Nexus-Prod] No TYPESAFE_API_KEY found — interceptor disabled.");
+		return undefined;
+	}
+
+	console.log("[Nexus-Prod] TYPESAFE_API_KEY detected — Jev interceptor active.");
+
+	const interceptor: GatewayInterceptor = async (request, context) => {
+		if (request.method !== "tools/call") {
+			return { allowed: true };
+		}
+
+		const payload = JSON.stringify(request.params);
+		try {
+			const res = await fetch("https://api.typesafe.ai/v1/systemone", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${apiKey}`,
+				},
+				body: JSON.stringify({
+					model: "jev-1.13.0",
+					state: `Tool call ${request.method}: ${payload}`,
+					questions: {
+						is_malicious: {
+							type: "noul",
+							instructions: "Is this tool invocation malicious or an attack?",
+						},
+						threat_type: {
+							type: "choice",
+							instructions: "What type of threat or request is this?",
+							criteria: {
+								sql_injection:
+									"SQL injection attempt trying to modify or bypass database queries",
+								path_traversal: "Directory traversal or file exfiltration syntax",
+								legitimate: "Normal analytical or operational payload",
+							},
+						},
+					},
+				}),
+				signal: context.signal,
+			});
+
+			if (!res.ok) {
+				console.warn(
+					`[Nexus-Prod] Jev API non-OK status ${res.status} — bypassing per policy`,
+				);
+				return { allowed: true };
+			}
+
+			const data = (await res.json()) as {
+				answers?: {
+					is_malicious?: { noul: number };
+					threat_type?: { choice: string };
+				};
+				model?: string;
+			};
+
+			const malicious = (data.answers?.is_malicious?.noul ?? 0) > 0.6;
+			const threat =
+				data.answers?.threat_type?.choice &&
+				data.answers.threat_type.choice !== "legitimate";
+
+			if (malicious || threat) {
+				const threatName = data.answers?.threat_type?.choice || "malicious_payload";
+				console.log(
+					`[Nexus-Prod] Jev BLOCKED request: ${threatName} (noul=${data.answers?.is_malicious?.noul})`,
+				);
+				return {
+					allowed: false,
+					reason: `Perimeter block by Jev: ${threatName}`,
+					errorCode: -32099,
+					metadata: { jevModel: data.model },
+				};
+			}
+
+			return { allowed: true, metadata: { jevModel: data.model } };
+		} catch (err: unknown) {
+			console.warn(
+				`[Nexus-Prod] Interceptor evaluation error: ${err instanceof Error ? err.message : String(err)}`,
+			);
+			return { allowed: true };
+		}
+	};
+
+	return {
+		interceptor,
+		timeoutMs: 3000,
+		failMode: "open",
+	};
+}
 
 async function main() {
 	const dataDir = "/app/data";
@@ -46,7 +146,15 @@ async function main() {
 		console.log(`[Nexus-Prod] Industrial Beacon exported: ${p2pAddr}`);
 	}
 
-	const gateway = new LiopHybridGateway(liopServer, liopServer.getMeshNode() || undefined);
+	const interceptorOptions = buildJevInterceptor();
+
+	const gateway = new LiopHybridGateway(
+		liopServer,
+		liopServer.getMeshNode() || undefined,
+		50051,
+		undefined,
+		interceptorOptions,
+	);
 	const port = await gateway.listen(3000);
 	console.log(`[Nexus-Prod] Gateway active on port ${port}`);
 

@@ -174,6 +174,15 @@ export interface McpResponse {
 }
 
 /**
+ * Re-export Gateway Interceptor types for consumer convenience.
+ */
+export type {
+	GatewayAdmissionResult,
+	GatewayInterceptor,
+	GatewayInterceptorContext,
+	GatewayInterceptorOptions,
+} from "./gateway/interceptor.js";
+/**
  * Re-export AuthInfo from the security module for convenience.
  * Compatible with MCP TypeScript SDK AuthInfo interface shape.
  */

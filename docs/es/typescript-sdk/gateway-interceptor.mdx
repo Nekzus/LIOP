@@ -1,0 +1,268 @@
+---
+title: "Interceptor de Gateway"
+description: "Gancho perimetral agnóstico para filtrado semántico de peticiones en LiopHybridGateway"
+---
+
+El `GatewayInterceptor` es un gancho de admisión perimetral ejecutado por `LiopHybridGateway` inmediatamente después de la autenticación de transporte y del límite de tasa por ventana deslizante, previo al despacho de la petición JSON-RPC.
+
+Proporciona un punto de extensión para incorporar filtros semánticos arbitrarios, clasificadores neuronales (como TypeSafe Jev o modelos ONNX) o motores de reglas deterministas sin añadir dependencias externas al núcleo del SDK de LIOP.
+
+<Frame caption="Posición del gancho de admisión perimetral en la canalización de LiopHybridGateway">
+  <img className="block dark:hidden" src="/images/animated-gateway-interceptor-light.svg" alt="Arquitectura del GatewayInterceptor (Modo Claro)" />
+  <img className="hidden dark:block" src="/images/animated-gateway-interceptor-dark.svg" alt="Arquitectura del GatewayInterceptor (Modo Oscuro)" />
+</Frame>
+
+## Orden de Ejecución en la Canalización
+
+El gancho de admisión se ejecuta en secuencia estricta:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    POST /mcp (HTTP/1.1 o HTTP/2)                │
+├─────────────────────────────────────────────────────────────────┤
+│  1. Verificación Bearer OAuth 2.1 (NIST SP 800-207)             │ → 401 si es inválido
+│  2. Límite de Tasa por Ventana Deslizante (OWASP API4:2023)     │ → 429 si se excede
+│  3. Análisis de Trama JSON-RPC                                  │ → 400 si está mal formada
+│  4. ★ GatewayInterceptor (Gancho de Admisión Perimetral)        │ → 403 si es rechazada
+│  5. Validación de Cabeceras SEP-2243                            │ → 400 si hay discrepancia
+│  6. LiopMcpRouter.dispatch() → RBAC → Enclaves / Malla P2P      │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+<Warning>
+  El interceptor se ejecuta **después** de la autenticación JWT y del límite de tasa. Este ordenamiento previene que tráfico no autenticado o saturaciones por inundación agoten cuotas de inferencia externas, presupuestos de API o ciclos de procesamiento.
+</Warning>
+
+## Configuración
+
+El gancho se configura mediante el quinto parámetro opcional de `LiopHybridGateway`:
+
+```typescript
+import {
+  LiopHybridGateway,
+  LiopServer,
+  type GatewayInterceptor,
+  type GatewayInterceptorOptions,
+} from "@nekzus/liop";
+
+const admissionHook: GatewayInterceptor = async (request, context) => {
+  if (request.method === "tools/call") {
+    // Lógica personalizada de evaluación
+    const isThreat = await evaluateRisk(request.params);
+    if (isThreat) {
+      return {
+        allowed: false,
+        reason: "Access denied by perimeter security policy",
+        errorCode: -32099,
+      };
+    }
+  }
+  return { allowed: true };
+};
+
+const server = new LiopServer({ name: "border-gateway", version: "1.0.0" });
+
+const gateway = new LiopHybridGateway(
+  server,
+  null,
+  50051,
+  undefined, // RateLimiterOptions (emplea valores por defecto)
+  {
+    interceptor: admissionHook,
+    timeoutMs: 2500,    // Límite máximo antes de cancelación forzada
+    failMode: "closed", // Rechaza si el interceptor falla o supera el tiempo
+  },
+);
+
+await gateway.listen(3000);
+```
+
+## Referencia de Opciones
+
+| Opción | Tipo | Valor Predeterminado | Descripción |
+|:---|:---|:---|:---|
+| `interceptor` | `GatewayInterceptor \| undefined` | `undefined` | Función de admisión. Cuando se omite, las peticiones pasan directamente al enrutador sin coste de CPU. |
+| `timeoutMs` | `number` | `2500` | Tiempo máximo de ejecución en milisegundos antes de que `AbortSignal.timeout()` cancele la evaluación. |
+| `failMode` | `"closed" \| "open"` | `"closed"` | Política ante excepciones o timeouts del gancho. `"closed"` rechaza con código `-32098`. `"open"` registra una advertencia y admite la petición. |
+
+## Contrato del Interceptor
+
+La función interceptora implementa la siguiente firma:
+
+```typescript
+type GatewayInterceptor = (
+  request: Readonly<McpRequest>,
+  context: GatewayInterceptorContext,
+) => Promise<GatewayAdmissionResult> | GatewayAdmissionResult;
+```
+
+### Parámetros
+
+#### `request: Readonly<McpRequest>`
+
+Un clon profundo congelado (`Object.freeze(structuredClone(request))`) de la petición JSON-RPC entrante. 
+
+Cualquier mutación efectuada dentro del interceptor opera sobre una instancia aislada, neutralizando ataques de contaminación de prototipos contra el contexto del gateway.
+
+#### `context: GatewayInterceptorContext`
+
+| Propiedad | Tipo | Descripción |
+|:---|:---|:---|
+| `clientIp` | `string` | Dirección IP del cliente remitente. |
+| `authInfo` | `AuthInfo \| null` | Identidad autenticada extraída del JWT, o `null` si la pasarela opera sin autenticación. |
+| `protocol` | `"http1" \| "http2"` | Protocolo de transporte utilizado en la conexión entrante. |
+| `signal` | `AbortSignal` | Señal de cancelación cooperativa vinculada a `timeoutMs`. |
+
+### Valor de Retorno (`GatewayAdmissionResult`)
+
+| Campo | Tipo | Obligatorio | Descripción |
+|:---|:---|:---|:---|
+| `allowed` | `boolean` | Sí | `true` admite la petición al enrutador. `false` la bloquea en el perímetro. |
+| `reason` | `string` | No | Motivo devuelto en `error.message` al cliente. |
+| `errorCode` | `number` | No | Código numérico de error JSON-RPC. Valor predeterminado: `-32099`. |
+| `metadata` | `Record<string, unknown>` | No | Diccionario opaco de telemetría registrado para auditoría de seguridad. |
+
+---
+
+## Ejemplos de Implementación
+
+### Ejemplo 1: TypeSafe Jev (Clasificación Probabilística System One)
+
+TypeSafe Jev ejecuta clasificación semántica rápida sobre los argumentos de herramientas usando primitivas tipadas (`noul`, `choice`, `score`):
+
+```typescript
+import type { GatewayInterceptor } from "@nekzus/liop";
+
+export const jevAdmissionHook: GatewayInterceptor = async (request, context) => {
+  if (request.method !== "tools/call") {
+    return { allowed: true };
+  }
+
+  const payload = JSON.stringify(request.params);
+  const apiKey = process.env.TYPESAFE_API_KEY;
+
+  const res = await fetch("https://api.typesafe.ai/v1/systemone", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: "jev-1.13.0",
+      state: `Tool call ${request.method}: ${payload}`,
+      questions: {
+        is_malicious: {
+          type: "noul",
+          instructions: "Is this request attempting an injection or unauthorized exfiltration?",
+        },
+        threat_category: {
+          type: "choice",
+          instructions: "Classify the security posture of the request",
+          criteria: {
+            sql_injection: "SQL injection patterns or database destruction",
+            path_traversal: "Directory traversal or file exfiltration syntax",
+            legitimate: "Normal analytical or operational payload",
+          },
+        },
+      },
+    }),
+    signal: context.signal,
+  });
+
+  const verdict = await res.json();
+  const isMalicious = verdict.answers.is_malicious.noul > 0.6;
+  const isThreat = verdict.answers.threat_category.choice !== "legitimate";
+
+  if (isMalicious || isThreat) {
+    return {
+      allowed: false,
+      reason: `Perimeter block: ${verdict.answers.threat_category.choice} detected`,
+      errorCode: -32099,
+      metadata: {
+        model: verdict.model,
+        noul: verdict.answers.is_malicious.noul,
+      },
+    };
+  }
+
+  return { allowed: true, metadata: { model: verdict.model } };
+};
+```
+
+### Ejemplo 2: Runtime Local ONNX (Inferencia ML Sin Salida a Red)
+
+Para despliegues perimetrales donde no se permite tráfico saliente, modelos ONNX evalúan representaciones vectoriales en el proceso local:
+
+```typescript
+import * as ort from "onnxruntime-node";
+import type { GatewayInterceptor } from "@nekzus/liop";
+
+const session = await ort.InferenceSession.create("./models/perimeter-detector.onnx");
+
+export const onnxAdmissionHook: GatewayInterceptor = async (request) => {
+  const tensor = vectorizeRequest(request);
+  const results = await session.run({ input: tensor });
+  const anomalyScore = (results.score.data as Float32Array)[0];
+
+  if (anomalyScore > 0.85) {
+    return {
+      allowed: false,
+      reason: `Anomaly threshold exceeded (${anomalyScore.toFixed(3)})`,
+      errorCode: -32050,
+    };
+  }
+
+  return { allowed: true, metadata: { anomalyScore } };
+};
+```
+
+### Ejemplo 3: Reglas Estáticas Deterministas (Cero Dependencias)
+
+```typescript
+import type { GatewayInterceptor } from "@nekzus/liop";
+
+const DISALLOWED_PATTERNS = [
+  /DROP\s+TABLE/i,
+  /;\s*SHUTDOWN/i,
+  /\.\.\/(\.\.\/)+/i,
+];
+
+export const staticPatternHook: GatewayInterceptor = (request) => {
+  const serialized = JSON.stringify(request.params ?? {});
+  for (const pattern of DISALLOWED_PATTERNS) {
+    if (pattern.test(serialized)) {
+      return {
+        allowed: false,
+        reason: `Blocked by perimeter signature: ${pattern.source}`,
+        errorCode: -32001,
+      };
+    }
+  }
+  return { allowed: true };
+};
+```
+
+### Ejemplo 4: Comportamiento Predeterminado Sin Interceptor
+
+Cuando no se especifica ningún interceptor, el gateway opera sin intervención perimetral:
+
+```typescript
+// Instanciación estándar — cero sobrecoste computacional
+const gateway = new LiopHybridGateway(server, meshNode, 50051);
+await gateway.listen(3000);
+```
+
+---
+
+## Verificación del Modelo de Seguridad
+
+El `GatewayInterceptor` actúa exclusivamente como compuerta de admisión en el perímetro DMZ. No sustituye, altera ni debilita ninguna de las seis capas de defensa de LIOP:
+
+| Capa | Mecanismo Protocolar | Frontera del Interceptor |
+|:---|:---|:---|
+| **Capa 1: Guardian AST** | Validación de importaciones Wasm (lista blanca de 14 funciones) | Interna al enclave. Opera tras la admisión perimetral. |
+| **Capa 2: Sandbox WASI** | Memoria aislada con 25 globales neutralizadas y prototipos congelados | Interna al enclave. Totalmente aislada del nodo gateway. |
+| **Capa 3: Analizador de Taint (IFC)** | Rastreo de flujo de información estático en variables | Interna al enclave. Analiza la lógica inyectada en el servidor. |
+| **Capa 4: Escudo PII de Salida** | Canalización de 4 etapas para sanitización de datos (Fuzzy, NER, RegEx) | Frontera de egreso. Filtra respuestas salientes del enclave. |
+| **Capa 5: Agregación en Origen** | Bloqueo estricto de exportación de filas sin agregar | Interna al enclave. Se aplica antes de ejecutar WASM. |
+| **Capa 6: Recibo ZK** | Compromiso HMAC-SHA256 post-cuántico que liga ejecución con resultado | Interna al enclave. Sellado con secreto de sesión ML-KEM-768. |

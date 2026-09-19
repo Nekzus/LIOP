@@ -20,6 +20,10 @@ import {
 	isGrpcWebRequest,
 } from "./grpc-web.js";
 import {
+	executeGatewayInterceptor,
+	type GatewayInterceptorOptions,
+} from "./interceptor.js";
+import {
 	InMemoryRateLimiter,
 	type RateLimiterOptions,
 } from "./rate-limiter.js";
@@ -38,6 +42,7 @@ export class LiopHybridGateway {
 	// biome-ignore lint/suspicious/noExplicitAny: oidc-provider is loaded in Phase C
 	private oauthProvider?: any;
 	private rateLimiter: InMemoryRateLimiter;
+	private readonly interceptorOptions?: GatewayInterceptorOptions;
 	private isDraining = false;
 	private activeRequests = 0;
 
@@ -46,10 +51,12 @@ export class LiopHybridGateway {
 		private meshNode: MeshNode | null = null,
 		rpcPort: number = 50051,
 		rateLimiterOptions?: RateLimiterOptions,
+		interceptorOptions?: GatewayInterceptorOptions,
 	) {
 		this.jwtValidator = this.liopServer.jwtValidator;
 		this.oauthProvider = this.liopServer.oauthProvider;
 		this.rateLimiter = new InMemoryRateLimiter(rateLimiterOptions);
+		this.interceptorOptions = interceptorOptions;
 
 		// Initialize the Universal Router
 		this.router = new LiopMcpRouter(this.liopServer, this.meshNode, rpcPort);
@@ -387,6 +394,37 @@ export class LiopHybridGateway {
 					try {
 						const jsonRequest = JSON.parse(body);
 
+						// [SEC] Perimeter Admission Hook (technology-agnostic)
+						// Executes AFTER JWT + RateLimiter to prevent attackers from
+						// exhausting external API quotas (e.g., TYPESAFE_API_KEY) with
+						// unauthenticated or rate-limited traffic.
+						if (this.interceptorOptions?.interceptor) {
+							const verdict = await executeGatewayInterceptor(
+								jsonRequest,
+								{ clientIp, authInfo, protocol: "http1" },
+								this.interceptorOptions as Required<
+									Pick<GatewayInterceptorOptions, "interceptor">
+								> &
+									GatewayInterceptorOptions,
+							);
+							if (!verdict.allowed) {
+								res.writeHead(403, { "Content-Type": "application/json" });
+								res.end(
+									JSON.stringify({
+										jsonrpc: "2.0",
+										id: jsonRequest.id ?? null,
+										error: {
+											code: verdict.errorCode ?? -32099,
+											message:
+												verdict.reason ||
+												"Forbidden: Rejected by Gateway Interceptor",
+										},
+									}),
+								);
+								return;
+							}
+						}
+
 						// [SEP-2243] Header-based routing validation
 						const mcpMethod = req.headers["mcp-method"] as string | undefined;
 						const mcpName = req.headers["mcp-name"] as string | undefined;
@@ -516,6 +554,39 @@ export class LiopHybridGateway {
 				}
 
 				const jsonRequest = JSON.parse(body);
+
+				// [SEC] Perimeter Admission Hook (HTTP/2 symmetry)
+				if (this.interceptorOptions?.interceptor) {
+					const h2ClientIp =
+						stream.session?.socket?.remoteAddress || "127.0.0.1";
+					const verdict = await executeGatewayInterceptor(
+						jsonRequest,
+						{ clientIp: h2ClientIp, authInfo, protocol: "http2" },
+						this.interceptorOptions as Required<
+							Pick<GatewayInterceptorOptions, "interceptor">
+						> &
+							GatewayInterceptorOptions,
+					);
+					if (!verdict.allowed) {
+						stream.respond({
+							":status": 403,
+							"content-type": "application/json",
+						});
+						stream.end(
+							JSON.stringify({
+								jsonrpc: "2.0",
+								id: jsonRequest.id ?? null,
+								error: {
+									code: verdict.errorCode ?? -32099,
+									message:
+										verdict.reason ||
+										"Forbidden: Rejected by Gateway Interceptor",
+								},
+							}),
+						);
+						return;
+					}
+				}
 
 				// [SEP-2243] Header-based routing validation in HTTP/2
 				const mcpMethod = headers["mcp-method"] as string | undefined;

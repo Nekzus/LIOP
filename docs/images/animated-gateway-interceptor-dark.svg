@@ -1,0 +1,143 @@
+<svg width="900" height="340" viewBox="0 0 900 340" xmlns="http://www.w3.org/2000/svg">
+    <!-- Base Background -->
+    <rect width="900" height="340" fill="#09090b" rx="16" />
+    
+    <defs>
+        <radialGradient id="glowCyan" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.2" />
+            <stop offset="100%" stop-color="#38bdf8" stop-opacity="0" />
+        </radialGradient>
+        <radialGradient id="glowEmerald" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#10b981" stop-opacity="0.25" />
+            <stop offset="100%" stop-color="#10b981" stop-opacity="0" />
+        </radialGradient>
+        <radialGradient id="glowAmber" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#f59e0b" stop-opacity="0.2" />
+            <stop offset="100%" stop-color="#f59e0b" stop-opacity="0" />
+        </radialGradient>
+        <linearGradient id="hookGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#0284c7" />
+            <stop offset="100%" stop-color="#059669" />
+        </linearGradient>
+    </defs>
+
+    <style>
+        .title { font-family: 'Inter', system-ui, sans-serif; font-size: 13px; font-weight: 600; fill: #fafafa; }
+        .subtitle { font-family: 'Inter', system-ui, sans-serif; font-size: 10px; font-weight: 400; fill: #a1a1aa; }
+        .stage-badge { font-family: 'Inter', system-ui, sans-serif; font-size: 9px; font-weight: 700; fill: #38bdf8; letter-spacing: 1.5px; }
+        .badge-amber { font-family: 'Inter', system-ui, sans-serif; font-size: 9px; font-weight: 700; fill: #f59e0b; letter-spacing: 1px; }
+        .badge-green { font-family: 'Inter', system-ui, sans-serif; font-size: 9px; font-weight: 700; fill: #10b981; letter-spacing: 1px; }
+        .badge-red { font-family: 'Inter', system-ui, sans-serif; font-size: 8px; font-weight: 700; fill: #ef4444; }
+        .code-pill { font-family: 'JetBrains Mono', monospace; font-size: 9px; fill: #38bdf8; }
+
+        @keyframes streamFlow {
+            from { stroke-dashoffset: 24; }
+            to { stroke-dashoffset: 0; }
+        }
+
+        @keyframes pulseGlow {
+            0%, 100% { opacity: 0.4; transform: scale(1); }
+            50% { opacity: 0.85; transform: scale(1.03); }
+        }
+
+        .anim-track {
+            stroke: #38bdf8;
+            stroke-width: 3;
+            stroke-linecap: round;
+            stroke-dasharray: 4 20;
+            animation: streamFlow 0.8s linear infinite;
+            filter: drop-shadow(0 0 5px rgba(56,189,248,0.5));
+        }
+
+        .pulse-element {
+            transform-origin: center;
+            animation: pulseGlow 2.5s ease-in-out infinite;
+        }
+    </style>
+
+    <!-- Header / Title -->
+    <text x="40" y="38" class="stage-badge">BORDER LIO GATEWAY — PERIMETER DEFENSE IN DEPTH</text>
+    <text x="40" y="58" class="title" style="font-size: 16px;">GatewayInterceptor Pipeline Architecture</text>
+    <text x="40" y="76" class="subtitle">Sequential perimeter admission hook executing before JSON-RPC router dispatch</text>
+
+    <!-- Pipeline Connecting Track -->
+    <path d="M 50 160 L 850 160" fill="none" stroke="#27272a" stroke-width="4" stroke-linecap="round" />
+    <path d="M 50 160 L 850 160" fill="none" class="anim-track" />
+
+    <!-- STAGE 1: Incoming Request -->
+    <g transform="translate(40, 110)">
+        <rect width="140" height="100" rx="10" fill="#18181b" stroke="#27272a" stroke-width="1.5" />
+        <path d="M 8 1.5 L 132 1.5" stroke="#71717a" stroke-width="2.5" stroke-linecap="round" />
+        <text x="16" y="26" class="stage-badge">STAGE 1</text>
+        <text x="16" y="46" class="title">Transport L4/L7</text>
+        <text x="16" y="64" class="subtitle">POST /mcp</text>
+        <text x="16" y="78" class="code-pill">HTTP/1.1 &amp; HTTP/2</text>
+    </g>
+
+    <!-- STAGE 2: JWT Bearer -->
+    <g transform="translate(205, 110)">
+        <rect width="140" height="100" rx="10" fill="#18181b" stroke="#27272a" stroke-width="1.5" />
+        <path d="M 8 1.5 L 132 1.5" stroke="#f59e0b" stroke-width="2.5" stroke-linecap="round" />
+        <text x="16" y="26" class="badge-amber">STAGE 2</text>
+        <text x="16" y="46" class="title">OAuth 2.1 JWT</text>
+        <text x="16" y="64" class="subtitle">NIST SP 800-207</text>
+        <text x="16" y="80" class="badge-red">DENY: 401</text>
+    </g>
+
+    <!-- STAGE 3: Rate Limiter -->
+    <g transform="translate(370, 110)">
+        <rect width="140" height="100" rx="10" fill="#18181b" stroke="#27272a" stroke-width="1.5" />
+        <path d="M 8 1.5 L 132 1.5" stroke="#f59e0b" stroke-width="2.5" stroke-linecap="round" />
+        <text x="16" y="26" class="badge-amber">STAGE 3</text>
+        <text x="16" y="46" class="title">Rate Limiter</text>
+        <text x="16" y="64" class="subtitle">OWASP API4:2023</text>
+        <text x="16" y="80" class="badge-red">DENY: 429</text>
+    </g>
+
+    <!-- STAGE 4: ★ Gateway Interceptor (Highlighted Hook) -->
+    <g transform="translate(535, 95)">
+        <!-- Outer Glow -->
+        <circle cx="85" cy="65" r="75" fill="url(#glowEmerald)" />
+        <rect width="170" height="130" rx="12" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+        <path d="M 10 1.5 L 160 1.5" stroke="#10b981" stroke-width="3.5" stroke-linecap="round" />
+        
+        <text x="16" y="24" class="badge-green">★ STAGE 4 (NEW)</text>
+        <text x="16" y="44" class="title" style="fill: #34d399; font-size: 14px;">GatewayInterceptor</text>
+        <text x="16" y="60" class="subtitle">Perimeter Admission Hook</text>
+        
+        <!-- Engines Supported Pills -->
+        <g transform="translate(16, 70)">
+            <rect width="138" height="20" rx="4" fill="#064e3b" stroke="#059669" stroke-width="1" />
+            <text x="8" y="14" style="font-family: 'Inter', sans-serif; font-size: 9px; fill: #6ee7b7; font-weight: 600;">Jev • ONNX • Rules • Custom</text>
+        </g>
+        
+        <text x="16" y="112" class="badge-red">DENY: 403 (-32099)</text>
+    </g>
+
+    <!-- STAGE 5: Dispatch & Enclave -->
+    <g transform="translate(730, 110)">
+        <rect width="130" height="100" rx="10" fill="#18181b" stroke="#27272a" stroke-width="1.5" />
+        <path d="M 8 1.5 L 122 1.5" stroke="#38bdf8" stroke-width="2.5" stroke-linecap="round" />
+        <text x="16" y="26" class="stage-badge">STAGE 5</text>
+        <text x="16" y="46" class="title">Router &amp; Mesh</text>
+        <text x="16" y="64" class="subtitle">Dual-Era MCP</text>
+        <text x="16" y="80" style="font-family: 'Inter', sans-serif; font-size: 9px; fill: #10b981; font-weight: 600;">Enclave Execution</text>
+    </g>
+
+    <!-- Footer Legend -->
+    <g transform="translate(40, 265)">
+        <rect width="820" height="50" rx="8" fill="#131316" stroke="#27272a" stroke-width="1" />
+        
+        <!-- Feature 1: Agnostic -->
+        <circle cx="20" cy="25" r="4" fill="#10b981" />
+        <text x="32" y="29" class="subtitle" style="fill: #e4e4e7;"><tspan font-weight="700">Technology-Agnostic:</tspan> Zero external dependencies bundled in SDK.</text>
+        
+        <!-- Feature 2: Fail-Closed -->
+        <circle cx="280" cy="25" r="4" fill="#f59e0b" />
+        <text x="292" y="29" class="subtitle" style="fill: #e4e4e7;"><tspan font-weight="700">Fail-Closed Default:</tspan> Errors reject with HTTP 403 / -32098.</text>
+        
+        <!-- Feature 3: Deep Isolation -->
+        <circle cx="530" cy="25" r="4" fill="#38bdf8" />
+        <text x="542" y="29" class="subtitle" style="fill: #e4e4e7;"><tspan font-weight="700">Deep Isolation:</tspan> structuredClone + Object.freeze defense.</text>
+    </g>
+</svg>

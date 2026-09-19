@@ -7,6 +7,7 @@ export * from "./economy/index.js";
 export * from "./errors.js";
 export * from "./gateway/grpc-web.js";
 export * from "./gateway/hybrid.js";
+export * from "./gateway/interceptor.js";
 export * from "./gateway/rate-limiter.js";
 export * from "./gateway/router.js";
 export * from "./mesh/node.js";

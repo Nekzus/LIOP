@@ -32,8 +32,6 @@ x-audit-base: &audit-base
     - audit-shared-data:/app/data
     - ./entrypoints:/app/entrypoints
     - ./utils:/app/utils
-    - ../../../dist:/app/node_modules/@nekzus/liop/dist
-    - ../../../package.json:/app/node_modules/@nekzus/liop/package.json
 
 services:
   psk-init:
@@ -62,6 +60,7 @@ services:
       LIOP_TOKEN_EDGE: edge-local-test-token
       LIOP_RATE_LIMIT_MAX: 500
       LIOP_RATE_LIMIT_GLOBAL_MAX: 2000
+      TYPESAFE_API_KEY: ${TYPESAFE_API_KEY:-}
     networks:
       liop-tier2-consortium:
         ipv4_address: 172.23.0.10
@@ -95,6 +94,7 @@ services:
       BANK_INTERNAL_URL: http://172.22.0.12:3000
       LIOP_RATE_LIMIT_MAX: 500
       LIOP_RATE_LIMIT_GLOBAL_MAX: 2000
+      TYPESAFE_API_KEY: ${TYPESAFE_API_KEY:-}
     networks:
       liop-tier1-enclave:
         ipv4_address: 172.22.0.10
@@ -264,8 +264,6 @@ services:
       - ./entrypoints:/app/entrypoints
       - ./utils:/app/utils
       - ../playground-dist:/app/playground-dist
-      - ../../../dist:/app/node_modules/@nekzus/liop/dist
-      - ../../../package.json:/app/node_modules/@nekzus/liop/package.json
     environment:
       NODE_OPTIONS: "--max-old-space-size=2048"
       LIOP_NODE_ROLE: client
@@ -283,7 +281,30 @@ services:
       liop-tier3-backbone:
         ipv4_address: 172.21.0.200
     ports:
-      - "16000:3000"    # Playground Web/API
+      - "16002:3000"    # Playground Web/API
+    depends_on:
+      nexus-prod:
+        condition: service_healthy
+
+  studio-prod:
+    <<: *audit-base
+    container_name: liop-studio-prod
+    hostname: studio-prod
+    command: ["node", "/app/node_modules/@nekzus/liop-studio/bin/liop-studio.js", "--port", "3000", "--no-open", "--http", "http://nexus:3000/mcp"]
+    environment:
+      NODE_OPTIONS: "--max-old-space-size=2048"
+      LIOP_MCP_URL: http://nexus:3000/mcp
+      LIOP_NEXUS_URL: http://nexus:3000
+      LIOP_SUPPRESS_TLS_WARNING: "true"
+    networks:
+      liop-tier2-consortium:
+        ipv4_address: 172.23.0.201
+        aliases:
+          - studio
+      liop-tier3-backbone:
+        ipv4_address: 172.21.0.201
+    ports:
+      - "16000:3000"    # LIOP Studio Web UI & API
     depends_on:
       nexus-prod:
         condition: service_healthy
@@ -298,8 +319,6 @@ services:
       - ./entrypoints:/app/entrypoints
       - ./utils:/app/utils
       - ./tests:/app/tests
-      - ../../../dist:/app/node_modules/@nekzus/liop/dist
-      - ../../../package.json:/app/node_modules/@nekzus/liop/package.json
     environment:
       NODE_OPTIONS: "--max-old-space-size=2048"
       NEXUS_URL: http://nexus-prod:3000
