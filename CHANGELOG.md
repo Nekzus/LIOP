@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.4.0-alpha.13](https://github.com/Nekzus/LIOP/compare/v2.4.0-alpha.12...v2.4.0-alpha.13) (2026-09-19)
+
+
+### Features
+
+* **gateway:** implement perimeter admission hook with Jev validation (Phase 222) ([810047d](https://github.com/Nekzus/LIOP/commit/810047d1a9ed1ebbcb5b1f258976be27f251bcdb))
+
 # [2.4.0-alpha.12](https://github.com/Nekzus/LIOP/compare/v2.4.0-alpha.11...v2.4.0-alpha.12) (2026-09-17)
 
 
