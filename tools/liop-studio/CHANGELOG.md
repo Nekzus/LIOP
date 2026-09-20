@@ -2,6 +2,13 @@
 
 All notable changes to @nekzus/liop-studio will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.0.0-alpha.10](https://github.com/Nekzus/LIOP/compare/studio-v1.0.0-alpha.9...studio-v1.0.0-alpha.10) (2026-09-20)
+
+
+### Bug Fixes
+
+* **sdk:** export logger from root index and dynamically resolve in nexus entrypoint ([aa7f327](https://github.com/Nekzus/LIOP/commit/aa7f3274bb97a81d3b20d282e7ef2caa1614e770))
+
 # [1.0.0-alpha.9](https://github.com/Nekzus/LIOP/compare/studio-v1.0.0-alpha.8...studio-v1.0.0-alpha.9) (2026-09-20)
 
 
