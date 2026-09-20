@@ -69,8 +69,12 @@ describe.skipIf(!HAS_API_KEY)(
 						Authorization: `Bearer ${API_KEY}`,
 					},
 					body: JSON.stringify({
-						model: "jev-1.13.0",
-						state: `Tool call ${request.method}: ${payload}`,
+						model: "jev-latest",
+						state: {
+							method: request.method,
+							tool: (request.params as { name?: string })?.name,
+							arguments: (request.params as { arguments?: unknown })?.arguments,
+						},
 						questions: {
 							is_malicious: {
 								type: "noul",
@@ -141,8 +145,12 @@ describe.skipIf(!HAS_API_KEY)(
 						Authorization: `Bearer ${API_KEY}`,
 					},
 					body: JSON.stringify({
-						model: "jev-1.13.0",
-						state: `Tool call ${request.method}: ${payload}`,
+						model: "jev-latest",
+						state: {
+							method: request.method,
+							tool: (request.params as { name?: string })?.name,
+							arguments: (request.params as { arguments?: unknown })?.arguments,
+						},
 						questions: {
 							is_malicious: {
 								type: "noul",
