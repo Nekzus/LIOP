@@ -113,6 +113,12 @@ Logic-Injection-on-Origin Protocol (LIOP) is the high-performance successor to t
 28. **Controlled Telemetry Streaming & Enclave Route Decoupling Invariant**:
    - Telemetry stream generators, synthetic load runners, and demonstration harnesses must strictly respect asymmetric enclave boundaries. Requests targeting Tier 1 Enclaves (`Bank`, `Vault`) must route through the Border LIO Gateway (`BLG`) using `callTool` abstractions rather than directly polling unreachable private endpoints.
    - Continuous traffic streams must implement rate moderation (intervals >= 3.5s) to avoid socket exhaustion and prevent Docker Desktop Windows engine pipe lockups (`500 Internal Server Error`).
+29. **Mandatory Post-SDK Update Docker Tri-Tier & Observability Certification**:
+   - Whenever `@nekzus/liop` or `@nekzus/liop-studio` packages are updated and published to NPM across any release channel (`@alpha`, `@beta`, `@latest`), the agent must immediately:
+     1. Rebuild the Docker images cleanly without cache (`docker compose -f docker-compose.production-audit.yml build --no-cache`) to ensure containers install the exact freshly published package from the public registry.
+     2. Deploy the tri-tier sovereign mesh (`liop-psk-init`, `liop-nexus-prod`, `liop-blg-prod`, `liop-vault-prod`, `liop-bank-prod`, `liop-oracle-prod`, `liop-edge-prod`, `liop-relay-prod`, `liop-playground-prod`, `liop-studio-prod`).
+     3. Execute the full 12-suite production audit (`tests/vitest.audit.config.ts`) inside `liop-audit-runner` until 100% of tests pass (64/64 tests green).
+     4. Recreate/start the observability stack (`examples/observability/docker-compose.observability.yml`: `liop-prometheus` and `liop-grafana`) and verify all 7 enclaves report `UP` in Prometheus targets and all API endpoints return HTTP 200.
 
 ---
 
