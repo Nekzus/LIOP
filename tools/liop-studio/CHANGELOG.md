@@ -2,6 +2,18 @@
 
 All notable changes to @nekzus/liop-studio will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.0.0-alpha.14](https://github.com/Nekzus/LIOP/compare/studio-v1.0.0-alpha.13...studio-v1.0.0-alpha.14) (2026-09-20)
+
+
+### Bug Fixes
+
+* **server:** resolve decryptedPayload reference for input token measurement in executeLogic ([e72527c](https://github.com/Nekzus/LIOP/commit/e72527cc32e5b760b36614f4e0e9587e7c2e27eb))
+
+
+### Features
+
+* **observability:** instrument token savings, role labels, full mesh interceptors, and data sovereignty panel ([d595f2e](https://github.com/Nekzus/LIOP/commit/d595f2ef28d7a0ce3ec5993eebe0d264e3c47ac0))
+
 # [1.0.0-alpha.13](https://github.com/Nekzus/LIOP/compare/studio-v1.0.0-alpha.12...studio-v1.0.0-alpha.13) (2026-09-20)
 
 
