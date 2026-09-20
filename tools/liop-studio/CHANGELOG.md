@@ -2,6 +2,13 @@
 
 All notable changes to @nekzus/liop-studio will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.0.0-alpha.9](https://github.com/Nekzus/LIOP/compare/studio-v1.0.0-alpha.8...studio-v1.0.0-alpha.9) (2026-09-20)
+
+
+### Features
+
+* **interceptors:** implement LogInterceptor and AuditInterceptor protocol-level hooks with TypeSafe Jev validation ([952421d](https://github.com/Nekzus/LIOP/commit/952421d5454b83cb62c2f41a993a8371d51f7764))
+
 # [1.0.0-alpha.8](https://github.com/Nekzus/LIOP/compare/studio-v1.0.0-alpha.7...studio-v1.0.0-alpha.8) (2026-09-19)
 
 
