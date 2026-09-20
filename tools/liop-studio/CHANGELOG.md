@@ -2,6 +2,13 @@
 
 All notable changes to @nekzus/liop-studio will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.0.0-alpha.13](https://github.com/Nekzus/LIOP/compare/studio-v1.0.0-alpha.12...studio-v1.0.0-alpha.13) (2026-09-20)
+
+
+### Bug Fixes
+
+* **deps:** update overrides to eliminate all vulnerabilities and clean prometheus targets ([5b810dd](https://github.com/Nekzus/LIOP/commit/5b810dd368a754a28e135eaa52d538e61a091bce))
+
 # [1.0.0-alpha.12](https://github.com/Nekzus/LIOP/compare/studio-v1.0.0-alpha.11...studio-v1.0.0-alpha.12) (2026-09-20)
 
 
