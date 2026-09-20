@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.4.0-alpha.14](https://github.com/Nekzus/LIOP/compare/v2.4.0-alpha.13...v2.4.0-alpha.14) (2026-09-20)
+
+
+### Features
+
+* **interceptors:** implement LogInterceptor and AuditInterceptor protocol-level hooks with TypeSafe Jev validation ([952421d](https://github.com/Nekzus/LIOP/commit/952421d5454b83cb62c2f41a993a8371d51f7764))
+
 # [2.4.0-alpha.13](https://github.com/Nekzus/LIOP/compare/v2.4.0-alpha.12...v2.4.0-alpha.13) (2026-09-19)
 
 
