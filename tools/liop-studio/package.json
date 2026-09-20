@@ -1,6 +1,6 @@
 {
   "name": "@nekzus/liop-studio",
-  "version": "1.0.0-alpha.10",
+  "version": "1.0.0-alpha.11",
   "description": "LIOP Sovereign Studio — Developer studio, mesh scanner, and logic-on-origin inspector for LIOP & MCP.",
   "author": "Nekzus Solutions and contributors",
   "license": "Apache-2.0",
