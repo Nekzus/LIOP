@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.4.0-alpha.18](https://github.com/Nekzus/LIOP/compare/v2.4.0-alpha.17...v2.4.0-alpha.18) (2026-09-20)
+
+
+### Bug Fixes
+
+* **deps:** update overrides to eliminate all vulnerabilities and clean prometheus targets ([5b810dd](https://github.com/Nekzus/LIOP/commit/5b810dd368a754a28e135eaa52d538e61a091bce))
+
 # [2.4.0-alpha.17](https://github.com/Nekzus/LIOP/compare/v2.4.0-alpha.16...v2.4.0-alpha.17) (2026-09-20)
 
 
