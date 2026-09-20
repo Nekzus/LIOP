@@ -182,6 +182,14 @@ export type {
 	GatewayInterceptorContext,
 	GatewayInterceptorOptions,
 } from "./gateway/interceptor.js";
+export type { AuditInterceptor } from "./interceptors/audit-interceptor.js";
+/**
+ * Re-export Log & Audit Interceptor types for consumer convenience.
+ */
+export type {
+	LogEvent,
+	LogInterceptor,
+} from "./interceptors/log-interceptor.js";
 /**
  * Re-export AuthInfo from the security module for convenience.
  * Compatible with MCP TypeScript SDK AuthInfo interface shape.

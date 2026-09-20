@@ -269,3 +269,10 @@ El `GatewayInterceptor` actúa exclusivamente como compuerta de admisión en el 
 | **Capa 4: Escudo PII de Salida** | Canalización de 4 etapas para sanitización de datos (Fuzzy, NER, RegEx) | Frontera de egreso. Filtra respuestas salientes del enclave. |
 | **Capa 5: Agregación en Origen** | Bloqueo estricto de exportación de filas sin agregar | Interna al enclave. Se aplica antes de ejecutar WASM. |
 | **Capa 6: Recibo ZK** | Compromiso HMAC-SHA256 post-cuántico que liga ejecución con resultado | Interna al enclave. Sellado con secreto de sesión ML-KEM-768. |
+
+---
+
+## Referencias Relacionadas
+
+- [Interceptores de Log y Auditoría](/es/typescript-sdk/log-audit-interceptors) — Ganchos para flujos de logs operacionales y registros criptográficos de auditoría.
+

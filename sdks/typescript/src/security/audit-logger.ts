@@ -9,6 +9,7 @@
 
 import * as crypto from "node:crypto";
 import * as fs from "node:fs";
+import type { AuditInterceptor } from "../interceptors/audit-interceptor.js";
 
 export type AuditStatus =
 	| "SUCCESS"
@@ -69,12 +70,24 @@ export class AuditLogger {
 	private entries: AuditEntry[] = [];
 	private lastEntryHash: string = GENESIS_HASH;
 	private filePath?: string;
+	private interceptor?: AuditInterceptor;
 
 	constructor(filePath?: string) {
 		this.filePath = filePath;
 		if (this.filePath && fs.existsSync(this.filePath)) {
 			this.loadFromFile(this.filePath);
 		}
+	}
+
+	/**
+	 * Registers a technology-agnostic audit interceptor.
+	 * The interceptor fires AFTER the entry is sealed (hash computed)
+	 * and appended to the chain. It receives a frozen deep-clone
+	 * that cannot tamper with the hash chain.
+	 * Pass `undefined` to disable interception (zero overhead).
+	 */
+	public setInterceptor(interceptor: AuditInterceptor | undefined) {
+		this.interceptor = interceptor;
 	}
 
 	public recordExecution(params: AuditRecordParams): AuditEntry {
@@ -118,6 +131,21 @@ export class AuditLogger {
 				`${JSON.stringify(fullEntry)}\n`,
 				"utf8",
 			);
+		}
+
+		// [SEC] Fire-and-forget audit interceptor AFTER hash sealing.
+		// structuredClone + Object.freeze guarantees the interceptor
+		// cannot tamper with the live hash chain or the returned entry.
+		if (this.interceptor) {
+			const frozenClone = Object.freeze(structuredClone(fullEntry));
+			try {
+				const result = this.interceptor(frozenClone);
+				if (result && typeof result === "object" && "catch" in result) {
+					(result as Promise<void>).catch(() => {});
+				}
+			} catch {
+				// Interceptor errors must never break the audit chain
+			}
 		}
 
 		return fullEntry;

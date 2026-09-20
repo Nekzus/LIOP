@@ -8,11 +8,92 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import {
+	type AuditInterceptor,
 	type GatewayInterceptor,
 	type GatewayInterceptorOptions,
+	type LogInterceptor,
 	LiopHybridGateway,
 	LiopServer,
+	log,
 } from "@nekzus/liop";
+
+function configureProtocolInterceptors(server: LiopServer): void {
+	const apiKey = process.env.TYPESAFE_API_KEY;
+	if (!apiKey) {
+		console.log(
+			"[Nexus-Prod] No TYPESAFE_API_KEY — protocol interceptors disabled.",
+		);
+		return;
+	}
+
+	console.log(
+		"[Nexus-Prod] TYPESAFE_API_KEY detected — LogInterceptor and AuditInterceptor active.",
+	);
+
+	const logInterceptor: LogInterceptor = async (event) => {
+		if (event.level !== "error") return;
+		try {
+			await fetch("https://api.typesafe.ai/v1/systemone", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${apiKey}`,
+				},
+				body: JSON.stringify({
+					model: "jev-latest",
+					state: {
+						source: "liop_nexus_logger",
+						level: event.level,
+						message: event.message,
+					},
+					questions: {
+						is_threat: {
+							type: "noul",
+							instructions:
+								"Does this operational log message indicate an active security exploit or abnormal failure?",
+						},
+					},
+				}),
+			});
+		} catch {
+			// Fire-and-forget: ignore network / API errors
+		}
+	};
+
+	const auditInterceptor: AuditInterceptor = async (entry) => {
+		if (entry.status === "SUCCESS") return;
+		try {
+			await fetch("https://api.typesafe.ai/v1/systemone", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${apiKey}`,
+				},
+				body: JSON.stringify({
+					model: "jev-latest",
+					state: {
+						source: "liop_nexus_audit_ledger",
+						status: entry.status,
+						toolName: entry.toolName,
+						fuelConsumed: entry.fuelConsumed,
+					},
+					questions: {
+						requires_alert: {
+							type: "noul",
+							instructions:
+								"Does this non-success audit entry represent an incident requiring operator notification?",
+						},
+					},
+				}),
+			});
+		} catch {
+			// Fire-and-forget: ignore network / API errors
+		}
+	};
+
+	log.setInterceptor(logInterceptor);
+	server.auditLogger.setInterceptor(auditInterceptor);
+}
 
 function buildJevInterceptor(): GatewayInterceptorOptions | undefined {
 	const apiKey = process.env.TYPESAFE_API_KEY;
@@ -129,6 +210,8 @@ async function main() {
 			},
 		},
 	);
+
+	configureProtocolInterceptors(liopServer);
 
 	await liopServer.connectToMesh({
 		port: 50051,

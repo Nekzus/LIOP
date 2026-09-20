@@ -10,6 +10,7 @@ export * from "./gateway/hybrid.js";
 export * from "./gateway/interceptor.js";
 export * from "./gateway/rate-limiter.js";
 export * from "./gateway/router.js";
+export * from "./interceptors/index.js";
 export * from "./mesh/node.js";
 export * from "./mesh/swarm-key.js";
 // Observability, Metrics & SOC 2 / HIPAA Audit (Fase Beta-3)
