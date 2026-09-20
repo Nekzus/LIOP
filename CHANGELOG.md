@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.4.0-alpha.16](https://github.com/Nekzus/LIOP/compare/v2.4.0-alpha.15...v2.4.0-alpha.16) (2026-09-20)
+
+
+### Bug Fixes
+
+* **docs:** set explicit dimensions and solid backgrounds on log-audit SVGs ([2787644](https://github.com/Nekzus/LIOP/commit/2787644ddd3ac724706370e5753f43ff4e374928))
+
 # [2.4.0-alpha.15](https://github.com/Nekzus/LIOP/compare/v2.4.0-alpha.14...v2.4.0-alpha.15) (2026-09-20)
 
 
