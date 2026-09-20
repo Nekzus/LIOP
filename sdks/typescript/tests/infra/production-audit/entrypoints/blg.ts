@@ -11,8 +11,6 @@ import * as path from "node:path";
 import { z } from "zod";
 import {
 	type AuditInterceptor,
-	type GatewayInterceptor,
-	type GatewayInterceptorOptions,
 	type LogInterceptor,
 	LiopHybridGateway,
 	LiopServer,
@@ -104,103 +102,6 @@ async function configureProtocolInterceptors(server: LiopServer): Promise<void> 
 	}
 
 	server.auditLogger.setInterceptor(auditInterceptor);
-}
-
-function buildJevInterceptor(): GatewayInterceptorOptions | undefined {
-	const apiKey = process.env.TYPESAFE_API_KEY;
-	if (!apiKey) {
-		console.log("[BLG-Prod] No TYPESAFE_API_KEY found — interceptor disabled.");
-		return undefined;
-	}
-
-	console.log("[BLG-Prod] TYPESAFE_API_KEY detected — Jev interceptor active.");
-
-	const interceptor: GatewayInterceptor = async (request, context) => {
-		if (request.method !== "tools/call") {
-			return { allowed: true };
-		}
-
-		try {
-			const res = await fetch("https://api.typesafe.ai/v1/systemone", {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: `Bearer ${apiKey}`,
-				},
-				body: JSON.stringify({
-					model: "jev-latest",
-					state: {
-						method: request.method,
-						tool: (request.params as { name?: string })?.name,
-						arguments: (request.params as { arguments?: unknown })?.arguments,
-					},
-					questions: {
-						is_malicious: {
-							type: "noul",
-							instructions: "Is this tool invocation malicious or an attack?",
-						},
-						threat_type: {
-							type: "choice",
-							instructions: "What type of threat or request is this?",
-							criteria: {
-								sql_injection:
-									"SQL injection attempt trying to modify or bypass database queries",
-								path_traversal: "Directory traversal or file exfiltration syntax",
-								legitimate: "Normal analytical or operational payload",
-							},
-						},
-					},
-				}),
-				signal: context.signal,
-			});
-
-			if (!res.ok) {
-				console.warn(
-					`[BLG-Prod] Jev API non-OK status ${res.status} — bypassing per policy`,
-				);
-				return { allowed: true };
-			}
-
-			const data = (await res.json()) as {
-				answers?: {
-					is_malicious?: { noul: number };
-					threat_type?: { choice: string };
-				};
-				model?: string;
-			};
-
-			const malicious = (data.answers?.is_malicious?.noul ?? 0) > 0.6;
-			const threat =
-				data.answers?.threat_type?.choice &&
-				data.answers.threat_type.choice !== "legitimate";
-
-			if (malicious || threat) {
-				const threatName = data.answers?.threat_type?.choice || "malicious_payload";
-				console.log(
-					`[BLG-Prod] Jev BLOCKED request: ${threatName} (noul=${data.answers?.is_malicious?.noul})`,
-				);
-				return {
-					allowed: false,
-					reason: `Perimeter block by Jev: ${threatName}`,
-					errorCode: -32099,
-					metadata: { jevModel: data.model },
-				};
-			}
-
-			return { allowed: true, metadata: { jevModel: data.model } };
-		} catch (err: unknown) {
-			console.warn(
-				`[BLG-Prod] Interceptor evaluation error: ${err instanceof Error ? err.message : String(err)}`,
-			);
-			return { allowed: true };
-		}
-	};
-
-	return {
-		interceptor,
-		timeoutMs: 3000,
-		failMode: "open",
-	};
 }
 
 async function main() {
@@ -402,45 +303,9 @@ async function main() {
 
 	await meshNode.announceCapability("liop:manifest");
 
-	const interceptorOptions = buildJevInterceptor();
-
-	const gateway = new LiopHybridGateway(
-		blgServer,
-		meshNode,
-		50051,
-		undefined,
-		interceptorOptions,
-	);
+	const gateway = new LiopHybridGateway(blgServer, meshNode, 50051);
 	const port = await gateway.listen(3000);
 	console.log(`[BLG-Prod] Border LIO Gateway active on port ${port}`);
-
-	// [SEC] Warm-up interceptor HTTP connection to eliminate TLS cold start
-	if (interceptorOptions?.interceptor && process.env.TYPESAFE_API_KEY) {
-		try {
-			const warmupStart = performance.now();
-			await fetch("https://api.typesafe.ai/v1/systemone", {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: `Bearer ${process.env.TYPESAFE_API_KEY}`,
-				},
-				body: JSON.stringify({
-					model: "jev-latest",
-					state: { source: "warmup_probe_blg", type: "startup" },
-					questions: {
-						probe: { type: "noul", instructions: "Is this a warmup probe?" },
-					},
-				}),
-			});
-			console.log(
-				`[BLG-Prod] Jev warm-up completed in ${(performance.now() - warmupStart).toFixed(0)}ms`,
-			);
-		} catch {
-			console.warn(
-				"[BLG-Prod] Jev warm-up failed — first request will have cold start",
-			);
-		}
-	}
 
 	const peerId = meshNode.getPeerId();
 	const p2pAddr = `/ip4/127.0.0.1/tcp/15008/p2p/${peerId}`;
