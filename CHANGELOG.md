@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.4.0-alpha.15](https://github.com/Nekzus/LIOP/compare/v2.4.0-alpha.14...v2.4.0-alpha.15) (2026-09-20)
+
+
+### Bug Fixes
+
+* **sdk:** export logger from root index and dynamically resolve in nexus entrypoint ([aa7f327](https://github.com/Nekzus/LIOP/commit/aa7f3274bb97a81d3b20d282e7ef2caa1614e770))
+
 # [2.4.0-alpha.14](https://github.com/Nekzus/LIOP/compare/v2.4.0-alpha.13...v2.4.0-alpha.14) (2026-09-20)
 
 
