@@ -2,6 +2,13 @@
 
 All notable changes to @nekzus/liop-studio will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.0.0-alpha.11](https://github.com/Nekzus/LIOP/compare/studio-v1.0.0-alpha.10...studio-v1.0.0-alpha.11) (2026-09-20)
+
+
+### Bug Fixes
+
+* **docs:** set explicit dimensions and solid backgrounds on log-audit SVGs ([2787644](https://github.com/Nekzus/LIOP/commit/2787644ddd3ac724706370e5753f43ff4e374928))
+
 # [1.0.0-alpha.10](https://github.com/Nekzus/LIOP/compare/studio-v1.0.0-alpha.9...studio-v1.0.0-alpha.10) (2026-09-20)
 
 
