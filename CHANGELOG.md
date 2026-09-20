@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.4.0-alpha.19](https://github.com/Nekzus/LIOP/compare/v2.4.0-alpha.18...v2.4.0-alpha.19) (2026-09-20)
+
+
+### Bug Fixes
+
+* **server:** resolve decryptedPayload reference for input token measurement in executeLogic ([e72527c](https://github.com/Nekzus/LIOP/commit/e72527cc32e5b760b36614f4e0e9587e7c2e27eb))
+
+
+### Features
+
+* **observability:** instrument token savings, role labels, full mesh interceptors, and data sovereignty panel ([d595f2e](https://github.com/Nekzus/LIOP/commit/d595f2ef28d7a0ce3ec5993eebe0d264e3c47ac0))
+
 # [2.4.0-alpha.18](https://github.com/Nekzus/LIOP/compare/v2.4.0-alpha.17...v2.4.0-alpha.18) (2026-09-20)
 
 
