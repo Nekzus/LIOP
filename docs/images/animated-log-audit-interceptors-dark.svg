@@ -1,161 +1,129 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 480" width="100%" height="100%">
+<svg width="900" height="480" viewBox="0 0 900 480" xmlns="http://www.w3.org/2000/svg">
+  <!-- Base Background -->
+  <rect width="900" height="480" rx="14" fill="#09090b" stroke="#27272a" stroke-width="1.5" />
+
   <defs>
     <style>
-      @keyframes pulse {
-        0%, 100% { opacity: 0.35; transform: scale(1); }
-        50% { opacity: 0.85; transform: scale(1.02); }
-      }
-      @keyframes flowDash {
+      .main-title { font-family: 'Inter', system-ui, -apple-system, sans-serif; font-size: 18px; font-weight: 700; fill: #fafafa; letter-spacing: -0.02em; }
+      .main-subtitle { font-family: 'Inter', system-ui, -apple-system, sans-serif; font-size: 12px; font-weight: 400; fill: #a1a1aa; }
+      .section-badge { font-family: 'Inter', system-ui, -apple-system, sans-serif; font-size: 11px; font-weight: 700; fill: #71717a; letter-spacing: 0.05em; }
+      .card-title { font-family: 'Inter', system-ui, -apple-system, sans-serif; font-size: 13px; font-weight: 600; fill: #fafafa; }
+      .card-subtitle { font-family: 'Inter', system-ui, -apple-system, sans-serif; font-size: 11px; font-weight: 400; fill: #a1a1aa; }
+      .code-pill { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; font-weight: 600; }
+      .footer-title { font-family: 'Inter', system-ui, -apple-system, sans-serif; font-size: 11.5px; font-weight: 700; }
+      .footer-desc { font-family: 'Inter', system-ui, -apple-system, sans-serif; font-size: 10px; font-weight: 400; fill: #a1a1aa; }
+
+      @keyframes flowDashDark {
         0% { stroke-dashoffset: 24; }
         100% { stroke-dashoffset: 0; }
       }
-      @keyframes beaconRing {
-        0% { r: 4; opacity: 0.9; }
-        100% { r: 16; opacity: 0; }
-      }
-      .anim-pulse { animation: pulse 3s ease-in-out infinite; }
-      .anim-dash { stroke-dasharray: 6 6; animation: flowDash 1.5s linear infinite; }
-      .beacon { animation: beaconRing 2s cubic-bezier(0.2, 0.8, 0.2, 1) infinite; }
+      .anim-dash-cyan { stroke: #38bdf8; stroke-width: 2; stroke-dasharray: 6 6; animation: flowDashDark 1.5s linear infinite; }
+      .anim-dash-amber { stroke: #fbbf24; stroke-width: 2; stroke-dasharray: 6 6; animation: flowDashDark 1.5s linear infinite; }
+      .anim-dash-emerald { stroke: #34d399; stroke-width: 2; stroke-dasharray: 6 6; animation: flowDashDark 1.5s linear infinite; }
     </style>
-
-    <linearGradient id="bgGradDark" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#0b0f19" />
-      <stop offset="100%" stop-color="#070a12" />
-    </linearGradient>
-
-    <linearGradient id="cardGradDark" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#151d2f" />
-      <stop offset="100%" stop-color="#0f172a" />
-    </linearGradient>
-
-    <linearGradient id="accentCyan" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0%" stop-color="#0284c7" />
-      <stop offset="100%" stop-color="#38bdf8" />
-    </linearGradient>
-
-    <linearGradient id="accentEmerald" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0%" stop-color="#059669" />
-      <stop offset="100%" stop-color="#34d399" />
-    </linearGradient>
-
-    <linearGradient id="accentAmber" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0%" stop-color="#d97706" />
-      <stop offset="100%" stop-color="#fbbf24" />
-    </linearGradient>
   </defs>
 
-  <!-- Background -->
-  <rect width="900" height="480" rx="14" fill="url(#bgGradDark)" stroke="#1e293b" stroke-width="1.5" />
-
   <!-- Header -->
-  <g transform="translate(40, 32)">
-    <text x="0" y="0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="18" font-weight="700" fill="#f8fafc" letter-spacing="-0.02em">
-      LIOP Interceptor Architecture
-    </text>
-    <text x="0" y="20" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="400" fill="#94a3b8">
-      Agnostic hooks across perimeter admission, operational logs, and cryptographic audit chains
-    </text>
+  <g transform="translate(40, 36)">
+    <text x="0" y="0" class="main-title">LIOP Interceptor Architecture</text>
+    <text x="0" y="20" class="main-subtitle">Agnostic hooks across perimeter admission, operational logs, and cryptographic audit chains</text>
   </g>
 
   <!-- Upper Container: LIOP Core & SDK Boundary -->
-  <g transform="translate(40, 75)">
-    <rect width="820" height="155" rx="10" fill="#0d1424" stroke="#1e293b" stroke-width="1" />
-    <text x="20" y="24" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="600" fill="#64748b" letter-spacing="0.05em">
-      LIOP PROTOCOL &amp; SDK CORE
-    </text>
+  <g transform="translate(40, 80)">
+    <rect width="820" height="155" rx="10" fill="#131316" stroke="#27272a" stroke-width="1.5" />
+    <text x="20" y="24" class="section-badge">LIOP PROTOCOL &amp; SDK CORE</text>
 
     <!-- Node 1: Gateway -->
     <g transform="translate(20, 42)">
-      <rect width="245" height="96" rx="8" fill="url(#cardGradDark)" stroke="#38bdf8" stroke-width="1.2" />
+      <rect width="245" height="96" rx="8" fill="#18181b" stroke="#38bdf8" stroke-width="1.5" />
       <circle cx="20" cy="24" r="6" fill="#38bdf8" />
-      <text x="34" y="28" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="600" fill="#f8fafc">LiopHybridGateway</text>
-      <text x="20" y="52" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="400" fill="#94a3b8">L4/L7 Ingress (HTTP/1.1 &amp; HTTP/2)</text>
-      <rect x="20" y="65" width="205" height="22" rx="4" fill="#0284c7" fill-opacity="0.15" stroke="#0284c7" stroke-width="0.8" />
-      <text x="28" y="80" font-family="monospace" font-size="10.5" font-weight="600" fill="#38bdf8">GatewayInterceptor</text>
+      <text x="34" y="28" class="card-title">LiopHybridGateway</text>
+      <text x="20" y="52" class="card-subtitle">L4/L7 Ingress (HTTP/1.1 &amp; HTTP/2)</text>
+      <rect x="20" y="65" width="205" height="22" rx="4" fill="#0284c7" fill-opacity="0.2" stroke="#0284c7" stroke-width="1" />
+      <text x="28" y="80" class="code-pill" fill="#38bdf8">GatewayInterceptor</text>
     </g>
 
     <!-- Node 2: Logger -->
     <g transform="translate(287, 42)">
-      <rect width="245" height="96" rx="8" fill="url(#cardGradDark)" stroke="#fbbf24" stroke-width="1.2" />
+      <rect width="245" height="96" rx="8" fill="#18181b" stroke="#fbbf24" stroke-width="1.5" />
       <circle cx="20" cy="24" r="6" fill="#fbbf24" />
-      <text x="34" y="28" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="600" fill="#f8fafc">LiopLogger</text>
-      <text x="20" y="52" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="400" fill="#94a3b8">Operational Stream (stderr)</text>
-      <rect x="20" y="65" width="205" height="22" rx="4" fill="#d97706" fill-opacity="0.15" stroke="#d97706" stroke-width="0.8" />
-      <text x="28" y="80" font-family="monospace" font-size="10.5" font-weight="600" fill="#fbbf24">LogInterceptor</text>
+      <text x="34" y="28" class="card-title">LiopLogger</text>
+      <text x="20" y="52" class="card-subtitle">Operational Stream (stderr)</text>
+      <rect x="20" y="65" width="205" height="22" rx="4" fill="#d97706" fill-opacity="0.2" stroke="#d97706" stroke-width="1" />
+      <text x="28" y="80" class="code-pill" fill="#fbbf24">LogInterceptor</text>
     </g>
 
     <!-- Node 3: AuditLogger -->
     <g transform="translate(555, 42)">
-      <rect width="245" height="96" rx="8" fill="url(#cardGradDark)" stroke="#34d399" stroke-width="1.2" />
+      <rect width="245" height="96" rx="8" fill="#18181b" stroke="#34d399" stroke-width="1.5" />
       <circle cx="20" cy="24" r="6" fill="#34d399" />
-      <text x="34" y="28" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="600" fill="#f8fafc">AuditLogger</text>
-      <text x="20" y="52" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="400" fill="#94a3b8">SOC 2 Hash-Chain Ledger</text>
-      <rect x="20" y="65" width="205" height="22" rx="4" fill="#059669" fill-opacity="0.15" stroke="#059669" stroke-width="0.8" />
-      <text x="28" y="80" font-family="monospace" font-size="10.5" font-weight="600" fill="#34d399">AuditInterceptor</text>
+      <text x="34" y="28" class="card-title">AuditLogger</text>
+      <text x="20" y="52" class="card-subtitle">SOC 2 Hash-Chain Ledger</text>
+      <rect x="20" y="65" width="205" height="22" rx="4" fill="#059669" fill-opacity="0.2" stroke="#059669" stroke-width="1" />
+      <text x="28" y="80" class="code-pill" fill="#34d399">AuditInterceptor</text>
     </g>
   </g>
 
   <!-- Animated Connecting Flow Lines -->
   <g>
     <!-- Stream 1 (Gateway) -->
-    <path d="M 182 230 L 182 280" stroke="#38bdf8" stroke-width="1.5" class="anim-dash" />
+    <path d="M 182 235 L 182 280" class="anim-dash-cyan" />
     <!-- Stream 2 (Logger) -->
-    <path d="M 450 230 L 450 280" stroke="#fbbf24" stroke-width="1.5" class="anim-dash" />
+    <path d="M 450 235 L 450 280" class="anim-dash-amber" />
     <!-- Stream 3 (Audit) -->
-    <path d="M 717 230 L 717 280" stroke="#34d399" stroke-width="1.5" class="anim-dash" />
+    <path d="M 717 235 L 717 280" class="anim-dash-emerald" />
   </g>
 
   <!-- Lower Container: Developer Application Space -->
   <g transform="translate(40, 280)">
-    <rect width="820" height="105" rx="10" fill="#0d1424" stroke="#1e293b" stroke-width="1" />
-    <text x="20" y="24" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="600" fill="#64748b" letter-spacing="0.05em">
-      DEVELOPER APPLICATION SPACE (ANY ENGINE OR RULESET)
-    </text>
+    <rect width="820" height="105" rx="10" fill="#131316" stroke="#27272a" stroke-width="1.5" />
+    <text x="20" y="24" class="section-badge">DEVELOPER APPLICATION SPACE (ANY ENGINE OR RULESET)</text>
 
     <!-- Target 1: TypeSafe Jev -->
     <g transform="translate(20, 38)">
-      <rect width="245" height="54" rx="6" fill="url(#cardGradDark)" stroke="#334155" stroke-width="1" />
-      <text x="16" y="24" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="600" fill="#f8fafc">TypeSafe Jev (Cloud AI)</text>
-      <text x="16" y="42" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10.5" font-weight="400" fill="#94a3b8">Semantic judgment &amp; threat detection</text>
+      <rect width="245" height="54" rx="6" fill="#18181b" stroke="#27272a" stroke-width="1" />
+      <text x="16" y="24" class="card-title">TypeSafe Jev (Cloud AI)</text>
+      <text x="16" y="42" class="card-subtitle">Semantic judgment &amp; threat detection</text>
     </g>
 
     <!-- Target 2: SIEM / Datadog / Splunk -->
     <g transform="translate(287, 38)">
-      <rect width="245" height="54" rx="6" fill="url(#cardGradDark)" stroke="#334155" stroke-width="1" />
-      <text x="16" y="24" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="600" fill="#f8fafc">SIEM / Monitoring</text>
-      <text x="16" y="42" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10.5" font-weight="400" fill="#94a3b8">Datadog, Splunk, Loki, OpenTelemetry</text>
+      <rect width="245" height="54" rx="6" fill="#18181b" stroke="#27272a" stroke-width="1" />
+      <text x="16" y="24" class="card-title">SIEM / Monitoring</text>
+      <text x="16" y="42" class="card-subtitle">Datadog, Splunk, Loki, OpenTelemetry</text>
     </g>
 
     <!-- Target 3: Local Rules / ONNX -->
     <g transform="translate(555, 38)">
-      <rect width="245" height="54" rx="6" fill="url(#cardGradDark)" stroke="#334155" stroke-width="1" />
-      <text x="16" y="24" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="600" fill="#f8fafc">Custom Rules &amp; ONNX</text>
-      <text x="16" y="42" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10.5" font-weight="400" fill="#94a3b8">Regex policies, zero-latency models</text>
+      <rect width="245" height="54" rx="6" fill="#18181b" stroke="#27272a" stroke-width="1" />
+      <text x="16" y="24" class="card-title">Custom Rules &amp; ONNX</text>
+      <text x="16" y="42" class="card-subtitle">Regex policies, zero-latency models</text>
     </g>
   </g>
 
   <!-- Footer: Guarantees & Contract Invariants -->
   <g transform="translate(40, 400)">
-    <rect width="820" height="62" rx="8" fill="#090d16" stroke="#1e293b" stroke-width="1" />
+    <rect width="820" height="62" rx="8" fill="#131316" stroke="#27272a" stroke-width="1" />
 
     <!-- Column 1 -->
     <g transform="translate(20, 16)">
-      <text x="0" y="12" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11.5" font-weight="600" fill="#38bdf8">Perimeter Admission</text>
-      <text x="0" y="29" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" font-weight="400" fill="#94a3b8">Pre-dispatch filter with fail-closed default</text>
+      <text x="0" y="12" class="footer-title" fill="#38bdf8">Perimeter Admission</text>
+      <text x="0" y="29" class="footer-desc">Pre-dispatch filter with fail-closed default</text>
     </g>
-    <line x1="285" y1="12" x2="285" y2="50" stroke="#1e293b" stroke-width="1" />
+    <line x1="285" y1="12" x2="285" y2="50" stroke="#27272a" stroke-width="1" stroke-dasharray="2 2" />
 
     <!-- Column 2 -->
     <g transform="translate(305, 16)">
-      <text x="0" y="12" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11.5" font-weight="600" fill="#fbbf24">Async Fire-and-Forget</text>
-      <text x="0" y="29" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" font-weight="400" fill="#94a3b8">Out-of-band execution with recursion guard</text>
+      <text x="0" y="12" class="footer-title" fill="#fbbf24">Async Fire-and-Forget</text>
+      <text x="0" y="29" class="footer-desc">Out-of-band execution with recursion guard</text>
     </g>
-    <line x1="555" y1="12" x2="555" y2="50" stroke="#1e293b" stroke-width="1" />
+    <line x1="555" y1="12" x2="555" y2="50" stroke="#27272a" stroke-width="1" stroke-dasharray="2 2" />
 
     <!-- Column 3 -->
     <g transform="translate(575, 16)">
-      <text x="0" y="12" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11.5" font-weight="600" fill="#34d399">Post-Seal Integrity</text>
-      <text x="0" y="29" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" font-weight="400" fill="#94a3b8">Immutable clone preserves cryptographic chain</text>
+      <text x="0" y="12" class="footer-title" fill="#34d399">Post-Seal Integrity</text>
+      <text x="0" y="29" class="footer-desc">Immutable clone preserves cryptographic chain</text>
     </g>
   </g>
 </svg>
