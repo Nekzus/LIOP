@@ -1925,6 +1925,7 @@ Protocol Adherence is mandatory for successful execution.`,
 					const toolName = session.capability_hash;
 					const toolDef = toolName ? this.tools.get(toolName) : undefined;
 					const toolPolicy = toolDef?.policy;
+					let decryptedPayload = "";
 
 					// [SECURITY] Preflight check on gRPC execution path (decrypt Logic-on-Origin)
 					try {
@@ -1948,7 +1949,7 @@ Protocol Adherence is mandatory for successful execution.`,
 						let decrypted = decipher.update(encryptedData);
 						decrypted = Buffer.concat([decrypted, decipher.final()]);
 
-						const decryptedPayload = decrypted.toString("utf-8");
+						decryptedPayload = decrypted.toString("utf-8");
 						const logic =
 							this.extractLogic(decryptedPayload) || decryptedPayload.trim();
 
@@ -2192,7 +2193,7 @@ Protocol Adherence is mandatory for successful execution.`,
 										response.semantic_evidence || "",
 									);
 									const inputTokens = telemetry.countTokens(
-										req.logic_envelope || "",
+										decryptedPayload || "",
 									);
 
 									telemetry.record({
