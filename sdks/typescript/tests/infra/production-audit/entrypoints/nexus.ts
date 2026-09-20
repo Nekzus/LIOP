@@ -254,6 +254,34 @@ async function main() {
 	const port = await gateway.listen(3000);
 	console.log(`[Nexus-Prod] Gateway active on port ${port}`);
 
+	// [SEC] Warm-up interceptor HTTP connection to eliminate TLS cold start
+	if (interceptorOptions?.interceptor && process.env.TYPESAFE_API_KEY) {
+		try {
+			const warmupStart = performance.now();
+			await fetch("https://api.typesafe.ai/v1/systemone", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${process.env.TYPESAFE_API_KEY}`,
+				},
+				body: JSON.stringify({
+					model: "jev-latest",
+					state: { source: "warmup_probe", type: "startup" },
+					questions: {
+						probe: { type: "noul", instructions: "Is this a warmup probe?" },
+					},
+				}),
+			});
+			console.log(
+				`[Nexus-Prod] Jev warm-up completed in ${(performance.now() - warmupStart).toFixed(0)}ms`,
+			);
+		} catch {
+			console.warn(
+				"[Nexus-Prod] Jev warm-up failed — first request will have cold start",
+			);
+		}
+	}
+
 	const shutdown = async () => {
 		console.log("[Nexus-Prod] Shutdown signal received. Closing servers...");
 		await gateway.stop();

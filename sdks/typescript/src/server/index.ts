@@ -11,6 +11,7 @@ import * as grpc from "@grpc/grpc-js";
 import { createMlKem768 } from "mlkem";
 import { FixedQueue, Piscina } from "piscina";
 import { z } from "zod";
+import { TokenTelemetryEngine } from "../economy/telemetry.js";
 import {
 	type LiopManifest,
 	MeshNode,
@@ -1628,6 +1629,13 @@ Protocol Adherence is mandatory for successful execution.`,
 		this.sandboxRecords = records;
 	}
 
+	/**
+	 * Returns the read-only sandbox records registered in the enclave.
+	 */
+	public getSandboxData(): readonly Record<string, unknown>[] {
+		return this.sandboxRecords;
+	}
+
 	public getBoundPort(): number | null {
 		return this.boundPort;
 	}
@@ -2141,6 +2149,7 @@ Protocol Adherence is mandatory for successful execution.`,
 							capability: toolName || "unknown",
 							tool: toolName || "unknown",
 							status: isBlocked ? "blocked_egress" : "success",
+							role: "executor",
 						});
 						fuelConsumed.observe(
 							{
@@ -2164,15 +2173,38 @@ Protocol Adherence is mandatory for successful execution.`,
 							);
 
 							if (this.sandboxRecords && this.sandboxRecords.length > 0) {
-								const rawDatasetBytes = Buffer.byteLength(
-									JSON.stringify(this.sandboxRecords),
-								);
+								const rawDatasetString = JSON.stringify(this.sandboxRecords);
+								const rawDatasetBytes = Buffer.byteLength(rawDatasetString);
 								const savedBytes = Math.max(0, rawDatasetBytes - egressBytes);
 								if (savedBytes > 0) {
 									wireSavedBytesTotal.inc(
 										{ capability: toolName || "unknown" },
 										savedBytes,
 									);
+								}
+
+								// [Token Economy] Measure dataset tokens and record token savings
+								try {
+									const telemetry = TokenTelemetryEngine.getInstance();
+									const originDatasetTokens =
+										telemetry.countTokens(rawDatasetString);
+									const outputTokens = telemetry.countTokens(
+										response.semantic_evidence || "",
+									);
+									const inputTokens = telemetry.countTokens(
+										req.logic_envelope || "",
+									);
+
+									telemetry.record({
+										type: "tool_call",
+										method: "ExecuteLogic",
+										toolName: toolName || "unknown",
+										estimatedInputTokens: inputTokens,
+										estimatedOutputTokens: outputTokens,
+										originDatasetTokens,
+									});
+								} catch {
+									// Token telemetry failure must not interrupt response delivery
 								}
 							}
 						} catch {
@@ -2213,6 +2245,7 @@ Protocol Adherence is mandatory for successful execution.`,
 							capability: toolName || "unknown",
 							tool: toolName || "unknown",
 							status: "error",
+							role: "executor",
 						});
 						toolCallErrorsTotal.inc({
 							capability: toolName || "unknown",

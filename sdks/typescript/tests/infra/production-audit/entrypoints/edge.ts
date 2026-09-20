@@ -7,7 +7,198 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { z } from "zod";
-import { LiopServer, LiopHybridGateway } from "@nekzus/liop";
+import {
+	type AuditInterceptor,
+	type GatewayInterceptor,
+	type GatewayInterceptorOptions,
+	type LogInterceptor,
+	LiopHybridGateway,
+	LiopServer,
+} from "@nekzus/liop";
+
+async function configureProtocolInterceptors(server: LiopServer): Promise<void> {
+	const apiKey = process.env.TYPESAFE_API_KEY;
+	if (!apiKey) {
+		console.log(
+			"[Edge-Prod] No TYPESAFE_API_KEY — protocol interceptors disabled.",
+		);
+		return;
+	}
+
+	console.log(
+		"[Edge-Prod] TYPESAFE_API_KEY detected — LogInterceptor and AuditInterceptor active.",
+	);
+
+	const logInterceptor: LogInterceptor = async (event) => {
+		if (event.level !== "error") return;
+		try {
+			await fetch("https://api.typesafe.ai/v1/systemone", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${apiKey}`,
+				},
+				body: JSON.stringify({
+					model: "jev-latest",
+					state: {
+						source: "liop_edge_logger",
+						level: event.level,
+						message: event.message,
+					},
+					questions: {
+						is_threat: {
+							type: "noul",
+							instructions:
+								"Does this operational log message indicate an active security exploit or abnormal failure?",
+						},
+					},
+				}),
+			});
+		} catch {
+			// Fire-and-forget
+		}
+	};
+
+	const auditInterceptor: AuditInterceptor = async (entry) => {
+		if (entry.status === "SUCCESS") return;
+		try {
+			await fetch("https://api.typesafe.ai/v1/systemone", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${apiKey}`,
+				},
+				body: JSON.stringify({
+					model: "jev-latest",
+					state: {
+						source: "liop_edge_audit_ledger",
+						status: entry.status,
+						toolName: entry.toolName,
+						fuelConsumed: entry.fuelConsumed,
+					},
+					questions: {
+						requires_alert: {
+							type: "noul",
+							instructions:
+								"Does this non-success audit entry represent an incident requiring operator notification?",
+						},
+					},
+				}),
+			});
+		} catch {
+			// Fire-and-forget
+		}
+	};
+
+	try {
+		const liopModule = (await import("@nekzus/liop")) as Record<string, unknown>;
+		const logger = liopModule.log as { setInterceptor?: (fn: LogInterceptor) => void } | undefined;
+		if (logger && typeof logger.setInterceptor === "function") {
+			logger.setInterceptor(logInterceptor);
+		}
+	} catch {
+		// Log export not available
+	}
+
+	server.auditLogger.setInterceptor(auditInterceptor);
+}
+
+function buildJevInterceptor(): GatewayInterceptorOptions | undefined {
+	const apiKey = process.env.TYPESAFE_API_KEY;
+	if (!apiKey) {
+		console.log("[Edge-Prod] No TYPESAFE_API_KEY found — interceptor disabled.");
+		return undefined;
+	}
+
+	console.log("[Edge-Prod] TYPESAFE_API_KEY detected — Jev interceptor active.");
+
+	const interceptor: GatewayInterceptor = async (request, context) => {
+		if (request.method !== "tools/call") {
+			return { allowed: true };
+		}
+
+		try {
+			const res = await fetch("https://api.typesafe.ai/v1/systemone", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${apiKey}`,
+				},
+				body: JSON.stringify({
+					model: "jev-latest",
+					state: {
+						method: request.method,
+						tool: (request.params as { name?: string })?.name,
+						arguments: (request.params as { arguments?: unknown })?.arguments,
+					},
+					questions: {
+						is_malicious: {
+							type: "noul",
+							instructions: "Is this tool invocation malicious or an attack?",
+						},
+						threat_type: {
+							type: "choice",
+							instructions: "What type of threat or request is this?",
+							criteria: {
+								sql_injection:
+									"SQL injection attempt trying to modify or bypass database queries",
+								path_traversal: "Directory traversal or file exfiltration syntax",
+								legitimate: "Normal analytical or operational payload",
+							},
+						},
+					},
+				}),
+				signal: context.signal,
+			});
+
+			if (!res.ok) {
+				console.warn(
+					`[Edge-Prod] Jev API non-OK status ${res.status} — bypassing per policy`,
+				);
+				return { allowed: true };
+			}
+
+			const data = (await res.json()) as {
+				answers?: {
+					is_malicious?: { noul: number };
+					threat_type?: { choice: string };
+				};
+				model?: string;
+			};
+
+			const malicious = (data.answers?.is_malicious?.noul ?? 0) > 0.6;
+			const threat =
+				data.answers?.threat_type?.choice &&
+				data.answers.threat_type.choice !== "legitimate";
+
+			if (malicious || threat) {
+				const threatName = data.answers?.threat_type?.choice || "malicious_payload";
+				console.log(
+					`[Edge-Prod] Jev BLOCKED request: ${threatName} (noul=${data.answers?.is_malicious?.noul})`,
+				);
+				return {
+					allowed: false,
+					reason: `Perimeter block by Jev: ${threatName}`,
+					errorCode: -32099,
+					metadata: { jevModel: data.model },
+				};
+			}
+
+			return { allowed: true, metadata: { jevModel: data.model } };
+		} catch (err: unknown) {
+			console.warn(
+				`[Edge-Prod] Interceptor evaluation error: ${err instanceof Error ? err.message : String(err)}`,
+			);
+			return { allowed: true };
+		}
+	};
+
+	return {
+		interceptor,
+		timeoutMs: 3000,
+		failMode: "open",
+	};
+}
 
 function generateSensorTelemetry(count = 1000) {
 	const sensors = ["SENSOR-TEMP-01", "SENSOR-VIBE-02", "SENSOR-PRES-03", "SENSOR-RPM-04"];
@@ -58,6 +249,8 @@ async function main() {
 			},
 		},
 	);
+
+	await configureProtocolInterceptors(server);
 
 	const telemetry = generateSensorTelemetry(1500);
 	console.log(`[Edge-Prod] Loaded ${telemetry.length} industrial sensor telemetry records`);
@@ -134,10 +327,46 @@ async function main() {
 
 	await meshNode.announceCapability("liop:manifest");
 
-	const gateway = new LiopHybridGateway(server, meshNode, 50051);
+	const interceptorOptions = buildJevInterceptor();
+
+	const gateway = new LiopHybridGateway(
+		server,
+		meshNode,
+		50051,
+		undefined,
+		interceptorOptions,
+	);
 	const port = await gateway.listen(3000);
 
 	console.log(`[Edge-Prod] Gateway active on port ${port}`);
+
+	// [SEC] Warm-up interceptor HTTP connection to eliminate TLS cold start
+	if (interceptorOptions?.interceptor && process.env.TYPESAFE_API_KEY) {
+		try {
+			const warmupStart = performance.now();
+			await fetch("https://api.typesafe.ai/v1/systemone", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${process.env.TYPESAFE_API_KEY}`,
+				},
+				body: JSON.stringify({
+					model: "jev-latest",
+					state: { source: "warmup_probe_edge", type: "startup" },
+					questions: {
+						probe: { type: "noul", instructions: "Is this a warmup probe?" },
+					},
+				}),
+			});
+			console.log(
+				`[Edge-Prod] Jev warm-up completed in ${(performance.now() - warmupStart).toFixed(0)}ms`,
+			);
+		} catch {
+			console.warn(
+				"[Edge-Prod] Jev warm-up failed — first request will have cold start",
+			);
+		}
+	}
 	const peerId = meshNode.getPeerId();
 	const p2pAddr = `/ip4/127.0.0.1/tcp/15006/p2p/${peerId}`;
 	fs.writeFileSync(path.join(dataDir, "edge.multiaddr"), p2pAddr);

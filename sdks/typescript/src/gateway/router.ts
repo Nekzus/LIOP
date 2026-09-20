@@ -10,6 +10,7 @@ import {
 	pqcHandshakeDurationMs,
 	pqcHandshakesTotal,
 	toolCallErrorsTotal,
+	toolCallsTotal,
 	wireEgressBytesTotal,
 	zkVerificationsTotal,
 } from "../observability/metrics.js";
@@ -1382,6 +1383,15 @@ export class LiopMcpRouter {
 				const localTelemetry = TokenTelemetryEngine.getInstance();
 				const localInputPayload = JSON.stringify(params.arguments || {});
 				const localOutputPayload = JSON.stringify(result);
+
+				let originDatasetTokens: number | undefined;
+				const sandboxRecords = this.liopServer.getSandboxData();
+				if (sandboxRecords && sandboxRecords.length > 0) {
+					originDatasetTokens = localTelemetry.countTokens(
+						JSON.stringify(sandboxRecords),
+					);
+				}
+
 				localTelemetry.record({
 					type: "tool_call",
 					method: "tools/call",
@@ -1389,6 +1399,14 @@ export class LiopMcpRouter {
 					estimatedInputTokens: localTelemetry.countTokens(localInputPayload),
 					estimatedOutputTokens: localTelemetry.countTokens(localOutputPayload),
 					durationMs: Date.now() - localStartTime,
+					originDatasetTokens,
+				});
+
+				toolCallsTotal.inc({
+					capability: toolName,
+					tool: toolName,
+					status: result.isError ? "error" : "success",
+					role: "executor",
 				});
 
 				return { jsonrpc: "2.0", id, result };
@@ -1910,6 +1928,13 @@ export class LiopMcpRouter {
 									Buffer.byteLength(resultBody),
 								);
 							} catch {}
+
+							toolCallsTotal.inc({
+								capability: toolName,
+								tool: toolName,
+								status: parsedResult.isError ? "error" : "success",
+								role: "proxy",
+							});
 
 							resolve({ jsonrpc: "2.0", id, result: parsedResult });
 						} catch (_e) {

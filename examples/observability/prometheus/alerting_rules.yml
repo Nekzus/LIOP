@@ -66,6 +66,18 @@ groups:
           description: "A post-quantum cryptographic key encapsulation handshake failed on {{ $labels.instance }}. Potential PQC negotiation incompatibility or key corruption."
           runbook_url: "https://github.com/nekzus/liop/blob/main/examples/observability/README.md#runbook-lioppqchandshakefailure"
 
+      - alert: LiopRepeatedEnclaveEgressRejection
+        expr: increase(liop_tool_call_errors_total{error_type="remote_execution_error"}[5m]) > 3
+        for: 0s
+        labels:
+          severity: warning
+          tier: zero-trust
+          component: egress-shield
+        annotations:
+          summary: "Repeated enclave egress rejection detected on {{ $labels.instance }}"
+          description: "Capability {{ $labels.capability }} has been rejected {{ $value | printf \"%.0f\" }} times in the last 5 minutes. Possible data exfiltration probing."
+          runbook_url: "https://github.com/nekzus/liop/blob/main/examples/observability/README.md#runbook-liopzero-trust"
+
   - name: liop_performance_and_red_alerts
     rules:
       - alert: LiopHighErrorRate

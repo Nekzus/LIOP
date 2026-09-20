@@ -94,13 +94,15 @@ describe("Prometheus Metrics Module (Phase Beta-3)", () => {
 	});
 
 	it("should provide pre-configured protocol metrics singleton", () => {
-		toolCallsTotal.inc({ tool: "Analyze_HFT_Market_Data", status: "success" });
+		toolCallsTotal.inc({ tool: "Analyze_HFT_Market_Data", status: "success", role: "executor" });
+		toolCallsTotal.inc({ tool: "Analyze_HFT_Market_Data", status: "success", role: "proxy" });
 		toolCallErrorsTotal.inc({ capability: "Analyze_HFT_Market_Data", error_type: "policy_denied" });
 		pqcHandshakesTotal.inc({ algorithm: "ml-kem-768", status: "success" });
 		zkVerificationsTotal.inc({ status: "valid" });
 
 		const out = protocolMetrics.exportPrometheusText();
-		expect(out).toContain('liop_tool_calls_total{status="success",tool="Analyze_HFT_Market_Data"} 1');
+		expect(out).toContain('liop_tool_calls_total{role="executor",status="success",tool="Analyze_HFT_Market_Data"} 1');
+		expect(out).toContain('liop_tool_calls_total{role="proxy",status="success",tool="Analyze_HFT_Market_Data"} 1');
 		expect(out).toContain('liop_tool_call_errors_total{capability="Analyze_HFT_Market_Data",error_type="policy_denied"} 1');
 		expect(out).toContain('liop_pqc_handshakes_total{algorithm="ml-kem-768",status="success"} 1');
 		expect(out).toContain('liop_zk_verifications_total{status="valid"} 1');

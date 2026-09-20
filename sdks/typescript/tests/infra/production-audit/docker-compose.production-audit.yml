@@ -190,6 +190,7 @@ services:
       LIOP_BOOTSTRAP_PEER: /ip4/172.23.0.10/tcp/4000
       LIOP_RATE_LIMIT_MAX: 500
       LIOP_RATE_LIMIT_GLOBAL_MAX: 2000
+      TYPESAFE_API_KEY: ${TYPESAFE_API_KEY:-}
     networks:
       liop-tier2-consortium:
         ipv4_address: 172.23.0.13
@@ -216,6 +217,7 @@ services:
       LIOP_BOOTSTRAP_PEER: /ip4/172.23.0.10/tcp/4000
       LIOP_RATE_LIMIT_MAX: 500
       LIOP_RATE_LIMIT_GLOBAL_MAX: 2000
+      TYPESAFE_API_KEY: ${TYPESAFE_API_KEY:-}
     networks:
       liop-tier2-consortium:
         ipv4_address: 172.23.0.14
