@@ -36,6 +36,7 @@ function normalizeMessage(message: Uint8Array | string): Uint8Array {
 /**
  * Deterministic canonical JSON serializer to ensure stable cryptographic hashing
  * regardless of key ordering in JavaScript objects (per RFC 8785 JCS).
+ * Keys with undefined values are strictly excluded per RFC 8785 section 3.2.2.
  */
 function canonicalizeJson(obj: unknown): string {
 	if (obj === null || typeof obj !== "object") {
