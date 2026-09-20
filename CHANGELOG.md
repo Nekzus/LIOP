@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.4.0-alpha.17](https://github.com/Nekzus/LIOP/compare/v2.4.0-alpha.16...v2.4.0-alpha.17) (2026-09-20)
+
+
+### Bug Fixes
+
+* **protocol:** enforce RFC 8785 JCS canonicalization and streaming manifest resolution ([aa1d36e](https://github.com/Nekzus/LIOP/commit/aa1d36ee6fce8d7b140de47f61bac74d8b5b2e33))
+
 # [2.4.0-alpha.16](https://github.com/Nekzus/LIOP/compare/v2.4.0-alpha.15...v2.4.0-alpha.16) (2026-09-20)
 
 
