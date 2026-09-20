@@ -14,10 +14,9 @@ import {
 	type LogInterceptor,
 	LiopHybridGateway,
 	LiopServer,
-	log,
 } from "@nekzus/liop";
 
-function configureProtocolInterceptors(server: LiopServer): void {
+async function configureProtocolInterceptors(server: LiopServer): Promise<void> {
 	const apiKey = process.env.TYPESAFE_API_KEY;
 	if (!apiKey) {
 		console.log(
@@ -91,7 +90,17 @@ function configureProtocolInterceptors(server: LiopServer): void {
 		}
 	};
 
-	log.setInterceptor(logInterceptor);
+	// Dynamically attach log interceptor if log is available
+	try {
+		const liopModule = (await import("@nekzus/liop")) as Record<string, unknown>;
+		const logger = liopModule.log as { setInterceptor?: (fn: LogInterceptor) => void } | undefined;
+		if (logger && typeof logger.setInterceptor === "function") {
+			logger.setInterceptor(logInterceptor);
+		}
+	} catch {
+		// Log export not available in current bundle
+	}
+
 	server.auditLogger.setInterceptor(auditInterceptor);
 }
 
@@ -211,7 +220,7 @@ async function main() {
 		},
 	);
 
-	configureProtocolInterceptors(liopServer);
+	await configureProtocolInterceptors(liopServer);
 
 	await liopServer.connectToMesh({
 		port: 50051,

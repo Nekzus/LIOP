@@ -42,3 +42,4 @@ export {
 } from "./security/rbac.js";
 export * from "./server/index.js";
 export * from "./types.js";
+export * from "./utils/logger.js";
