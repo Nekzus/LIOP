@@ -15,7 +15,8 @@ export type AuditStatus =
 	| "SUCCESS"
 	| "BLOCKED_EGRESS"
 	| "ERROR"
-	| "POLICY_VIOLATION";
+	| "POLICY_VIOLATION"
+	| "TAINT_ANALYSIS_VIOLATION";
 
 export interface AuditEntry {
 	id: string;

@@ -35,7 +35,7 @@ function normalizeMessage(message: Uint8Array | string): Uint8Array {
 
 /**
  * Deterministic canonical JSON serializer to ensure stable cryptographic hashing
- * regardless of key ordering in JavaScript objects.
+ * regardless of key ordering in JavaScript objects (per RFC 8785 JCS).
  */
 function canonicalizeJson(obj: unknown): string {
 	if (obj === null || typeof obj !== "object") {
@@ -44,10 +44,12 @@ function canonicalizeJson(obj: unknown): string {
 	if (Array.isArray(obj)) {
 		return `[${obj.map(canonicalizeJson).join(",")}]`;
 	}
-	const sortedKeys = Object.keys(obj as Record<string, unknown>).sort();
+	const record = obj as Record<string, unknown>;
+	const sortedKeys = Object.keys(record)
+		.filter((key) => record[key] !== undefined)
+		.sort();
 	const entries = sortedKeys.map(
-		(key) =>
-			`${JSON.stringify(key)}:${canonicalizeJson((obj as Record<string, unknown>)[key])}`,
+		(key) => `${JSON.stringify(key)}:${canonicalizeJson(record[key])}`,
 	);
 	return `{${entries.join(",")}}`;
 }

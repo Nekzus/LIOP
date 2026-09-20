@@ -7,7 +7,6 @@
 	"description": "LIOP Advanced Client Example demonstrating Kademlia DHT discovery, Zod schema rejection and origin execution",
 	"scripts": {
 		"start": "tsx src/index.ts",
-		"test": "vitest run",
 		"build": "tsdown"
 	},
 	"dependencies": {

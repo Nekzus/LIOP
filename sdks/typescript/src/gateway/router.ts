@@ -806,68 +806,60 @@ export class LiopMcpRouter {
 					return true;
 				});
 
-				// Parallel manifest queries — eliminates sequential 100ms + retry delays
-				const queryResults = await Promise.allSettled(
+				// Parallel streaming manifest queries — updates cache immediately upon arrival
+				await Promise.allSettled(
 					eligiblePeers.map(async (peerId) => {
-						if (!this.meshNode) return null;
+						if (!this.meshNode) return;
 						log.info(`[LIOP-Router] Querying manifest from: ${peerId}`);
-						return {
-							peerId,
-							manifest: await this.meshNode.queryManifest(peerId),
-						};
-					}),
-				);
+						try {
+							const manifest = await this.meshNode.queryManifest(peerId);
+							if (manifest) {
+								// [Phase Beta-2] ML-DSA-65 (FIPS 204) Manifest Attestation Verification
+								if (manifest.pqcSignature && manifest.pqcPublicKey) {
+									const isValid = Dilithium65Wrapper.verifyManifest(
+										manifest as unknown as Record<string, unknown>,
+										manifest.pqcSignature,
+										manifest.pqcPublicKey,
+									);
+									if (!isValid) {
+										log.warn(
+											`[LIOP-Router] ⚠️ Tampered manifest rejected for peer ${peerId} (ML-DSA-65 signature invalid)`,
+										);
+										this.recordManifestQueryFailure(peerId);
+										errorCount++;
+										return;
+									}
+									log.info(
+										`[LIOP-Router] 🔒 ML-DSA-65 (FIPS 204) Manifest attestation verified for peer ${peerId}`,
+									);
+								}
 
-				for (const result of queryResults) {
-					if (result.status === "fulfilled" && result.value?.manifest) {
-						const { peerId, manifest } = result.value;
-
-						// [Phase Beta-2] ML-DSA-65 (FIPS 204) Manifest Attestation Verification
-						if (manifest.pqcSignature && manifest.pqcPublicKey) {
-							const isValid = Dilithium65Wrapper.verifyManifest(
-								manifest as unknown as Record<string, unknown>,
-								manifest.pqcSignature,
-								manifest.pqcPublicKey,
-							);
-							if (!isValid) {
-								log.warn(
-									`[LIOP-Router] ⚠️ Tampered manifest rejected for peer ${peerId} (ML-DSA-65 signature invalid)`,
+								this.manifestCache.set(peerId, {
+									manifest,
+									cachedAt: Date.now(),
+								});
+								this.recordManifestQuerySuccess(peerId);
+								cacheUpdated = true;
+								successCount++;
+								log.info(
+									`[LIOP-Router] Manifest received from ${peerId} (${manifest.tools.length} tools)`,
 								);
+							} else {
 								this.recordManifestQueryFailure(peerId);
 								errorCount++;
-								continue;
+								log.info(
+									`[LIOP-Router] Manifest query returned NULL for ${peerId}`,
+								);
 							}
+						} catch (err: unknown) {
+							errorCount++;
 							log.info(
-								`[LIOP-Router] 🔒 ML-DSA-65 (FIPS 204) Manifest attestation verified for peer ${peerId}`,
+								`[LIOP-Router] Fatal error querying manifest:`,
+								err instanceof Error ? err.message : String(err),
 							);
 						}
-
-						this.manifestCache.set(peerId, {
-							manifest,
-							cachedAt: Date.now(),
-						});
-						this.recordManifestQuerySuccess(peerId);
-						cacheUpdated = true;
-						successCount++;
-						log.info(
-							`[LIOP-Router] Manifest received from ${peerId} (${manifest.tools.length} tools)`,
-						);
-					} else if (result.status === "fulfilled" && result.value) {
-						this.recordManifestQueryFailure(result.value.peerId);
-						errorCount++;
-						log.info(
-							`[LIOP-Router] Manifest query returned NULL for ${result.value.peerId}`,
-						);
-					} else if (result.status === "rejected") {
-						errorCount++;
-						log.info(
-							`[LIOP-Router] Fatal error querying manifest:`,
-							result.reason instanceof Error
-								? result.reason.message
-								: String(result.reason),
-						);
-					}
-				}
+					}),
+				);
 
 				// Store discovery stats for LiopMeshStatus diagnostics
 				// biome-ignore lint/suspicious/noExplicitAny: private stats for telemetry

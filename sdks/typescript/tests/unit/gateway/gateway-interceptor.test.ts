@@ -101,7 +101,7 @@ describe("GatewayInterceptor - executeGatewayInterceptor()", () => {
 		const interceptor = vi.fn().mockImplementation((req: McpRequest) => {
 			// Attempt top-level mutation (blocked by Object.freeze in strict mode)
 			try {
-				(req as Record<string, unknown>).method = "hacked";
+				(req as unknown as Record<string, unknown>).method = "hacked";
 			} catch {
 				// Expected: TypeError in strict mode
 			}

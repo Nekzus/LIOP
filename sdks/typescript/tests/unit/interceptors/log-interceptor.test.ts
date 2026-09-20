@@ -125,13 +125,15 @@ describe("LogInterceptor - LiopLogger integration", () => {
 		log.info("Immutable check");
 
 		expect(interceptedEvent).not.toBeNull();
-		expect(interceptedEvent?.message).toContain("[INFO] Immutable check");
+		expect((interceptedEvent as LogEvent | null)?.message).toContain("[INFO] Immutable check");
 	});
 
 	it("8. should not invoke interceptor when log level is filtered out", () => {
 		const events: LogEvent[] = [];
 		log.setLevel("error");
-		log.setInterceptor((e) => events.push(e));
+		log.setInterceptor((e) => {
+			events.push(e);
+		});
 
 		log.debug("Should be filtered");
 		log.info("Should be filtered");
@@ -147,7 +149,9 @@ describe("LogInterceptor - LiopLogger integration", () => {
 
 	it("9. should cleanly disable interception when set to undefined", () => {
 		const events: LogEvent[] = [];
-		log.setInterceptor((e) => events.push(e));
+		log.setInterceptor((e) => {
+			events.push(e);
+		});
 
 		log.info("Event 1");
 		expect(events).toHaveLength(1);

@@ -80,7 +80,7 @@ describe.skipIf(!HAS_API_KEY)(
 		});
 
 		// ─────────────────────────────────────────────────────────────
-		// GRUPO 1: GatewayInterceptor (Perímetro L4/L7)
+		// GROUP 1: GatewayInterceptor (L4/L7 Perimeter)
 		// ─────────────────────────────────────────────────────────────
 
 		it(
@@ -362,7 +362,7 @@ describe.skipIf(!HAS_API_KEY)(
 		);
 
 		// ─────────────────────────────────────────────────────────────
-		// GRUPO 2: LogInterceptor (Telemetría Operacional Out-of-Band)
+		// GROUP 2: LogInterceptor (Out-of-Band Operational Telemetry)
 		// ─────────────────────────────────────────────────────────────
 
 		it(
@@ -498,7 +498,7 @@ describe.skipIf(!HAS_API_KEY)(
 		);
 
 		// ─────────────────────────────────────────────────────────────
-		// GRUPO 3: AuditInterceptor (Ledger Criptográfico Post-Sellado)
+		// GROUP 3: AuditInterceptor (Post-Seal Cryptographic Ledger)
 		// ─────────────────────────────────────────────────────────────
 
 		it(
@@ -636,7 +636,7 @@ describe.skipIf(!HAS_API_KEY)(
 		);
 
 		// ─────────────────────────────────────────────────────────────
-		// GRUPO 4: Ciclo de Vida Completo Unificado (Tri-Hook Pipeline)
+		// GROUP 4: Unified Full Lifecycle (Tri-Hook Pipeline)
 		// ─────────────────────────────────────────────────────────────
 
 		it(
@@ -650,7 +650,7 @@ describe.skipIf(!HAS_API_KEY)(
 					auditSealed?: boolean;
 				} = {};
 
-				// 1. Hook de Admisión Perimetral
+				// 1. Perimeter Admission Hook
 				const gatewayInterceptor: GatewayInterceptor = async (request, context) => {
 					const res = await fetch("https://api.typesafe.ai/v1/systemone", {
 						method: "POST",
@@ -680,7 +680,7 @@ describe.skipIf(!HAS_API_KEY)(
 					};
 				};
 
-				// 2. Hook de Logs Operacionales
+				// 2. Operational Log Hook
 				const logInterceptor: LogInterceptor = async (event: Readonly<LogEvent>) => {
 					const res = await fetch("https://api.typesafe.ai/v1/systemone", {
 						method: "POST",
@@ -704,7 +704,7 @@ describe.skipIf(!HAS_API_KEY)(
 					}
 				};
 
-				// 3. Hook de Auditoría Post-Sellado
+				// 3. Post-Seal Audit Hook
 				const auditInterceptor: AuditInterceptor = async (entry: Readonly<AuditEntry>) => {
 					const res = await fetch("https://api.typesafe.ai/v1/systemone", {
 						method: "POST",
@@ -732,8 +732,8 @@ describe.skipIf(!HAS_API_KEY)(
 				log.setInterceptor(logInterceptor);
 				auditLogger.setInterceptor(auditInterceptor);
 
-				// Ejecución del Pipeline:
-				// Paso A: Evaluación de entrada en el Gateway
+				// Pipeline Execution:
+				// Step A: Ingress evaluation at Gateway
 				const request: McpRequest = {
 					jsonrpc: "2.0",
 					method: "tools/call",
@@ -754,10 +754,10 @@ describe.skipIf(!HAS_API_KEY)(
 
 				expect(admission.allowed).toBe(true);
 
-				// Paso B: Emisión de logs operacionales durante la ejecución
+				// Step B: Operational log emission during execution
 				log.info("[Pipeline] Processing sensor-42 data at edge enclave");
 
-				// Paso C: Sellado criptográfico de auditoría
+				// Step C: Cryptographic audit sealing
 				auditLogger.recordExecution({
 					agentDid: "did:liop:iot-orchestrator",
 					peerId: "12D3KooWIoTEdge",
@@ -766,7 +766,7 @@ describe.skipIf(!HAS_API_KEY)(
 					status: "SUCCESS",
 				});
 
-				// Esperar a que los hooks asíncronos out-of-band completen su inferencia
+				// Await out-of-band async hooks to complete inference
 				await vi.waitFor(
 					() => {
 						expect(lifecycleTelemetry.logInspected).toBe(true);
