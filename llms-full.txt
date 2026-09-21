@@ -681,7 +681,20 @@ In enterprise production deployments, the mesh topology is partitioned across th
 ### Tier 3: Public Backbone & Edge IoT
 * **Edge Industrial Nodes (`Edge IoT`)**: Deployed directly on edge industrial hardware under hostile WAN profiles (simulated 250ms ± 50ms latency with 2% packet loss). Computes anomaly detection in-situ, transmitting only critical aggregated telemetry.
 * **P2P Circuit Relays (`Relay`)**: High-throughput public relays implementing AutoNAT and Circuit Relay v2 for traversal of corporate firewalls.
-* **Client SDK & Web Playground**: Interactive execution consoles operating over intercontinental WAN links.
+* **Client SDK, Web Playground & Studio**: Interactive execution consoles operating over intercontinental WAN links (`:16000` Studio / `:16002` Playground).
+
+### Interceptor Demarcation & Defense-in-Depth
+
+Within this multi-tier architecture, interceptors follow strict topological demarcation per NIST SP 800-207 Zero-Trust standards:
+
+* **Perimeter Ingress (`GatewayInterceptor`)**: Runs strictly at the DMZ boundary (e.g. Nexus Gateway) to filter malformed or hostile RPC calls (SQLi, Path Traversal, Prompt Injection) with HTTP 403 and error code `-32099`. It is **strictly prohibited** inside Tier 1 Enclaves to prevent false-positive rejections on legitimate analytical code and preserve genuine Zero-Trust sandbox evaluation.
+* **Enclave Compute Isolation (`The Shield`)**: Runs inside Tier 1 Enclaves (`The Bank`, `The Vault`), containing injected code via a 6-layer defense pipeline (Guardian AST allowlist, WASI/V8 sandbox with 25 poisoned globals and fuel limits, Taint IFC, Egress PII Shield, Aggregation-First policy, and ZK-Receipts).
+* **Universal Out-of-Band Observability (`LogInterceptor` & `AuditInterceptor`)**: Deployed across all tiers (Nexus, BLG, Enclaves) executing asynchronously out-of-band (0 ms host delay) to feed external SIEM analyzers, Prometheus, and SOC 2 / HIPAA compliance ledgers.
+
+<Frame caption="LIOP Interceptor Topology: Demarcation between Ingress Admission and Enclave Isolation">
+  <img className="block dark:hidden" src="/images/animated-interceptor-topology-light.svg" alt="LIOP Interceptor Topology (Light)" />
+  <img className="hidden dark:block" src="/images/animated-interceptor-topology-dark.svg" alt="LIOP Interceptor Topology (Dark)" />
+</Frame>
 
 ---
 
