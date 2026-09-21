@@ -2,6 +2,13 @@
 
 All notable changes to @nekzus/liop-studio will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.0.0-alpha.15](https://github.com/Nekzus/LIOP/compare/studio-v1.0.0-alpha.14...studio-v1.0.0-alpha.15) (2026-09-21)
+
+
+### Bug Fixes
+
+* **audit:** scope GatewayInterceptor to perimeter nexus gateway to allow enclave test suites to pass ([0a38c39](https://github.com/Nekzus/LIOP/commit/0a38c393d405a410384ff2f71532ae805b672276))
+
 # [1.0.0-alpha.14](https://github.com/Nekzus/LIOP/compare/studio-v1.0.0-alpha.13...studio-v1.0.0-alpha.14) (2026-09-20)
 
 
