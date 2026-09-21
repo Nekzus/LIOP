@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.4.0-alpha.20](https://github.com/Nekzus/LIOP/compare/v2.4.0-alpha.19...v2.4.0-alpha.20) (2026-09-21)
+
+
+### Bug Fixes
+
+* **audit:** scope GatewayInterceptor to perimeter nexus gateway to allow enclave test suites to pass ([0a38c39](https://github.com/Nekzus/LIOP/commit/0a38c393d405a410384ff2f71532ae805b672276))
+
 # [2.4.0-alpha.19](https://github.com/Nekzus/LIOP/compare/v2.4.0-alpha.18...v2.4.0-alpha.19) (2026-09-20)
 
 
