@@ -9,21 +9,34 @@ The **LIOP Web Playground** is an interactive, browser-based logic injection stu
   <img className="w-full rounded-lg border border-white/10 shadow-xl" src="/images/animated-docker-infra-dark.svg" alt="LIOP Playground Architecture" />
 </Frame>
 
-## Launching the Playground
+## Launching LIOP Studio & Web Playground
 
-The playground can be launched standalone or as part of the multi-tier production audit mesh:
+LIOP provides two complementary developer environments: the official **LIOP Studio** package (`@nekzus/liop-studio`) and the embedded **Web Playground**:
 
 <CodeGroup>
-```bash Production Mesh (:16000)
-# Start the full 8-node multi-tier mesh with simulated WAN latency
-pnpm audit:prod:start
+```bash LIOP Studio (NPM Package :16000)
+# Launch official studio targeting a running MCP/LIOP endpoint
+npx @nekzus/liop-studio --http "http://localhost:3000/mcp"
 
-# Access the console in your browser:
+# Access the studio console in your browser:
 # http://localhost:16000
 ```
 
+```bash Headless Mesh Scanner (CLI)
+# Perform a quick health and capability scan without opening a browser
+npx @nekzus/liop-studio scan http://localhost:3000/mcp
+```
+
+```bash Production Mesh Harness (:16000 / :16002)
+# Start the full 10-node multi-tier sovereign mesh in Docker
+pnpm audit:prod:start
+
+# Access LIOP Studio: http://localhost:16000
+# Access Playground:   http://localhost:16002
+```
+
 ```bash Standalone Dev (:14000)
-# Launch a local standalone gateway node and studio UI
+# Launch a local standalone gateway node and playground UI
 pnpm demo:playground
 
 # Access the console in your browser:

@@ -1,0 +1,217 @@
+<svg width="960" height="500" viewBox="0 0 960 500" xmlns="http://www.w3.org/2000/svg">
+  <!-- Base Background -->
+  <rect width="960" height="500" rx="12" fill="#09090b" stroke="#27272a" stroke-width="1.5" />
+
+  <defs>
+    <style>
+      .main-title { font-family: 'Inter', system-ui, -apple-system, sans-serif; font-size: 16px; font-weight: 700; fill: #fafafa; letter-spacing: -0.01em; }
+      .main-subtitle { font-family: 'Inter', system-ui, -apple-system, sans-serif; font-size: 11px; font-weight: 400; fill: #a1a1aa; }
+      .tier-badge { font-family: 'Inter', system-ui, -apple-system, sans-serif; font-size: 9.5px; font-weight: 700; letter-spacing: 0.05em; }
+      .card-title { font-family: 'Inter', system-ui, -apple-system, sans-serif; font-size: 13px; font-weight: 600; fill: #fafafa; }
+      .card-subtitle { font-family: 'Inter', system-ui, -apple-system, sans-serif; font-size: 10px; font-weight: 400; fill: #a1a1aa; }
+      .code-pill { font-family: 'JetBrains Mono', monospace; font-size: 9.5px; font-weight: 600; }
+      .pill-desc { font-family: 'Inter', system-ui, -apple-system, sans-serif; font-size: 9.5px; font-weight: 400; }
+      .rule-title { font-family: 'Inter', system-ui, -apple-system, sans-serif; font-size: 10.5px; font-weight: 600; }
+
+      @keyframes dataFlow {
+        from { stroke-dashoffset: 24; }
+        to { stroke-dashoffset: 0; }
+      }
+      @keyframes alertPulse {
+        0%, 100% { opacity: 0.7; }
+        50% { opacity: 1; }
+      }
+
+      .anim-stream-blue {
+        stroke: #38bdf8;
+        stroke-width: 2;
+        stroke-dasharray: 6 6;
+        animation: dataFlow 1.2s linear infinite;
+      }
+      .anim-stream-emerald {
+        stroke: #34d399;
+        stroke-width: 1.5;
+        stroke-dasharray: 4 4;
+        animation: dataFlow 1.6s linear infinite;
+      }
+      .pulse-pill {
+        animation: alertPulse 2s ease-in-out infinite;
+      }
+    </style>
+
+    <linearGradient id="gradIngress" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0284c7" stop-opacity="0.12" />
+      <stop offset="100%" stop-color="#0284c7" stop-opacity="0.02" />
+    </linearGradient>
+    <linearGradient id="gradBorder" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#d97706" stop-opacity="0.12" />
+      <stop offset="100%" stop-color="#d97706" stop-opacity="0.02" />
+    </linearGradient>
+    <linearGradient id="gradEnclave" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981" stop-opacity="0.12" />
+      <stop offset="100%" stop-color="#10b981" stop-opacity="0.02" />
+    </linearGradient>
+  </defs>
+
+  <!-- Header -->
+  <g transform="translate(45, 28)">
+    <text x="0" y="0" class="main-title">LIOP Interceptor Topology &amp; Placement Architecture</text>
+    <text x="0" y="18" class="main-subtitle">Boundary segregation: L7 semantic admission at perimeter vs Zero-Trust isolation inside sovereign enclaves</text>
+  </g>
+
+  <!-- ZONE 1: Perimeter Ingress (Nexus Gateway / DMZ) -->
+  <g transform="translate(45, 62)">
+    <rect width="260" height="318" rx="8" fill="url(#gradIngress)" stroke="#0284c7" stroke-width="1.2" />
+    <text x="14" y="22" class="tier-badge" fill="#38bdf8">TIER 3 • INGRESS DMZ</text>
+    <text x="14" y="42" class="card-title">Nexus Gateway</text>
+    <text x="14" y="58" class="card-subtitle">Public HTTP / MCP JSON-RPC Ingress</text>
+
+    <!-- Box 1: GatewayInterceptor -->
+    <g transform="translate(12, 72)">
+      <rect width="236" height="96" rx="6" fill="#18181b" stroke="#0284c7" stroke-width="1" />
+      <rect x="8" y="8" width="130" height="18" rx="3" fill="#0284c7" fill-opacity="0.25" stroke="#38bdf8" stroke-width="0.8" />
+      <text x="14" y="20" class="code-pill" fill="#38bdf8">GatewayInterceptor</text>
+      <text x="148" y="20" class="tier-badge" fill="#4ade80">REQUIRED</text>
+
+      <text x="10" y="40" class="pill-desc" fill="#e4e4e7">• L7 Semantic Admission (TypeSafe Jev)</text>
+      <text x="10" y="54" class="pill-desc" fill="#e4e4e7">• Blocks SQLi, Path Traversal, Injections</text>
+
+      <!-- Rejection Badge -->
+      <rect x="10" y="66" width="216" height="20" rx="4" fill="#450a0a" stroke="#ef4444" stroke-width="0.8" class="pulse-pill" />
+      <circle cx="20" cy="76" r="3" fill="#ef4444" />
+      <text x="28" y="79.5" class="code-pill" fill="#fca5a5">BLOCKED: HTTP 403 / Error -32099</text>
+    </g>
+
+    <!-- Box 2: Operational Hooks -->
+    <g transform="translate(12, 178)">
+      <rect width="236" height="80" rx="6" fill="#18181b" stroke="#27272a" stroke-width="1" />
+      <text x="10" y="18" class="rule-title" fill="#a1a1aa">Operational Hooks (OOB)</text>
+      <rect x="10" y="28" width="102" height="18" rx="3" fill="#d97706" fill-opacity="0.2" stroke="#fbbf24" stroke-width="0.8" />
+      <text x="16" y="40.5" class="code-pill" fill="#fbbf24">LogInterceptor</text>
+      <rect x="120" y="28" width="106" height="18" rx="3" fill="#059669" fill-opacity="0.2" stroke="#34d399" stroke-width="0.8" />
+      <text x="126" y="40.5" class="code-pill" fill="#34d399">AuditInterceptor</text>
+      <text x="10" y="64" class="pill-desc" fill="#71717a">• Async Out-of-Band telemetry (0ms overhead)</text>
+    </g>
+
+    <!-- Status Pill -->
+    <g transform="translate(12, 270)">
+      <rect width="236" height="28" rx="5" fill="#0c4a6e" fill-opacity="0.4" stroke="#38bdf8" stroke-width="0.8" />
+      <circle cx="16" cy="14" r="3.5" fill="#38bdf8" />
+      <text x="26" y="17.5" class="pill-desc" fill="#bae6fd">Perimeter WAF Filter Enforced</text>
+    </g>
+  </g>
+
+  <!-- CONNECTOR: Zone 1 -> Zone 2 -->
+  <g transform="translate(305, 175)">
+    <path d="M 0 0 L 55 0" class="anim-stream-blue" />
+    <polygon points="55,0 47,-3.5 47,3.5" fill="#38bdf8" />
+    <text x="27.5" y="-8" text-anchor="middle" class="code-pill" fill="#38bdf8">HTTP/2</text>
+  </g>
+
+  <!-- ZONE 2: Consortium Border (BLG Bridge) -->
+  <g transform="translate(360, 62)">
+    <rect width="260" height="318" rx="8" fill="url(#gradBorder)" stroke="#d97706" stroke-width="1.2" />
+    <text x="14" y="22" class="tier-badge" fill="#fbbf24">TIER 2 • CONSORTIUM</text>
+    <text x="14" y="42" class="card-title">Border LIO Gateway (BLG)</text>
+    <text x="14" y="58" class="card-subtitle">Asymmetric Network Bridge &amp; OAuth 2.1</text>
+
+    <!-- Box 1: Logic Dispatch Policy -->
+    <g transform="translate(12, 72)">
+      <rect width="236" height="96" rx="6" fill="#18181b" stroke="#d97706" stroke-width="1" />
+      <rect x="8" y="8" width="144" height="18" rx="3" fill="#d97706" fill-opacity="0.25" stroke="#fbbf24" stroke-width="0.8" />
+      <text x="14" y="20" class="code-pill" fill="#fbbf24">No GatewayInterceptor</text>
+      <text x="160" y="20" class="tier-badge" fill="#38bdf8">PASSTHRU</text>
+
+      <text x="10" y="40" class="pill-desc" fill="#e4e4e7">• RFC 8707 M2M OAuth 2.1 / mTLS Auth</text>
+      <text x="10" y="54" class="pill-desc" fill="#e4e4e7">• Swarm Key PSK Bridge (tier1.psk)</text>
+      <text x="10" y="68" class="pill-desc" fill="#e4e4e7">• Passes logic modules unmodified</text>
+      <text x="10" y="82" class="pill-desc" fill="#fbbf24">• clearanceTier: 4 (Consortium)</text>
+    </g>
+
+    <!-- Box 2: Operational Hooks -->
+    <g transform="translate(12, 178)">
+      <rect width="236" height="80" rx="6" fill="#18181b" stroke="#27272a" stroke-width="1" />
+      <text x="10" y="18" class="rule-title" fill="#a1a1aa">Operational Hooks (OOB)</text>
+      <rect x="10" y="28" width="102" height="18" rx="3" fill="#d97706" fill-opacity="0.2" stroke="#fbbf24" stroke-width="0.8" />
+      <text x="16" y="40.5" class="code-pill" fill="#fbbf24">LogInterceptor</text>
+      <rect x="120" y="28" width="106" height="18" rx="3" fill="#059669" fill-opacity="0.2" stroke="#34d399" stroke-width="0.8" />
+      <text x="126" y="40.5" class="code-pill" fill="#34d399">AuditInterceptor</text>
+      <text x="10" y="64" class="pill-desc" fill="#71717a">• Cross-boundary audit &amp; distributed tracing</text>
+    </g>
+
+    <!-- Status Pill -->
+    <g transform="translate(12, 270)">
+      <rect width="236" height="28" rx="5" fill="#451a03" fill-opacity="0.5" stroke="#f59e0b" stroke-width="0.8" />
+      <circle cx="16" cy="14" r="3.5" fill="#f59e0b" />
+      <text x="26" y="17.5" class="pill-desc" fill="#fde68a">Transparent Logic Forwarding</text>
+    </g>
+  </g>
+
+  <!-- CONNECTOR: Zone 2 -> Zone 3 (Cleanly centered in 65px gap, ZERO text overlap) -->
+  <g transform="translate(620, 175)">
+    <path d="M 0 0 L 55 0" class="anim-stream-blue" />
+    <polygon points="55,0 47,-3.5 47,3.5" fill="#38bdf8" />
+    <text x="27.5" y="-8" text-anchor="middle" class="code-pill" fill="#34d399">pnet PSK</text>
+  </g>
+
+  <!-- ZONE 3: Sovereign Enclaves (Bank & Vault) -->
+  <g transform="translate(675, 62)">
+    <rect width="260" height="318" rx="8" fill="url(#gradEnclave)" stroke="#10b981" stroke-width="1.2" />
+    <text x="14" y="22" class="tier-badge" fill="#34d399">TIER 1 • DATA ENCLAVE</text>
+    <text x="14" y="42" class="card-title">Bank &amp; Vault Enclaves</text>
+    <text x="14" y="58" class="card-subtitle">pnet Swarm Key Isolated Sockets</text>
+
+    <!-- Box 1: The Shield -->
+    <g transform="translate(12, 72)">
+      <rect width="236" height="96" rx="6" fill="#18181b" stroke="#10b981" stroke-width="1" />
+      <rect x="8" y="8" width="92" height="18" rx="3" fill="#059669" fill-opacity="0.25" stroke="#34d399" stroke-width="0.8" />
+      <text x="14" y="20" class="code-pill" fill="#34d399">THE SHIELD</text>
+      <text x="108" y="20" class="tier-badge" fill="#38bdf8">ZERO-TRUST CORE</text>
+
+      <text x="10" y="40" class="pill-desc" fill="#e4e4e7">• Layer 1-2: WASI Sandbox &amp; Guardian AST</text>
+      <text x="10" y="54" class="pill-desc" fill="#e4e4e7">• Layer 3-4: Taint IFC &amp; Egress PII Shield</text>
+      <text x="10" y="68" class="pill-desc" fill="#e4e4e7">• Layer 5: Aggregation-First Policy</text>
+      <text x="10" y="82" class="pill-desc" fill="#34d399">• Layer 6: ZK-Receipt (HMAC-SHA256)</text>
+    </g>
+
+    <!-- Box 2: Enclave Hooks -->
+    <g transform="translate(12, 178)">
+      <rect width="236" height="80" rx="6" fill="#18181b" stroke="#27272a" stroke-width="1" />
+      <text x="10" y="18" class="rule-title" fill="#a1a1aa">Enclave Hooks (OOB Only)</text>
+      <rect x="10" y="28" width="102" height="18" rx="3" fill="#d97706" fill-opacity="0.2" stroke="#fbbf24" stroke-width="0.8" />
+      <text x="16" y="40.5" class="code-pill" fill="#fbbf24">LogInterceptor</text>
+      <rect x="120" y="28" width="106" height="18" rx="3" fill="#059669" fill-opacity="0.2" stroke="#34d399" stroke-width="0.8" />
+      <text x="126" y="40.5" class="code-pill" fill="#34d399">AuditInterceptor</text>
+      <text x="10" y="64" class="pill-desc" fill="#71717a">• Local telemetry &amp; cryptographic receipt seal</text>
+    </g>
+
+    <!-- Status Pill (Concise, perfectly fits 236px) -->
+    <g transform="translate(12, 270)">
+      <rect width="236" height="28" rx="5" fill="#450a0a" fill-opacity="0.4" stroke="#ef4444" stroke-width="0.8" />
+      <circle cx="16" cy="14" r="3.5" fill="#ef4444" />
+      <text x="26" y="17.5" class="pill-desc" fill="#fca5a5">GatewayInterceptor Prohibited</text>
+    </g>
+  </g>
+
+  <!-- LOWER BAR: External Out-of-Band Observability & SIEM -->
+  <g transform="translate(45, 408)">
+    <rect width="890" height="66" rx="8" fill="#131316" stroke="#27272a" stroke-width="1.2" />
+    <g transform="translate(16, 14)">
+      <text x="0" y="10" class="tier-badge" fill="#34d399">OUT-OF-BAND TELEMETRY &amp; SIEM CHANNEL</text>
+      <text x="0" y="28" class="card-title">Prometheus • Grafana • TypeSafe Jev • External SIEM</text>
+      <text x="0" y="43" class="card-subtitle">Asynchronous fire-and-forget streams. Zero overhead on host execution threads.</text>
+    </g>
+
+    <!-- OOB Feed Indicator Badge -->
+    <g transform="translate(710, 18)">
+      <rect width="164" height="28" rx="5" fill="#064e3b" fill-opacity="0.35" stroke="#34d399" stroke-width="0.8" />
+      <circle cx="14" cy="14" r="3.5" fill="#34d399" />
+      <text x="24" y="17.5" class="code-pill" fill="#6ee7b7">Async 0ms Host Impact</text>
+    </g>
+  </g>
+
+  <!-- Downward Stream Arrows to OOB Bar (Clean vertical alignment) -->
+  <path d="M 175 380 L 175 408" class="anim-stream-emerald" />
+  <path d="M 490 380 L 490 408" class="anim-stream-emerald" />
+  <path d="M 805 380 L 805 408" class="anim-stream-emerald" />
+</svg>

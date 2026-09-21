@@ -9,21 +9,34 @@ El **LIOP Web Playground** es un estudio interactivo de inyección de lógica y 
   <img className="w-full rounded-lg border border-white/10 shadow-xl" src="/images/animated-docker-infra-dark.svg" alt="Arquitectura del Playground LIOP" />
 </Frame>
 
-## Puesta en Marcha del Playground
+## Puesta en Marcha de LIOP Studio y Web Playground
 
-El playground puede ejecutarse de forma independiente o como parte de la malla auditada multi-capa de producción:
+LIOP proporciona dos entornos complementarios para desarrolladores: el paquete oficial **LIOP Studio** (`@nekzus/liop-studio`) y el **Web Playground** embebido:
 
 <CodeGroup>
-```bash Malla de Producción (:16000)
-# Iniciar la malla completa de 8 nodos con latencia WAN simulada
-pnpm audit:prod:start
+```bash LIOP Studio (Paquete NPM :16000)
+# Iniciar el estudio oficial apuntando a un endpoint MCP/LIOP en ejecución
+npx @nekzus/liop-studio --http "http://localhost:3000/mcp"
 
-# Acceder a la consola desde el navegador:
+# Acceder a la consola del estudio desde el navegador:
 # http://localhost:16000
 ```
 
+```bash Escáner de Malla sin Cabeza (CLI)
+# Realizar un escaneo rápido de salud y capacidades sin abrir el navegador
+npx @nekzus/liop-studio scan http://localhost:3000/mcp
+```
+
+```bash Malla de Producción en Docker (:16000 / :16002)
+# Iniciar la malla soberana completa de 10 nodos en Docker
+pnpm audit:prod:start
+
+# Acceso a LIOP Studio: http://localhost:16000
+# Acceso a Playground:   http://localhost:16002
+```
+
 ```bash Desarrollo Standalone (:14000)
-# Iniciar un nodo gateway local y la interfaz del estudio
+# Iniciar un nodo gateway local y la interfaz del playground
 pnpm demo:playground
 
 # Acceder a la consola desde el navegador:

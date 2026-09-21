@@ -11,9 +11,9 @@ The **Production Readiness Audit** is an enterprise-grade testing and verificati
 
 ## Topology Overview
 
-The audit harness simulates an 8-node enterprise deployment partitioned across three security tiers:
+The audit harness simulates a 10-node enterprise deployment partitioned across three security tiers:
 
-| Tier | Node | Role | Isolation / Network Profile | Dataset |
+| Tier | Node | Role | Isolation / Network Profile | Dataset / Interface |
 |---|---|---|---|---|
 | **Tier 1** | `The Bank` | Financial Enclave | `pnet` PSK Swarm Key (`172.22.0.12`) | 1,500 synthetic accounts ($148M) |
 | **Tier 1** | `The Vault` | Healthcare Enclave | `pnet` PSK Swarm Key (`172.22.0.11`) | 2,500 clinical EHR records |
@@ -22,7 +22,8 @@ The audit harness simulates an 8-node enterprise deployment partitioned across t
 | **Tier 2** | `Nexus` | Mesh Discovery / Auth | OIDC Token Provider (`172.23.0.10`) | Node registry & JWT authority |
 | **Tier 3** | `Edge IoT` | Industrial Edge Node | Hostile 3G (`172.21.0.50`, 250ms ± 50ms, 2% loss) | Temperature, vibration, pressure telemetry |
 | **Tier 3** | `Relay` | P2P Circuit Relay | Public NAT Traversal (`172.21.0.15`) | AutoNAT & Relay v2 |
-| **Tier 3** | `Playground`| Client SDK & Web UI | Cross-Atlantic (`172.21.0.200`, 85ms ± 15ms) | Port `:16000` (Web UI :3000) |
+| **Tier 3** | `Studio` | LIOP Sovereign Studio | Cross-Atlantic (`172.21.0.201`, 85ms ± 15ms) | Port `:16000` (`@nekzus/liop-studio`) |
+| **Tier 3** | `Playground`| Client SDK & Web UI | Cross-Atlantic (`172.21.0.200`, 85ms ± 15ms) | Port `:16002` (Web Console) |
 
 ---
 
@@ -42,12 +43,12 @@ The test harness is fully automated via three primary CLI commands configured in
 
 <CodeGroup>
 ```bash 1. Start Infrastructure
-# Builds and boots the 8-node Docker mesh with healthy readiness checks
+# Builds and boots the 10-node Docker mesh with healthy readiness checks
 pnpm audit:prod:start
 ```
 
 ```bash 2. Execute Audit Suites
-# Runs the 11 automated test suites (59 tests) inside the audit runner container
+# Runs the 12 automated test suites (64 tests) inside the audit runner container
 pnpm audit:prod:run
 ```
 
@@ -59,9 +60,9 @@ pnpm audit:prod:clean
 
 ---
 
-## Automated Verification Suites (Suites 00 to 10)
+## Automated Verification Suites (Suites 00 to 10 + Plug-and-Play)
 
-The audit harness executes **11 comprehensive Vitest suites** (59 individual tests) inside the `liop-audit-runner` container:
+The audit harness executes **12 comprehensive Vitest suites** (64 individual tests) inside the `liop-audit-runner` container:
 
 1. **`00-npm-integrity`**: Verifies that the tarball created by `npm pack` contains only production binaries and valid TypeScript declarations without test or scratch pollution.
 2. **`01-mesh-convergence`**: Validates Kademlia DHT peer discovery across all tiers, verifying routing table stabilization within 5 seconds.
@@ -73,7 +74,8 @@ The audit harness executes **11 comprehensive Vitest suites** (59 individual tes
 8. **`07-observability`**: Validates dynamic Prometheus metrics scrape handlers (`/metrics`) and OpenTelemetry token emission (`gen_ai.client.token.usage`).
 9. **`08-lifecycle-traceability`**: Verifies deterministic cryptographic lifecycle hashes binding each request to origin execution.
 10. **`09-pnet-tier-isolation`**: Certifies that Tier 1 Enclaves (`Bank` and `Vault`) reject connections from nodes lacking the private Swarm Key PSK, and confirms that cross-boundary traffic is securely routed via the Border LIO Gateway (`BLG`).
-11. **`plug-and-play`**: End-to-end "plug-and-play" validation confirming that the SDK boots, discovers peers, executes logic injections, and returns cryptographically attested results without any manual configuration.
+11. **`10-interceptors-jev-docker`**: Certifies perimeter L7 admission filtering on Nexus (blocking SQL injection and Path Traversal with code `-32099` and HTTP 403), confirms enclaves evaluate The Shield directly without false positives, and verifies BLG enclave proxying.
+12. **`plug-and-play`**: End-to-end "plug-and-play" validation confirming that the SDK boots, discovers peers, executes logic injections, and returns cryptographically attested results without any manual configuration.
 
 ---
 

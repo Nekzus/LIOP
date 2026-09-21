@@ -191,6 +191,25 @@ auditLogger.setInterceptor(siemForwarder);
 
 ---
 
+## Despliegue Universal Out-of-Band
+
+A diferencia de `GatewayInterceptor` (cuya ejecución está restringida estrictamente al perímetro), **`LogInterceptor` y `AuditInterceptor` pueden y deben desplegarse en TODOS los nodos a lo largo de todos los tiers**:
+
+| Rol del Nodo | `GatewayInterceptor` | `LogInterceptor` | `AuditInterceptor` | Rol en la Frontera de Red |
+|:---|:---|:---|:---|:---|
+| **Perímetro de Entrada (`Nexus`)** | ✅ **Mandatorio** | ✅ Activo (OOB) | ✅ Activo (OOB) | Filtro de admisión WAF / L7 |
+| **Pasarela Fronteriza (`BLG`)** | ❌ Omitido | ✅ Activo (OOB) | ✅ Activo (OOB) | Puente asimétrico mTLS / Swarm PSK |
+| **Enclaves de Datos (`Bank` / `Vault`)** | ❌ **Prohibido** | ✅ Activo (OOB) | ✅ Activo (OOB) | Ejecución Zero-Trust WASI / The Shield |
+
+Dado que ambos hooks se ejecutan de forma estrictamente asíncrona (*fire-and-forget* mediante `Promise.resolve().then(...)` o `fetch()` no bloqueante), la latencia de inferencia externa o la indisponibilidad de SIEMs remotos introduce exactamente **0 ms de retraso** en las respuestas RPC de los clientes o en la evaluación de los sandboxes.
+
+<Frame caption="Topología de Interceptores LIOP: Demarcación entre Admisión Perimetral y Aislamiento en Enclave">
+  <img className="block dark:hidden" src="/images/animated-interceptor-topology-light.svg" alt="Topología de Interceptores LIOP (Light)" />
+  <img className="hidden dark:block" src="/images/animated-interceptor-topology-dark.svg" alt="Topología de Interceptores LIOP (Dark)" />
+</Frame>
+
+---
+
 ## Comparativa del Modelo de Seguridad
 
 LIOP define tres ganchos de intercepción complementarios. Ninguno sustituye ni compromete las 6 capas de seguridad de The Shield:

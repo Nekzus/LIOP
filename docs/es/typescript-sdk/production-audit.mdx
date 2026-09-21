@@ -11,9 +11,9 @@ La **Auditoría de Preparación para Producción** (*Production Readiness Audit*
 
 ## Topología de la Red
 
-El entorno de pruebas simula un despliegue corporativo distribuido de 8 nodos segmentado en tres niveles de seguridad (Tiers):
+El entorno de pruebas simula un despliegue corporativo distribuido de 10 nodos segmentado en tres niveles de seguridad (Tiers):
 
-| Tier | Nodo | Rol | Aislamiento / Perfil de Red | Dataset en Origen |
+| Tier | Nodo | Rol | Aislamiento / Perfil de Red | Dataset / Interfaz |
 |---|---|---|---|---|
 | **Tier 1** | `The Bank` | Enclave Financiero | `pnet` PSK Swarm Key (`172.22.0.12`) | 1.500 cuentas sintéticas ($148M) |
 | **Tier 1** | `The Vault` | Enclave de Salud | `pnet` PSK Swarm Key (`172.22.0.11`) | 2.500 historias clínicas EHR |
@@ -22,7 +22,8 @@ El entorno de pruebas simula un despliegue corporativo distribuido de 8 nodos se
 | **Tier 2** | `Nexus` | Descubrimiento y Auth | Proveedor OIDC (`172.23.0.10`) | Registro de nodos y autoridad JWT |
 | **Tier 3** | `Edge IoT` | Nodo Industrial Borde | 3G Hostil (`172.21.0.50`, 250ms ± 50ms, 2% pérdida) | Telemetría (temperatura, presión, vibración) |
 | **Tier 3** | `Relay` | Circuit Relay P2P | Traversal de NAT Público (`172.21.0.15`) | AutoNAT & Relay v2 |
-| **Tier 3** | `Playground`| Cliente SDK y Web UI | Transatlántico (`172.21.0.200`, 85ms ± 15ms) | Puerto `:16000` (Web UI :3000) |
+| **Tier 3** | `Studio` | LIOP Sovereign Studio | Transatlántico (`172.21.0.201`, 85ms ± 15ms) | Puerto `:16000` (`@nekzus/liop-studio`) |
+| **Tier 3** | `Playground`| Cliente SDK y Web UI | Transatlántico (`172.21.0.200`, 85ms ± 15ms) | Puerto `:16002` (Consola Web) |
 
 ---
 
@@ -42,12 +43,12 @@ El arnés de pruebas se gestiona de forma automatizada mediante tres comandos co
 
 <CodeGroup>
 ```bash 1. Iniciar Infraestructura
-# Compila e inicia la malla Docker de 8 nodos con healthchecks de preparación
+# Compila e inicia la malla Docker de 10 nodos con healthchecks de preparación
 pnpm audit:prod:start
 ```
 
 ```bash 2. Ejecutar Suites de Auditoría
-# Ejecuta las 11 suites automatizadas (59 pruebas) de Vitest dentro del contenedor audit-runner
+# Ejecuta las 12 suites automatizadas (64 pruebas) de Vitest dentro del contenedor audit-runner
 pnpm audit:prod:run
 ```
 
@@ -59,9 +60,9 @@ pnpm audit:prod:clean
 
 ---
 
-## Batería de Pruebas Automatizadas (Suites 00 a 10)
+## Batería de Pruebas Automatizadas (Suites 00 a 10 + Plug-and-Play)
 
-El arnés ejecuta **11 suites exhaustivas de Vitest** (59 pruebas individuales) en el contenedor `liop-audit-runner`:
+El arnés ejecuta **12 suites exhaustivas de Vitest** (64 pruebas individuales) en el contenedor `liop-audit-runner`:
 
 1. **`00-npm-integrity`**: Verifica que el paquete generado por `npm pack` contenga únicamente archivos de producción y tipos DTS válidos, sin código de prueba residual.
 2. **`01-mesh-convergence`**: Valida el descubrimiento de nodos vía DHT Kademlia en todos los tiers y la estabilización de tablas de ruteo en menos de 5 segundos.
@@ -73,7 +74,8 @@ El arnés ejecuta **11 suites exhaustivas de Vitest** (59 pruebas individuales) 
 8. **`07-observability`**: Valida los endpoints de métricas dinámicas de Prometheus (`/metrics`) y la emisión de tokens a OpenTelemetry (`gen_ai.client.token.usage`).
 9. **`08-lifecycle-traceability`**: Certifica los identificadores criptográficos deterministas que vinculan cada solicitud con su ejecución en el nodo de origen.
 10. **`09-pnet-tier-isolation`**: Certifica que los Enclaves Tier 1 (`Bank` y `Vault`) rechazan conexiones de nodos sin la clave privada Swarm Key PSK, y confirma que el tráfico cruzado se enruta de forma segura a través del Border LIO Gateway (`BLG`).
-11. **`plug-and-play`**: Validación "plug-and-play" de extremo a extremo que confirma que el SDK arranca, descubre peers, ejecuta inyecciones lógicas y devuelve resultados criptográficamente atestados sin configuración manual alguna.
+11. **`10-interceptors-jev-docker`**: Certifica el filtrado de admisión L7 perimetral en Nexus (bloqueando inyecciones SQL y Path Traversal con código `-32099` y HTTP 403), confirma que los enclaves evalúan The Shield directamente sin falsos positivos, y verifica el enrutamiento a través de BLG.
+12. **`plug-and-play`**: Validación "plug-and-play" de extremo a extremo que confirma que el SDK arranca, descubre peers, ejecuta inyecciones lógicas y devuelve resultados criptográficamente atestados sin configuración manual alguna.
 
 ---
 

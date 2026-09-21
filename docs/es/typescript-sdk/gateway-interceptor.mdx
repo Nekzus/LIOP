@@ -257,6 +257,33 @@ await gateway.listen(3000);
 
 ---
 
+## Directivas de Topología de Red y Ubicación de Interceptores
+
+El despliegue de interceptores en una malla LIOP distribuida exige respetar estrictamente la segregación de fronteras de red conforme al estándar Zero-Trust NIST SP 800-207:
+
+<Frame caption="Topología de Interceptores LIOP: Demarcación entre Admisión Perimetral y Aislamiento en Enclave">
+  <img className="block dark:hidden" src="/images/animated-interceptor-topology-light.svg" alt="Topología de Interceptores LIOP (Light)" />
+  <img className="hidden dark:block" src="/images/animated-interceptor-topology-dark.svg" alt="Topología de Interceptores LIOP (Dark)" />
+</Frame>
+
+### 1. Pasarelas Perimetrales de Entrada (MANDATORIO / RECOMENDADO)
+- **Nodo Destino**: Puntos de entrada públicos, proxies DMZ y semillas de descubrimiento (ej. `Nexus Gateway`).
+- **Despliegue del Hook**: `GatewayInterceptor` se configura aquí para ejecutar firewalls de aplicación L7, clasificadores semánticos neuronales (ej. TypeSafe Jev) y filtros de reputación/IP.
+- **Objetivo**: Frenar y rechazar ataques hostiles (inyecciones SQL, Path Traversal, jailbreaks de prompts) en **< 400 ms** con `HTTP 403 Forbidden` y código de error `-32099` antes de que las solicitudes atraviesen la malla P2P o consuman cómputo en los enclaves.
+
+### 2. Enclaves Soberanos de Datos (ESTRICTAMENTE PROHIBIDO)
+- **Nodo Destino**: Proveedores de datos privados y enclaves Tier 1 (ej. `The Bank`, `The Vault`).
+- **Política**: `GatewayInterceptor` **NO DEBE** configurarse en servidores de enclave de datos.
+- **Fundamento Técnico**:
+  1. **Prevención de Falsos Positivos sobre Código Legítimo**: En LIOP, los clientes inyectan micro-módulos de lógica (`@LIOP{...}...@END`). Un filtro WAF heurístico genérico evaluando parámetros dentro del enclave clasificaría erróneamente funciones matemáticas o bucles de agregación legítimos como inyecciones de código malicioso.
+  2. **Aislamiento Zero-Trust Auténtico**: Un enclave jamás debe asumir que un proxy perimetral anterior "desinfectó" el tráfico. El enclave debe neutralizar código hostil mediante **The Shield** (Guardian AST, Sandbox WASI/V8 con 25 globales envenenados, Taint IFC y Escudo PII de Egreso). Colocar un WAF perimetral frente al sandbox del enclave desvirtúa la auditoría de seguridad y encubre fallas de contención.
+
+### 3. Pasarelas Fronterizas Asimétricas (`BLG`)
+- **Nodo Destino**: Border LIO Gateway (`BLG`) que conecta Tier 2 (Consorcio) con Tier 1 (Enclaves Privados).
+- **Política**: Valida niveles de autorización (`clearanceTier: 4`), certificados mTLS y la clave simétrica Swarm Key (`tier1.psk`). El código enrutado hacia el enclave pasa sin ser interceptado por un `GatewayInterceptor` local, garantizando que el enclave ejecute su propia validación in-situ.
+
+---
+
 ## Verificación del Modelo de Seguridad
 
 El `GatewayInterceptor` actúa exclusivamente como compuerta de admisión en el perímetro DMZ. No sustituye, altera ni debilita ninguna de las seis capas de defensa de LIOP:

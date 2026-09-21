@@ -55,7 +55,8 @@ LIOP-Protocol/ (LIOP)
 │   ├── demos/               # High-fidelity & educational demos
 │   └── wasm-filters/        # Example WASM payloads (filter, watchdog)
 ├── tools/
-│   └── liop-cli/            # Developer CLI for Health/Negotiate checks
+│   ├── liop-cli/            # Developer CLI for Health/Negotiate checks
+│   └── liop-studio/         # @nekzus/liop-studio (Web UI & mesh scanner CLI)
 ├── docs/                    # Mintlify documentation portal
 ├── tests/                   # E2E integration tests
 ├── MANIFESTO.md             # Project philosophy & vision
@@ -124,6 +125,28 @@ The high-performance Data Node host, written in Rust. This is where injected WAS
 | `config.rs` / `health.rs` | TOML-driven configuration and Hyper-based observability (`/health` probes) |
 
 [Read the Mesh Node Documentation](./servers/liop-node/README.md)
+
+---
+
+### 4. LIOP Sovereign Studio — `tools/liop-studio/`
+
+The developer studio, interactive testbed, and mesh scanner published as [`@nekzus/liop-studio`](https://www.npmjs.com/package/@nekzus/liop-studio) on NPM.
+
+| Feature | Description |
+|---|---|
+| `liop-studio` | Dual-mode CLI running interactive Web UI (`http://localhost:16000`) or headless capability scanner |
+| Mesh Scanner | Command-line scanner inspecting HTTP/MCP (`--http`), native gRPC (`--grpc`), and P2P DHT multiaddrs |
+| Cryptographic Inspector | Visual breakdown of post-quantum ML-KEM-768 key exchanges and ZK-Receipt commitments |
+| Deterministic Fuel Meter | Real-time AST instruction fuel metering with 100-bucket quantization (NIST SP 800-53) |
+| Multi-Format Exporter | 1-click code reproduction generating verified TypeScript SDK, cURL, and Python snippets |
+
+```bash
+# Launch interactive studio (defaults to http://localhost:16000)
+npx @nekzus/liop-studio
+
+# Headless network and capability scan
+npx @nekzus/liop-studio scan http://localhost:3000/mcp
+```
 
 ## Technical Stack
 

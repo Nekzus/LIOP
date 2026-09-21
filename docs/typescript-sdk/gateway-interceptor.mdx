@@ -257,6 +257,33 @@ await gateway.listen(3000);
 
 ---
 
+## Network Topology & Placement Directives
+
+Deploying interceptors within a distributed LIOP mesh requires adhering strictly to network boundary segregation per NIST SP 800-207 Zero-Trust Architecture:
+
+<Frame caption="LIOP Interceptor Topology: Demarcation between Ingress Admission and Enclave Isolation">
+  <img className="block dark:hidden" src="/images/animated-interceptor-topology-light.svg" alt="LIOP Interceptor Topology (Light)" />
+  <img className="hidden dark:block" src="/images/animated-interceptor-topology-dark.svg" alt="LIOP Interceptor Topology (Dark)" />
+</Frame>
+
+### 1. Perimeter Ingress Gateways (MANDATORY / RECOMMENDED)
+- **Target Node**: Public entrypoints, DMZ ingress proxies, and service discovery seeds (e.g. `Nexus Gateway`).
+- **Hook Deployment**: `GatewayInterceptor` is deployed here to execute Layer 7 application firewalls, neural semantic classifiers (e.g. TypeSafe Jev), and IP/reputation filters.
+- **Objective**: Reject hostile probes (SQL injections, Path Traversal, prompt jailbreaks) in **< 400 ms** with `HTTP 403 Forbidden` and error code `-32099` before requests traverse the P2P mesh or consume enclave compute budgets.
+
+### 2. Sovereign Data Enclaves (STRICTLY PROHIBITED)
+- **Target Node**: Private data providers and Tier 1 enclaves (e.g. `The Bank`, `The Vault`).
+- **Policy**: `GatewayInterceptor` **MUST NOT** be configured on data enclave servers.
+- **Technical Rationale**:
+  1. **Prevention of False Positives on Code Payloads**: In LIOP, clients send valid logic micro-modules (`@LIOP{...}...@END`). Heuristic string-matching or generic WAF filters running inside enclaves inevitably misinterpret mathematical aggregations or analytical loops as code injection attacks.
+  2. **True Zero-Trust Sandbox Isolation**: Enclaves must never assume an upstream proxy neutralized threats. Instead, enclaves must rely entirely on **The Shield** (Guardian AST allowlist, WASI/V8 Sandbox with 25 poisoned globals, Taint IFC, and Egress PII Shield). Introducing an ingress admission hook on an enclave obscures the sandbox's actual boundary and invalidates compliance audits.
+
+### 3. Asymmetric Border Gateways (`BLG`)
+- **Target Node**: Border LIO Gateway (`BLG`) bridging Tier 2 (Consortium) into Tier 1 (Private Enclaves).
+- **Policy**: Evaluates clearance tiers (`clearanceTier: 4`), mTLS client certificates, and the Tier 1 Swarm Key (`tier1.psk`). Routed logic payloads pass through directly to the target enclave without local `GatewayInterceptor` filtering, allowing enclaves to evaluate code in-situ.
+
+---
+
 ## Security Model Verification
 
 The `GatewayInterceptor` operates solely as an admission gate at the DMZ boundary. It does not replace, alter, or weaken any of the six foundational LIOP security layers:

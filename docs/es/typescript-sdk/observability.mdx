@@ -5,6 +5,26 @@ description: "Métricas nativas Prometheus, despliegue agnóstico en producción
 
 Cada instancia del servidor `@nekzus/liop` expone un endpoint nativo con **formato texto de Prometheus** en `GET /metrics`. No requiere sidecar, agente externo ni dependencia adicional — el registro de métricas está integrado en el core del SDK y actualiza los gauges de proceso de forma síncrona en cada petición de scrape.
 
+## Arquitectura de Observabilidad en Dos Niveles
+
+El modelo de telemetría de LIOP está segregado arquitectónicamente en dos capas complementarias:
+
+### Nivel A: Telemetría Nativa In-Situ (Cero Dependencias Externas)
+Integrado directamente en el runtime central de `@nekzus/liop`:
+- **Tokenizador BPE Embebido (`o200k_base`)**: Mide el consumo exacto de tokens de entrada y salida in-situ con cero dependencias npm externas (reducción de huella de 16.5 MB).
+- **Rastreo de Huella de Dataset de Origen**: Calcula el tamaño en crudo de los datasets de origen (`originDatasetTokens`) y computa el ahorro neto de tokens (`liop_tokens_saved_total = originDatasetTokens - outputTokens`) en cada ejecución in-situ.
+- **Fuel Determinista de Instrucción AST**: Puntuación de ejecución de instrucciones AST cuantizada en bloques de 100 unidades según NIST SP 800-53 para eliminar fugas por canales laterales de temporización.
+- **Libro Mayor Inmutable de Auditoría (`audit.jsonl`)**: Registros de ejecución encadenados por hash SHA-256 criptográfico para cumplimiento SOC 2 Type II y HIPAA.
+- **Endpoint Dinámico de Texto Prometheus**: Expone contadores, gauges e histogramas instantáneos mediante `GET /metrics`.
+
+### Nivel B: Pila de Observabilidad Auxiliar de Producción
+Herramientas de monitoreo e inspección listas para desplegar junto a la malla:
+- **Prometheus v3.14**: Scrapea los enclaves de la malla cada 15 segundos, etiquetando metadatos `node_role` (`nexus-seed`, `vault-enclave`, `bank-enclave`, `oracle-consortium`, `edge-remote`, `relay-backbone`, `blg-perimeter`) y `tier`.
+- **Grafana v13.2.1**: Tablero Maestro (`tools/dashboards/liop-overview.json`) con 26 paneles en tiempo real monitoreando SLOs de disponibilidad, ratios de soberanía de datos y latencias criptográficas.
+- **LIOP Studio (`@nekzus/liop-studio`)**: Estudio oficial de desarrollo, escáner de malla e inspector de lógica en origen corriendo en el puerto `:16000` (interfaz web y CLI sin cabeza).
+
+---
+
 ## Referencia de Métricas
 
 El SDK emite tres categorías de métricas: **contadores de protocolo**, **gauges de recursos** e **histogramas criptográficos**.
@@ -13,14 +33,14 @@ El SDK emite tres categorías de métricas: **contadores de protocolo**, **gauge
 
 | Métrica | Tipo | Labels | Descripción |
 |---|---|---|---|
-| `liop_tool_calls_total` | Counter | `capability` | Ejecuciones totales de inyección de lógica |
+| `liop_tool_calls_total` | Counter | `capability`, `role` | Ejecuciones totales de inyección de lógica (`role="executor"` en enclaves, `role="proxy"` en gateways) |
 | `liop_tool_call_errors_total` | Counter | `capability`, `error_type` | Ejecuciones fallidas o rechazadas por política |
 | `liop_egress_blocks_total` | Counter | — | Salidas bloqueadas por el Escudo Egress PII |
 | `liop_wire_egress_bytes_total` | Counter | `capability` | Bytes físicos transmitidos por el cable de red |
 | `liop_wire_saved_bytes_total` | Counter | `capability` | Bytes retenidos in-situ en el origen de datos |
 | `liop_tokens_input_total` | Counter | — | Tokens BPE de entrada procesados (`o200k_base`) |
 | `liop_tokens_output_total` | Counter | — | Tokens BPE de salida emitidos |
-| `liop_tokens_saved_total` | Counter | — | Tokens estimados ahorrados frente a MCP context-pulling |
+| `liop_tokens_saved_total` | Counter | — | Tokens estimados ahorrados frente a extraer el dataset de origen (`originDatasetTokens - outputTokens`) |
 | `liop_zk_verifications_total` | Counter | `status` | Verificaciones de atestación HMAC-SHA256 (ZK-Receipt) |
 | `liop_pqc_handshakes_total` | Counter | `algorithm`, `status` | Operaciones de encapsulación de clave ML-KEM-768 |
 
@@ -178,14 +198,14 @@ Esto inicia:
 
 ### Dashboard Master de Grafana
 
-El [Dashboard LIOP Overview](https://github.com/nekzus/liop/blob/main/tools/dashboards/liop-overview.json) contiene más de 25 paneles organizados en cinco secciones operativas:
+El [Dashboard LIOP Overview](https://github.com/nekzus/liop/blob/main/tools/dashboards/liop-overview.json) contiene 26 paneles organizados en cinco secciones operativas:
 
 | Sección | Paneles | Métricas Principales |
 |---|---|---|
-| **KPIs Ejecutivos** | Disponibilidad SLO, Total Inyecciones, Peers P2P, Uptime | `liop_tool_calls_total`, `liop_mesh_peers_connected` |
-| **Método RED** | Tasa de Peticiones, Tasa de Error, Duración p50/p95/p99 | `liop_operation_duration_ms`, `liop_tool_call_errors_total` |
+| **KPIs Ejecutivos** | Disponibilidad SLO, Total Inyecciones, Peers P2P, Panel 50 (Ratio de Soberanía de Datos), Uptime | `liop_tool_calls_total`, `liop_mesh_peers_connected`, % Soberanía de Datos |
+| **Método RED** | Tasa de Peticiones, Tasa de Error, Panel 9 (Velocidad de Ingestión, Egreso y Tokens/s Ahorrados), Duración p50/p95/p99 | `liop_operation_duration_ms`, `liop_tool_call_errors_total`, `liop_tokens_saved_total` |
 | **Método USE** | Distribución de Fuel WASI, Memoria RSS, Saturación Heap V8 | `liop_fuel_consumed_total`, `liop_process_memory_*` |
-| **Cripto y Seguridad** | Tasa ZK-Receipt, Bloqueos Egress, Ops ML-KEM-768, Wire Egress | `liop_wire_egress_bytes_total`, `liop_pqc_handshakes_total` |
+| **Cripto y Seguridad** | Tasa ZK-Receipt, Bloqueos Egress, Ops ML-KEM-768, Wire Egress vs Ahorrado | `liop_wire_egress_bytes_total`, `liop_wire_saved_bytes_total`, `liop_pqc_handshakes_total` |
 | **Inventario de Flota** | Tabla en Vivo (Rol, Tier, Salud, Peers, RSS, Heap, Uptime) | Todos los gauges por `instance` |
 
 Para importar el dashboard en una instancia de Grafana existente, navegue a **Dashboards → Import** y cargue `tools/dashboards/liop-overview.json`.
@@ -201,6 +221,7 @@ El SDK incluye reglas de alerta de Prometheus validadas en producción en [`exam
 | `LiopMeshZeroPeers` | `critical` | `liop_mesh_peers_connected == 0` por 1m | Nodo aislado de la DHT Kademlia |
 | `LiopEnclaveDown` | `critical` | `up == 0` por 30s | Enclave no responde al scrape |
 | `LiopZeroTrustEgressViolation` | `critical` | `increase(liop_egress_blocks_total[1m]) > 0` | Intento de exfiltración de PII bloqueado |
+| `LiopRepeatedEnclaveEgressRejection` | `warning` | `increase(liop_tool_call_errors_total[5m]) > 3` | Rechazos reiterados de ejecución de capacidades o política de egreso en enclave |
 | `LiopZkVerificationFailure` | `critical` | `increase(liop_zk_verifications_total{status="invalid"}[1m]) > 0` | Violación de integridad computacional |
 | `LiopPqcHandshakeFailure` | `critical` | `increase(liop_pqc_handshakes_total{status="failure"}[1m]) > 0` | Fallo en negociación ML-KEM-768 |
 | `LiopHighErrorRate` | `warning` | Tasa de error > 5% en 2m | Presupuesto de error SLA excedido |

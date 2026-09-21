@@ -81,7 +81,20 @@ En despliegues de producción empresarial, la topología de la malla está divid
 ### Tier 3: Backbone Público y Borde (Edge IoT)
 * **Nodos Industriales en el Borde (`Edge IoT`)**: Desplegados en hardware industrial bajo perfiles de red WAN degradados (latencia de 250ms ± 50ms y 2% de paquetes perdidos). Procesa anomalías in-situ y transmite solo telemetría agregada crítica.
 * **Relays de Circuito P2P (`Relay`)**: Servidores públicos de alta capacidad que implementan AutoNAT y Circuit Relay v2 para superar firewalls corporativos.
-* **Cliente SDK y Web Playground**: Consolas de ejecución interactivas que operan sobre enlaces transatlánticos simulados.
+* **Cliente SDK, Web Playground y Studio**: Consolas de ejecución interactivas que operan sobre enlaces transatlánticos simulados (`:16000` Studio / `:16002` Playground).
+
+### Demarcación de Interceptores y Defensa en Profundidad
+
+Dentro de esta arquitectura multicapa, los interceptores obedecen a una estricta segregación topológica conforme a los estándares Zero-Trust NIST SP 800-207:
+
+* **Perímetro de Entrada (`GatewayInterceptor`)**: Se ejecuta exclusivamente en la frontera DMZ (ej. Nexus Gateway) para filtrar llamadas RPC hostiles o malformadas (inyecciones SQL, Path Traversal, prompt injection) con HTTP 403 y error `-32099`. Está **estrictamente prohibido** en los enclaves Tier 1 para prevenir falsos positivos sobre código analítico legítimo y garantizar que la robustez del sandbox se evalúe de forma auténtica.
+* **Aislamiento de Cómputo en Enclave (`The Shield`)**: Opera dentro de los enclaves Tier 1 (`The Bank`, `The Vault`), conteniendo el código inyectado mediante un pipeline de 6 capas (lista blanca Guardian AST, sandbox WASI/V8 con 25 globales envenenados y límites de fuel, Taint IFC, Escudo PII de egreso, agregación obligatoria y ZK-Receipts).
+* **Observabilidad Universal Out-of-Band (`LogInterceptor` y `AuditInterceptor`)**: Desplegados en todos los niveles (Nexus, BLG, Enclaves) de forma asíncrona fuera de banda (0 ms de retraso en el host) para alimentar SIEMs externos, Prometheus y registros de cumplimiento SOC 2 / HIPAA.
+
+<Frame caption="Topología de Interceptores LIOP: Demarcación entre Admisión Perimetral y Aislamiento en Enclave">
+  <img className="block dark:hidden" src="/images/animated-interceptor-topology-light.svg" alt="Topología de Interceptores LIOP (Light)" />
+  <img className="hidden dark:block" src="/images/animated-interceptor-topology-dark.svg" alt="Topología de Interceptores LIOP (Dark)" />
+</Frame>
 
 ---
 
