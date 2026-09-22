@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.6.1](https://github.com/Nekzus/LIOP/compare/v2.6.0...v2.6.1) (2026-09-22)
+
+
+### Bug Fixes
+
+* **docs:** resolve npmjs logo CDN paths, sync Mintlify v2.6.0, and automate metadata sync ([17a265a](https://github.com/Nekzus/LIOP/commit/17a265aee72f0ee2184623a886c092f9fe59e01e))
+* **sdk:** promote documentation, logo CDN fixes, and segregated changelog to beta ([62be4d6](https://github.com/Nekzus/LIOP/commit/62be4d63673a764e34eea97540d994e3db56d175))
+* **sdk:** resolve npmjs logo CDN paths, update Mintlify navbar, and enforce pure stable changelog ([6a0e15d](https://github.com/Nekzus/LIOP/commit/6a0e15dfc043ed593c4181cf890892f22324f7c5))
+
 # [2.6.0](https://github.com/Nekzus/LIOP/compare/v2.5.0...v2.6.0) (2026-09-22)
 
 
