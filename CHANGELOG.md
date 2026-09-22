@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.4.0-alpha.21](https://github.com/Nekzus/LIOP/compare/v2.4.0-alpha.20...v2.4.0-alpha.21) (2026-09-22)
+
+
+### Bug Fixes
+
+* **docs:** resolve npmjs logo CDN paths, sync Mintlify v2.6.0, and automate metadata sync ([17a265a](https://github.com/Nekzus/LIOP/commit/17a265aee72f0ee2184623a886c092f9fe59e01e))
+
 # [2.4.0-alpha.20](https://github.com/Nekzus/LIOP/compare/v2.4.0-alpha.19...v2.4.0-alpha.20) (2026-09-21)
 
 
