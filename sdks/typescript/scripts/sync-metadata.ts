@@ -48,7 +48,38 @@ async function syncMetadata() {
 	updateJson(path.join(rootDir, "docs/docs.json"), (config) => {
 		config.name = docs.name;
 		if (config.navbar?.links) {
-			config.navbar.links[0].href = newRepoUrl;
+			const sdkPkgPath = path.join(rootDir, "sdks/typescript/package.json");
+			if (fs.existsSync(sdkPkgPath)) {
+				const sdkPkg = JSON.parse(fs.readFileSync(sdkPkgPath, "utf-8"));
+				const npmLink = config.navbar.links.find(
+					// biome-ignore lint/suspicious/noExplicitAny: Script utility for heterogeneous JSON transformation
+					(l: any) => l.icon === "npm" || l.href?.includes("npmjs.com"),
+				);
+				if (npmLink) {
+					if (!sdkPkg.version.includes("-")) {
+						npmLink.label = `npm v${sdkPkg.version}`;
+					}
+					npmLink.href = "https://www.npmjs.com/package/@nekzus/liop";
+				}
+			}
+
+			const ghLink = config.navbar.links.find(
+				// biome-ignore lint/suspicious/noExplicitAny: Script utility for heterogeneous JSON transformation
+				(l: any) =>
+					l.icon === "github" ||
+					(l.href?.includes("github.com") && !l.href?.includes("releases")),
+			);
+			if (ghLink) {
+				ghLink.href = newRepoUrl;
+			}
+
+			const releaseLink = config.navbar.links.find(
+				// biome-ignore lint/suspicious/noExplicitAny: Script utility for heterogeneous JSON transformation
+				(l: any) => l.icon === "tag" || l.href?.includes("/releases"),
+			);
+			if (releaseLink) {
+				releaseLink.href = `${newRepoUrl}/releases/latest`;
+			}
 		}
 		// Update tabs with branch consistency
 		if (config.navigation?.languages) {
