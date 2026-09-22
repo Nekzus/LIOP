@@ -106,7 +106,7 @@ export const UseCaseTabs = () => {
   const useCases = [
     {
       label: "In-Situ Big Data",
-      description: "Dispatches sandboxed filtering directly to remote data origins. The model receives only aggregated mathematical summaries (312 bytes egress, 184 tokens) instead of parsing raw multi-megabyte log dumps.",
+      description: "Dispatches sandboxed filtering directly to remote data origins. The model receives exclusively aggregated mathematical summaries instead of parsing unaggregated log dumps.",
       codeExamples: [
         `import { LiopClient } from "@nekzus/liop";
 
@@ -118,7 +118,7 @@ const result = await client.callTool({
   name: "filter_telemetry",
   arguments: {
     payload: \`@LIOP{wasi_v1,LogAnomalies}
-      // Evaluated in-situ inside Nitro V8 Isolate over 500 MB raw logs
+      // Evaluated in-situ inside Nitro V8 Isolate over datasets at rest
       const anomalies = records
         .filter(r => r.status >= 500 && r.latencyMs > 250)
         .map(r => r.latencyMs);
@@ -126,7 +126,7 @@ const result = await client.callTool({
       return {
         totalAnomalies: anomalies.length,
         p99LatencyMs: anomalies.sort((a, b) => a - b)[Math.floor(anomalies.length * 0.99)] || 0,
-        egressBytes: 312 // Only aggregated telemetry crosses the wire
+        summary: "Anomalies computed at origin"
       };
     @END\`
   }
@@ -148,7 +148,8 @@ curl -X POST http://127.0.0.1:15018/mcp \\
       }
     }
   }'`,
-        `use liop_client::{LiopRpcClient, CallToolRequest};
+        `// Native Rust SDK (Alpha): see /rust-sdk/overview
+use liop_client::{LiopRpcClient, CallToolRequest};
 
 let mut client = LiopRpcClient::connect("http://127.0.0.1:15021").await?;
 let request = CallToolRequest {
@@ -332,7 +333,7 @@ bridge.run().await?;`
           <pre className="language-bash" filename="cURL / CLI">
             <code>{active.codeExamples[1]}</code>
           </pre>
-          <pre className="language-rust" filename="Rust">
+          <pre className="language-rust" filename="Rust (Alpha)">
             <code>{active.codeExamples[2]}</code>
           </pre>
         </CodeGroup>
@@ -577,6 +578,10 @@ In this guide, we'll build a basic LIOP Server that exposes a tool, and a Client
 <Note>
   Under the hood, LIOP compiles logic into sandboxed execution envelopes and dispatches it across the mesh. The SDK abstracts the underlying gRPC and P2P transport, exposing standard tool registration and execution methods.
 </Note>
+
+<Tip>
+  **Building in Rust?** LIOP provides native Rust crates (`liop-client` and `liop-core`) for systems engineers, WASI guest filters, and low-latency agents. Check out the [Rust SDK Overview](/rust-sdk/overview) for Cargo configuration and in-situ injection examples.
+</Tip>
 
 <Steps>
   <Step title="Install the SDK">
