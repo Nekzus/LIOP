@@ -9,6 +9,7 @@ GEMINI.md
 TASK.md
 WALKTHROUGH.md
 IMPLEMENTATION_PLAN.md
+hardware_requirements_report.md
 .gemini
 .env
 .env.*
@@ -80,6 +81,13 @@ out2.json
 
 # LIOP Test Infrastructure Runtime data
 **/tests/infra/nexus-data/
+
+# Local Previews & Scratches
+preview*.html
+docs/images/*.png
+docs/images/*.jpg
+docs/*.html
+scratch/
 
 # Graphify local output
 graphify-out/

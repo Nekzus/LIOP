@@ -1,0 +1,309 @@
+---
+title: "Gateway Interceptor"
+description: "Technology-agnostic perimeter admission hook for semantic request filtering in LiopHybridGateway"
+icon: "filter"
+
+---
+
+The `GatewayInterceptor` is a perimeter admission hook executed by `LiopHybridGateway` immediately after transport authentication and sliding-window rate limiting, prior to JSON-RPC request dispatch.
+
+It provides an extension point for developers to attach arbitrary semantic filters, neural classifiers (such as TypeSafe Jev or ONNX runtimes), or deterministic rule engines without introducing external dependencies into the LIOP SDK core.
+
+<Frame caption="Perimeter admission hook position within LiopHybridGateway pipeline">
+  <img className="block dark:hidden" src="/images/animated-gateway-interceptor-light.svg" alt="GatewayInterceptor Architecture (Light)" />
+  <img className="hidden dark:block" src="/images/animated-gateway-interceptor-dark.svg" alt="GatewayInterceptor Architecture (Dark)" />
+</Frame>
+
+## Pipeline Ordering
+
+The admission hook executes in strict sequential order:
+
+```mermaid
+flowchart TD
+    Req["POST /mcp (HTTP/1.1 or HTTP/2)"] --> S1["1. OAuth 2.1 Bearer Token Verification"]
+    S1 -->|Invalid| E401["HTTP 401 Unauthorized"]
+    S1 -->|Valid| S2["2. Sliding-Window Rate Limiting"]
+    S2 -->|Exceeded| E429["HTTP 429 Too Many Requests"]
+    S2 -->|Allowed| S3["3. JSON-RPC Envelope Parsing"]
+    S3 -->|Malformed| E400["HTTP 400 Bad Request"]
+    S3 -->|Valid| S4["4. GatewayInterceptor (Admission Hook)"]
+    S4 -->|Rejected| E403["HTTP 403 Forbidden"]
+    S4 -->|Admitted| S5["5. SEP-2243 Header Verification"]
+    S5 -->|Mismatch| E400B["HTTP 400 Bad Request"]
+    S5 -->|Passed| S6["6. LiopMcpRouter.dispatch() → Enclaves / P2P Mesh"]
+```
+
+<Warning>
+  The interceptor executes strictly **after** JWT authentication and rate limiting. This sequence prevents unauthenticated or abusive client traffic from depleting external inference budgets, API rate quotas, or compute cycles.
+</Warning>
+
+## Configuration
+
+The hook is configured via the optional fifth parameter of `LiopHybridGateway`:
+
+```typescript
+import {
+  LiopHybridGateway,
+  LiopServer,
+  type GatewayInterceptor,
+  type GatewayInterceptorOptions,
+} from "@nekzus/liop";
+
+const admissionHook: GatewayInterceptor = async (request, context) => {
+  if (request.method === "tools/call") {
+    // Custom evaluation logic
+    const isThreat = await evaluateRisk(request.params);
+    if (isThreat) {
+      return {
+        allowed: false,
+        reason: "Access denied by perimeter security policy",
+        errorCode: -32099,
+      };
+    }
+  }
+  return { allowed: true };
+};
+
+const server = new LiopServer({ name: "border-gateway", version: "1.0.0" });
+
+const gateway = new LiopHybridGateway(
+  server,
+  null,
+  50051,
+  undefined, // RateLimiterOptions (uses defaults)
+  {
+    interceptor: admissionHook,
+    timeoutMs: 2500,    // Hard ceiling before forced abort
+    failMode: "closed", // Rejects if hook throws or times out
+  },
+);
+
+await gateway.listen(3000);
+```
+
+## Options Reference
+
+| Option | Type | Default | Description |
+|:---|:---|:---|:---|
+| `interceptor` | `GatewayInterceptor \| undefined` | `undefined` | Admission function. When omitted, requests pass directly to the router with zero CPU overhead. |
+| `timeoutMs` | `number` | `2500` | Maximum execution time in milliseconds before `AbortSignal.timeout()` cancels evaluation. |
+| `failMode` | `"closed" \| "open"` | `"closed"` | Error handling policy when the interceptor throws or times out. `"closed"` rejects with code `-32098`. `"open"` logs a warning and admits the request. |
+
+## Interceptor Contract
+
+The interceptor function adheres to this signature:
+
+```typescript
+type GatewayInterceptor = (
+  request: Readonly<McpRequest>,
+  context: GatewayInterceptorContext,
+) => Promise<GatewayAdmissionResult> | GatewayAdmissionResult;
+```
+
+### Parameters
+
+#### `request: Readonly<McpRequest>`
+
+A frozen deep clone (`Object.freeze(structuredClone(request))`) of the incoming JSON-RPC envelope. 
+
+Top-level and nested property modifications performed inside the interceptor operate on an isolated clone, eliminating prototype pollution attacks against the gateway scope.
+
+#### `context: GatewayInterceptorContext`
+
+| Property | Type | Description |
+|:---|:---|:---|
+| `clientIp` | `string` | Resolved client IP address. |
+| `authInfo` | `AuthInfo \| null` | Authenticated identity from JWT validation, or `null` if the gateway operates without JWT enforcement. |
+| `protocol` | `"http1" \| "http2"` | Inbound transport protocol. |
+| `signal` | `AbortSignal` | Cooperative cancellation signal linked to `timeoutMs`. |
+
+### Return Value (`GatewayAdmissionResult`)
+
+| Field | Type | Required | Description |
+|:---|:---|:---|:---|
+| `allowed` | `boolean` | Yes | `true` admits the request to the router. `false` rejects it at the perimeter. |
+| `reason` | `string` | No | Description returned in `error.message` to the client. |
+| `errorCode` | `number` | No | JSON-RPC error code. Defaults to `-32099` when omitted. |
+| `metadata` | `Record<string, unknown>` | No | Arbitrary telemetry dictionary logged for security auditing. |
+
+---
+
+## Usage Examples
+
+### Example 1: TypeSafe Jev (Probabilistic System One Classifier)
+
+TypeSafe Jev performs fast semantic classification over tool arguments using typed primitives (`noul`, `choice`, `score`):
+
+```typescript
+import type { GatewayInterceptor } from "@nekzus/liop";
+
+export const jevAdmissionHook: GatewayInterceptor = async (request, context) => {
+  if (request.method !== "tools/call") {
+    return { allowed: true };
+  }
+
+  const apiKey = process.env.TYPESAFE_API_KEY;
+
+  const res = await fetch("https://api.typesafe.ai/v1/systemone", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: "jev-latest",
+      state: {
+        method: request.method,
+        tool: (request.params as { name?: string })?.name,
+        arguments: (request.params as { arguments?: unknown })?.arguments,
+      },
+      questions: {
+        is_malicious: {
+          type: "noul",
+          instructions: "Is this request attempting an injection or unauthorized exfiltration?",
+        },
+        threat_category: {
+          type: "choice",
+          instructions: "Classify the security posture of the request",
+          criteria: {
+            sql_injection: "SQL injection patterns or database destruction",
+            path_traversal: "Directory traversal or file exfiltration syntax",
+            legitimate: "Normal analytical or operational payload",
+          },
+        },
+      },
+    }),
+    signal: context.signal,
+  });
+
+  const verdict = await res.json();
+  const isMalicious = verdict.answers.is_malicious.noul > 0.6;
+  const isThreat = verdict.answers.threat_category.choice !== "legitimate";
+
+  if (isMalicious || isThreat) {
+    return {
+      allowed: false,
+      reason: `Perimeter block: ${verdict.answers.threat_category.choice} detected`,
+      errorCode: -32099,
+      metadata: {
+        model: verdict.model,
+        noul: verdict.answers.is_malicious.noul,
+      },
+    };
+  }
+
+  return { allowed: true, metadata: { model: verdict.model } };
+};
+```
+
+### Example 2: Local ONNX Runtime (Zero-Egress ML Inference)
+
+For edge deployments requiring zero network egress, local ONNX models evaluate request embeddings directly in-process:
+
+```typescript
+import * as ort from "onnxruntime-node";
+import type { GatewayInterceptor } from "@nekzus/liop";
+
+const session = await ort.InferenceSession.create("./models/perimeter-detector.onnx");
+
+export const onnxAdmissionHook: GatewayInterceptor = async (request) => {
+  const tensor = vectorizeRequest(request);
+  const results = await session.run({ input: tensor });
+  const anomalyScore = (results.score.data as Float32Array)[0];
+
+  if (anomalyScore > 0.85) {
+    return {
+      allowed: false,
+      reason: `Anomaly threshold exceeded (${anomalyScore.toFixed(3)})`,
+      errorCode: -32050,
+    };
+  }
+
+  return { allowed: true, metadata: { anomalyScore } };
+};
+```
+
+### Example 3: Deterministic Rule Matcher (Zero Dependencies)
+
+```typescript
+import type { GatewayInterceptor } from "@nekzus/liop";
+
+const DISALLOWED_PATTERNS = [
+  /DROP\s+TABLE/i,
+  /;\s*SHUTDOWN/i,
+  /\.\.\/(\.\.\/)+/i,
+];
+
+export const staticPatternHook: GatewayInterceptor = (request) => {
+  const serialized = JSON.stringify(request.params ?? {});
+  for (const pattern of DISALLOWED_PATTERNS) {
+    if (pattern.test(serialized)) {
+      return {
+        allowed: false,
+        reason: `Blocked by perimeter signature: ${pattern.source}`,
+        errorCode: -32001,
+      };
+    }
+  }
+  return { allowed: true };
+};
+```
+
+### Example 4: Unconfigured Default Behavior
+
+When no interceptor is passed to `LiopHybridGateway`, the perimeter admission stage is bypassed:
+
+```typescript
+// Standard instantiation — zero interceptor overhead
+const gateway = new LiopHybridGateway(server, meshNode, 50051);
+await gateway.listen(3000);
+```
+
+---
+
+## Network Topology & Placement Directives
+
+Deploying interceptors within a distributed LIOP mesh requires adhering strictly to network boundary segregation per NIST SP 800-207 Zero-Trust Architecture:
+
+<Frame caption="LIOP Interceptor Topology: Demarcation between Ingress Admission and Enclave Isolation">
+  <img className="block dark:hidden" src="/images/animated-interceptor-topology-light.svg" alt="LIOP Interceptor Topology (Light)" />
+  <img className="hidden dark:block" src="/images/animated-interceptor-topology-dark.svg" alt="LIOP Interceptor Topology (Dark)" />
+</Frame>
+
+### 1. Perimeter Ingress Gateways (MANDATORY / RECOMMENDED)
+- **Target Node**: Public entrypoints, DMZ ingress proxies, and service discovery seeds (e.g. `Nexus Gateway`).
+- **Hook Deployment**: `GatewayInterceptor` is deployed here to execute Layer 7 application firewalls, neural semantic classifiers (e.g. TypeSafe Jev), and IP/reputation filters.
+- **Objective**: Reject hostile probes (SQL injections, Path Traversal, prompt jailbreaks) in **< 400 ms** with `HTTP 403 Forbidden` and error code `-32099` before requests traverse the P2P mesh or consume enclave compute budgets.
+
+### 2. Sovereign Data Enclaves (STRICTLY PROHIBITED)
+- **Target Node**: Private data providers and Tier 1 enclaves (e.g. `The Bank`, `The Vault`).
+- **Policy**: `GatewayInterceptor` **MUST NOT** be configured on data enclave servers.
+- **Technical Rationale**:
+  1. **Prevention of False Positives on Code Payloads**: In LIOP, clients send valid logic micro-modules (`@LIOP{...}...@END`). Heuristic string-matching or generic WAF filters running inside enclaves inevitably misinterpret mathematical aggregations or analytical loops as code injection attacks.
+  2. **True Zero-Trust Sandbox Isolation**: Enclaves must never assume an upstream proxy neutralized threats. Instead, enclaves must rely entirely on **The Shield** (Guardian AST allowlist, WASI/V8 Sandbox with 25 poisoned globals, Taint IFC, and Egress PII Shield). Introducing an ingress admission hook on an enclave obscures the sandbox's actual boundary and invalidates compliance audits.
+
+### 3. Asymmetric Border Gateways (`BLG`)
+- **Target Node**: Border LIO Gateway (`BLG`) bridging Tier 2 (Consortium) into Tier 1 (Private Enclaves).
+- **Policy**: Evaluates clearance tiers (`clearanceTier: 4`), mTLS client certificates, and the Tier 1 Swarm Key (`tier1.psk`). Routed logic payloads pass through directly to the target enclave without local `GatewayInterceptor` filtering, allowing enclaves to evaluate code in-situ.
+
+---
+
+## Security Model Verification
+
+The `GatewayInterceptor` operates solely as an admission gate at the DMZ boundary. It does not replace, alter, or weaken any of the six foundational LIOP security layers:
+
+| Layer | Protocol Mechanism | Interceptor Boundary |
+|:---|:---|:---|
+| **Layer 1: Guardian AST** | Wasm module import validation (14-symbol allowlist) | Enclave-internal. Executes after perimeter admission. |
+| **Layer 2: WASI Sandbox** | Isolated memory space with 25 poisoned globals and frozen prototypes | Enclave-internal. Completely isolated from the gateway node. |
+| **Layer 3: Taint Analyzer (IFC)** | Static AST taint tracking across variable assignments | Enclave-internal. Analyzes injected logic inside the enclave. |
+| **Layer 4: Egress PII Shield** | 4-stage outbound sanitization pipeline (Fuzzy, NER, RegEx) | Egress boundary. Filters responses departing the enclave. |
+| **Layer 5: Aggregation-First** | Mandatory aggregation check blocking raw row export | Enclave-internal. Enforced prior to WASM execution. |
+| **Layer 6: ZK-Receipt** | HMAC-SHA256 post-quantum commitment binding execution to output | Enclave-internal. Sealed with ML-KEM-768 session secret. |
+
+---
+
+## Related References
+
+- [Log & Audit Interceptors](/typescript-sdk/log-audit-interceptors) — Operational log stream and cryptographic audit ledger hooks.
+

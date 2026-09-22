@@ -1,0 +1,155 @@
+<svg width="900" height="480" viewBox="0 0 900 480" xmlns="http://www.w3.org/2000/svg">
+  <!-- Base Background -->
+  <rect width="900" height="480" rx="14" fill="#09090b" stroke="#27272a" stroke-width="1.5" />
+
+  <defs>
+    <style>
+      .main-title { font-family: 'Inter', system-ui, -apple-system, sans-serif; font-size: 18px; font-weight: 700; fill: #fafafa; letter-spacing: -0.02em; }
+      .main-subtitle { font-family: 'Inter', system-ui, -apple-system, sans-serif; font-size: 12px; font-weight: 400; fill: #a1a1aa; }
+      .section-badge { font-family: 'Inter', system-ui, -apple-system, sans-serif; font-size: 10.5px; font-weight: 700; fill: #71717a; letter-spacing: 0.05em; }
+      .card-title { font-family: 'Inter', system-ui, -apple-system, sans-serif; font-size: 12.5px; font-weight: 600; fill: #fafafa; }
+      .card-subtitle { font-family: 'Inter', system-ui, -apple-system, sans-serif; font-size: 10.5px; font-weight: 400; fill: #a1a1aa; }
+      .code-pill { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; font-weight: 600; }
+      .router-text { font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600; fill: #e4e4e7; letter-spacing: 0.02em; }
+      .footer-title { font-family: 'Inter', system-ui, -apple-system, sans-serif; font-size: 11.5px; font-weight: 700; }
+      .footer-desc { font-family: 'Inter', system-ui, -apple-system, sans-serif; font-size: 10px; font-weight: 400; fill: #a1a1aa; }
+
+      @keyframes flowDashDark {
+        0% { stroke-dashoffset: 24; }
+        100% { stroke-dashoffset: 0; }
+      }
+      .anim-dash-cyan { stroke: #38bdf8; stroke-width: 2; stroke-dasharray: 6 6; animation: flowDashDark 1.5s linear infinite; }
+      .anim-dash-amber { stroke: #fbbf24; stroke-width: 2; stroke-dasharray: 6 6; animation: flowDashDark 1.5s linear infinite; }
+      .anim-dash-emerald { stroke: #34d399; stroke-width: 2; stroke-dasharray: 6 6; animation: flowDashDark 1.5s linear infinite; }
+    </style>
+  </defs>
+
+  <!-- Header -->
+  <g transform="translate(40, 36)">
+    <text x="0" y="0" class="main-title">LIOP Interceptor Architecture</text>
+    <text x="0" y="20" class="main-subtitle">Agnostic hooks across perimeter admission, operational logs, and cryptographic audit chains</text>
+  </g>
+
+  <!-- Upper Container: LIOP Core & SDK Boundary -->
+  <g transform="translate(40, 75)">
+    <rect width="820" height="144" rx="10" fill="#131316" stroke="#27272a" stroke-width="1.5" />
+    <text x="20" y="22" class="section-badge">LIOP PROTOCOL &amp; SDK CORE (ZERO EXTERNAL DEPENDENCIES)</text>
+
+    <!-- Node 1: Gateway -->
+    <g transform="translate(20, 36)">
+      <rect width="245" height="94" rx="8" fill="#18181b" stroke="#38bdf8" stroke-width="1.5" />
+      <circle cx="20" cy="22" r="6" fill="#38bdf8" />
+      <text x="34" y="26" class="card-title">LiopHybridGateway</text>
+      <text x="20" y="48" class="card-subtitle">L4/L7 Ingress (HTTP/1.1 &amp; HTTP/2)</text>
+      <rect x="20" y="60" width="205" height="22" rx="4" fill="#0284c7" fill-opacity="0.2" stroke="#0284c7" stroke-width="1" />
+      <text x="28" y="75" class="code-pill" fill="#38bdf8">GatewayInterceptor</text>
+    </g>
+
+    <!-- Node 2: Logger -->
+    <g transform="translate(287, 36)">
+      <rect width="245" height="94" rx="8" fill="#18181b" stroke="#fbbf24" stroke-width="1.5" />
+      <circle cx="20" cy="22" r="6" fill="#fbbf24" />
+      <text x="34" y="26" class="card-title">LiopLogger</text>
+      <text x="20" y="48" class="card-subtitle">Operational Stream (stderr)</text>
+      <rect x="20" y="60" width="205" height="22" rx="4" fill="#d97706" fill-opacity="0.2" stroke="#d97706" stroke-width="1" />
+      <text x="28" y="75" class="code-pill" fill="#fbbf24">LogInterceptor</text>
+    </g>
+
+    <!-- Node 3: AuditLogger -->
+    <g transform="translate(555, 36)">
+      <rect width="245" height="94" rx="8" fill="#18181b" stroke="#34d399" stroke-width="1.5" />
+      <circle cx="20" cy="22" r="6" fill="#34d399" />
+      <text x="34" y="26" class="card-title">AuditLogger</text>
+      <text x="20" y="48" class="card-subtitle">SOC 2 Hash-Chain Ledger</text>
+      <rect x="20" y="60" width="205" height="22" rx="4" fill="#059669" fill-opacity="0.2" stroke="#059669" stroke-width="1" />
+      <text x="28" y="75" class="code-pill" fill="#34d399">AuditInterceptor</text>
+    </g>
+  </g>
+
+  <!-- Animated Connecting Flow Lines (Upper to Dispatch Router) -->
+  <g>
+    <!-- Stream 1 (Gateway) -->
+    <path d="M 182 219 L 182 263" class="anim-dash-cyan" />
+    <polygon points="178,258 186,258 182,264" fill="#38bdf8" />
+    <!-- Stream 2 (Logger) -->
+    <path d="M 450 219 L 450 263" class="anim-dash-amber" />
+    <polygon points="446,258 454,258 450,264" fill="#fbbf24" />
+    <!-- Stream 3 (Audit) -->
+    <path d="M 717 219 L 717 263" class="anim-dash-emerald" />
+    <polygon points="713,258 721,258 717,264" fill="#34d399" />
+  </g>
+
+  <!-- Lower Container: Developer Application Space -->
+  <g transform="translate(40, 264)">
+    <rect width="820" height="126" rx="10" fill="#131316" stroke="#27272a" stroke-width="1.5" />
+    <text x="20" y="19" class="section-badge">DEVELOPER APPLICATION SPACE (AGNOSTIC M:N EXTENSION)</text>
+
+    <!-- M:N Dispatch Router Bar -->
+    <g transform="translate(20, 27)">
+      <rect width="780" height="26" rx="6" fill="#1c1c21" stroke="#52525b" stroke-width="1.2" stroke-dasharray="4 2" />
+      <text x="390" y="17" text-anchor="middle" class="router-text">⇄ CUSTOM DISPATCH ROUTER (Arbitrary M:N Routing • Any Hook → Any Destination)</text>
+      <!-- Junction Input Points -->
+      <circle cx="122" cy="0" r="3" fill="#38bdf8" />
+      <circle cx="390" cy="0" r="3" fill="#fbbf24" />
+      <circle cx="657" cy="0" r="3" fill="#34d399" />
+    </g>
+
+    <!-- Connectors from Dispatch Router Bar to Target Cards -->
+    <g stroke="#52525b" stroke-width="1.2">
+      <line x1="142" y1="53" x2="142" y2="64" />
+      <polygon points="139,60 145,60 142,65" fill="#71717a" stroke="none" />
+
+      <line x1="410" y1="53" x2="410" y2="64" />
+      <polygon points="407,60 413,60 410,65" fill="#71717a" stroke="none" />
+
+      <line x1="677" y1="53" x2="677" y2="64" />
+      <polygon points="674,60 680,60 677,65" fill="#71717a" stroke="none" />
+    </g>
+
+    <!-- Target 1: TypeSafe Jev -->
+    <g transform="translate(20, 65)">
+      <rect width="245" height="49" rx="6" fill="#18181b" stroke="#27272a" stroke-width="1" />
+      <text x="14" y="20" class="card-title">TypeSafe Jev (Cloud AI)</text>
+      <text x="14" y="36" class="card-subtitle">Semantic admission &amp; threat detection</text>
+    </g>
+
+    <!-- Target 2: SIEM / Datadog / Splunk -->
+    <g transform="translate(287, 65)">
+      <rect width="245" height="49" rx="6" fill="#18181b" stroke="#27272a" stroke-width="1" />
+      <text x="14" y="20" class="card-title">SIEM / Monitoring Platforms</text>
+      <text x="14" y="36" class="card-subtitle">Datadog, Splunk, Loki, OpenTelemetry</text>
+    </g>
+
+    <!-- Target 3: Local Rules / ONNX -->
+    <g transform="translate(555, 65)">
+      <rect width="245" height="49" rx="6" fill="#18181b" stroke="#27272a" stroke-width="1" />
+      <text x="14" y="20" class="card-title">Custom Rules &amp; Local ONNX</text>
+      <text x="14" y="36" class="card-subtitle">Regex filters, pre-execution policies</text>
+    </g>
+  </g>
+
+  <!-- Footer: Guarantees & Contract Invariants -->
+  <g transform="translate(40, 402)">
+    <rect width="820" height="62" rx="8" fill="#131316" stroke="#27272a" stroke-width="1" />
+
+    <!-- Column 1 -->
+    <g transform="translate(20, 16)">
+      <text x="0" y="12" class="footer-title" fill="#38bdf8">Perimeter Admission</text>
+      <text x="0" y="29" class="footer-desc">Pre-dispatch filter with fail-closed default</text>
+    </g>
+    <line x1="285" y1="12" x2="285" y2="50" stroke="#27272a" stroke-width="1" stroke-dasharray="2 2" />
+
+    <!-- Column 2 -->
+    <g transform="translate(305, 16)">
+      <text x="0" y="12" class="footer-title" fill="#fbbf24">Async Fire-and-Forget</text>
+      <text x="0" y="29" class="footer-desc">Out-of-band execution with recursion guard</text>
+    </g>
+    <line x1="555" y1="12" x2="555" y2="50" stroke="#27272a" stroke-width="1" stroke-dasharray="2 2" />
+
+    <!-- Column 3 -->
+    <g transform="translate(575, 16)">
+      <text x="0" y="12" class="footer-title" fill="#34d399">Post-Seal Integrity</text>
+      <text x="0" y="29" class="footer-desc">Immutable clone preserves cryptographic chain</text>
+    </g>
+  </g>
+</svg>

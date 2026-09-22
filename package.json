@@ -7,6 +7,21 @@
   "license": "Apache-2.0",
   "type": "module",
   "homepage": "https://nekzus-32.mintlify.app/",
+  "keywords": [
+    "liop",
+    "mcp",
+    "model-context-protocol",
+    "logic-on-origin",
+    "logic-injection",
+    "webassembly",
+    "wasi",
+    "ai-agents",
+    "agentic-ai",
+    "zero-trust",
+    "pqc",
+    "grpc",
+    "libp2p"
+  ],
   "scripts": {
     "build": "pnpm --filter @nekzus/liop build",
     "sanitize-changelog": "node scripts/sanitize-changelog.js",
@@ -14,7 +29,9 @@
     "lint": "pnpm --filter @nekzus/liop lint",
     "format": "pnpm --filter @nekzus/liop format",
     "check": "pnpm --filter @nekzus/liop check",
-    "semantic-release": "semantic-release --branches main",
+    "license:check": "pnpm --filter @nekzus/liop exec tsx ../../scripts/check-licenses.ts",
+    "diagrams:check": "pnpm --filter @nekzus/liop exec tsx ../../scripts/check-diagrams.ts",
+    "semantic-release": "semantic-release -e ./release.sdk.config.js",
     "commit": "cz",
     "sync-metadata": "pnpm --filter @nekzus/liop exec tsx scripts/sync-metadata.ts",
     "generate:llms": "pnpm --filter @nekzus/liop exec tsx ../../scripts/generate-llms-full.ts",
@@ -31,9 +48,17 @@
     "demo:playground:rebuild": "pnpm --filter @nekzus/liop demo:playground:rebuild",
     "demo:client-sdk": "pnpm --filter @nekzus/liop demo:client-sdk",
     "demo:playground:build": "pnpm --filter @nekzus/liop demo:playground-web-build",
+    "audit:prod:start": "pnpm --filter @nekzus/liop audit:prod:start",
+    "audit:prod:run": "pnpm --filter @nekzus/liop audit:prod:run",
+    "audit:prod:runner": "pnpm --filter @nekzus/liop audit:prod:runner",
+    "audit:prod:clean": "pnpm --filter @nekzus/liop audit:prod:clean",
     "socket:scan": "socket scan create --report .",
     "socket:score": "socket package score npm @nekzus/liop --markdown",
-    "socket:fix": "socket fix"
+    "socket:fix": "socket fix",
+    "studio": "pnpm --filter @nekzus/liop-studio start",
+    "studio:scan": "pnpm --filter @nekzus/liop-studio scan",
+    "studio:build": "pnpm --filter @nekzus/liop-studio build:all",
+    "studio:test": "pnpm --filter @nekzus/liop-studio test"
   },
   "config": {
     "commitizen": {
@@ -41,7 +66,7 @@
     }
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.10",
+    "@biomejs/biome": "2.5.14",
     "@semantic-release-extras/verified-git-commit": "1.0.11",
     "@semantic-release/changelog": "7.0.0",
     "@semantic-release/git": "11.0.1",
@@ -57,9 +82,9 @@
   },
   "overrides": {
     "protobufjs": "^7.6.1",
-    "piscina": "5.3.1",
+    "piscina": "5.3.2",
     "ws": "^8.21.0",
-    "hono": "4.13.5",
+    "hono": "4.13.8",
     "fast-uri": "^3.1.5",
     "brace-expansion": "^1.1.18",
     "ip-address": "^10.3.1",

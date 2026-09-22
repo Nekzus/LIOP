@@ -1,0 +1,143 @@
+---
+title: "Pasarelas y Adaptadores (Bridges)"
+description: "Puente bidireccional entre servidores nativos LIOP, clientes MCP STDIO y transportes Streamable HTTP remotos"
+icon: "cable"
+
+---
+
+El módulo `@nekzus/liop/bridge` proporciona dos abstracciones de integración principales: **`LiopMcpBridge`** para comunicación local por procesos STDIO (ej., Claude Desktop, Cursor, Zed) y **`LiopStreamBridge`** para streaming HTTP/SSE a través de redes remotas.
+
+```typescript
+import { LiopMcpBridge, LiopStreamBridge } from "@nekzus/liop/bridge";
+```
+
+<Frame caption="Arquitectura LIOP Bridge: Traducción bidireccional entre JSON-RPC de MCP y envelopes binarios internos">
+  <img className="block dark:hidden" src="/images/bridge-flow-light.svg" alt="Arquitectura LIOP Bridge (Light)" />
+  <img className="hidden dark:block" src="/images/bridge-flow-dark.svg" alt="Arquitectura LIOP Bridge (Dark)" />
+</Frame>
+
+---
+
+## 1. Adaptador Local STDIO (`LiopMcpBridge`)
+
+`LiopMcpBridge` opera en dos modos según el tipo de instancia suministrado al constructor:
+
+### Modo A: EXPOSE (Servidor LIOP → Cliente MCP Stdio)
+
+Expone un `LiopServer` nativo como un proceso de servidor MCP estándar sobre `stdio`. Esto permite que clientes de escritorio locales como Claude Desktop o Cursor invoquen herramientas mientras la ejecución se mantiene contenida en sandboxes WASI in-situ con atestación de recibos ZK.
+
+```typescript server-stdio.ts
+import { LiopServer } from "@nekzus/liop";
+import { LiopMcpBridge } from "@nekzus/liop/bridge";
+import { z } from "zod";
+
+const server = new LiopServer({
+  name: "LocalDataEnclave",
+  version: "1.0.0",
+});
+
+server.tool(
+  "audit_records",
+  "Analiza registros locales sin extraer filas en bruto.",
+  { threshold: z.number() },
+  async ({ threshold }) => {
+    return {
+      content: [{ type: "text", text: `Auditoría completada sobre umbral ${threshold}` }],
+    };
+  }
+);
+
+// Enlaza el servidor LIOP a process.stdin y process.stdout
+const bridge = new LiopMcpBridge(server);
+await bridge.startStdio();
+```
+
+### Modo B: WRAP (Servidor MCP Heredado → Malla LIOP)
+
+Envuelve un `McpServer` existente de `@modelcontextprotocol/sdk` y publica sus capacidades en la malla descentralizada P2P de LIOP en calidad de enclave.
+
+```typescript wrap-legacy-mcp.ts
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { LiopMcpBridge } from "@nekzus/liop/bridge";
+import { z } from "zod";
+
+const legacyServer = new McpServer({
+  name: "LegacyInventoryServer",
+  version: "2.1.0",
+});
+
+legacyServer.tool("get_stock", { sku: z.string() }, async ({ sku }) => {
+  return { content: [{ type: "text", text: `Stock para ${sku}: 42` }] };
+});
+
+// Se une a la malla DHT Kademlia de forma automática
+const bridge = new LiopMcpBridge(legacyServer, {
+  publishToMesh: true,
+  serverInfo: {
+    name: "LegacyInventoryServer",
+    version: "2.1.0",
+  },
+});
+```
+
+### Opciones de Configuración (`LiopBridgeOptions`)
+
+| Opción | Tipo | Valor por Defecto | Descripción |
+|:---|:---|:---|:---|
+| `publishToMesh` | `boolean` | `false` | Al envolver un servidor MCP heredado, anuncia sus herramientas en la DHT Kademlia |
+| `meshIdentity` | `string` | *(automático)* | Ruta del archivo de clave de identidad Ed25519 para presencia en la malla |
+| `serverInfo` | `object` | `{ name, version }` | Nombre y versión semántica expuestos a los clientes |
+| `security` | `object` | *(heredado)* | Configuración de aislamiento, límites de combustible y escudo PII |
+
+---
+
+## 2. Adaptador HTTP Remoto (`LiopStreamBridge`)
+
+`LiopStreamBridge` expone un `LiopServer` a través de la red utilizando el transporte Streamable HTTP oficial de MCP respaldado por Hono. Los agentes externos se conectan vía HTTP con Server-Sent Events (SSE) y autenticación obligatoria por token Bearer.
+
+```typescript server-http.ts
+import { LiopServer } from "@nekzus/liop";
+import { LiopStreamBridge } from "@nekzus/liop/bridge";
+
+const server = new LiopServer({
+  name: "RemoteAnalyticsEnclave",
+  version: "1.0.0",
+});
+
+// Configura e inicia la pasarela HTTP en el puerto 3000
+const streamBridge = new LiopStreamBridge(server, {
+  port: 3000,
+  maxSessionsPerIp: 10,
+  sessionTimeoutMs: 15 * 60 * 1000, // 15 minutos
+});
+
+await streamBridge.start();
+console.log("Streamable HTTP Bridge escuchando en http://localhost:3000/mcp");
+
+// Cierre ordenado ante señales del sistema
+process.on("SIGTERM", async () => {
+  await streamBridge.close();
+});
+```
+
+### Propiedades de Blindaje y Seguridad
+
+1. **Autenticación con Token Bearer**: Exige la cabecera `Authorization: Bearer <token>` en todos los endpoints `/mcp`. Si no se define la variable `ZERO_TRUST_TOKEN` en el entorno, genera un token UUID criptográficamente seguro al arrancar.
+2. **Depuración Automática de Sesiones**: Un temporizador en segundo plano inspecciona las sesiones activas cada 60 segundos y purga aquellas cuyo tiempo de inactividad supere `sessionTimeoutMs`.
+3. **Límite de Concurrencia por IP**: Restringe el número de sesiones activas por dirección IP de origen, lo que previene el agotamiento de sockets y ataques de denegación de servicio.
+
+### Opciones de Configuración (`LiopStreamBridgeOptions`)
+
+| Opción | Tipo | Valor por Defecto | Descripción |
+|:---|:---|:---|:---|
+| `port` | `number` | `3000` | Puerto TCP HTTP para recibir solicitudes entrantes |
+| `maxSessionsPerIp` | `number` | `10` | Límite de sesiones concurrentes activas permitidas por IP |
+| `sessionTimeoutMs` | `number` | `1800000` (30m) | Umbral de inactividad antes de purgar el estado de una sesión |
+
+---
+
+## Compatibilidad de Protocolo Dual-Era
+
+Ambos adaptadores gestionan de forma nativa la negociación de época:
+* **MCP 2026-07-28**: Soporte directo para sondas `server/discover` sin estado, listados de herramientas con `resultType: "complete"`, y suscripciones sin sobrecarga de sondeo.
+* **MCP 2025-11-25**: El depurado automático de metadatos (`adaptResponseForLegacyClient`) asegura que los clientes de escritorio heredados reciban payloads JSON compatibles sin errores de sintaxis.

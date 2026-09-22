@@ -1,6 +1,8 @@
 ---
 title: "Arquitectura"
-description: "Comprendiendo los componentes, capas y el enrutamiento P2P del Logic-Injection-on-Origin Protocol"
+description: "Componentes, capas de ejecución y enrutamiento P2P en el Logic-Injection-on-Origin Protocol"
+icon: "network"
+
 ---
 
 LIOP opera bajo un paradigma fundamentalmente distinto a las APIs REST tradicionales o al Model Context Protocol (MCP). Abandona el modelo cliente-servidor JSON-RPC en favor de un **modelo descentralizado de inyección binaria (push model)** sobre una red P2P.
@@ -16,7 +18,7 @@ Al orquestar **Lógica Inyectada en el Origen (Logic-Injection-on-Origin)**, LIO
 
 LIOP comprende varios pilares fundamentales:
 - **Especificación LIOP**: Implementación estandarizada de mensajes Protobuf, enrutamiento P2P y restricciones WASI.
-- **SDKs de LIOP**: Bibliotecas oficiales en TypeScript y Rust para integración fluida en nodos industriales.
+- **SDKs de LIOP**: Bibliotecas oficiales en TypeScript y Rust para integración en entornos de producción.
 - **Motores de Ejecución LIOP (Runtimes)**: El motor central (basado en `wasmtime`) que realiza el sandboxing matemático en el origen.
 
 <Note>
@@ -33,7 +35,7 @@ En la red LIOP, cada nodo es un Par (Peer), asumiendo roles según su propósito
 
 ## Capas del Sistema
 
-Para asegurar latencia ultra-baja y máxima seguridad, LIOP se divide en tres capas técnicas:
+Para reducir la latencia y garantizar un aislamiento estricto, LIOP se estructura en capas técnicas mediante pipelines de ejecución verificables:
 
 <Frame>
   <img className="block dark:hidden w-full" src="/images/topology-light.svg" alt="Arquitectura de Topología LIOP" />
@@ -58,6 +60,65 @@ La frontera final antes de tocar el hardware y los datos locales.
 - **Enclaves Hardware (TEEs)**: Ejecución opcional dentro de entornos como AWS Nitro o Intel SGX para blindar la memoria RAM.
 - **Zero-Knowledge Evidence**: Uso de zkVMs para devolver resultados sellados matemáticamente que garantizan la integridad absoluta del cómputo.
 
+---
+
+## Topología de Malla Soberana Multi-Tier
+
+En despliegues de producción empresarial, la topología de la malla está dividida en tres niveles de seguridad (*tiers*) con control de fronteras asimétricas:
+
+<Frame>
+  <img className="w-full rounded-lg border border-white/10 shadow-xl" src="/images/animated-docker-infra-dark.svg" alt="Topología de Malla Soberana Multi-Tier" />
+</Frame>
+
+### Tier 1: Enclaves de Soberanía de Datos
+* **Aislamiento Criptográfico**: Red privada estricta mediante **`pnet` Swarm Key (PSK)** (`/key/swarm/psk/1.0.0/`). Cualquier intento de conexión de un peer sin la clave PSK compartida es abortado a nivel de socket de transporte.
+* **Nodos**: Banca Core (`The Bank`, 1.500 cuentas sintéticas con saldo de $148M) y Salud EHR (`The Vault`, 2.500 historias clínicas).
+* **Políticas**: Aplica Privacidad Diferencial (ruido de Laplace) y límites estrictos de cardinalidad (la salida de registros individuales en crudo está bloqueada por el hardware y el sandbox).
+
+### Tier 2: Consorcio P2P y Pasarelas Perimétricas
+* **Border LIO Gateway (`BLG`)**: Cortafuegos criptográfico y proxy inverso. Conecta consultas de clientes externos hacia los enclaves Tier 1 cruzando una frontera asimétrica mediante credenciales OAuth 2.1 RFC 6749.
+* **Trading de Alta Frecuencia (`The Oracle`)**: Motor financiero HFT en tiempo real que simula libros de órdenes L2 y volatilidad estocástica (Heston + Jump Diffusion).
+* **Nexus**: Directorio de descubrimiento descentralizado y proveedor de autenticación OIDC.
+
+### Tier 3: Backbone Público y Borde (Edge IoT)
+* **Nodos Industriales en el Borde (`Edge IoT`)**: Desplegados en hardware industrial bajo perfiles de red WAN degradados (latencia de 250ms ± 50ms y 2% de paquetes perdidos). Procesa anomalías in-situ y transmite solo telemetría agregada crítica.
+* **Relays de Circuito P2P (`Relay`)**: Servidores públicos de alta capacidad que implementan AutoNAT y Circuit Relay v2 para superar firewalls corporativos.
+* **Cliente SDK, Web Playground y Studio**: Consolas de ejecución interactivas que operan sobre enlaces transatlánticos simulados (`:16000` Studio / `:16002` Playground).
+
+### Puertos Canónicos de Red
+
+La topología multicapa de LIOP estandariza puertos de red específicos a través de sus servicios y entornos de desarrollo:
+
+| Servicio | Puerto | Protocolo / Transporte | Propósito |
+|:---|:---|:---|:---|
+| **Nexus Discovery / OIDC** | `:15000` (HTTP) / `:15001` (P2P) | HTTP/2, libp2p Kademlia | Nodo semilla, indexación de manifiestos y emisión de tokens OAuth 2.1 RFC 6749 |
+| **Border LIO Gateway (BLG)** | `:15018` | HTTP/2, mTLS | Pasarela perimétrica que conecta consultas WAN hacia los enclaves PSK |
+| **Enclave The Vault (Tier 1)** | `:15013` (Interno) | gRPC / PSK Swarm | Repositorio de historias clínicas (sin ingreso público directo) |
+| **Enclave The Bank (Tier 1)** | `:15014` (Interno) | gRPC / PSK Swarm | Libro contable de transacciones financieras (sin ingreso público directo) |
+| **The Oracle (Tier 2)** | `:15015` | gRPC / libp2p | Motor de simulación de mercado y matching HFT |
+| **Edge IoT (Tier 3)** | `:15016` | gRPC / WAN | Nodo industrial remoto simulado con telemetría in-situ |
+| **Circuit Relay v2** | `:15007` (P2P) / `:15017` (HTTP) | libp2p Relay | Superación de NAT y red pública de descubrimiento P2P |
+| **Playground de Desarrollo Local** | `:14000` | HTTP / SSE | Consola interactiva de desarrollo local independiente (`demo:start`) |
+| **Web UI de LIOP Studio** | `:16000` | HTTP / SSE | Consola oficial del paquete NPM (`npx @nekzus/liop-studio`) |
+| **Playground Web en Arnés** | `:16002` | HTTP / SSE | Consola de pruebas web embebida en el arnés Docker de producción |
+| **Recolector Prometheus** | `:9090` | HTTP | Agregación de telemetría y reglas de alerta |
+| **Tablero Grafana** | `:3000` | HTTP | Panel de observabilidad de producción (26 paneles) |
+
+### Demarcación de Interceptores y Defensa en Profundidad
+
+Dentro de esta arquitectura multicapa, los interceptores obedecen a una estricta segregación topológica conforme a los estándares Zero-Trust NIST SP 800-207:
+
+* **Perímetro de Entrada (`GatewayInterceptor`)**: Se ejecuta exclusivamente en la frontera DMZ (ej. Nexus Gateway) para filtrar llamadas RPC hostiles o malformadas (inyecciones SQL, Path Traversal, prompt injection) con HTTP 403 y error `-32099`. Está **estrictamente prohibido** en los enclaves Tier 1 para prevenir falsos positivos sobre código analítico legítimo y garantizar que la robustez del sandbox se evalúe de forma auténtica.
+* **Aislamiento de Cómputo en Enclave (`The Shield`)**: Opera dentro de los enclaves Tier 1 (`The Bank`, `The Vault`), conteniendo el código inyectado mediante un pipeline de 6 capas (lista blanca Guardian AST, sandbox WASI/V8 con 25 globales envenenados y límites de fuel, Taint IFC, Escudo PII de egreso, agregación obligatoria y ZK-Receipts).
+* **Observabilidad Universal Out-of-Band (`LogInterceptor` y `AuditInterceptor`)**: Desplegados en todos los niveles (Nexus, BLG, Enclaves) de forma asíncrona fuera de banda (0 ms de retraso en el host) para alimentar SIEMs externos, Prometheus y registros de cumplimiento SOC 2 / HIPAA.
+
+<Frame caption="Topología de Interceptores LIOP: Demarcación entre Admisión Perimetral y Aislamiento en Enclave">
+  <img className="block dark:hidden" src="/images/animated-interceptor-topology-light.svg" alt="Topología de Interceptores LIOP (Light)" />
+  <img className="hidden dark:block" src="/images/animated-interceptor-topology-dark.svg" alt="Topología de Interceptores LIOP (Dark)" />
+</Frame>
+
+---
+
 ## La Odisea: Lógica Inyectada en el Origen (LIO)
 
 <Frame>
@@ -79,9 +140,9 @@ Ciclo de vida exacto de una ejecución LIOP:
 
 ### 3. Ingesta en el Origen (`Rust Server`)
 - **Descifrado:** El Data Node procesa el secreto Kyber y descifra el payload inyectado.
-- **AST Guardian:** Análisis en tiempo cero del binario. Cualquier importación ilegal de funciones del host detiene la lógica al instante.
-- **Sandboxing WASI:** El motor inicia un sandbox ultra-restringido. La lógica procesa los datos locales con latencia de red cero.
+- **AST Guardian:** Análisis estático pre-ejecución del binario. Cualquier importación de funciones del host no autorizada detiene la inicialización de inmediato.
+- **Sandboxing WASI:** El motor inicia un sandbox restringido. La lógica procesa los datos locales sin transferir registros a través de la red.
 
 ### 4. Retorno Matemático (`ZK-Receipt`)
 - **Prueba ZK:** Generación opcional de un recibo criptográfico de la ejecución mediante zkVM.
-- **Streaming de Resultados:** Los hallazgos regresan por el multiplex gRPC, proporcionando certeza matemática final al Agente.
+- **Streaming de Resultados:** Los resultados agregados compactos regresan por los streams de gRPC, acompañados de atestaciones criptográficas auditables.

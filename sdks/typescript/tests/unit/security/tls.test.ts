@@ -30,13 +30,43 @@ describe("LIOP TLS Configuration", () => {
 		expect(channelCreds).toBeDefined();
 	});
 
-	it("should throw a fatal error when LIOP_ENFORCE_TLS=true and no certificates are provided", () => {
+	it("should support explicit insecure flag and suppressWarning options", () => {
+		const channelCredsInsecure = createChannelCredentials({ insecure: true });
+		expect(channelCredsInsecure).toBeDefined();
+
+		const channelCredsSuppressed = createChannelCredentials({
+			suppressWarning: true,
+		});
+		expect(channelCredsSuppressed).toBeDefined();
+
+		const serverCredsInsecure = createServerCredentials({ insecure: true });
+		expect(serverCredsInsecure).toBeDefined();
+
+		const serverCredsSuppressed = createServerCredentials({
+			suppressWarning: true,
+		});
+		expect(serverCredsSuppressed).toBeDefined();
+	});
+
+	it("should honor LIOP_SUPPRESS_TLS_WARNING environment variable", () => {
+		process.env.LIOP_SUPPRESS_TLS_WARNING = "true";
+		try {
+			const channelCreds = createChannelCredentials();
+			expect(channelCreds).toBeDefined();
+			const serverCreds = createServerCredentials();
+			expect(serverCreds).toBeDefined();
+		} finally {
+			delete process.env.LIOP_SUPPRESS_TLS_WARNING;
+		}
+	});
+
+	it("should throw a fatal error when LIOP_ENFORCE_TLS=true even if insecure=true is passed", () => {
 		process.env.LIOP_ENFORCE_TLS = "true";
 
-		expect(() => createServerCredentials()).toThrow(
+		expect(() => createServerCredentials({ insecure: true })).toThrow(
 			/FATAL: TLS certificates required/,
 		);
-		expect(() => createChannelCredentials()).toThrow(
+		expect(() => createChannelCredentials({ insecure: true })).toThrow(
 			/FATAL: TLS root certificate required/,
 		);
 	});

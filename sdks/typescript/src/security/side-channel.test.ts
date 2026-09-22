@@ -1,3 +1,6 @@
+// Copyright 2026 Nekzus Solutions and contributors
+// SPDX-License-Identifier: Apache-2.0
+
 /**
  * Side-Channel Adversarial Test Suite — Phase 108
  *
@@ -304,6 +307,30 @@ describe("TaintAnalyzer — Side-Channel Prevention", () => {
 			`;
 			const fields = analyzer.extractQueriedFields(code);
 			expect(fields).toContain("balance");
+		});
+	});
+
+	describe("Computed property key exfiltration (MUST BLOCK)", () => {
+		it("should block PII used as dynamic key in reduce accumulator", () => {
+			const code = `
+				const accounts = env.records;
+				const top5 = accounts.filter((_, i) => i < 5);
+				return top5.reduce((acc, a) => {
+					acc[a.accountHolder] = a.balance;
+					return acc;
+				}, {});
+			`;
+			const result = analyzer.analyze(code);
+			expect(result).not.toBeNull();
+		});
+
+		it("should block PII used as computed key in object literal", () => {
+			const code = `
+				const accounts = env.records;
+				return accounts.map(a => ({ [a.accountHolder]: a.balance }));
+			`;
+			const result = analyzer.analyze(code);
+			expect(result).not.toBeNull();
 		});
 	});
 });

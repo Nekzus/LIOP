@@ -1,0 +1,163 @@
+---
+title: "Healthcare EHR Analytics & HIPAA Compliance"
+description: "Statistical cohort studies over FHIR electronic health records using Differential Privacy (Laplace Mechanism) and strict PII egress redaction"
+icon: "heart-pulse"
+
+---
+
+Electronic Health Record (EHR) databases containing Protected Health Information (PHI) are governed by strict regulatory frameworks including the **HIPAA Security Rule (§164.312)** and **GDPR Article 9**. Transporting individual patient charts across public networks or into third-party AI model prompts exposes healthcare organizations to severe regulatory penalties and breach notification mandates.
+
+The Logic-Injection-on-Origin Protocol addresses healthcare compliance by combining:
+1. **In-Situ Differential Privacy**: Injecting mathematical noise (Laplace Mechanism) to provably prevent re-identification attacks while preserving cohort-level statistical utility.
+2. **Multi-Stage Egress PII Shield**: Automatically intercepting and redacting names, Social Security Numbers (SSN), medical record numbers (MRN), and phone numbers before output serialization.
+3. **ZK-Receipt Provenance**: Proving that the perturbed analytical output genuinely originated from an authorized hospital database without tampering.
+
+```mermaid
+flowchart TD
+    subgraph Enclave["Healthcare Data Enclave (Hospital Private VPC)"]
+        direction TB
+        DB["FHIR Patient Database (HL7 v4.0.1)"]
+        Q["Injected Query: Cohort incidence"]
+        S1["1. Compute Raw Count: count = 1,482"]
+        S2["2. Add Laplace Noise ε=0.5: noisyCount = 1,484"]
+        S3["3. Egress PII Shield: Zero PHI detected"]
+        S4["4. ZK-Receipt Seal: HMAC-SHA256 under ML-KEM session"]
+        DB --> Q --> S1 --> S2 --> S3 --> S4
+    end
+    S4 -->|Wire Egress: 195 bytes (No PHI)| Agent["External Clinical AI Agent"]
+```
+
+---
+
+## Step 1: Implement the Hospital Data Enclave
+
+Instantiate a `LiopServer` configured with `clearanceTier: 5` (confidential enclave) and `PII_PRESETS.US_COMPLIANT`:
+
+```typescript
+import { LiopServer, PII_PRESETS } from "@nekzus/liop";
+import { z } from "zod";
+
+/**
+ * Laplace Mechanism for Differential Privacy
+ * Adds random noise calibrated to global sensitivity / epsilon
+ */
+function addLaplaceNoise(value: number, epsilon: number, sensitivity = 1): number {
+  const scale = sensitivity / epsilon;
+  const u = Math.random() - 0.5;
+  const noise = -scale * Math.sign(u) * Math.log(1 - 2 * Math.abs(u));
+  return Math.round(value + noise);
+}
+
+const hospitalServer = new LiopServer(
+  { name: "Hospital_Clinical_Enclave", version: "1.0.0" },
+  {
+    tokenSlug: "HEALTH",
+    port: 15028,
+    security: {
+      forbiddenKeys: [
+        "ssn", "patient_id", "mrn", "birthDate", "telecom", "address"
+      ],
+      piiPatterns: [
+        ...PII_PRESETS.US_COMPLIANT,
+        /MRN-\d{7}/, // Custom Hospital Medical Record Number format
+      ],
+      enableNerScanning: true, // Detect patient and physician names
+    },
+    taxonomy: {
+      domain: "healthcare",
+      clearanceTier: 5,
+      executionTypes: ["differential-privacy", "cohort-analysis"],
+    },
+  },
+);
+
+hospitalServer.tool(
+  "Analyze_Diabetes_Cohort",
+  "Evaluates diabetes prevalence within specific demographics using ε-differential privacy.",
+  {
+    conditionCode: z.string().default("E11.9"), // ICD-10 for Type 2 Diabetes
+    minAge: z.number().int().min(18).max(120),
+    maxAge: z.number().int().min(18).max(120),
+    privacyBudgetEpsilon: z.number().positive().max(1.0).default(0.5),
+  },
+  async ({ conditionCode, minAge, maxAge, privacyBudgetEpsilon }) => {
+    // 1. Query internal FHIR database (never accessible externally)
+    const cohort = await fhirDatabase.patients.find({
+      "condition.code": conditionCode,
+      age: { $gte: minAge, $lte: maxAge },
+    });
+
+    // 2. Perturb true count using Laplace Mechanism
+    const trueCount = cohort.length;
+    const differentiallyPrivateCount = addLaplaceNoise(trueCount, privacyBudgetEpsilon);
+
+    // 3. Return aggregated and perturbed metric
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify({
+            conditionCode,
+            ageCohort: `${minAge}-${maxAge}`,
+            privacyPreservedPatientCount: Math.max(0, differentiallyPrivateCount),
+            differentialPrivacyParameters: {
+              mechanism: "Laplace",
+              sensitivity: 1,
+              epsilon: privacyBudgetEpsilon,
+            },
+            complianceStandard: "HIPAA Safe Harbor & Expert Determination",
+          }),
+        },
+      ],
+    };
+  },
+);
+
+await hospitalServer.connect();
+```
+
+---
+
+## Step 2: Query Cohort from Research AI Agent
+
+The clinical researcher or agent queries the database without obtaining individual patient charts:
+
+```typescript
+import { LiopClient } from "@nekzus/liop";
+
+const client = new LiopClient();
+await client.connect("127.0.0.1:15028", {
+  auth: {
+    clientId: "university-clinical-researcher",
+    clientSecret: process.env.RESEARCH_CLIENT_SECRET,
+    nexusUrl: "http://127.0.0.1:15000",
+    audience: "urn:liop:healthcare:enclave",
+    scope: "liop:tools:call",
+  },
+});
+
+const response = await client.callTool({
+  name: "Analyze_Diabetes_Cohort",
+  arguments: {
+    conditionCode: "E11.9",
+    minAge: 45,
+    maxAge: 65,
+    privacyBudgetEpsilon: 0.5,
+  },
+});
+
+console.log("Research Result:", response.content[0].text);
+await client.close();
+```
+
+---
+
+## HIPAA Security Rule Technical Safeguards Mapping
+
+| HIPAA Section | Requirement | LIOP Protocol Architecture |
+|---|---|---|
+| **§164.312(a)(1)** | **Access Control** | M2M OAuth 2.1 authentication with RFC 8707 Resource Indicators and granular clearance tiers (`clearanceTier: 5`). |
+| **§164.312(b)** | **Audit Controls** | Synchronous out-of-band audit logging via `AuditInterceptor` recording caller identity, capability, and execution timestamps. |
+| **§164.312(c)(1)** | **Integrity Controls** | ZK-Receipts (HMAC-SHA256) binding the computational output to the exact execution hash, sealed with the session key. |
+| **§164.312(d)** | **Person or Entity Authentication** | Mutual TLS (mTLS) with root CA pinning combined with asymmetric post-quantum ML-KEM-768 key exchanges. |
+| **§164.312(e)(1)** | **Transmission Security** | Complete elimination of raw PHI transmission. Only mathematically perturbed summary metrics traverse the wire. |

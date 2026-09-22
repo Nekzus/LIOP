@@ -1,0 +1,42 @@
+---
+title: "Registros de Decisiones Arquitectónicas (ADRs)"
+description: "Registro formal de decisiones arquitectónicas de alto impacto, compensaciones técnicas y justificaciones de diseño que gobiernan el protocolo LIOP."
+icon: "list-ordered"
+---
+
+Los Registros de Decisiones Arquitectónicas (ADRs) documentan las elecciones estructurales y de ingeniería adoptadas a lo largo del ciclo de vida del Logic-Injection-on-Origin Protocol (LIOP). Cada registro expone el contexto del problema, los factores determinantes, las alternativas evaluadas y las consecuencias técnicas conforme a la especificación [MADR v3.0](https://adr.github.io/madr/).
+
+---
+
+## Ciclo de Vida de los Estados de Decisión
+
+Cada ADR en este repositorio transita por estados formales:
+
+| Estado | Definición |
+|---|---|
+| **Propuesta** | En revisión por pares y evaluación de seguridad por el comité técnico del protocolo. |
+| **Aceptada** | Ratificada formalmente y aplicada en todos los SDKs, runtimes activos y pipelines de CI. |
+| **Superada** | Reemplazada por una decisión arquitectónica posterior (enlazada al registro sucesor). |
+| **Obsoleta** | Dejó de aplicar debido a la evolución fundamental del protocolo o al retiro de transportes. |
+
+---
+
+## Registro de Decisiones Arquitectónicas
+
+| ADR | Título | Estado | Fecha de Ratificación | Componentes Afectados |
+|---|---|---|---|---|
+| [**ADR-0001**](/es/adrs/0001-post-quantum-cryptography-ml-kem-768) | Adopción de Criptografía Poscuántica (ML-KEM-768) | `Aceptada` | 2026-08-15 | Transporte de Red, Canal gRPC, Handshake de Sesión |
+| [**ADR-0002**](/es/adrs/0002-v8-isolate-sandboxing-and-prototype-freezing) | Sandbox Zero-Trust Híbrido: Congelamiento de Prototipos V8 | `Aceptada` | 2026-08-22 | Motor de Ejecución SDK, Pools de Workers, Límites PCI-DSS |
+| [**ADR-0003**](/es/adrs/0003-ast-instruction-fuel-quantization) | Cuantización de Fuel AST en Bloques de 100 Unidades | `Aceptada` | 2026-08-29 | Medición de Fuel, Defensa contra Timing, NIST SP 800-53 |
+| [**ADR-0004**](/es/adrs/0004-dual-era-mcp-handshake-compatibility) | Negociación Dual de Eras MCP (2026/2025) | `Aceptada` | 2026-09-05 | Gateway Bridge, Adaptadores de Protocolo, Transcodificación |
+| [**ADR-0005**](/es/adrs/0005-bearer-oauth21-m2m-enclave-propagation) | Propagación Bearer OAuth 2.1 M2M entre Enclaves | `Aceptada` | 2026-09-12 | Perímetro BLG, Nexus OIDC, Acceso a Enclaves Asimétricos |
+| [**ADR-0006**](/es/adrs/0006-single-gateway-invariant-claude-desktop) | Invariante de Gateway Único en Claude Desktop | `Aceptada` | 2026-09-18 | Integración Claude Desktop, Multiplexación Yamux |
+
+---
+
+## Proceso para Proponer un Nuevo ADR
+
+Para proponer una nueva decisión arquitectónica:
+1. Utiliza la plantilla oficial basada en MADR v3.0.
+2. Numera la decisión de forma secuencial con cuatro dígitos (`0007-...`).
+3. Detalla métricas cuantitativas, compensaciones de diseño e impacto de seguridad antes de abrir un Pull Request hacia la rama `alpha`.

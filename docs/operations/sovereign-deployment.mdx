@@ -1,0 +1,140 @@
+---
+title: "Sovereign Mesh Deployment Guide"
+description: "Production topology orchestration, private network isolation (PSK), and mTLS certificate lifecycle management"
+icon: "container"
+
+---
+
+Deploying LIOP across production environments requires establishing zero-trust network segmentation. Unlike centralized API gateways where all traffic converges into a single cluster, LIOP structures nodes across three security tiers:
+
+1. **Tier 1 (Sovereign Enclaves)**: Isolated database and vault hosts executing in-situ WASI logic (`Vault`, `Bank`). Never expose public WAN ports.
+2. **Tier 2 (Consortium & Edge Nodes)**: Shared validation and regional routing services (`Oracle`, `Edge IoT`, `Nexus OIDC`).
+3. **Tier 3 (Perimeter Gateways & Relays)**: Public or DMZ-facing reverse proxies (`Border LIO Gateway`, `Circuit Relay v2`).
+
+<Frame caption="Sovereign Enclaves & TEE Attestation Flow">
+  <img className="block dark:hidden w-full" src="/images/animated-tee-flow-light.svg" alt="Sovereign Enclaves & TEE Attestation Flow" />
+  <img className="hidden dark:block w-full" src="/images/animated-tee-flow-dark.svg" alt="Sovereign Enclaves & TEE Attestation Flow" />
+</Frame>
+
+---
+
+<Steps>
+  <Step title="Configure Network Isolation via Swarm Keys (libp2p/pnet)">
+    LIOP nodes communicate over a private overlay network protected by a 256-bit Pre-Shared Key (PSK). Any rogue node without the PSK is rejected at the transport layer before any Kademlia DHT routing packets are parsed.
+
+    Generate a standard 32-byte cryptographic key formatted for `libp2p/pnet`:
+
+    ```bash
+    # Output format required by libp2p private networks
+    cat << 'EOF' > swarm.key
+    /key/swarm/psk/1.0.0/
+    /base16/
+    e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+    EOF
+    ```
+
+    Mount this file into your node container or point `LIOP_SWARM_KEY_PATH` to it:
+
+    ```bash
+    export LIOP_SWARM_KEY_PATH="/etc/liop/swarm.key"
+    ```
+  </Step>
+
+  <Step title="Deploy Docker Compose Production Mesh Orchestration">
+    Below is the production deployment manifest (`docker-compose.production-audit.yml` topology):
+
+    ```yaml
+    version: "3.8"
+
+    networks:
+      liop-dmz:
+        driver: bridge
+      liop-internal:
+        internal: true # Air-gapped network with zero outbound internet access
+
+    services:
+      # 1. Nexus OIDC Identity & Discovery Provider
+      liop-nexus:
+        image: node:20-alpine
+        restart: unless-stopped
+        command: ["node", "dist/entrypoints/nexus.js"]
+        environment:
+          - NODE_ENV=production
+          - LIOP_PORT=15000
+          - LIOP_P2P_PORT=15001
+          - LIOP_SWARM_KEY_PATH=/etc/liop/swarm.key
+        networks:
+          - liop-dmz
+          - liop-internal
+        ports:
+          - "15000:15000"
+          - "15001:15001"
+
+      # 2. Border LIO Gateway (Perimeter DMZ Ingress)
+      liop-blg:
+        image: node:20-alpine
+        restart: unless-stopped
+        command: ["node", "dist/entrypoints/blg.js"]
+        environment:
+          - NODE_ENV=production
+          - LIOP_BLG_PORT=15018
+          - LIOP_NEXUS_URL=http://liop-nexus:15000
+          - LIOP_SWARM_KEY_PATH=/etc/liop/swarm.key
+        networks:
+          - liop-dmz
+          - liop-internal
+        ports:
+          - "15018:15018"
+        depends_on:
+          - liop-nexus
+
+      # 3. Confidential Bank Enclave (Tier 1 Sovereign Storage)
+      liop-bank:
+        image: node:20-alpine
+        restart: unless-stopped
+        command: ["node", "dist/entrypoints/bank.js"]
+        environment:
+          - NODE_ENV=production
+          - LIOP_PORT=15021
+          - LIOP_SWARM_KEY_PATH=/etc/liop/swarm.key
+          - LIOP_TOKEN_BANK=${LIOP_BANK_PSK}
+          - LIOP_WORKER_MAX_HEAP_MB=128
+        networks:
+          - liop-internal # Strictly internal; inaccessible from host or WAN
+        depends_on:
+          - liop-nexus
+    ```
+  </Step>
+
+  <Step title="Configure Mutual TLS (mTLS) with CertManager">
+    For enterprise compliance (PCI-DSS Req 11.3 and HIPAA §164.312(e)(1)), inter-node gRPC channels enforce mutual TLS authentication:
+
+    ```typescript
+    import { CertManager } from "@nekzus/liop";
+
+    const certManager = new CertManager({
+      caCertPath: "/etc/ssl/certs/liop-root-ca.pem",
+      nodeCertPath: "/etc/ssl/certs/enclave-node.pem",
+      nodeKeyPath: "/etc/ssl/private/enclave-key.pem",
+      crlCheckIntervalMs: 60_000, // Checks certificate revocation list every minute
+    });
+
+    const serverTlsOptions = certManager.getServerCredentials();
+    ```
+  </Step>
+</Steps>
+
+---
+
+## 4. Corporate Firewall & Port Configuration Matrix
+
+Configure edge firewalls and container security groups to permit only designated protocol traffic:
+
+| Service | Port | Protocol | Ingress Origin | Security Rationale |
+|---|---|---|---|---|
+| **Nexus HTTP/OIDC** | `15000` | HTTP/1.1 | WAN / DMZ | RFC 9728 discovery and OAuth 2.1 token issuance. |
+| **Nexus P2P DHT** | `15001` | TCP / libp2p | Authorized Mesh Peers | Kademlia peer discovery; protected by Swarm Key PSK. |
+| **Border LIO Gateway** | `15018` | HTTP/JSON-RPC | Authorized Clients / LLMs | Perimeter L7 inspection; blocks SQLi/path traversal. |
+| **Circuit Relay v2** | `15007` | TCP / libp2p | WAN / NAT Peers | Decentralized hole punching and NAT traversal. |
+| **Bank Enclave** | `15021` | Tonic gRPC / H2 | Internal Network Only | Tier 1 compute; air-gapped from direct internet routing. |
+| **Vault Enclave** | `15011` | Tonic gRPC / H2 | Internal Network Only | Tier 1 corporate secrets; zero public inbound routing. |

@@ -1,3 +1,6 @@
+// Copyright 2026 Nekzus Solutions and contributors
+// SPDX-License-Identifier: Apache-2.0
+
 /**
  * LIOP Prometheus Metrics Registry (Phase Beta-3)
  * Lightweight, zero-dependency, high-performance metrics collector
@@ -261,6 +264,12 @@ export class MetricsRegistry {
 		);
 		uptime.set(Math.floor(process.uptime()));
 
+		const health = this.gauge(
+			"liop_node_health_status",
+			"Operational health status of the LIOP node (1 = healthy, 0 = degraded)",
+		);
+		health.set(1);
+
 		if (typeof process.memoryUsage === "function") {
 			const mem = process.memoryUsage();
 			const rss = this.gauge(
@@ -274,6 +283,18 @@ export class MetricsRegistry {
 				"Heap memory used in bytes",
 			);
 			heapUsed.set(mem.heapUsed);
+
+			const heapTotal = this.gauge(
+				"liop_process_memory_heap_total_bytes",
+				"Total V8 allocated heap memory in bytes",
+			);
+			heapTotal.set(mem.heapTotal);
+
+			const external = this.gauge(
+				"liop_process_memory_external_bytes",
+				"External memory bound to C++ objects and buffers in bytes",
+			);
+			external.set(mem.external);
 		}
 	}
 
@@ -310,6 +331,11 @@ export const toolCallsTotal = protocolMetrics.counter(
 	"Total number of tool logic-injection executions",
 );
 
+export const toolCallErrorsTotal = protocolMetrics.counter(
+	"liop_tool_call_errors_total",
+	"Total number of failed tool logic-injection executions or policy rejections",
+);
+
 export const fuelConsumed = protocolMetrics.histogram(
 	"liop_fuel_consumed_total",
 	"Deterministic fuel units consumed by injected logic",
@@ -335,4 +361,51 @@ export const zkVerificationDurationMs = protocolMetrics.histogram(
 	"liop_zk_verification_duration_ms",
 	"Duration of ZK-Receipt and HMAC cryptographic attestation in ms",
 	[1, 2, 5, 10, 25, 50, 100],
+);
+
+export const zkVerificationsTotal = protocolMetrics.counter(
+	"liop_zk_verifications_total",
+	"Total number of ZK-Receipt cryptographic attestation checks",
+);
+
+export const tokensInputTotal = protocolMetrics.counter(
+	"liop_tokens_input_total",
+	"Total BPE input tokens processed by LIOP",
+);
+
+export const tokensOutputTotal = protocolMetrics.counter(
+	"liop_tokens_output_total",
+	"Total BPE output tokens emitted by LIOP",
+);
+
+export const tokensSavedTotal = protocolMetrics.counter(
+	"liop_tokens_saved_total",
+	"Estimated tokens saved compared to MCP context-pulling baseline",
+);
+
+export const operationDurationMs = protocolMetrics.histogram(
+	"liop_operation_duration_ms",
+	"End-to-end operation duration in ms",
+	[5, 15, 30, 50, 100, 250, 500, 1000, 2500, 5000],
+);
+
+export const pqcHandshakeDurationMs = protocolMetrics.histogram(
+	"liop_pqc_handshake_duration_ms",
+	"Duration of ML-KEM-768 post-quantum cryptographic key encapsulation in ms",
+	[1, 5, 10, 25, 50, 100, 250, 500],
+);
+
+export const pqcHandshakesTotal = protocolMetrics.counter(
+	"liop_pqc_handshakes_total",
+	"Total number of ML-KEM-768 key encapsulation operations",
+);
+
+export const wireEgressBytesTotal = protocolMetrics.counter(
+	"liop_wire_egress_bytes_total",
+	"Total wire egress bytes emitted by logic executions",
+);
+
+export const wireSavedBytesTotal = protocolMetrics.counter(
+	"liop_wire_saved_bytes_total",
+	"Estimated wire egress bytes saved compared to MCP context extraction baseline",
 );

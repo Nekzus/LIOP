@@ -1,3 +1,12 @@
+// Copyright 2026 Nekzus Solutions and contributors
+// SPDX-License-Identifier: Apache-2.0
+
+import {
+	operationDurationMs,
+	tokensInputTotal,
+	tokensOutputTotal,
+	tokensSavedTotal,
+} from "../observability/metrics.js";
 import {
 	createSyncTokenEstimator,
 	createTokenEstimator,
@@ -22,6 +31,7 @@ export interface TokenOperationMetric {
 	readonly toolName?: string;
 	readonly peerId?: string;
 	readonly durationMs?: number;
+	readonly originDatasetTokens?: number;
 }
 
 /** Session-level aggregate report */
@@ -150,6 +160,37 @@ export class TokenTelemetryEngine {
 			}
 		} catch {
 			// OTel emission failure must never affect protocol operations
+		}
+
+		// Emit to Prometheus protocol metrics registry (Zero-Trust BYOO Observability)
+		try {
+			const promLabels = {
+				type: metric.type,
+				method: metric.method,
+				tool: metric.toolName || "none",
+			};
+
+			if (metric.estimatedInputTokens > 0) {
+				tokensInputTotal.inc(promLabels, metric.estimatedInputTokens);
+			}
+			if (metric.estimatedOutputTokens > 0) {
+				tokensOutputTotal.inc(promLabels, metric.estimatedOutputTokens);
+			}
+			// Only record tokensSavedTotal if an authentic origin dataset token measurement is explicitly provided.
+			// Strictly NO hardcoded baselines or synthetic constants allowed.
+			if (
+				metric.originDatasetTokens !== undefined &&
+				metric.originDatasetTokens > metric.estimatedOutputTokens
+			) {
+				const actualSaved =
+					metric.originDatasetTokens - metric.estimatedOutputTokens;
+				tokensSavedTotal.inc({ tool: metric.toolName || "none" }, actualSaved);
+			}
+			if (metric.durationMs !== undefined && metric.durationMs >= 0) {
+				operationDurationMs.observe(promLabels, metric.durationMs);
+			}
+		} catch {
+			// Prometheus emission failure must never affect protocol operations
 		}
 	}
 

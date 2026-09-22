@@ -1,0 +1,155 @@
+---
+title: "Auditoría de Fraude Financiero y Verificación de Recibos ZK"
+description: "Detección de anomalías en transacciones bancarias en tiempo real con prueba matemática de integridad (HMAC-SHA256) y cumplimiento PCI-DSS"
+icon: "badge-dollar-sign"
+
+---
+
+Las instituciones bancarias que operan sistemas centrales de cuentas, conmutadores de mensajería SWIFT y redes de pago están sujetas a exigencias regulatorias como **PCI-DSS v4.0 (Requisitos 3, 6 y 10)** y la **Sección 404 de SOX**. La exportación de libros contables crudos con números de tarjeta (PAN), contrapartes y saldos hacia proveedores externos de nube o APIs de modelos de IA vulnera las fronteras de confidencialidad de la entidad financiera.
+
+El protocolo Logic-Injection-on-Origin resuelve la auditoría de fraude mediante **Verificación Criptográfica In-Situ**:
+1. **Ejecución en el Enclave Central**: Las heurísticas de fraude operan directamente dentro de la base de datos soberana de la institución.
+2. **Filtrado Determinista de Salida**: El Escudo de Salida elimina automáticamente números de cuenta y registros individuales de transacciones.
+3. **Sellado mediante Recibos ZK**: El Nodo de Datos genera un recibo computacional HMAC-SHA256 vinculado al código exacto ejecutado y al secreto de sesión post-cuántico efímero. El agente verifica matemáticamente que el veredicto proceda del enclave legítimo sin manipulaciones intermedias.
+
+```mermaid
+flowchart TD
+    subgraph Enclave["Enclave Bancario Central (Zona con Alcance PCI-DSS)"]
+        direction TB
+        DB["Libro Mayor Central (PostgreSQL / TimescaleDB)"]
+        Q["Heurística Inyectada: Picos de velocidad > $10.000"]
+        S1["1. Evaluar 42.000 Transacciones"]
+        S2["2. Identificar 3 Anomalías de Velocidad"]
+        S3["3. Suprimir Saldos y PANs de Tarjeta"]
+        S4["4. Generar Recibo ZK: HMAC-SHA256 con Secreto de Sesión"]
+        DB --> Q --> S1 --> S2 --> S3 --> S4
+    end
+    S4 -->|Tráfico WAN: 320 bytes (Cero PANs)| Agent["Asistente de IA para Detección de Fraude\n(Valida Recibo ZK con LiopVerifier)"]
+```
+
+---
+
+## Paso 1: Implementación del Enclave Bancario Central
+
+```typescript
+import { LiopServer, PII_PRESETS } from "@nekzus/liop";
+import { z } from "zod";
+
+const bankServer = new LiopServer(
+  { name: "Bank_Core_Enclave", version: "3.1.0" },
+  {
+    tokenSlug: "CORE_BANK",
+    port: 15021,
+    security: {
+      forbiddenKeys: [
+        "pan", "cvv", "card_number", "raw_balance", "social_security"
+      ],
+      piiPatterns: PII_PRESETS.GLOBAL_STRICT,
+      rateLimit: { maxPerWindow: 120, windowMs: 60_000 },
+    },
+    taxonomy: {
+      domain: "financial-core",
+      clearanceTier: 4,
+      executionTypes: ["statistical-audit", "fraud-detection"],
+    },
+  },
+);
+
+bankServer.tool(
+  "Evaluate_Transaction_Velocity",
+  "Analiza la frecuencia transaccional de una cuenta e identifica patrones de dispersión o blanqueo.",
+  {
+    accountId: z.string().regex(/^ACC-\d{6}$/),
+    velocityWindowMinutes: z.number().int().min(1).max(1440).default(60),
+    amountThresholdUsd: z.number().positive(),
+  },
+  async ({ accountId, velocityWindowMinutes, amountThresholdUsd }) => {
+    // 1. Consultar transacciones en el libro mayor interno
+    const rawEvents = await ledgerDatabase.getTransactions(accountId, velocityWindowMinutes);
+
+    // 2. Aplicar heurística de fraude in-situ
+    const flaggedEvents = rawEvents.filter(e => e.amountUsd >= amountThresholdUsd);
+    const totalVolumeUsd = rawEvents.reduce((acc, e) => acc + e.amountUsd, 0);
+
+    const isSuspicious = flaggedEvents.length >= 3 || (totalVolumeUsd > 50000 && flaggedEvents.length >= 1);
+
+    // 3. Devolver veredicto agregado (las transacciones crudas nunca salen del enclave)
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify({
+            evaluatedAccountId: accountId,
+            windowMinutes: velocityWindowMinutes,
+            totalTransactionsEvaluated: rawEvents.length,
+            highValueEventCount: flaggedEvents.length,
+            aggregateVolumeUsd: totalVolumeUsd,
+            anomalyVerdict: isSuspicious ? "FLAGGED_FOR_REVIEW" : "CLEARED",
+            confidenceScore: isSuspicious ? 0.94 : 0.99,
+          }),
+        },
+      ],
+    };
+  },
+);
+
+await bankServer.connect();
+```
+
+---
+
+## Paso 2: Consulta In-Situ y Verificación de Recibo ZK
+
+El agente consulta el enclave bancario y valida la prueba matemática recibida:
+
+```typescript
+import { LiopClient } from "@nekzus/liop";
+
+const client = new LiopClient();
+await client.connect("127.0.0.1:15021", {
+  auth: {
+    clientId: "fraud-monitoring-system",
+    clientSecret: process.env.BANK_CLIENT_SECRET,
+    nexusUrl: "http://127.0.0.1:15000",
+    audience: "urn:liop:bank:core",
+    scope: "liop:tools:call",
+  },
+});
+
+// 1. Invocar la capacidad analítica
+const result = await client.callTool({
+  name: "Evaluate_Transaction_Velocity",
+  arguments: {
+    accountId: "ACC-992104",
+    velocityWindowMinutes: 30,
+    amountThresholdUsd: 10000,
+  },
+});
+
+console.log("Evaluación de Fraude:", result.content[0].text);
+
+// 2. Validación manual del Recibo ZK ante artefactos crudos
+const isProofValid = await client.verifier.verifyZkReceipt(
+  Buffer.from("Evaluate_Transaction_Velocity"),
+  "CORE_BANK_IMAGE_ID_HEX",
+  result.zkReceiptBuffer,
+);
+
+if (!isProofValid) {
+  throw new Error("ALERTA CRÍTICA: Falló la verificación de la firma del Recibo ZK. Posible manipulación de red en tránsito.");
+}
+
+console.log("Integridad Confirmada: La salida está vinculada matemáticamente a la ejecución del enclave.");
+await client.close();
+```
+
+---
+
+## Mapeo de Cumplimiento con PCI-DSS v4.0
+
+| Requisito PCI-DSS | Exigencia del Estándar | Implementación en Protocolo LIOP |
+|---|---|---|
+| **Requisito 3.4** | Proteger los números de cuenta principales (PAN) en cualquier ubicación de almacenamiento. | Los PAN y códigos CVV quedan bloqueados de forma explícita en el Escudo de Salida (`forbiddenKeys`). Los datos de tarjetas nunca abandonan el enclave. |
+| **Requisito 6.4** | Proteger aplicaciones expuestas frente a ataques de inyección. | El escaneo previo de Guardian AST en Capa 1 rechaza llamadas de sistema no autorizadas; de esta forma neutraliza ataques de polución de prototipos e inyecciones de memoria. |
+| **Requisito 10.2** | Implementar pistas de auditoría automatizadas para todos los componentes. | El interceptor nativo `AuditInterceptor` genera pistas de auditoría no repudiables con trazabilidad de llamadas, niveles de autorización e identidades. |
+| **Requisito 11.3** | Proteger el tráfico de redes inalámbricas e internas frente a interceptaciones. | El transporte de red impone TLS Mutuo (mTLS) complementado con encapsulación post-cuántica ML-KEM-768. |

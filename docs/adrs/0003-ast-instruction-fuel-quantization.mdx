@@ -1,0 +1,62 @@
+---
+title: "ADR-0003: AST Fuel Quantization in 100-Unit Buckets"
+description: "Architecture decision quantizing CPU fuel metering into discrete 100-unit buckets to eliminate timing side-channel inference per NIST SP 800-53."
+icon: "gauge"
+---
+
+# AST Fuel Quantization in 100-Unit Buckets
+
+- **Status:** Accepted
+- **Deciders:** Protocol Steering Committee, Hardware & Cryptographic Security Team
+- **Date:** 2026-08-29
+- **Technical Story:** Timing Side-Channel Defense & NIST SP 800-53 SC-39 Compliance
+
+---
+
+## Context and Problem Statement
+
+When remote agents execute injected logic over confidential data sets, malicious actors can attempt side-channel inference attacks. By crafting conditional branches based on confidential fields (e.g., branching on sensitive character values), an attacker could deduce private data by observing microsecond variations in execution duration or exact instruction counts reported in response metadata.
+
+Even when Layer 4 (Egress PII Shield) and Layer 5 (Aggregation-First Policy) prevent raw data exfiltration, granular execution telemetry can leak private bits across untrusted networks.
+
+---
+
+## Decision Drivers
+
+- **Deterministic DoS Prevention:** Strict upper bounds on CPU execution cycles to prevent infinite loops and resource exhaustion.
+- **Timing Side-Channel Elimination:** Preventing statistical derivation of private data through micro-architectural timing or exact cycle metrics.
+- **Hardware Agnosticism:** Metrics must remain deterministic regardless of host CPU frequency, cache topology, or operating system.
+- **Standards Alignment:** Conformance to NIST SP 800-53 SC-39 (*Process Isolation and Timing Obfuscation*).
+
+---
+
+## Considered Options
+
+1. **Wall-Clock Timeout Only:** Relies on real-world elapsed time (e.g. abort after $50\text{ ms}$). Highly susceptible to CPU throttling, noisy neighbors in cloud VMs, and coarse timing attacks.
+2. **Exact Single-Instruction Metering:** Counts every AST instruction precisely ($\text{fuel} = 14,327$). While transparent, exact instruction differences reveal execution paths and leak private branch decisions.
+3. **AST Instruction Weighting with 100-Unit Bucket Quantization:** Parses the logic envelope via Acorn AST, tallies instruction costs deterministically, and rounds the consumed fuel up to the nearest multiple of 100:
+   $$\text{fuel}_{\text{quantized}} = \left\lceil \frac{\text{fuel}_{\text{exact}}}{100} \right\rceil \times 100$$
+
+---
+
+## Decision Outcome
+
+**Chosen Option:** Option 3 — AST-based fuel calculation with 100-unit bucket quantization.
+
+### Positive Consequences
+
+- **Side-Channel Mitigation:** Obfuscates micro-variations in execution paths; variations smaller than 100 virtual instructions produce identical telemetry output.
+- **Deterministic Budgeting:** Enclaves reject payloads exceeding pre-allocated fuel limits before execution begins.
+- **Hardware Invariant:** AST evaluation yields identical fuel counts across x86_64, ARM64, bare-metal servers, and containerized cloud pods.
+
+### Negative Consequences and Mitigations
+
+- **Metering Granularity Loss:** Tasks consuming 101 units report 200 units of fuel.  
+  *Mitigation:* The 100-unit step is economically negligible while delivering essential cryptographic side-channel resistance.
+
+---
+
+## Validation and Compliance
+
+- Implemented in `sdks/typescript/src/security/ast-fuel.ts` (`calculateAstInstructionFuel`).
+- Verified in `vitest.audit.config.ts` (Suite 4: *In-situ Deterministic Fuel & Token Telemetry Invariant*).

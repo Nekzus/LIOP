@@ -1,6 +1,8 @@
 ---
 title: "Gateway y Stream"
-description: "Exponer y enrutar tráfico LIOP con bridges híbridos y stream"
+description: "Enrutamiento y exposición de tráfico LIOP mediante pasarelas híbridas y puentes de streaming"
+icon: "router"
+
 ---
 
 El SDK incluye componentes de transporte para enrutar tráfico MCP en entornos locales y de malla.
@@ -22,7 +24,7 @@ await gateway.stop();
 
 ## LiopMcpRouter y Cumplimiento Dual-Era
 
-`LiopMcpRouter` es el despachador de peticiones utilizado por el gateway y los agentes CLI. Proporciona **Compatibilidad Protocolar Dual-Era MCP** transparente:
+`LiopMcpRouter` es el despachador de peticiones utilizado por el gateway y los agentes CLI. Proporciona **Compatibilidad Protocolar Dual-Era MCP**:
 
 - **Era Moderna MCP v2 (2026-07-28)**: Soporta enrutamiento sin estado (stateless), actualizaciones de recursos sin sondeo mediante `subscriptions/listen`, descubrimiento dinámico de plantillas (`resources/templates/list`), enrutamiento por cabeceras SEP-2243 y ordenamiento determinista de resultados (SEP-2549).
 - **Era Heredada MCP (2025-11-25)**: Negocia automáticamente las capacidades del handshake y purga campos no soportados mediante `adaptResponseForLegacyClient()` para clientes MCP tradicionales (Claude Desktop, Cursor).
@@ -36,7 +38,7 @@ Para redes en el borde (Edge), navegadores web y entornos corporativos donde el 
 - Emula tramas binarias gRPC de 5 bytes prefijadas por longitud (`[flags (1B)][length (4B BE)][payload]`) sobre peticiones POST HTTP/1.1 estándar.
 - Codifica los trailers de estado gRPC en cabeceras de respuesta HTTP (`grpc-status`, `grpc-message`).
 
-## Observabilidad Industrial y Sondas de Salud
+## Observabilidad y Sondas de Salud
 
 `LiopHybridGateway` sirve de forma nativa endpoints estándar de Kubernetes y Prometheus:
 
@@ -75,8 +77,82 @@ await stream.start();
 await stream.stop();
 ```
 
+## Border LIO Gateway (BLG) y Defensa Perimétrica
+
+En topologías de producción con múltiples dominios de seguridad, el **Border LIO Gateway (`blg`)** actúa como la frontera protocolar entre redes externas no confiables y enclaves soberanos Tier 1:
+
+```typescript
+// Invocación de cliente dirigida al Border LIO Gateway con autenticación Bearer OAuth 2.1
+const tokenResponse = await fetch("http://nexus:3000/oidc/token", {
+  method: "POST",
+  headers: { "Content-Type": "application/x-www-form-urlencoded" },
+  body: new URLSearchParams({
+    grant_type: "client_credentials",
+    client_id: "border-gateway-client",
+    client_secret: process.env.LIOP_BLG_SECRET || "default-secret"
+  })
+});
+
+const { access_token, expires_in } = await tokenResponse.json();
+// El token Bearer se almacena en memoria con un margen preventivo de 30s antes de su expiración
+```
+
+### Responsabilidades del Gateway Perimetral
+
+1. **Verificación de Tokens OAuth 2.1**: Valida los tokens Bearer firmados por Nexus OIDC antes de transferir peticiones JSON-RPC a los servicios internos.
+2. **Puente de Swarm Key**: Posee la clave simétrica privada (PSK de 256 bits) requerida para comunicarse directamente con los enclaves Tier 1 (`The Bank`, `The Vault`) sobre la subred aislada `pnet`.
+3. **Inspección de Defensa en Profundidad**: Ejecuta validación estática de preflight sobre los payloads de lógica AST antes de enviarlos a los enclaves de destino.
+
+---
+
+## Limitador de Tasa por Ventana Deslizante (`InMemoryRateLimiter`)
+
+Para proteger los gateways de borde, los endpoints MCP y los pools de workers contra ataques de Denegación de Servicio (DoS) y enumeración de tokens por fuerza bruta, el SDK proporciona la clase de alto rendimiento `InMemoryRateLimiter` sin dependencias externas.
+
+Cumple estrictamente con el estándar **OWASP API Security Top 10 (API4:2023 - Unrestricted Resource Consumption)** aplicando cuotas por cliente calculadas sobre ventanas temporales deslizantes.
+
+```typescript
+import { InMemoryRateLimiter } from "@nekzus/liop";
+
+const limiter = new InMemoryRateLimiter({
+  windowMs: 60_000,    // Ventana de evaluación de 1 minuto
+  maxRequests: 120     // Hasta 120 peticiones permitidas por ventana
+});
+
+// Evaluación en middleware por IP remota o ID de cliente OAuth entrante
+const status = limiter.check(req.socket.remoteAddress || "anonymous");
+if (!status.allowed) {
+  res.writeHead(429, {
+    "Content-Type": "application/json",
+    "Retry-After": Math.ceil(status.resetMs / 1000).toString(),
+    "X-RateLimit-Limit": status.limit.toString(),
+    "X-RateLimit-Remaining": status.remaining.toString(),
+    "X-RateLimit-Reset": Math.ceil(status.resetMs / 1000).toString()
+  });
+  res.end(JSON.stringify({ error: "Too Many Requests", retryAfterMs: status.resetMs }));
+  return;
+}
+```
+
+### Referencia de la API de RateLimiter
+
+| Método | Firma | Descripción |
+|---|---|---|
+| `check(key)` | `(key: string) => RateLimitStatus` | Evalúa si la cuota del cliente permite una petición adicional. Retorna cuota remanente, estado booleano y milisegundos restantes para el reseteo. |
+| `reset(key)` | `(key: string) => void` | Limpia manualmente el contador del bucket para una clave específica (útil tras desafíos MFA u OIDC superados con éxito). |
+| `cleanup()` | `() => void` | Purga registros de clientes expirados del `Map` interno para evitar fugas de memoria en sesiones de ejecución prolongada. |
+| `close()` | `() => void` | Cancela los temporizadores internos de intervalo y destruye todos los buckets de cuota en el apagado ordenado del nodo. |
+
+<Tip>
+  El temporizador de limpieza periódica se ejecuta cada 30 segundos invocando `unref()`. Esto garantiza que la rutina de mantenimiento en segundo plano nunca impida la finalización limpia del bucle de eventos de Node.js al terminar procesos o ejecutar suites de pruebas.
+</Tip>
+
+---
+
 ## Notas de Seguridad
 
 - `LiopStreamBridge` soporta política Zero-Trust bearer mediante `ZERO_TRUST_TOKEN`.
 - Las sesiones se aíslan y se expulsan por inactividad para reducir superficies de ataque persistentes.
 - Los componentes gateway/router mantienen compatibilidad total MCP JSON-RPC preservando el enrutamiento nativo de malla.
+- El Border LIO Gateway almacena en caché las credenciales RFC 6749 en memoria con refresco automático 30 segundos antes de su expiración, eliminando errores transitorios 401 Unauthorized durante ejecuciones analíticas concurrentes.
+- Para filtrado semántico perimetral de peticiones, consulta [Interceptor de Gateway](/es/typescript-sdk/gateway-interceptor).

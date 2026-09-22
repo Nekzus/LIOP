@@ -1,0 +1,61 @@
+---
+title: "ADR-0006: Invariante de Gateway Único en Claude Desktop"
+description: "Decisión arquitectónica que exige una única pasarela unificada en la configuración de Claude Desktop para prevenir la corrupción de índices locales."
+icon: "laptop"
+---
+
+# Invariante de Gateway Único en Claude Desktop
+
+- **Estado:** Aceptada
+- **Responsables:** Comité de Arquitectura del Protocolo, Equipo de Integraciones Desktop
+- **Fecha:** 2026-09-18
+- **Referencia Técnica:** Estabilidad del Cliente de Escritorio e Invariante de Índices Locales
+
+---
+
+## Contexto y Definición del Problema
+
+En sistemas operativos Windows, Claude Desktop se ejecuta dentro de un contenedor MSIX y almacena su archivo de configuración en:
+`%LOCALAPPDATA%\Packages\Claude_pzs8sxrjxfjjc\LocalCache\Roaming\Claude\claude_desktop_config.json`.
+
+En despliegues de malla distribuida, un clúster está compuesto por múltiples enclaves (Nexus, BLG, Vault, Bank, Oracle, Edge). Cuando los desarrolladores configuran entradas de servidor independientes para cada enclave en `claude_desktop_config.json`, la aplicación lanza múltiples procesos STDIO en segundo plano. Estos demonios concurrentes compiten por puertos de red locales y registran esquemas de herramientas duplicados, lo que provoca el bloqueo de la interfaz y la corrupción del índice local de SQLite en el cliente.
+
+---
+
+## Factores Determinantes
+
+- **Estabilidad del Proceso Cliente:** Prevención de interbloqueos, consumo excesivo de memoria y corrupción de índices locales.
+- **Espacio de Nombres Unificado:** Agrupación dinámica y limpia de herramientas procedentes de enclaves heterogéneos.
+- **Mínima Sobrecarga Local:** Claude Desktop debe administrar exclusivamente un subproceso de puente ligero.
+
+---
+
+## Opciones Evaluadas
+
+1. **Configuración Multi-Servidor:** Registrar cada nodo de la malla de forma individual en `claude_desktop_config.json`. Genera proliferación de procesos, conflictos de sockets y colisiones en los nombres de herramientas.
+2. **Subproceso P2P Directo:** Ejecutar un nodo completo de rust-libp2p dentro del envoltorio STDIO de Claude. Introduce un alto consumo de memoria ($>150\text{ MB}$) y falla en entornos restringidos de Windows.
+3. **Invariante Estricto de Pasarela Única:** Configurar exactamente una instancia unificada de pasarela (`@nekzus/liop gateway` o `blg`) en `claude_desktop_config.json`. La pasarela única multiplexa internamente todo el enrutamiento hacia enclaves remotos a través de streams Yamux y gRPC.
+
+---
+
+## Decisión Adoptada
+
+**Opción Seleccionada:** Opción 3 — Invariante estricto de pasarela única.
+
+### Consecuencias Positivas
+
+- **Estabilidad Absoluta:** Claude Desktop inicializa un único proceso STDIO con un consumo inferior a $35\text{ MB}$ de memoria residente.
+- **Federación Dinámica de Capacidades:** La pasarela unificada consolida las herramientas de todos los enclaves conectados y expone al modelo de lenguaje un manifiesto libre de duplicados y con nombres de herramientas protegidos.
+- **Paridad Multiplataforma:** Presenta un comportamiento idéntico en paquetes MSIX de Windows, Homebrew en macOS y paquetes nativos en Linux.
+
+### Consecuencias Negativas y Mitigaciones
+
+- **Punto Único de Indirección Local:** Todas las invocaciones de herramientas del modelo atraviesan el proceso local de la pasarela.  
+  *Mitigation:* La pasarela opera exclusivamente como un multiplexor y transcodificador en memoria con una latencia de reenvío inferior a $1\text{ ms}$.
+
+---
+
+## Verificación y Cumplimiento
+
+- Documentado como regla arquitectónica en `AGENTS.md` (Regla 8).
+- Certificado en la suite `vitest.audit.config.ts` (Suite 1: *Mesh Topology Invariants & Gateway Routing*).

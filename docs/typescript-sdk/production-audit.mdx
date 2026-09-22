@@ -1,0 +1,90 @@
+---
+title: "Production Audit & Multi-Tier Mesh"
+description: "SOC 2-ready multi-tier Docker environment, simulated WAN traffic control, and end-to-end verification suites"
+icon: "shield-alert"
+
+---
+
+The **Production Readiness Audit** is an enterprise-grade testing and verification infrastructure designed to certify the `@nekzus/liop` package under real-world conditions, including multi-tier security enclaves, cross-Atlantic latencies, and hostile mobile edge connections.
+
+<Frame>
+  <img className="w-full rounded-lg border border-white/10 shadow-xl" src="/images/animated-docker-infra-dark.svg" alt="Production Audit Topology" />
+</Frame>
+
+## Topology Overview
+
+The audit harness simulates a 10-node enterprise deployment partitioned across three security tiers:
+
+| Tier | Node | Role | Isolation / Network Profile | Dataset / Interface |
+|---|---|---|---|---|
+| **Tier 1** | `The Bank` | Financial Enclave | `pnet` PSK Swarm Key (`172.22.0.12`) | 1,500 synthetic accounts ($148M) |
+| **Tier 1** | `The Vault` | Healthcare Enclave | `pnet` PSK Swarm Key (`172.22.0.11`) | 2,500 clinical EHR records |
+| **Tier 2** | `The Oracle` | Financial HFT Engine | Consortium P2P (`172.23.0.14`) | L2 Orderbook + Heston jump diffusion |
+| **Tier 2** | `BLG` | Border LIO Gateway | Asymmetric Perimeter Bridge (`172.23.0.13`) | Cross-enclave OAuth 2.1 proxy |
+| **Tier 2** | `Nexus` | Mesh Discovery / Auth | OIDC Token Provider (`172.23.0.10`) | Node registry & JWT authority |
+| **Tier 3** | `Edge IoT` | Industrial Edge Node | Hostile 3G (`172.21.0.50`, 250ms ± 50ms, 2% loss) | Temperature, vibration, pressure telemetry |
+| **Tier 3** | `Relay` | P2P Circuit Relay | Public NAT Traversal (`172.21.0.15`) | AutoNAT & Relay v2 |
+| **Tier 3** | `Studio` | LIOP Sovereign Studio | Cross-Atlantic (`172.21.0.201`, 85ms ± 15ms) | Port `:16000` (`@nekzus/liop-studio`) |
+| **Tier 3** | `Playground`| Client SDK & Web UI | Cross-Atlantic (`172.21.0.200`, 85ms ± 15ms) | Port `:16002` (Web Console) |
+
+---
+
+## Traffic Shaping with Linux Traffic Control (`tc`)
+
+Each container is orchestrated with Linux `iproute2` and `tc netem` to simulate empirical network profiles:
+
+* **`lan`**: Native LAN mode (zero shaping, < 1ms latency, 0% packet loss).
+* **`cross-atlantic`**: Intercontinental link (85ms ± 15ms latency, normal jitter distribution).
+* **`hostile-3g`**: Degraded cellular / edge network (250ms ± 50ms latency, 2% packet loss).
+
+---
+
+## Audit CLI Commands
+
+The test harness is fully automated via three primary CLI commands configured in `sdks/typescript/package.json`:
+
+<CodeGroup>
+```bash 1. Start Infrastructure
+# Builds and boots the 10-node Docker mesh with healthy readiness checks
+pnpm audit:prod:start
+```
+
+```bash 2. Execute Audit Suites
+# Runs the 12 automated test suites (64 tests) inside the audit runner container
+pnpm audit:prod:run
+```
+
+```bash 3. Teardown & Clean
+# Gracefully stops containers, removes networks, and purges volumes
+pnpm audit:prod:clean
+```
+</CodeGroup>
+
+---
+
+## Automated Verification Suites (Suites 00 to 10 + Plug-and-Play)
+
+The audit harness executes **12 comprehensive Vitest suites** (64 individual tests) inside the `liop-audit-runner` container:
+
+1. **`00-npm-integrity`**: Verifies that the tarball created by `npm pack` contains only production binaries and valid TypeScript declarations without test or scratch pollution.
+2. **`01-mesh-convergence`**: Validates Kademlia DHT peer discovery across all tiers, verifying routing table stabilization within 5 seconds.
+3. **`02-pqc-wan`**: Tests ML-KEM-768 quantum-resistant handshakes and AES-256-GCM session key agreement over high-latency WAN links.
+4. **`03-auth-apikey`**: Evaluates fail-closed RBAC enforcement, rejecting unauthenticated calls and validating OAuth 2.1 client credentials.
+5. **`04-logic-wan`**: Dispatches in-situ logic queries across network boundaries (e.g. executing financial risk models over the Atlantic link).
+6. **`05-security-shields`**: Adversarial test suite attempting PII exfiltration, prototype pollution, memory bombs, and side-channel inference (100% blocked).
+7. **`06-resilience`**: Simulates node drops, circuit breaker recovery, and automated transport failover between gRPC and libp2p.
+8. **`07-observability`**: Validates dynamic Prometheus metrics scrape handlers (`/metrics`) and OpenTelemetry token emission (`gen_ai.client.token.usage`).
+9. **`08-lifecycle-traceability`**: Verifies deterministic cryptographic lifecycle hashes binding each request to origin execution.
+10. **`09-pnet-tier-isolation`**: Certifies that Tier 1 Enclaves (`Bank` and `Vault`) reject connections from nodes lacking the private Swarm Key PSK, and confirms that cross-boundary traffic is securely routed via the Border LIO Gateway (`BLG`).
+11. **`10-interceptors-jev-docker`**: Certifies perimeter L7 admission filtering on Nexus (blocking SQL injection and Path Traversal with code `-32099` and HTTP 403), confirms enclaves evaluate The Shield directly without false positives, and verifies BLG enclave proxying.
+12. **`plug-and-play`**: End-to-end "plug-and-play" validation confirming that the SDK boots, discovers peers, executes logic injections, and returns cryptographically attested results without any manual configuration.
+
+---
+
+## Empirical Stress Testing & Zero-Trust Validation
+
+The audit infrastructure supports extended validation beyond the automated suites:
+
+* **Bootstrap Monte Carlo Scaling**: Sustained statistical inference workloads (30–40 bootstrap iterations with variance, covariance, and Pearson correlation) cause deterministic WASI fuel consumption to scale proportionally from 300–400 units to 700–900 units (+75% to +125%), captured live by the `liop_fuel_consumed_total` histogram.
+* **Zero-Trust Interception**: Hostile micro-modules attempting raw PII exfiltration (`stolenRecords`) or unauthorized global access (`fetch`) are intercepted at Layer 3 (Taint Analyzer AST / Preflight Policy) and Layer 1 (Guardian AST) before data is accessed.
+* **Hardware Stability**: Verified under WSL2 (`memory=6GB`, `processors=4`) with 0% swap usage and aggregate CPU at ~14% of 400% available — zero thermal saturation or pipe lockups.

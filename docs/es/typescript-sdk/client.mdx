@@ -1,133 +1,308 @@
 ---
 title: "LiopClient"
-description: "Enrutando intenciones e inyectando lógica autónoma vía el Logic-Injection-on-Origin Protocol"
+description: "Orquestación de alto nivel para enrutamiento de intenciones, descubrimiento de pares y ejecución de lógica in-situ"
+icon: "terminal"
+
 ---
 
-La clase `LiopClient` es el orquestador para los Nodos Agentes. Conecta tu aplicación de Node.js o edge a la red P2P descentralizada, valida identidades criptográficas y despacha cargas de lógica WebAssembly directamente a los Nodos de Datos (Servidores) remotos.
+La clase `LiopClient` actúa como el coordinador principal de despacho para los Nodos Agente en el protocolo Logic-Injection-on-Origin. Administra la negociación de transporte a través de topologías heterogéneas (pasarelas directas HTTP/JSON-RPC, proxies perimetrales autenticados y canales gRPC punto a punto soberanos), ejecuta acuerdos criptográficos y despacha módulos de lógica WebAssembly o JavaScript hacia Nodos de Datos remotos.
 
-A diferencia de los clientes REST tradicionales que solo hacen un `<fetch>` a endpoints JSON estáticos, un `LiopClient` literalmente empuja sus funciones de lógica a través de internet para ser ejecutadas de manera nativa en el servidor.
+A diferencia de los clientes tradicionales del Model Context Protocol (MCP) que extraen volúmenes masivos de datos crudos a través de la red mediante sondeos o conexiones continuas, `LiopClient` empaqueta la intención analítica en micro-módulos aislados y los transmite directamente hacia el origen físico donde residen los datos.
 
-## Inicialización y Configuración
+```mermaid
+flowchart TD
+    subgraph Client["Capa de Orquestación LiopClient"]
+        direction LR
+        subgraph Auth["Capa de Autorización"]
+            A1["TokenManager (OAuth 2.1 M2M)"]
+            A2["Indicadores de Recursos RFC 8707"]
+        end
+        subgraph Discovery["Capa de Descubrimiento"]
+            D1["Kademlia DHT / MDNS"]
+            D2["Sondeo de Topología RFC 9728"]
+        end
+        subgraph Transport["Capa de Transporte"]
+            T1["Tonic gRPC (HTTP/2)"]
+            T2["ML-KEM-768 (Kyber PQC)"]
+        end
+    end
+    Client -->|HTTP/2 Perimetral| Gateway["Pasarela HTTP Perimetral\n(Border LIO Gateway :15018)"]
+    Client -->|Malla gRPC Directa| Enclave["Enclave Soberano P2P\n(Nodo Directo Bóveda / Banco)"]
+```
 
-El cliente acepta configuración TLS opcional para comunicación gRPC segura.
+---
+
+## Constructor y Configuración
+
+El constructor configura las credenciales TLS a nivel de transporte que aplican a todas las conexiones gRPC subyacentes.
 
 ```typescript
 import { LiopClient } from "@nekzus/liop";
 import type { LiopTlsOptions } from "@nekzus/liop";
 
-const tlsConfig: LiopTlsOptions = {
-  // Opcional: credenciales TLS para gRPC
+const tls: LiopTlsOptions = {
+  rootCertPath: "/etc/ssl/certs/liop-ca.pem",
+  clientCertPath: "/etc/ssl/certs/agent-client.pem",
+  clientKeyPath: "/etc/ssl/private/agent-key.pem",
+  serverNameOverride: "mesh.enclave.internal",
 };
 
-const client = new LiopClient(tlsConfig);
+const client = new LiopClient(tls);
 ```
 
-### Opciones de Configuración
+### Parámetros del Constructor
 
-Al crear un `LiopClient`, puedes proporcionar:
+<ParamField path="tls" type="LiopTlsOptions" optional>
+  Credenciales criptográficas para TLS mutuo (mTLS) o verificación de identidad de servidor sobre el transporte gRPC.
+  
+  <Expandable title="Propiedades de LiopTlsOptions">
+    <ResponseField name="rootCertPath" type="string" optional>
+      Ruta en el sistema de archivos al certificado CA raíz utilizado para validar la identidad del servidor.
+    </ResponseField>
+    <ResponseField name="clientCertPath" type="string" optional>
+      Ruta en el sistema de archivos al certificado del cliente para autenticación mutua mTLS.
+    </ResponseField>
+    <ResponseField name="clientKeyPath" type="string" optional>
+      Ruta en el sistema de archivos a la clave privada correspondiente a `clientCertPath`.
+    </ResponseField>
+    <ResponseField name="serverNameOverride" type="string" optional>
+      Sobrescribe el nombre SNI del servidor esperado al conectar a través de proxies internos o redes de contenedores.
+    </ResponseField>
+  </Expandable>
+</ParamField>
 
-*   **`tls?` (`LiopTlsOptions`)**: Credenciales TLS opcionales para comunicación gRPC segura. Si se omite, se usa transporte inseguro (adecuado para desarrollo local).
+---
 
-## Conexión a la Malla (Mesh)
+## Conexión a la Malla (`connect`)
 
-A diferencia de MCP, que requiere una tubería stdio directa o una URL de SSE preconfigurada, LIOP utiliza ruteo peer-to-peer descentralizado. El SDK se encarga de atravesar NATs automáticamente.
+El método `connect()` establece la identidad del nodo, aprovisiona tokens OAuth 2.1 de máquina a máquina (M2M) y monta un canal gRPC directo punto a punto o un nodo distribuido libp2p.
 
 ```typescript
-// Conectarse al backbone de la red P2P
-await client.connect();
+// Patrón A: Conexión directa a una pasarela o enclave específico
+await client.connect("127.0.0.1:15021", {
+  auth: {
+    clientId: "analytics-agent-01",
+    clientSecret: process.env.LIOP_CLIENT_SECRET,
+    nexusUrl: "http://127.0.0.1:15000",
+    audience: "urn:liop:mesh:api",
+    scope: "liop:tools:call liop:tools:list",
+  },
+});
 
-// O conectar a un nodo bootstrap específico
-await client.connect("/ip4/127.0.0.1/tcp/4001/p2p/PEER_ID", {
+// Patrón B: Conexión dinámica al dorsal P2P de la malla
+await client.connect(undefined, {
   meshConfig: {
-    bootstrapNodes: ["/ip4/1.2.3.4/tcp/4001"],
-    identityPath: "~/.liop/identity.json"
-  }
+    bootstrapNodes: [
+      "/ip4/198.51.100.10/tcp/15001/p2p/12D3KooWDpJ7As7BWAwRMfu1VU2WCqNjvq387JEYKDBj4kx6nXTN"
+    ],
+    listenAddresses: ["/ip4/0.0.0.0/tcp/0"],
+  },
 });
-
-// Verificar el estado después de la conexión
-console.log("Mesh conectado:", client.getServerInfo());
 ```
 
-## Llamando a una Capacidad del Servidor (Tool)
+### Opciones de Conexión
 
-Usa `resolveCapability()` para descubrir servidores en la DHT, luego invoca herramientas con `callTool()` mediante un objeto `CallToolRequest`:
+<ParamField path="address" type="string" optional>
+  Dirección de destino en formato `host:puerto`. Cuando se define, crea un cliente `LiopRpcClient` directo de alta velocidad orientado a dicho destino. Si se omite, `LiopClient` enruta las peticiones de manera dinámica mediante la tabla DHT peer-to-peer.
+</ParamField>
+
+<ParamField path="options" type="object" optional>
+  Ajustes avanzados de conexión que abarcan autenticación y descubrimiento distribuido.
+
+  <Expandable title="Propiedades de Opciones de Conexión">
+    <ResponseField name="auth.clientId" type="string" optional>
+      Identificador de cliente OAuth 2.1 registrado en el servidor de autorización Nexus OIDC. Si se omite, consulta `process.env.LIOP_OAUTH_CLIENT_ID`.
+    </ResponseField>
+    <ResponseField name="auth.clientSecret" type="string" optional>
+      Secreto de cliente para el flujo Client Credentials conforme a RFC 6749. Si se omite, consulta `process.env.LIOP_OAUTH_CLIENT_SECRET`.
+    </ResponseField>
+    <ResponseField name="auth.nexusUrl" type="string" optional>
+      Dirección base del proveedor de identidad OIDC (ej. `http://127.0.0.1:15000`). Normaliza automáticamente el endpoint `/oidc/token`.
+    </ResponseField>
+    <ResponseField name="auth.audience" type="string" optional>
+      Indicador de recurso RFC 8707 orientado al enclave de destino (por defecto: `urn:liop:mesh:api`).
+    </ResponseField>
+    <ResponseField name="auth.scope" type="string" optional>
+      Ámbitos OAuth 2.1 delimitados por espacios requeridos para la ejecución. Aplica alcances de capacidades estándar por omisión.
+    </ResponseField>
+    <ResponseField name="auth.token" type="string" optional>
+      Token Bearer estático precalculado. Omite la negociación dinámica de `TokenManager` cuando se suministra.
+    </ResponseField>
+    <ResponseField name="meshConfig" type="MeshNodeConfig" optional>
+      Objeto de configuración para la instancia subyacente de `libp2p` que comprende multiaddrs de arranque y claves de enjambre (swarm keys).
+    </ResponseField>
+  </Expandable>
+</ParamField>
+
+---
+
+## Descubrimiento de Capacidades e Invocación de Herramientas
+
+`LiopClient` unifica el descubrimiento y ejecución de herramientas bajo las estructuras estándar de MCP y asegura el transporte post-cuántico en cada llamada.
 
 ```typescript
-// Descubrir herramientas disponibles en la malla
+// 1. Descubrir herramientas registradas en los nodos conectados
 const tools = await client.discoverTools();
-console.log("Herramientas disponibles:", tools);
+console.log(`Herramientas descubiertas en la malla: ${tools.length}`);
 
-// Resolver una capacidad a un peer específico
-const target = await client.resolveCapability("execute_complex_sql");
+// 2. Resolver el nodo que aloja la capacidad deseada
+const targetPeer = await client.resolveCapability("Analyze_Bank_Ledger");
 
-// Invocar la herramienta
-const result = await client.callTool({
-  name: "execute_complex_sql",
-  arguments: { 
-    query: "SELECT * FROM petabytes_table WHERE anomaly_detected = true" 
-  }
+// 3. Invocar la herramienta con lógica in-situ
+const response = await client.callTool({
+  name: "Analyze_Bank_Ledger",
+  arguments: {
+    account_id: "ACC-88219",
+    currency: "USD",
+    min_amount: 10000,
+  },
 });
 
-console.log(result.content[0].text);
+for (const item of response.content) {
+  if (item.type === "text") {
+    console.log("Resultado analítico:", item.text);
+  }
+}
 ```
 
-<Tip>
-  Para control fino sobre el payload WASM enviado al servidor, usa el segundo parámetro de `callTool()` para pasar un `Buffer` binario.
-</Tip>
+### Inyección de Lógica In-Situ (Bytecode WASM)
 
-## Creando Watchdogs (Suscripciones Push) [PLANIFICADO]
-
-> **Esta funcionalidad está en el roadmap pero aún no está implementada en la versión actual del SDK.**
-
-Los Watchdogs permiten suscripciones push persistentes. En lugar de hacer polling manual con `callTool()`, podrás desplegar un módulo watcher persistente que empuje eventos asíncronos a través de canales QUIC multiplexados de vuelta al agente. Sigue el progreso en el [repositorio de GitHub](https://github.com/Nekzus/LIOP).
-
-## Validación Criptográfica (El Escudo ZK)
-
-Aunque la capa de red está cifrada usando AES-256-GCM simétrico, el `LiopClient` por diseño duda del origen de la ejecución. 
-
-Cuando `callTool` retorna desde el Nodo de Datos remoto, el cliente realiza la verificación ZK internamente mediante su `LiopVerifier` integrado cuando existen recibos en el flujo de ejecución. El resultado expuesto de `callTool` se mantiene compatible con MCP (`content`/`isError`). También puedes verificar manualmente cuando dispones de artefactos de prueba crudos:
+En flujos donde el movimiento de datos está prohibido por normativas de privacidad, envíe directamente el bytecode compilado de WebAssembly en el segundo parámetro opcional de `callTool()`. El enclave remoto inspecciona el código mediante Guardian AST antes de ejecutarlo en un sandbox aislado V8.
 
 ```typescript
-// El cliente verifica automáticamente los ZK receipts durante callTool().
-// Para verificación manual, usa la instancia pública del verificador:
+import { readFileSync } from "node:fs";
+
+const wasmBinary = readFileSync("./aggregators/p99_latency.wasm");
+
+const result = await client.callTool(
+  {
+    name: "Query_Telemetry_Logs",
+    arguments: { service: "auth-gateway", window: "1h" },
+  },
+  wasmBinary, // Lógica inyectada que se ejecuta en el origen de los datos
+);
+```
+
+---
+
+## Verificación Matemática (Recibos ZK)
+
+Cada módulo analítico ejecutado por un Nodo de Datos LIOP genera un recibo criptográfico ZK (HMAC-SHA256 sellado bajo el secreto de sesión efímero ML-KEM-768). `LiopClient` valida esta prueba de manera automática durante la ejecución de `callTool()`.
+
+Para verificar pruebas recibidas de forma asíncrona o fuera de banda:
+
+```typescript
 const isValid = await client.verifier.verifyZkReceipt(
-  wasmPayload, 
-  remoteImageIdHex, 
-  zkReceiptBuffer
+  wasmPayload,          // Buffer con el código exacto que fue inyectado
+  remoteImageIdHex,     // Hash esperado del entorno de datos
+  zkReceiptBuffer,      // Recibo criptográfico devuelto por el servidor
 );
 
 if (!isValid) {
-  throw new Error("Inconsistencia Matemática (Hack Detectado)");
+  throw new Error("Fallo de Verificación Zero-Trust: Alteración de cómputo detectada");
 }
 ```
 
-*Nota: El adaptador `LiopMcpBridge` ejecuta automáticamente esta validación de forma nativa.*
+---
 
-## Gestión del Ciclo de Vida
+## Transporte gRPC de Bajo Nivel (`LiopRpcClient`)
 
-Siempre cierra el cliente de forma ordenada para liberar recursos de malla:
+Para aplicaciones que demandan control granular sobre canales gRPC, streaming de metadatos o inyección de credenciales sin instanciar un nodo P2P, utilice `LiopRpcClient` de forma directa:
 
 ```typescript
-try {
-  await client.connect();
-  // ... llamadas
-} finally {
-  await client.close();
-}
+import { LiopRpcClient } from "@nekzus/liop";
+
+const rpc = new LiopRpcClient(
+  "127.0.0.1:15021",
+  tlsConfig,
+  async () => tokenManager.getToken(), // Resolvedor asíncrono dinámico de tokens
+);
+
+// Paso 1: Negociar intención y adquirir la clave pública efímera de Kyber
+const intent = await rpc.negotiateIntent({
+  capabilityName: "Analyze_Bank_Ledger",
+  requesterPeerId: "12D3KooW...",
+  clearanceLevel: 3,
+});
+
+// Paso 2: Transmitir ejecución de lógica
+const stream = rpc.executeLogic(encryptedLogicRequest);
+
+stream.on("data", (response) => {
+  console.log("Fragmento recibido:", response.payload);
+});
+stream.on("error", (err) => {
+  console.error("Error en flujo RPC:", err);
+});
 ```
 
-## Manejo de Errores y Rechazos Zero-Trust
+### Invariantes de Canales gRPC
 
-Debido a que el Servidor impone un sandbox `WASI` estricto y utiliza el *Guardian Cero-Tiempo* para inspeccionar tu carga `.wasm` ANTES de la ejecución, tu cliente debe estar preparado para manejar rechazos del sandbox.
+`LiopRpcClient` implementa opciones simétricas de canal para impedir que consultas analíticas extensas se desconecten ante cortafuegos corporativos o tablas de estado NAT agresivas:
+
+| Opción de Canal | Valor | Propósito |
+|---|---|---|
+| `grpc.keepalive_time_ms` | `30000` (30s) | Emite paquetes de sondeo TCP cada 30 segundos para mantener el canal abierto. |
+| `grpc.keepalive_timeout_ms` | `10000` (10s) | Tolera hasta 10 segundos de espera de respuesta antes de declarar rota la conexión. |
+| `grpc.keepalive_permit_without_calls` | `1` | Permite sondeos keepalive incluso cuando no existen llamadas RPC activas. |
+| `grpc.http2.max_pings_without_data` | `0` | Elimina límites de ráfaga en paquetes de sondeo para prevenir reinicios del proxy. |
+
+---
+
+## Referencia de Métodos Públicos
+
+| Método | Parámetros | Tipo Retornado | Descripción |
+|---|---|---|---|
+| `connect(address?, options?)` | `address?: string`, `options?: ConnectOptions` | `Promise<void>` | Inicia el descubrimiento, obtiene credenciales M2M y monta los canales de transporte. |
+| `callTool(request, wasmBuffer?)` | `request: CallToolRequest`, `wasmBuffer?: Buffer` | `Promise<CallToolResult>` | Despacha la invocación de la herramienta junto con el bytecode de lógica in-situ opcional. |
+| `discoverTools()` | Ninguno | `Promise<ToolDefinition[]>` | Consulta a los pares conectados y recopila todas las definiciones de herramientas declaradas. |
+| `listTools()` | Ninguno | `Promise<ToolDefinition[]>` | Alias de `discoverTools()` para compatibilidad estricta con clientes MCP. |
+| `resolveCapability(name)` | `name: string` | `Promise<string \| undefined>` | Resuelve la dirección o multiaddr del nodo que anuncia la herramienta indicada. |
+| `getRoutingTable()` | Ninguno | `RoutingTable \| undefined` | Devuelve la instancia interna de la tabla de enrutamiento híbrido activo. |
+| `getMeshNode()` | Ninguno | `MeshNode \| null` | Devuelve el nodo `libp2p` subyacente cuando opera en modalidad de malla. |
+| `getServerInfo()` | Ninguno | `{ name: string; version: string } \| undefined` | Proporciona las cabeceras de identificación negociadas durante el protocolo de inicio. |
+| `close()` | Ninguno | `Promise<void>` | Concluye ordenadamente todos los canales gRPC activos, pools de workers y sockets P2P. |
+
+---
+
+## Catálogo de Excepciones y Códigos de Error
+
+`LiopClient` emite excepciones estructuradas cuando las políticas de seguridad, las verificaciones de acceso o los límites del sandbox bloquean una ejecución.
 
 ```typescript
+import { LiopError, ErrorCode } from "@nekzus/liop";
+
 try {
-  await client.callTool({ name: "read_file", arguments: { path: "/etc/passwd" } });
+  await client.callTool({
+    name: "Analyze_Bank_Ledger",
+    arguments: { query: "DROP TABLE users;" },
+  });
 } catch (error) {
-  if (error instanceof Error) {
-    console.error("Ejecución en Sandbox Detenida:", error.message);
+  if (error instanceof LiopError) {
+    switch (error.code) {
+      case ErrorCode.AST_SECURITY_VIOLATION:
+        console.error("Rechazo en Capa 1: El código intentó acceder a variables globales restringidas");
+        break;
+      case ErrorCode.UNAUTHENTICATED:
+        console.error("Token expirado o inválido: Compruebe las credenciales OAuth 2.1");
+        break;
+      case ErrorCode.CIRCUIT_BREAKER_OPEN:
+        console.warn("Nodo degradado. Enrutando hacia el enclave de respaldo");
+        break;
+      default:
+        console.error(`Error de Protocolo [${error.code}]:`, error.message);
+    }
   }
 }
 ```
 
-`LiopError` y `ErrorCode` están exportados por el SDK y pueden usarse en aplicaciones que normalizan o reenvuelven errores del protocolo. En runtime actual, algunos caminos siguen arrojando instancias nativas de `Error` según el contexto.
+### Códigos de Error del Protocolo
+
+| Código de Error | Equivalencia HTTP / RPC | Causa | Acción Recomendada |
+|---|---|---|---|
+| `UNAUTHENTICATED` | HTTP 401 / gRPC 16 | Token Bearer de OAuth 2.1 ausente, expirado o con firma incorrecta. | Renueve credenciales llamando a `TokenManager.invalidate()`. |
+| `FORBIDDEN` | HTTP 403 / gRPC 7 | El nivel de autorización del cliente no alcanza la clasificación requerida por el recurso. | Solicite elevación de permisos en la consola Nexus OIDC. |
+| `AST_SECURITY_VIOLATION` | RPC -32099 / gRPC 3 | Guardian AST detectó importaciones prohibidas o variables globales envenenadas. | Asegure que el código solo use funciones de la lista permitida de WASI Preview 1. |
+| `SANDBOX_HALTED` | RPC -32098 / gRPC 9 | El Isolate de V8 superó la cuota de instrucciones CPU asignada o el tope de memoria heap. | Optimice bucles internos o incremente el límite de `maxHeapMb`. |
+| `CIRCUIT_BREAKER_OPEN` | HTTP 503 / gRPC 14 | El destino acumuló 5 fallos consecutivos (`MAX_FAILURES = 5`). | Espere el periodo de decaimiento o utilice una ruta perimetral alternativa. |
+| `ZK_VERIFICATION_FAILED` | RPC -32097 / gRPC 10 | La prueba matemática del resultado no coincide con el sello HMAC-SHA256. | Posible manipulación de red en tránsito. Descarte la respuesta de inmediato. |

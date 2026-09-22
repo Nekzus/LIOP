@@ -1,3 +1,6 @@
+// Copyright 2026 Nekzus Solutions and contributors
+// SPDX-License-Identifier: Apache-2.0
+
 /**
  * LIOP RBAC Engine — Scope-Based Authorization
  *
@@ -21,6 +24,8 @@ const SCOPE_MAP: Readonly<Record<string, readonly string[]>> = {
 	"notifications/initialized": [],
 	"notifications/cancelled": [],
 	ping: [],
+	"server/discover": [],
+	"subscriptions/listen": [],
 
 	// Tool operations — require explicit authorization
 	"tools/list": ["liop:tools:list"],
@@ -29,6 +34,7 @@ const SCOPE_MAP: Readonly<Record<string, readonly string[]>> = {
 	// Resource operations — read-level access
 	"resources/list": ["liop:resources:read"],
 	"resources/read": ["liop:resources:read"],
+	"resources/templates/list": ["liop:resources:read"],
 
 	// Prompt/schema operations — schema-level access
 	"prompts/list": ["liop:schema:read"],

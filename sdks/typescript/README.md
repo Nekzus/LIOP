@@ -1,24 +1,37 @@
 <div align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://res.cloudinary.com/dsvsl0b0b/image/upload/v1774702621/Neural-Mesh-Protocol/qaqsa28yrtpnxnbclv3p.svg?v=20260328">
-    <img alt="Logic-Injection-on-Origin Protocol Logo" src="https://res.cloudinary.com/dsvsl0b0b/image/upload/v1774702621/Neural-Mesh-Protocol/hoanw0m6tybpz5fbl12n.svg?v=20260328" width="700">
+    <source media="(prefers-color-scheme: dark)" srcset="../../docs/logo/dark.svg">
+    <img alt="Logic-Injection-on-Origin Protocol Logo" src="../../docs/logo/light.svg" width="700">
   </picture>
 
-<h1>Logic-Injection-on-Origin Protocol (LIOP) — TypeScript SDK</h1>
-<p align="center">
-  <a href="https://github.com/Nekzus/LIOP/actions/workflows/ci.yml"><img src="https://github.com/Nekzus/LIOP/actions/workflows/ci.yml/badge.svg?event=push" alt="Github Workflow"></a>
-  <a href="https://www.npmjs.com/package/@nekzus/liop"><img src="https://img.shields.io/npm/v/@nekzus/liop.svg" alt="npm version"></a>
-  <a href="https://www.npmjs.com/package/@nekzus/liop"><img src="https://img.shields.io/npm/dm/@nekzus/liop.svg" alt="npm-month"></a>
-  <a href="https://www.npmjs.com/package/@nekzus/liop"><img src="https://img.shields.io/npm/dt/@nekzus/liop.svg?style=flat" alt="npm-total"></a>
-  <a href="https://github.com/Nekzus/LIOP/blob/main/LICENSE"><img src="https://img.shields.io/github/license/Nekzus/LIOP.svg" alt="License"></a>
-  <a href="https://nekzus-32.mintlify.app/"><img src="https://img.shields.io/badge/docs-mintlify-0D9373?style=flat" alt="Docs"></a>
-  <a href="https://deepwiki.com/Nekzus/LIOP"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
-  <a href="https://paypal.me/maseortega"><img src="https://img.shields.io/badge/donate-paypal-blue.svg?style=flat-square" alt="Donate"></a>
-</p>
+  <h1>Logic-Injection-on-Origin Protocol (LIOP) — TypeScript SDK</h1>
+  <p><strong>The official TypeScript SDK and MCP Bridge for the Logic-Injection-on-Origin Protocol.</strong></p>
 
-<p><strong>The official TypeScript SDK for the Logic-Injection-on-Origin Protocol.</strong></p>
-  <p>Deploy Logic-on-Origin with WebAssembly sandboxing, gRPC-speed execution, and full MCP backward compatibility.</p>
+  <p align="center">
+    <a href="https://github.com/Nekzus/LIOP/actions/workflows/ci.yml"><img src="https://github.com/Nekzus/LIOP/actions/workflows/ci.yml/badge.svg?event=push" alt="Github Workflow"></a>
+    <a href="https://www.npmjs.com/package/@nekzus/liop"><img src="https://img.shields.io/npm/v/@nekzus/liop.svg" alt="npm version"></a>
+    <a href="https://www.npmjs.com/package/@nekzus/liop"><img src="https://img.shields.io/npm/dm/@nekzus/liop.svg" alt="npm downloads"></a>
+    <a href="https://github.com/Nekzus/LIOP/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License"></a>
+    <a href="https://nekzus-32.mintlify.app/typescript-sdk/overview"><img src="https://img.shields.io/badge/docs-mintlify-0D9373?style=flat" alt="Docs"></a>
+    <a href="https://deepwiki.com/Nekzus/LIOP"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
+  </p>
 </div>
+
+---
+
+## 📚 Official Documentation
+
+Comprehensive interactive guides, architectural deep dives, and API specifications are hosted on our official portal:
+
+| Documentation Section | Focus Area | Canonical Guide |
+|---|---|---|
+| **Overview & Setup** | Package architecture, core exports, and installation modes | [SDK Overview](https://nekzus-32.mintlify.app/typescript-sdk/overview) |
+| **LiopClient API** | Discovery, intent negotiation, gRPC channels, and error catalog | [LiopClient Reference](https://nekzus-32.mintlify.app/typescript-sdk/client) |
+| **LiopServer API** | Capability hosting, Zod schemas, and V8 sandboxing boundaries | [LiopServer Reference](https://nekzus-32.mintlify.app/typescript-sdk/server) |
+| **LiopMcpBridge** | Zero-trust wrapping of `@modelcontextprotocol/sdk` servers | [Bridge Documentation](https://nekzus-32.mintlify.app/typescript-sdk/bridge) |
+| **Runtime & Discovery** | `TopologyProbe`, `RoutingTable` circuit breaker, and `TokenManager` | [Runtime Architecture](https://nekzus-32.mintlify.app/typescript-sdk/runtime) |
+| **Security Architecture** | 6-Layer defense-in-depth, AST Guardian, and Egress PII Shield | [Security Guide](https://nekzus-32.mintlify.app/typescript-sdk/security) |
+| **Observability & SRE** | Prometheus metrics catalog and 26-panel Grafana master dashboard | [Observability Runbook](https://nekzus-32.mintlify.app/operations/observability-runbook) |
 
 ---
 
@@ -26,24 +39,32 @@
 
 `@nekzus/liop` is an SDK that implements the **Logic-Injection-on-Origin (LIO)** paradigm: instead of extracting raw data from a server and sending it to an LLM, the LLM injects a micro-module of logic to be executed *at the data source*, inside a secure sandbox. The result — never the raw data — is returned.
 
-This fundamentally solves the data privacy, bandwidth, and latency challenges of AI-powered data analysis at scale.
+This addresses the data privacy, bandwidth, and latency bottlenecks of distributed agent data analysis.
 
 ### Key Capabilities
 
 | Feature                             | Description                                                                                                                                |
 | :---------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------- |
 | **Logic-Injection-on-Origin** | LLMs send code, not queries. Data never leaves the origin server.                                                                          |
-| **Dual-Era MCP Compliance**   | Seamless support for modern stateless MCP v2 (2026-07-28) and legacy MCP (2025-11-25) clients (Claude Desktop, Cursor).                    |
+| **Dual-Era MCP Compliance**   | Dual-era compatibility supporting modern stateless MCP v2 (2026-07-28) and legacy MCP (2025-11-25) clients (Claude Desktop, Cursor).    |
 | **Token Economy Engine**      | Inlined BPE `o200k_base` tokenizer with zero runtime dependencies (16.5MB footprint reduction) and OpenTelemetry `gen_ai.*` bridge.       |
-| **Interactive Playground UI** | Real-time Web UI (`:14000`) with live 7-phase SSE execution stream and cryptographic proof inspector.                                    |
+| **Interactive Playground UI** | Real-time Web UI (`:16000` prod / `:14000` dev) with 4-tab modular architecture (`Output`, `Debug`, `Telemetry`, `Export`), code generation (TS/cURL/Python), and dual OLED/Slate themes. |
+| **Multi-Tier Sovereign Enclaves** | Physical socket isolation via `@libp2p/pnet` (256-bit Swarm Key PSK) and Border LIO Gateway (`blg`) with OAuth 2.1 authentication.       |
+| **AST Fuel Metering**         | Deterministic AST instruction fuel scoring with 100-bucket quantization for NIST SP 800-53 timing side-channel elimination (`stddev = 0`).|
+| **Differential Privacy Engine** | NIST SP 800-226 Laplace mechanism with CSPRNG entropy, query-aware sensitivity, and deterministic ZK-Receipt auditing (`DpEngine`). |
 | **MCP Drop-in Replacement**   | `LiopServer` mirrors the Anthropic MCP `Server` API — tools, resources, and prompts with `Zod` schemas.                             |
-| **Guardian AST**              | Zero-time heuristic inspection blocks sandbox escapes (`require`, `fs`, `eval`, `fetch`, prototype pollution).                     |
+| **Guardian AST**              | Pre-execution heuristic inspection blocks sandbox escapes (`require`, `fs`, `eval`, `fetch`, prototype pollution).                 |
+| **IFC Taint Analyzer**        | 5-pass Acorn AST information flow control tracking collection aliases, correlation guards, and extrema gates at preflight.         |
 | **WASI Sandbox**              | JavaScript payloads execute inside V8 isolates with CPU fuel limits, no Node.js globals, and safe environment isolation (`allowEnv`). |
+| **Adaptive Network Discovery**| Single-URL RFC 9728 Protected Resource Metadata probe and adaptive execution mode resolution (`TopologyProbe`).                   |
+| **Resilient Hybrid Routing**  | Deterministic per-tool multiplexing across `http-gateway`, `p2p-grpc`, and `local` with 5-failure circuit breaker (`RoutingTable`).|
+| **OAuth 2.1 M2M Lifecycle**   | Concurrency in-flight de-duplication, 30-second preemptive refresh buffer, and reactive invalidation (`TokenManager`).            |
+| **Sliding-Window Rate Limiter**| In-memory OWASP API4:2023 rate limiting with background cleanup unreferenced intervals (`InMemoryRateLimiter`).                    |
 | **PII Shield**                | Multi-layer egress filter with Regional Presets, custom keys, and recursive floats sanitization (`sanitizeOutput`). |
 | **ZK-Receipts**               | Cryptographic proof with `output_hash` cross-verification (Replay Mitigation) and balanced-brace proxy extraction. |
 | **Worker Pool**               | Heavy computation (crypto, sandboxing) dispatched to OS threads via `piscina` with background async warmup. |
 | **Post-Quantum Ready**        | ML-KEM-768 (Kyber) + ML-DSA-65 (Dilithium) with 1-hour session lifetime and AES-256-GCM encryption.                                        |
-| **Enterprise Observability**  | Immutable SOC 2 Hash-Chain audit log (`AuditLogger`), Prometheus metrics (`/metrics`), and Kubernetes probes (`/healthz`, `/readyz`).     |
+| **Enterprise Observability**  | Immutable SOC 2 Hash-Chain audit log (`AuditLogger`), physical wire egress tracking, Prometheus metrics (`/metrics`), and K8s probes.      |
 | **P2P Mesh**                  | Kademlia DHT discovery via `libp2p` with TCP + WebSocket + Yamux multiplexing and Noise encryption.                                      |
 
 ---
@@ -64,7 +85,7 @@ npm install @nekzus/liop@beta
 
 ### Zero-Bloat & Micro-Deployments (Opt-Out)
 
-By default, the SDK provides out-of-the-box MCP backward compatibility (`LiopMcpBridge`) by declaring `@modelcontextprotocol/sdk` as an optional dependency (which is automatically resolved by standard installations of NPM, PNPM, or Yarn).
+By default, the SDK provides backward compatibility with MCP (`LiopMcpBridge`) by declaring `@modelcontextprotocol/sdk` as an optional dependency (which is automatically resolved by standard installations of NPM, PNPM, or Yarn).
 
 For constrained production environments (e.g., Docker, AWS Lambda, Edge/IoT) where every megabyte counts, you can perform a **pure, zero-bloat LIOP installation** by opting out of the optional dependencies:
 
@@ -111,7 +132,7 @@ To integrate LIOP into Claude Desktop, update your `claude_desktop_config.json` 
       "command": "npx",
       "args": ["-y", "@nekzus/liop@latest"],
       "env": {
-        "LIOP_NEXUS_URL": "http://your-nexus-host:3000",
+        "LIOP_NEXUS_URL": "http://your-nexus-host:15000",
         "LIOP_LOG_LEVEL": "info",
         "LIOP_TOKEN_BANK": "your-secure-bank-token",
         "LIOP_TOKEN_VAULT": "your-secure-vault-token",
@@ -315,11 +336,11 @@ await bridge.connect();
 
 ## Security Architecture
 
-### The Shield — Multi-Layer Defense
+### Defense-in-Depth Architecture
 
 ```
 ┌───────────────────────────────────────────────────────────┐
-│  Layer 1: Guardian AST (Zero-Time Static Analysis)        │
+│  Layer 1: Guardian AST (Pre-Execution Static Analysis)    │
 │  14-function WASI allowlist • 128 import cap • Blocks     │
 │  require, import(), fs, eval, fetch, __proto__            │
 ├───────────────────────────────────────────────────────────┐
@@ -444,7 +465,7 @@ The following shows a complete Logic-Injection-on-Origin execution cycle (handle
 ```
 1. LLM generates JavaScript analysis code wrapped in @LIOP / @END boundaries
 2. LiopServer receives the payload via tools/call (JSON-RPC or direct)
-3. Guardian AST inspects for sandbox escapes (zero-time heuristic analysis)
+3. Guardian AST inspects for sandbox escapes (pre-execution heuristic analysis)
 4. Code executes inside a V8 isolate with CPU fuel limits (no Node.js globals)
 5. Taint Analyzer blocks PII side-channel derivation (charCodeAt, boolean inference)
 6. PII Shield scans output for forbidden data and keys
@@ -528,21 +549,32 @@ await server.connectToMesh();
 
 ---
 
-## Interactive Web Playground (`:14000`)
+## Interactive Web Playground (`:16000` prod / `:14000` dev)
 
-The SDK includes an industrial, real-time developer interface to visually test Logic-Injection-on-Origin, trace post-quantum handshakes, and inspect cryptographic proofs:
+The SDK includes a real-time developer interface to test Logic-Injection-on-Origin, trace post-quantum handshakes, evaluate AST fuel consumption, and inspect cryptographic proofs:
 
 ```bash
-# Launch the full Docker mesh and interactive Web UI
+# 1. Launch the full 10-node production audit mesh with traffic shaping (http://localhost:16000)
+pnpm run audit:prod:start
+
+# Run the 12-suite automated production audit against the mesh (64 tests)
+pnpm run audit:prod:run
+
+# Teardown and cleanup production containers
+pnpm run audit:prod:clean
+
+# 2. Alternatively, launch the lightweight 5-node demo (http://localhost:14000)
 pnpm run demo:start
 ```
 
-Navigate to **`http://localhost:14000`** in your browser:
+Navigate to **`http://localhost:16000`** in your browser:
 
 * **Live 7-Phase Streaming:** Visualizes Bootstrap, DHT Discovery, ML-KEM-768 Handshake, AES-256-GCM Sealing, WASI Sandbox Execution, ZK-Receipt Verification, and Output Aggregation via real-time Server-Sent Events (SSE).
-* **Built-in Industrial Presets:** Ready-to-run micro-modules for High-Frequency Trading (HFT Level 2 order books), Banking transaction analysis, Medical Vault HIPAA records, and PII exfiltration defense.
-* **Cryptographic Proof Inspector:** Validates SHA-256 `ImageID`, HMAC-SHA256 ZK-receipt seals, and dataset integrity digests on the fly.
-* **Dual Dark Modes:** Seamlessly toggle between OLED Obsidian and Slate Midnight interfaces.
+* **Tri-Tab Results Panel:** Switch between `Aggregated Output` (sanitized JSON), `Fuel & Telemetry` (WASI fuel metering, token economy comparison banner), and `Crypto Proofs` (ImageID, Dataset Hash, and HMAC-SHA256 signature with instant copy).
+* **Token Economy Dashboard:** Live comparison showing **98.9% – 99.6% token reduction** and **99.6% network bandwidth savings** over traditional MCP context-pulling.
+* **REST Telemetry Endpoint:** Query session analytics programmatically at `GET http://localhost:16000/api/telemetry`.
+* **Built-in Scenario Presets:** Ready-to-run micro-modules for High-Frequency Trading (HFT Level 2 order books), Banking transaction analysis, Medical Vault HIPAA records, and Edge IoT industrial sensor telemetry.
+* **Dual Dark Modes:** Toggle between Obsidian OLED (`#000000`) and Slate Navy (`#0f172a`) interfaces.
 
 ---
 
@@ -600,7 +632,7 @@ You can run security audits and check package health scores directly from the mo
 - **Check SDK Security Score:** `pnpm socket:score` (shows the detailed package score for the SDK in Markdown format)
 - **Fix Vulnerabilities:** `pnpm socket:fix` (automatically remediates known CVEs in package.json)
 
-The codebase undergoes regular dependencies audits. As of June 2026, the SDK is verified to be 100% free of orphan packages and dead dependencies, ensuring an ultra-lightweight deployment footprint.
+The codebase undergoes regular dependencies audits. As of June 2026, the SDK is verified to be 100% free of orphan packages and dead dependencies, ensuring a minimal deployment footprint.
 
 ---
 

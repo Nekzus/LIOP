@@ -1,3 +1,6 @@
+// Copyright 2026 Nekzus Solutions and contributors
+// SPDX-License-Identifier: Apache-2.0
+
 import { Buffer } from "node:buffer";
 import crypto from "node:crypto";
 import * as fs from "node:fs";
@@ -8,11 +11,19 @@ import * as grpc from "@grpc/grpc-js";
 import { createMlKem768 } from "mlkem";
 import { FixedQueue, Piscina } from "piscina";
 import { z } from "zod";
-import { type LiopManifest, MeshNode } from "../mesh/node.js";
+import { TokenTelemetryEngine } from "../economy/telemetry.js";
+import {
+	type LiopManifest,
+	MeshNode,
+	type MeshNodeConfig,
+} from "../mesh/node.js";
 import {
 	egressBlocksTotal,
 	fuelConsumed,
+	toolCallErrorsTotal,
 	toolCallsTotal,
+	wireEgressBytesTotal,
+	wireSavedBytesTotal,
 } from "../observability/metrics.js";
 import { Dilithium65Wrapper } from "../rpc/crypto/dilithium.js";
 import { LiopRpcServer } from "../rpc/server.js";
@@ -990,14 +1001,7 @@ export class LiopServer {
 	 * Convenience alias for connectToMesh(), matching official documentation.
 	 */
 	public async connect(
-		options: {
-			port?: number;
-			meshConfig?: {
-				listenAddresses?: string[];
-				bootstrapNodes?: string[];
-				identityPath?: string;
-			};
-		} = {},
+		options: { port?: number; meshConfig?: MeshNodeConfig } = {},
 	): Promise<void> {
 		return this.connectToMesh(options);
 	}
@@ -1071,14 +1075,17 @@ export class LiopServer {
 					};
 				}
 
-				const payloadValue = (args as Record<string, unknown>)
-					.payload as string;
-				const bypassCache =
-					(args as Record<string, unknown>).__liop_bypass_ast_cache === true;
+				const rawArgs = (
+					args && typeof args === "object" ? args : {}
+				) as Record<string, unknown>;
+				const payloadValue = (rawArgs.payload ??
+					rawArgs.envelope ??
+					rawArgs.code) as string;
+				const bypassCache = rawArgs.__liop_bypass_ast_cache === true;
 
 				const payloadHash = crypto
 					.createHash("sha256")
-					.update(payloadValue)
+					.update(payloadValue || "")
 					.digest("hex");
 				const logic = this.extractLogic(payloadValue);
 				const cached = this.logicCache.get(payloadHash);
@@ -1090,7 +1097,10 @@ export class LiopServer {
 				) {
 					// Hash verified. Skips boundaries check (already validated!). Extract logic directly.
 					if (logic) {
-						(args as Record<string, unknown>).payload = logic;
+						rawArgs.payload = logic;
+						if (rawArgs.envelope !== undefined) {
+							rawArgs.envelope = logic;
+						}
 
 						// DELEGATE TO WORKER POOL: Parallel PQC & Sandboxing
 						const preflightReason = this.runPreflightPolicy(
@@ -1127,11 +1137,12 @@ export class LiopServer {
 				try {
 					// Logic check already performed above, extraction is guaranteed at this point.
 					// biome-ignore lint/style/noNonNullAssertion: safe extraction after check
-					const logic = this.extractLogic(
-						(args as Record<string, unknown>).payload as string,
-					)!;
+					const logic = this.extractLogic(payloadValue)!;
 					// Extract pure logic and deliver it to the developer's function
-					(args as Record<string, unknown>).payload = logic;
+					rawArgs.payload = logic;
+					if (rawArgs.envelope !== undefined) {
+						rawArgs.envelope = logic;
+					}
 
 					// DELEGATE TO WORKER POOL: Parallel PQC & Sandboxing (Includes PII Shield)
 					const preflightReason = this.runPreflightPolicy(
@@ -1618,6 +1629,13 @@ Protocol Adherence is mandatory for successful execution.`,
 		this.sandboxRecords = records;
 	}
 
+	/**
+	 * Returns the read-only sandbox records registered in the enclave.
+	 */
+	public getSandboxData(): readonly Record<string, unknown>[] {
+		return this.sandboxRecords;
+	}
+
 	public getBoundPort(): number | null {
 		return this.boundPort;
 	}
@@ -1627,14 +1645,7 @@ Protocol Adherence is mandatory for successful execution.`,
 	 * Boots the gRPC server for secure Logic-on-Origin.
 	 */
 	public async connectToMesh(
-		options: {
-			port?: number;
-			meshConfig?: {
-				listenAddresses?: string[];
-				bootstrapNodes?: string[];
-				identityPath?: string;
-			};
-		} = {},
+		options: { port?: number; meshConfig?: MeshNodeConfig } = {},
 	): Promise<void> {
 		const envPort = process.env.LIOP_GRPC_PORT
 			? Number.parseInt(process.env.LIOP_GRPC_PORT, 10)
@@ -1914,6 +1925,7 @@ Protocol Adherence is mandatory for successful execution.`,
 					const toolName = session.capability_hash;
 					const toolDef = toolName ? this.tools.get(toolName) : undefined;
 					const toolPolicy = toolDef?.policy;
+					let decryptedPayload = "";
 
 					// [SECURITY] Preflight check on gRPC execution path (decrypt Logic-on-Origin)
 					try {
@@ -1937,7 +1949,7 @@ Protocol Adherence is mandatory for successful execution.`,
 						let decrypted = decipher.update(encryptedData);
 						decrypted = Buffer.concat([decrypted, decipher.final()]);
 
-						const decryptedPayload = decrypted.toString("utf-8");
+						decryptedPayload = decrypted.toString("utf-8");
 						const logic =
 							this.extractLogic(decryptedPayload) || decryptedPayload.trim();
 
@@ -2135,13 +2147,70 @@ Protocol Adherence is mandatory for successful execution.`,
 						});
 
 						toolCallsTotal.inc({
+							capability: toolName || "unknown",
 							tool: toolName || "unknown",
 							status: isBlocked ? "blocked_egress" : "success",
+							role: "executor",
 						});
 						fuelConsumed.observe(
-							{ tool: toolName || "unknown" },
+							{
+								capability: toolName || "unknown",
+								tool: toolName || "unknown",
+							},
 							workerResponse.fuel_consumed || 0,
 						);
+
+						// [Wire Telemetry] Measure raw response size and network bandwidth saved
+						try {
+							const egressBytes =
+								Buffer.byteLength(response.semantic_evidence || "") +
+								(response.cryptographic_proof
+									? response.cryptographic_proof.length
+									: 0) +
+								(response.zk_receipt ? response.zk_receipt.length : 0);
+							wireEgressBytesTotal.inc(
+								{ capability: toolName || "unknown" },
+								egressBytes,
+							);
+
+							if (this.sandboxRecords && this.sandboxRecords.length > 0) {
+								const rawDatasetString = JSON.stringify(this.sandboxRecords);
+								const rawDatasetBytes = Buffer.byteLength(rawDatasetString);
+								const savedBytes = Math.max(0, rawDatasetBytes - egressBytes);
+								if (savedBytes > 0) {
+									wireSavedBytesTotal.inc(
+										{ capability: toolName || "unknown" },
+										savedBytes,
+									);
+								}
+
+								// [Token Economy] Measure dataset tokens and record token savings
+								try {
+									const telemetry = TokenTelemetryEngine.getInstance();
+									const originDatasetTokens =
+										telemetry.countTokens(rawDatasetString);
+									const outputTokens = telemetry.countTokens(
+										response.semantic_evidence || "",
+									);
+									const inputTokens = telemetry.countTokens(
+										decryptedPayload || "",
+									);
+
+									telemetry.record({
+										type: "tool_call",
+										method: "ExecuteLogic",
+										toolName: toolName || "unknown",
+										estimatedInputTokens: inputTokens,
+										estimatedOutputTokens: outputTokens,
+										originDatasetTokens,
+									});
+								} catch {
+									// Token telemetry failure must not interrupt response delivery
+								}
+							}
+						} catch {
+							// Egress metrics failure must not interrupt response delivery
+						}
 
 						call.write(response, () => {
 							call.end();
@@ -2174,8 +2243,14 @@ Protocol Adherence is mandatory for successful execution.`,
 						});
 
 						toolCallsTotal.inc({
+							capability: toolName || "unknown",
 							tool: toolName || "unknown",
 							status: "error",
+							role: "executor",
+						});
+						toolCallErrorsTotal.inc({
+							capability: toolName || "unknown",
+							error_type: "runtime_error",
 						});
 
 						// Send error response before closing, avoiding "stream closed without results"

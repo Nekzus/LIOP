@@ -72,7 +72,7 @@ const connectClient = async () => {
 			},
 		});
 		isConnected = true;
-		const peerId = client["meshNode"]?.getPeerId()?.toString();
+		const peerId = client.peerId;
 		log.info(`[Playground-Backend] LiopClient connected successfully. PeerID: ${peerId}`);
 		
 		// Initial background tool discovery
@@ -118,13 +118,13 @@ app.get("/api/health", async (c) => {
 	}
 
 	try {
-		const peerId = client["meshNode"]?.getPeerId()?.toString() || "unknown";
-		const connections = client["meshNode"]?.["node"]?.getConnections() || [];
+		const peerId = client.peerId ?? "unknown";
+		const peersCount = client.connectionCount;
 
 		return c.json({
 			status: "healthy",
 			peerId,
-			peersCount: connections.length,
+			peersCount,
 			role: "client",
 			address: "172.20.0.200:3000",
 			version: packageVersion,
@@ -183,7 +183,7 @@ app.post("/api/execute", async (c) => {
 
 		try {
 			// 1. Bootstrap Phase
-			const peerId = client["meshNode"]?.getPeerId()?.toString() || "";
+			const peerId = client.peerId ?? "";
 			await sendStep(
 				"bootstrap",
 				`Active mesh — PeerID: ${peerId.slice(-8)}`,

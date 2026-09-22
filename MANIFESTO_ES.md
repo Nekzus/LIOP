@@ -47,7 +47,7 @@ Estos siete principios gobiernan cada decisión arquitectónica del protocolo. N
 4. **Verificabilidad Criptográfica** — Cada cómputo produce un ZK-Receipt que vincula el hash de salida con la lógica exacta ejecutada y el secreto de sesión. Terceros pueden auditar resultados sin re-ejecutar la lógica.
 5. **Resiliencia Cuántica** — Todos los intercambios de claves y sellos de sesión utilizan algoritmos post-cuánticos (ML-KEM-768) desde el primer día. No es un camino de actualización futura — es un requisito de lanzamiento, diseñado contra estrategias de cosecha-ahora-descifra-después.
 6. **Huella Mínima** — El protocolo debe operar en dispositivos de borde con recursos limitados. La eficiencia es una restricción dura, no un objetivo de optimización. Los límites de combustible de CPU son determinísticos y derivados del AST.
-7. **Convivencia de Ecosistema y Compatibilidad Retroactiva** — LIOP opera en la capa de cómputo soberano y malla distribuida mientras convive con protocolos de agentes a nivel de aplicación. Mediante un adaptador de gateway de era dual, los clientes MCP consumen servicios LIOP de forma transparente sin fragmentación del ecosistema.
+7. **Convivencia de Ecosistema y Compatibilidad Retroactiva** — LIOP opera en la capa de cómputo soberano y malla distribuida mientras convive con protocolos de agentes a nivel de aplicación. Mediante un adaptador de gateway de era dual, los clientes MCP consumen servicios LIOP sin requerir modificaciones en el cliente ni causar fragmentación del ecosistema.
 
 ---
 
@@ -130,22 +130,18 @@ Estas garantías no son claims de marketing. Cada una se mapea directamente a un
 
 Este manifiesto constituye la base constitucional inmutable del Logic-Injection-on-Origin Protocol. El Postulado LIO y los Principios de Diseño (Sección 3) representan invariantes no negociables establecidas en el génesis del protocolo.
 
-La implementación técnica, las primitivas criptográficas y las capacidades de transporte evolucionan mediante el proceso de **Propuestas de Mejora de LIOP (LEP)** que rige la [Especificación del Protocolo](./protocol/SPECIFICATION.md):
+La implementación técnica, las primitivas criptográficas y las capacidades de transporte evolucionan mediante el proceso de **Propuestas de Mejora de LIOP (LEP)** que rige la [Especificación del Protocolo](./protocol/SPECIFICATION_ES.md):
 
 1. **Presentación de LEP** — Los contribuidores presentan mejoras arquitectónicas o criptográficas mediante Pull Request al directorio `protocol/`.
 2. **Alineación Constitucional** — Toda propuesta debe demostrar adhesión estricta a los 7 Principios de Diseño. Aquellas que vulneren la soberanía de datos o las garantías de agregación son rechazadas por diseño.
 3. **Revisión por Pares y Verificación** — Periodo mínimo de 14 días de auditoría técnica con vectores de prueba empíricos en el SDK de referencia.
-4. **Ratificación en la Especificación** — Las LEPs aprobadas se incorporan a la siguiente versión fechada de la [Especificación del Protocolo](./protocol/SPECIFICATION.md).
+4. **Ratificación en la Especificación** — Las LEPs aprobadas se incorporan a la siguiente versión fechada de la [Especificación del Protocolo](./protocol/SPECIFICATION_ES.md).
 
 ---
 
-## 9. Únete a la Malla
+## 9. Próximos Pasos
 
-- **Deja de Extraer.**
-- **Comienza a Inyectar.**
-- **LIO es el futuro de la IA Autónoma.**
-
-Lee la [Especificación del Protocolo](./protocol/SPECIFICATION.md). Ejecuta el [Playground Interactivo](http://localhost:14000). Construye tu primer Servidor LIOP con `npm install @nekzus/liop`. Únete a la malla.
+Consulta la [Especificación del Protocolo](./protocol/SPECIFICATION_ES.md), evalúa el [Playground Interactivo y Studio](https://nekzus-32.mintlify.app/es/typescript-sdk/playground), o despliega un nodo enclave mediante el SDK TypeScript ejecutando `pnpm add @nekzus/liop`.
 
 ---
 

@@ -1,6 +1,8 @@
 ---
 title: "Especificación Técnica"
 description: "Las 8 capas arquitectónicas fundamentales del Logic-Injection-on-Origin Protocol."
+icon: "file-code"
+
 ---
 
 > **Versión de la Especificación:** 1.0
@@ -16,7 +18,7 @@ El Logic-Injection-on-Origin Protocol (LIOP) es una red de transporte binario de
 ## 2. El Postulado Logic-Injection-on-Origin (LIO)
 **Postulado de Origen (Núcleo de Ejecución):** Los datos nunca deben ser extraídos hacia la inteligencia. La inteligencia debe ser inyectada hacia los datos.
 
-Un Agente LIOP interactuando con un Servidor LIOP inyecta lógica ejecutable (en forma de módulos `.wasm` microscópicos o algoritmos transpilados dinámicamente). El servidor ejecuta de forma segura esta lógica dentro de un estricto sandbox y retorna únicamente resultados matemáticos agregados o listas filtradas, eliminando matemáticamente la posibilidad de exfiltración involuntaria de PII (Información de Identificación Personal) a causa de extracciones masivas de contexto.
+Un Agente LIOP interactuando con un Servidor LIOP inyecta lógica ejecutable (en forma de módulos `.wasm` compactos o algoritmos transpilados dinámicamente). El servidor ejecuta de forma segura esta lógica dentro de un estricto sandbox y retorna únicamente resultados matemáticos agregados o listas filtradas, impidiendo la exfiltración involuntaria de PII (Información de Identificación Personal) derivada de extracciones masivas de contexto.
 
 ## 3. Arquitectura Topográfica
 
@@ -24,7 +26,7 @@ Un Agente LIOP interactuando con un Servidor LIOP inyecta lógica ejecutable (en
 - LIOP opera sobre una arquitectura superpuesta descentralizada de `libp2p`.
 - Los Servidores (Nodos de Datos) escuchan en puertos TCP/QUIC y se anuncian como servicios de larga duración.
 - Los Clientes (Inyectores Agentes) se conectan de forma ad-hoc en redes locales o WAN pública mediante enrutamiento DHT Kademlia.
-- LIOP erradica por completo la necesidad de intermediarios o hubs centralizados.
+- LIOP opera sin intermediarios ni servidores proxy centralizados.
 
 ### 3.2 Transporte y Multiplexación
 - Las conexiones utilizan multiplexación vía Yamux, permitiendo cientos de inyecciones `Logic-Injection-on-Origin` concurrentes sobre un solo socket TCP sin sufrir Bloqueos de Cabecera (Head-Of-Line Blocking).
@@ -33,7 +35,7 @@ Un Agente LIOP interactuando con un Servidor LIOP inyecta lógica ejecutable (en
 - Los payloads binarios se encapsulan en definiciones estrictas de Protocol Buffers (`.proto`).
 - Toda la interacción LIOP se basa en Protocol Buffers transmitidos sobre HTTP/2 mediante Tonic, eliminando el sobrecoste de serialización JSON-RPC de forma nativa.
 
-## 4. Seguridad Criptográfica (El Escudo)
+## 4. Arquitectura de Seguridad Criptográfica
 
 ### 4.1 Encapsulamiento de Claves Post-Cuánticas (ML-KEM-768)
 - En la inicialización, las conexiones ejecutan un intercambio Post-Cuántico. LIOP emplea **ML-KEM-768 (Kyber)** para negociar secretos compartidos de manera segura contra ataques de descifrado informático cuántico ("Harvest Now, Decrypt Later").
@@ -49,7 +51,7 @@ Un Agente LIOP interactuando con un Servidor LIOP inyecta lógica ejecutable (en
 - El SDK genera **compromisos HMAC-SHA256** que vinculan criptográficamente la salida con la lógica exacta ejecutada, sellados con el secreto de sesión Post-Cuántico.
 - **Ancla de Integridad del Dataset**: Los recibos incorporan un `dataset_hash` SHA-256, garantizando que las perturbaciones de Privacidad Diferencial y la agregación se apliquen estrictamente sobre datos de origen inmutables.
 
-## 5. Núcleo de Ejecución (El Sandbox)
+## 5. Núcleo de Ejecución y Aislamiento
 
 ### 5.1 Instanciación WASI y Aislamiento de Entorno
 - La lógica inyectada se despliega en una Máquina Virtual `Wasmtime` o Isolate V8 implementando la interfaz WebAssembly System Interface (WASI).
@@ -58,8 +60,8 @@ Un Agente LIOP interactuando con un Servidor LIOP inyecta lógica ejecutable (en
 - **Combustible CPU Determinístico**: La ejecución está acotada por límites de combustible derivados del AST, neutralizando bucles infinitos y ataques de denegación de servicio.
 - **Precalentamiento de Workers**: Los pools de hilos de Piscina pre-calentados eliminan el arranque en frío de V8 (reducción de ~820k de combustible).
 
-### 5.2 Guardián AST Cero-Tiempo
-- Previo a la ejecución, LIOP analiza el Árbol de Sintaxis Abstracta (AST) del payload. Destruye módulos que pretendan importar funciones fuera de la allowlist estricta de 14 funciones WASI, soportando sentencias `return` en el nivel superior para módulos dinámicos.
+### 5.2 Guardián AST Estático
+- Previo a la ejecución, LIOP analiza el Árbol de Sintaxis Abstracta (AST) del payload. Descarta módulos que intenten importar funciones fuera de la allowlist estricta de 14 funciones WASI, soportando sentencias `return` en el nivel superior para módulos dinámicos.
 
 ### 5.3 Defensa PII de Egreso
 - El SDK de LIOP inyecta un Escudo de PII en la fase de egreso mediante un pipeline de 4 etapas: coincidencia exacta de clave → coincidencia difusa → validadores regex (Algoritmo de Luhn para tarjetas de crédito, SSN, emails, teléfonos) → Reconocimiento de Entidades Nombradas (NER).
@@ -75,8 +77,8 @@ Un Agente LIOP interactuando con un Servidor LIOP inyecta lógica ejecutable (en
   - `sensitive`: 8 consultas/sesión (campos biométricos, financieros, diagnósticos).
   - `public`: 25 consultas/sesión (métricas y categorías generales).
 
-## 6. Autonomía Zero-Shot (Self-Healing AI)
-LIOP implementa un middleware de auto-instrucción integrado. Si un Agente intenta interactuar mediante solicitudes JSON-RPC sobre adaptadores MCP tradicionales violando el paradigma Logic-Injection-on-Origin (ej. solicitar extracción de datos crudos), LIOP intercepta la petición, la bloquea y devuelve un prompt cognitivo para que el Agente auto-corrija dinámicamente su intento reescribiéndolo como lógica inyectada.
+## 6. Remediación Autónoma de Protocolo
+LIOP implementa un middleware de auto-instrucción integrado. Si un Agente intenta interactuar mediante solicitudes JSON-RPC sobre adaptadores MCP tradicionales violando el paradigma Logic-Injection-on-Origin (ej. solicitar extracción de datos crudos), LIOP intercepta la petición, la bloquea y devuelve un prompt estructurado que permite al agente reformular su petición como lógica inyectada.
 
 ## 7. Compatibilidad de Era Dual con MCP y Adaptador Gateway
 - **Soporte MCP v2**: Cumplimiento completo con la especificación `2026-07-28` (`subscriptions/listen` y `resources/templates/list`) sin sobrecoste de sondeo.

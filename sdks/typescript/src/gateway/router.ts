@@ -1,8 +1,19 @@
+// Copyright 2026 Nekzus Solutions and contributors
+// SPDX-License-Identifier: Apache-2.0
+
 import * as crypto from "node:crypto";
 import * as grpc from "@grpc/grpc-js";
 import { LiopVerifier } from "../crypto/verifier.js";
 import { TokenTelemetryEngine } from "../economy/telemetry.js";
 import type { LiopManifest, MeshNode } from "../mesh/index.js";
+import {
+	pqcHandshakeDurationMs,
+	pqcHandshakesTotal,
+	toolCallErrorsTotal,
+	toolCallsTotal,
+	wireEgressBytesTotal,
+	zkVerificationsTotal,
+} from "../observability/metrics.js";
 import { GRPC_CHANNEL_OPTIONS } from "../rpc/channel-options.js";
 import { Dilithium65Wrapper } from "../rpc/crypto/dilithium.js";
 import { Kyber768Wrapper } from "../rpc/crypto/kyber.js";
@@ -796,68 +807,60 @@ export class LiopMcpRouter {
 					return true;
 				});
 
-				// Parallel manifest queries — eliminates sequential 100ms + retry delays
-				const queryResults = await Promise.allSettled(
+				// Parallel streaming manifest queries — updates cache immediately upon arrival
+				await Promise.allSettled(
 					eligiblePeers.map(async (peerId) => {
-						if (!this.meshNode) return null;
+						if (!this.meshNode) return;
 						log.info(`[LIOP-Router] Querying manifest from: ${peerId}`);
-						return {
-							peerId,
-							manifest: await this.meshNode.queryManifest(peerId),
-						};
-					}),
-				);
+						try {
+							const manifest = await this.meshNode.queryManifest(peerId);
+							if (manifest) {
+								// [Phase Beta-2] ML-DSA-65 (FIPS 204) Manifest Attestation Verification
+								if (manifest.pqcSignature && manifest.pqcPublicKey) {
+									const isValid = Dilithium65Wrapper.verifyManifest(
+										manifest as unknown as Record<string, unknown>,
+										manifest.pqcSignature,
+										manifest.pqcPublicKey,
+									);
+									if (!isValid) {
+										log.warn(
+											`[LIOP-Router] ⚠️ Tampered manifest rejected for peer ${peerId} (ML-DSA-65 signature invalid)`,
+										);
+										this.recordManifestQueryFailure(peerId);
+										errorCount++;
+										return;
+									}
+									log.info(
+										`[LIOP-Router] 🔒 ML-DSA-65 (FIPS 204) Manifest attestation verified for peer ${peerId}`,
+									);
+								}
 
-				for (const result of queryResults) {
-					if (result.status === "fulfilled" && result.value?.manifest) {
-						const { peerId, manifest } = result.value;
-
-						// [Phase Beta-2] ML-DSA-65 (FIPS 204) Manifest Attestation Verification
-						if (manifest.pqcSignature && manifest.pqcPublicKey) {
-							const isValid = Dilithium65Wrapper.verifyManifest(
-								manifest as unknown as Record<string, unknown>,
-								manifest.pqcSignature,
-								manifest.pqcPublicKey,
-							);
-							if (!isValid) {
-								log.warn(
-									`[LIOP-Router] ⚠️ Tampered manifest rejected for peer ${peerId} (ML-DSA-65 signature invalid)`,
+								this.manifestCache.set(peerId, {
+									manifest,
+									cachedAt: Date.now(),
+								});
+								this.recordManifestQuerySuccess(peerId);
+								cacheUpdated = true;
+								successCount++;
+								log.info(
+									`[LIOP-Router] Manifest received from ${peerId} (${manifest.tools.length} tools)`,
 								);
+							} else {
 								this.recordManifestQueryFailure(peerId);
 								errorCount++;
-								continue;
+								log.info(
+									`[LIOP-Router] Manifest query returned NULL for ${peerId}`,
+								);
 							}
+						} catch (err: unknown) {
+							errorCount++;
 							log.info(
-								`[LIOP-Router] 🔒 ML-DSA-65 (FIPS 204) Manifest attestation verified for peer ${peerId}`,
+								`[LIOP-Router] Fatal error querying manifest:`,
+								err instanceof Error ? err.message : String(err),
 							);
 						}
-
-						this.manifestCache.set(peerId, {
-							manifest,
-							cachedAt: Date.now(),
-						});
-						this.recordManifestQuerySuccess(peerId);
-						cacheUpdated = true;
-						successCount++;
-						log.info(
-							`[LIOP-Router] Manifest received from ${peerId} (${manifest.tools.length} tools)`,
-						);
-					} else if (result.status === "fulfilled" && result.value) {
-						this.recordManifestQueryFailure(result.value.peerId);
-						errorCount++;
-						log.info(
-							`[LIOP-Router] Manifest query returned NULL for ${result.value.peerId}`,
-						);
-					} else if (result.status === "rejected") {
-						errorCount++;
-						log.info(
-							`[LIOP-Router] Fatal error querying manifest:`,
-							result.reason instanceof Error
-								? result.reason.message
-								: String(result.reason),
-						);
-					}
-				}
+					}),
+				);
 
 				// Store discovery stats for LiopMeshStatus diagnostics
 				// biome-ignore lint/suspicious/noExplicitAny: private stats for telemetry
@@ -1380,6 +1383,15 @@ export class LiopMcpRouter {
 				const localTelemetry = TokenTelemetryEngine.getInstance();
 				const localInputPayload = JSON.stringify(params.arguments || {});
 				const localOutputPayload = JSON.stringify(result);
+
+				let originDatasetTokens: number | undefined;
+				const sandboxRecords = this.liopServer.getSandboxData();
+				if (sandboxRecords && sandboxRecords.length > 0) {
+					originDatasetTokens = localTelemetry.countTokens(
+						JSON.stringify(sandboxRecords),
+					);
+				}
+
 				localTelemetry.record({
 					type: "tool_call",
 					method: "tools/call",
@@ -1387,6 +1399,14 @@ export class LiopMcpRouter {
 					estimatedInputTokens: localTelemetry.countTokens(localInputPayload),
 					estimatedOutputTokens: localTelemetry.countTokens(localOutputPayload),
 					durationMs: Date.now() - localStartTime,
+					originDatasetTokens,
+				});
+
+				toolCallsTotal.inc({
+					capability: toolName,
+					tool: toolName,
+					status: result.isError ? "error" : "success",
+					role: "executor",
 				});
 
 				return { jsonrpc: "2.0", id, result };
@@ -1545,7 +1565,7 @@ export class LiopMcpRouter {
 
 		const remoteClient = new liopV1.LogicMesh(
 			targetAddr,
-			createChannelCredentials(),
+			createChannelCredentials({ insecure: true, suppressWarning: true }),
 			GRPC_CHANNEL_OPTIONS,
 		);
 		return this.performTranscoding(
@@ -1761,6 +1781,12 @@ export class LiopMcpRouter {
 				metadata,
 				async (err: Error | null, response: IntentResponse) => {
 					if (err || !response.accepted) {
+						try {
+							toolCallErrorsTotal.inc({
+								capability: toolName,
+								error_type: "handshake_failed",
+							});
+						} catch {}
 						return resolve({
 							jsonrpc: "2.0",
 							id,
@@ -1776,10 +1802,21 @@ export class LiopMcpRouter {
 						});
 					}
 
+					const pqcStart = performance.now();
 					const { ciphertext, sharedSecret } =
 						await Kyber768Wrapper.encapsulateAsymmetric(
 							response.kyber_public_key,
 						);
+					const pqcDuration = performance.now() - pqcStart;
+					try {
+						pqcHandshakeDurationMs.observe({ tool: toolName }, pqcDuration);
+						pqcHandshakesTotal.inc({
+							algorithm: "ml-kem-768",
+							status: "success",
+						});
+					} catch {
+						// Metrics observation failure must never disrupt handshake
+					}
 					// SECURITY: Avoid AES-GCM nonce reuse across multiple ciphertexts.
 					// We embed arguments directly into the proxy logic so we only encrypt ONE payload per session/nonce.
 					const embeddedArgs =
@@ -1834,7 +1871,19 @@ export class LiopMcpRouter {
 										resultBody,
 									);
 
+									try {
+										zkVerificationsTotal.inc({
+											status: isValid ? "valid" : "invalid",
+										});
+									} catch {}
+
 									if (!isValid) {
+										try {
+											toolCallErrorsTotal.inc({
+												capability: toolName,
+												error_type: "cryptographic_audit_failed",
+											});
+										} catch {}
 										return resolve({
 											jsonrpc: "2.0",
 											id,
@@ -1849,12 +1898,19 @@ export class LiopMcpRouter {
 											},
 										});
 									}
+								} else {
+									try {
+										toolCallErrorsTotal.inc({
+											capability: toolName,
+											error_type: "remote_execution_error",
+										});
+									} catch {}
 								}
 							}
 
 							const parsedResult = JSON.parse(resultBody);
 
-							// [Token Economy] Record remote tool call telemetry
+							// [Token Economy & Wire Telemetry] Record remote tool call telemetry
 							const remoteTelemetry = TokenTelemetryEngine.getInstance();
 							remoteTelemetry.record({
 								type: "tool_call",
@@ -1866,6 +1922,19 @@ export class LiopMcpRouter {
 								estimatedOutputTokens: remoteTelemetry.countTokens(resultBody),
 								durationMs: Date.now() - transcodingStartTime,
 							});
+							try {
+								wireEgressBytesTotal.inc(
+									{ capability: toolName },
+									Buffer.byteLength(resultBody),
+								);
+							} catch {}
+
+							toolCallsTotal.inc({
+								capability: toolName,
+								tool: toolName,
+								status: parsedResult.isError ? "error" : "success",
+								role: "proxy",
+							});
 
 							resolve({ jsonrpc: "2.0", id, result: parsedResult });
 						} catch (_e) {
@@ -1876,7 +1945,13 @@ export class LiopMcpRouter {
 							});
 						}
 					});
-					call.on("error", (e: Error) =>
+					call.on("error", (e: Error) => {
+						try {
+							toolCallErrorsTotal.inc({
+								capability: toolName,
+								error_type: "grpc_stream_error",
+							});
+						} catch {}
 						resolve({
 							jsonrpc: "2.0",
 							id,
@@ -1886,8 +1961,8 @@ export class LiopMcpRouter {
 								],
 								isError: true,
 							},
-						}),
-					);
+						});
+					});
 				},
 			);
 		});

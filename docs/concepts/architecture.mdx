@@ -1,6 +1,8 @@
 ---
 title: "Architecture"
-description: "Understanding the components, layers, and P2P routing of the Logic-Injection-on-Origin Protocol"
+description: "Components, execution layers, and P2P routing in the Logic-Injection-on-Origin Protocol"
+icon: "network"
+
 ---
 
 <img className="block dark:hidden" src="/images/architecture-light.svg" alt="LIOP Architecture Diagram" />
@@ -14,7 +16,7 @@ By orchestrating Logic-on-Origin, LIOP eliminates data gravity constraints, allo
 
 LIOP comprises several foundational pillars:
 - **LIOP Specification**: The standardized implementation of Protobuf messages, libp2p routing, and WASI binary execution constraints.
-- **LIOP SDKs**: Official TypeScript and Rust libraries to seamlessly integrate the mesh into existing applications.
+- **LIOP SDKs**: Official TypeScript and Rust libraries to integrate the mesh into existing applications.
 - **LIOP Runtimes**: The core engine (usually `wasmtime`) that performs the mathematical sandboxing.
 
 <Note>
@@ -31,7 +33,7 @@ In the LIOP Mesh, every node is a Peer, but they assume distinct roles based on 
 
 ## System Layers
 
-To ensure ultra-low latency and maximum security, LIOP is strictly divided into two technical layers, orchestrated through mathematically verifiable pipelines.
+To minimize latency and enforce strict isolation, LIOP is structured into two technical layers, orchestrated through verifiable execution pipelines.
 
 <Frame>
   <img className="block dark:hidden w-full" src="/images/topology-light.svg" alt="LIOP Topology Architecture" />
@@ -56,6 +58,65 @@ The final boundary before touching bare metal.
 - **Hardware Enclaves (TEEs)**: Optionally bootstraps the entire `wasmtime` engine inside an Intel SGX or AWS Nitro enclave, shielding the RAM from server administrators.
 - **Zero-Knowledge Evidence**: Optionally leverages zkVMs (like `RISC Zero`) so the server returns the requested insight mathematically sealed, guaranteeing the compute wasn't tampered with.
 
+---
+
+## Multi-Tier Sovereign Mesh Topology
+
+In enterprise production deployments, the mesh topology is partitioned across three distinct security tiers with asymmetric boundary enforcement:
+
+<Frame>
+  <img className="w-full rounded-lg border border-white/10 shadow-xl" src="/images/animated-docker-infra-dark.svg" alt="Multi-Tier Sovereign Mesh Topology" />
+</Frame>
+
+### Tier 1: Data Sovereignty Enclaves
+* **Cryptographic Isolation**: Strict private network isolation via **`pnet` Swarm Key (PSK)** (`/key/swarm/psk/1.0.0/`). Any connection attempt from an unauthenticated peer without the symmetric PSK is aborted at the socket transport layer.
+* **Nodes**: Core Banking (`The Bank`, 1,500 synthetic accounts with $148M balance) and Healthcare EHR (`The Vault`, 2,500 patient records).
+* **Policy**: Enforces Differential Privacy (Laplace noise) and strict Cardinality limits (raw row-level data is permanently blocked from egressing).
+
+### Tier 2: Consortium P2P & Perimeter Gateways
+* **Border LIO Gateway (`BLG`)**: Acts as a cryptographic firewall and reverse proxy. Bridges external client queries into Tier 1 enclaves across an asymmetric network boundary using RFC 6749 OAuth 2.1 client credentials.
+* **High-Frequency Trading (`The Oracle`)**: Real-time HFT market matching engine simulating L2 orderbooks and stochastic volatility models (Heston + Jump Diffusion).
+* **Nexus**: Decentralized service discovery directory and OIDC authentication provider.
+
+### Tier 3: Public Backbone & Edge IoT
+* **Edge Industrial Nodes (`Edge IoT`)**: Deployed directly on edge industrial hardware under hostile WAN profiles (simulated 250ms ± 50ms latency with 2% packet loss). Computes anomaly detection in-situ, transmitting only critical aggregated telemetry.
+* **P2P Circuit Relays (`Relay`)**: High-throughput public relays implementing AutoNAT and Circuit Relay v2 for traversal of corporate firewalls.
+* **Client SDK, Web Playground & Studio**: Interactive execution consoles operating over intercontinental WAN links (`:16000` Studio / `:16002` Playground).
+
+### Canonical Network Ports
+
+The LIOP multi-tier topology standardizes specific network ports across services and development harnesses:
+
+| Service | Port | Protocol / Transport | Purpose |
+|:---|:---|:---|:---|
+| **Nexus Discovery / OIDC** | `:15000` (HTTP) / `:15001` (P2P) | HTTP/2, libp2p Kademlia | Seed node, manifest indexing, and RFC 6749 OAuth 2.1 token issuance |
+| **Border LIO Gateway (BLG)** | `:15018` | HTTP/2, mTLS | Perimeter gateway bridging WAN queries into PSK enclaves |
+| **The Vault Enclave (Tier 1)** | `:15013` (Internal) | gRPC / PSK Swarm | Medical records data repository (zero public ingress) |
+| **The Bank Enclave (Tier 1)** | `:15014` (Internal) | gRPC / PSK Swarm | Financial transaction ledger (zero public ingress) |
+| **The Oracle (Tier 2)** | `:15015` | gRPC / libp2p | High-Frequency Trading market simulation engine |
+| **Edge IoT (Tier 3)** | `:15016` | gRPC / WAN | Simulated remote industrial telemetry node |
+| **Circuit Relay v2** | `:15007` (P2P) / `:15017` (HTTP) | libp2p Relay | NAT traversal and public peer discovery backbone |
+| **Local Dev Playground** | `:14000` | HTTP / SSE | Standalone interactive development console (`demo:start`) |
+| **LIOP Studio Web UI** | `:16000` | HTTP / SSE | Official NPM package console (`npx @nekzus/liop-studio`) |
+| **Harness Web Playground** | `:16002` | HTTP / SSE | Embedded web testing console within Docker production harness |
+| **Prometheus Scraper** | `:9090` | HTTP | Telemetry aggregation and alerting metrics |
+| **Grafana Dashboard** | `:3000` | HTTP | Production monitoring dashboard (26 panels) |
+
+### Interceptor Demarcation & Defense-in-Depth
+
+Within this multi-tier architecture, interceptors follow strict topological demarcation per NIST SP 800-207 Zero-Trust standards:
+
+* **Perimeter Ingress (`GatewayInterceptor`)**: Runs strictly at the DMZ boundary (e.g. Nexus Gateway) to filter malformed or hostile RPC calls (SQLi, Path Traversal, Prompt Injection) with HTTP 403 and error code `-32099`. It is **strictly prohibited** inside Tier 1 Enclaves to prevent false-positive rejections on legitimate analytical code and preserve genuine Zero-Trust sandbox evaluation.
+* **Enclave Compute Isolation (`The Shield`)**: Runs inside Tier 1 Enclaves (`The Bank`, `The Vault`), containing injected code via a 6-layer defense pipeline (Guardian AST allowlist, WASI/V8 sandbox with 25 poisoned globals and fuel limits, Taint IFC, Egress PII Shield, Aggregation-First policy, and ZK-Receipts).
+* **Universal Out-of-Band Observability (`LogInterceptor` & `AuditInterceptor`)**: Deployed across all tiers (Nexus, BLG, Enclaves) executing asynchronously out-of-band (0 ms host delay) to feed external SIEM analyzers, Prometheus, and SOC 2 / HIPAA compliance ledgers.
+
+<Frame caption="LIOP Interceptor Topology: Demarcation between Ingress Admission and Enclave Isolation">
+  <img className="block dark:hidden" src="/images/animated-interceptor-topology-light.svg" alt="LIOP Interceptor Topology (Light)" />
+  <img className="hidden dark:block" src="/images/animated-interceptor-topology-dark.svg" alt="LIOP Interceptor Topology (Dark)" />
+</Frame>
+
+---
+
 ## The Logic-on-Origin Journey
 
 <Frame>
@@ -77,11 +138,11 @@ Here is the exact lifecycle of a LIOP execution, reflecting a 1:1 parity between
 
 ### 3. The Origin Ingestion (`Rust Server`)
 - **Transport Terminator:** The Data Node unwraps the Kyber secret and applies AES-256-GCM decryption natively, extracting the core payload.
-- **AST Guardian (Zero-Time Sentinel):** The Rust `wasmparser` dissects the incoming Abstract Syntax Tree. Any illegal Host imports trap the logic instantly in zero-time.
-- **Wasmtime / WASI Sandboxing:** Bytecode Alliance's engine boots a hyper-constrained memory boundary. The logic loops safely over Gigabytes of Host Data with absolute zero network overhead.
+- **AST Guardian:** The Rust `wasmparser` inspects the incoming Abstract Syntax Tree. Any unauthorized host imports halt execution prior to instantiation.
+- **Wasmtime / WASI Sandboxing:** Bytecode Alliance's engine boots a constrained memory boundary. The logic processes host data locally without moving records across the network.
 
 ### 4. Mathematical Return (`ZK-Receipt`)
-- **Mathematical Proof:** Optionally, `RISC Zero` a zkVM generates a cryptographic Journal and cryptographically proven Seal (ZK-Receipt) of the execution.
-- **Result Streaming:** The microscopic findings return through the gRPC Yamux Multiplex, empowering the Agent with final mathematical certainty.
+- **Mathematical Proof:** Optionally, a zkVM generates a cryptographic Journal and seal (ZK-Receipt) of the execution.
+- **Result Streaming:** Compact aggregated results return through gRPC streams, accompanied by cryptographic verification proofs.
 
-This E2E architecture embodies the exact code in production, providing theoretical maximum speeds for Autonomous AI Agents along with Enterprise-grade Zero-Trust privacy that is fully auditable.
+This architecture combines in-situ computational efficiency with auditable, multi-layered Zero-Trust isolation.

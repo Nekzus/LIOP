@@ -1,6 +1,8 @@
 ---
 title: "El Manifiesto de Origen"
 description: "Por qué la era del Context-Pulling está rota y Logic-Injection-on-Origin es el futuro de la IA autónoma."
+icon: "scroll"
+
 ---
 
 ## Resumen
@@ -10,7 +12,7 @@ Una malla de transporte binario descentralizada que invierte el paradigma domina
 ## 1. La Crisis del Context-Pulling
 
 <Note>
-**Definición 1 (Context-Pulling).** Patrón arquitectónico en el cual un agente de IA extrae datos crudos y sin procesar desde su nodo de origen, cruzando una frontera de red hacia un entorno de ejecución remoto para su análisis. Este patrón requiere que el propietario de los datos renuncie a la custodia física de los mismos antes de que ocurra cualquier cómputo.
+**Definición 1 (Context-Pulling).** Patrón arquitectónico en el cual un agente de IA extrae datos crudos y sin procesar desde su nodo de origen y los transfiere a través de una frontera de red hacia un entorno de ejecución remoto para su análisis. Este patrón requiere que el propietario de los datos renuncie a la custodia física de los mismos antes de que ocurra cualquier cómputo.
 </Note>
 
 La generación actual de protocolos de integración de IA — incluyendo el Model Context Protocol (MCP) — estandariza esta extracción. Si bien resulta altamente efectiva para la ergonomía de herramientas de agentes locales, extensiones de IDEs y utilidades de escritorio para desarrolladores, aplicar Context-Pulling sobre datos empresariales distribuidos transfiere megabytes o gigabytes de registros sensibles a través de internet para que un modelo centralizado pueda analizar, razonar y resumir en un servidor remoto.
@@ -48,7 +50,7 @@ Estos siete principios gobiernan cada decisión arquitectónica del protocolo. N
 4. **Verificabilidad Criptográfica** — Cada cómputo produce un ZK-Receipt que vincula el hash de salida con la lógica exacta ejecutada y el secreto de sesión. Terceros pueden auditar resultados sin re-ejecutar la lógica.
 5. **Resiliencia Cuántica** — Todos los intercambios de claves y sellos de sesión utilizan algoritmos post-cuánticos (ML-KEM-768) desde el primer día. No es un camino de actualización futura — es un requisito de lanzamiento, diseñado contra estrategias de cosecha-ahora-descifra-después.
 6. **Huella Mínima** — El protocolo debe operar en dispositivos de borde con recursos limitados. La eficiencia es una restricción dura, no un objetivo de optimización. Los límites de combustible de CPU son determinísticos y derivados del AST.
-7. **Convivencia de Ecosistema y Compatibilidad Retroactiva** — LIOP opera en la capa de cómputo soberano y malla distribuida mientras convive con protocolos de agentes a nivel de aplicación. Mediante un adaptador de gateway de era dual, los clientes MCP consumen servicios LIOP de forma transparente sin fragmentación del ecosistema.
+7. **Convivencia de Ecosistema y Compatibilidad Retroactiva** — LIOP opera en la capa de cómputo soberano y malla distribuida mientras convive con protocolos de agentes a nivel de aplicación. Mediante un adaptador de gateway de era dual, los clientes MCP consumen servicios LIOP sin requerir modificaciones en el cliente ni causar fragmentación del ecosistema.
 
 ## 4. Los Seis Escudos — Modelo de Amenazas y Capas de Defensa
 
@@ -110,31 +112,10 @@ Estas garantías no son claims de marketing. Cada una se mapea directamente a un
 
 ## 7. El Contraste
 
-```
-    CONTEXT-PULLING (Statu Quo)
-    ─────────────────────────────────────────────────
-
-    ┌──────────────┐                     ┌──────────────┐
-    │              │ GB de datos crudos  │              │
-    │  Nodo Datos  │ ──────────────────▶ │  LLM Remoto  │
-    │              │                     │              │
-    └──────────────┘ PII en tránsito     └──────────────┘
-
-
-    LOGIC-INJECTION-ON-ORIGIN (LIOP)
-    ─────────────────────────────────────────────────
-
-    ┌──────────────┐                     ┌──────────────┐
-    │              │ KB de lógica WASM   │              │
-    │  Nodo Datos  │ ◀────────────────── │ Agente (LLM) │
-    │              │                     │              │
-    └──────────────┘                     └──────────────┘
-           │                                    ▲
-           │ Resultado agregado + ZK-Receipt    │
-           └────────────────────────────────────┘
-
-       Los datos nunca salen. La prueba viaja.
-```
+<Frame caption="Contraste: Extracción de Contexto frente a Logic-Injection-on-Origin (LIOP)">
+  <img className="block dark:hidden w-full" src="/images/logic-vs-pull-light.svg" alt="Extracción de Contexto frente a Logic-Injection-on-Origin" />
+  <img className="hidden dark:block w-full" src="/images/logic-vs-pull-dark.svg" alt="Extracción de Contexto frente a Logic-Injection-on-Origin" />
+</Frame>
 
 ## 8. Gobernanza y Evolución del Protocolo
 
@@ -147,13 +128,9 @@ La implementación técnica, las primitivas criptográficas y las capacidades de
 3. **Revisión por Pares y Verificación** — Periodo mínimo de 14 días de auditoría técnica con vectores de prueba empíricos en el SDK de referencia.
 4. **Ratificación en la Especificación** — Las LEPs aprobadas se incorporan a la siguiente versión fechada de la [Especificación del Protocolo](/es/concepts/specification).
 
-## 9. Únete a la Malla
+## 9. Próximos Pasos
 
-- **Deja de Extraer.**
-- **Comienza a Inyectar.**
-- **LIO es el futuro de la IA Autónoma.**
-
-Lee la [Especificación del Protocolo](/es/concepts/specification). Ejecuta el [Playground Interactivo](http://localhost:14000). Construye tu primer Servidor LIOP con `npm install @nekzus/liop`. [Únete a la malla](/es/getting-started/quickstart).
+Consulta la [Especificación del Protocolo](/es/concepts/specification), evalúa el [Playground Web y Studio](/es/typescript-sdk/playground), o despliega un nodo enclave mediante el SDK TypeScript ejecutando `npm install @nekzus/liop`. Consulta la [Guía de Inicio](/es/getting-started/quickstart).
 
 ---
 

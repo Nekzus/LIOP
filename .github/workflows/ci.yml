@@ -52,10 +52,38 @@ jobs:
             exit 1
           fi
 
+  detect-changes:
+    name: Detect Changed Workspaces
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      sdk: ${{ steps.filter.outputs.sdk }}
+      studio: ${{ steps.filter.outputs.studio }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v6
+      - name: Paths Filter
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            sdk:
+              - 'sdks/typescript/**'
+              - 'protocol/**'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+            studio:
+              - 'tools/liop-studio/**'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+
   test:
-    name: Build & Test on ${{ matrix.os }} (Node ${{ matrix.node-version }})
+    name: SDK Build & Test on ${{ matrix.os }} (Node ${{ matrix.node-version }})
     runs-on: ${{ matrix.os }}
-    needs: lint
+    needs: [lint, detect-changes]
+    if: needs.detect-changes.outputs.sdk == 'true' || github.event_name == 'pull_request'
     timeout-minutes: 15
 
     strategy:
@@ -79,7 +107,6 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: 'pnpm'
 
-
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
 
@@ -88,6 +115,46 @@ jobs:
 
       - name: Run Tests
         run: pnpm run test
+
+  test-studio:
+    name: Studio Build & Test on ${{ matrix.os }} (Node ${{ matrix.node-version }})
+    runs-on: ${{ matrix.os }}
+    needs: [lint, detect-changes]
+    if: needs.detect-changes.outputs.studio == 'true' || github.event_name == 'pull_request'
+    timeout-minutes: 15
+
+    strategy:
+      fail-fast: true
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        node-version: [24.x, 22.x]
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'pnpm'
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Core SDK
+        run: pnpm --filter @nekzus/liop build
+
+      - name: Run Build Studio All
+        run: pnpm --filter @nekzus/liop-studio build:all
+
+      - name: Run Studio Unit Tests
+        run: pnpm --filter @nekzus/liop-studio test
 
   security:
     name: Dependency Security Audit
@@ -117,11 +184,11 @@ jobs:
         run: pnpm audit --audit-level=high
 
   publish:
-    name: Publish to NPM
-    needs: [lint, test, security]
+    name: Publish SDK to NPM
+    needs: [lint, detect-changes, test, security]
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/alpha' || github.ref == 'refs/heads/beta' || startsWith(github.ref, 'refs/heads/feat/'))
+    if: (needs.detect-changes.outputs.sdk == 'true') && github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/alpha' || github.ref == 'refs/heads/beta' || startsWith(github.ref, 'refs/heads/feat/'))
     permissions:
       contents: write
       issues: write
@@ -147,7 +214,6 @@ jobs:
           node-version: 24
           cache: 'pnpm'
 
-
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
 
@@ -158,7 +224,7 @@ jobs:
         if: github.ref_name == 'alpha' || github.ref_name == 'beta' || github.ref_name == 'main'
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-        run: npx semantic-release
+        run: npx semantic-release -e ./release.sdk.config.js
 
       - name: Publish Package to NPM (OIDC Trusted Publishing)
         run: |
@@ -166,4 +232,58 @@ jobs:
             pnpm --filter @nekzus/liop publish --no-git-checks --provenance
           else
             pnpm --filter @nekzus/liop publish --no-git-checks --provenance --tag ${{ github.ref_name }}
+          fi
+
+  publish-studio:
+    name: Publish LIOP Studio to NPM
+    needs: [lint, detect-changes, test-studio, security]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: (needs.detect-changes.outputs.studio == 'true') && github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/alpha' || github.ref == 'refs/heads/beta')
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+      id-token: write
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+
+      - name: Fetch Git Notes
+        run: git fetch origin +refs/notes/semantic-release:refs/notes/semantic-release || true
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: 'pnpm'
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Core SDK
+        run: pnpm --filter @nekzus/liop build
+
+      - name: Run Build Studio All
+        run: pnpm --filter @nekzus/liop-studio build:all
+
+      - name: Semantic Release Studio
+        if: github.ref_name == 'alpha' || github.ref_name == 'beta' || github.ref_name == 'main'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: npx semantic-release -e ./tools/liop-studio/release.config.js
+
+      - name: Publish Studio to NPM (OIDC Trusted Publishing)
+        run: |
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            pnpm --filter @nekzus/liop-studio publish --no-git-checks --provenance
+          else
+            pnpm --filter @nekzus/liop-studio publish --no-git-checks --provenance --tag ${{ github.ref_name }}
           fi

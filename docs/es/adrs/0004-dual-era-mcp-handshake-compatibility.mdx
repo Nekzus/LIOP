@@ -1,0 +1,63 @@
+---
+title: "ADR-0004: Negociación Dual de Eras MCP (2026/2025)"
+description: "Decisión arquitectónica que implementa la adaptación automática de protocolo para clientes MCP de las especificaciones 2026-07-28 y 2025-11-25."
+icon: "cable"
+---
+
+# Negociación Dual de Eras MCP (2026/2025)
+
+- **Estado:** Aceptada
+- **Responsables:** Comité de Arquitectura del Protocolo, Equipo de Interoperabilidad
+- **Fecha:** 2026-09-05
+- **Referencia Técnica:** Puente del Ecosistema MCP y Compatibilidad Intergeneracional
+
+---
+
+## Contexto y Definición del Problema
+
+El ecosistema de Model Context Protocol (MCP) ha evolucionado a través de dos especificaciones divergentes:
+
+1. **Especificación Legada (2025-11-25):** Utiliza esquemas estrictos de petición-respuesta en JSON-RPC sin soporte para streaming de eventos en tiempo real. Los clientes antiguos rechazan respuestas que contengan campos no reconocidos en el nivel superior.
+2. **Especificación Moderna (2026-07-28):** Introduce streaming bidireccional, notificaciones mediante `subscriptions/listen`, negociación dinámica de capacidades y plantillas de recursos parametrizadas (`resources/templates/list`).
+
+Exigir de forma obligatoria los esquemas de 2026 invalida implementaciones existentes de agentes. Por el contrario, limitar la pasarela a las estructuras de 2025 degrada a los clientes modernos a ciclos periódicos de sondeo (polling), con el consiguiente desperdicio de ancho de banda y latencia.
+
+---
+
+## Factores Determinantes
+
+- **Interoperabilidad Universal:** Compatibilidad inmediata tanto con clientes MCP históricos (2025) como modernos (2026) sin requerir variables de configuración manuales.
+- **Eficiencia Basada en Eventos:** Habilitar notificaciones automáticas para clientes con soporte de `subscriptions/listen`.
+- **Transcodificación sin Pérdida:** Conversión bidireccional limpia entre mensajes JSON-RPC 2.0 y flujos binarios gRPC/Protobuf nativos de LIOP.
+
+---
+
+## Opciones Evaluadas
+
+1. **Exigir Exclusivamente la Especificación 2026-07-28:** Rechaza clientes heredados y obliga a actualizar el software anfitrión, lo que fragmenta la base de usuarios.
+2. **Despliegue con Doble Puerto:** Levantar dos demonios de pasarela independientes en puertos distintos (ej. `:15018` para 2026 y `:15019` para 2025), lo que duplica el consumo de memoria y complica la orquestación en Docker.
+3. **Negociación Adaptativa In-Situ con Purgado Síncrono:** Una única pasarela inspecciona `params.protocolVersion` durante el apretón de manos inicial (`initialize`), registra la era del cliente en memoria de sesión y ejecuta `adaptResponseForLegacyClient()` para depurar campos modernos en conexiones de 2025.
+
+---
+
+## Decisión Adoptada
+
+**Opción Seleccionada:** Opción 3 — Pasarela unificada con adaptación dinámica y depuración síncrona de respuestas para clientes legados.
+
+### Consecuencias Positivas
+
+- **Compatibilidad Amplia:** Permite la conexión transparente de versiones estables de Claude Desktop, orquestadores modernos de subagentes y sistemas de automatización industrial.
+- **Eliminación del Sondeo:** Los clientes de la era 2026 se suscriben a eventos de la malla mediante `subscriptions/listen`, lo que suprime el tráfico periódico innecesario.
+- **Resolución Elástica de Parámetros:** El motor transcodificador procesa estructuras anidadas (`params.arguments`) y planas (`params.payload`), lo que previene la pérdida de argumentos entre clientes dispares.
+
+### Consecuencias Negativas y Mitigaciones
+
+- **Lógica de Filtrado en Serialización:** El pipeline de respuesta debe mantener transformadores de compatibilidad.  
+  *Mitigación:* Se implementa en funciones aisladas (`adaptResponseForLegacyClient`), verificadas mediante suites de pruebas automáticas frente a ambas especificaciones oficiales.
+
+---
+
+## Verificación y Cumplimiento
+
+- Implementado en `sdks/typescript/src/gateway/mcp-bridge.ts`.
+- Certificado en la suite `vitest.audit.config.ts` (Suite 5: *Dual-Era MCP Handshake Compliance & Transcoding*).

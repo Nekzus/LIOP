@@ -1,0 +1,143 @@
+---
+title: "Bridges & Transports"
+description: "Bi-directional bridging between native LIOP servers, standard MCP stdio, and Streamable HTTP transports"
+icon: "cable"
+
+---
+
+The `@nekzus/liop/bridge` module provides two primary bridging abstractions: **`LiopMcpBridge`** for local STDIO process integration (e.g., Claude Desktop, Cursor, Zed) and **`LiopStreamBridge`** for remote HTTP/SSE streaming over networks.
+
+```typescript
+import { LiopMcpBridge, LiopStreamBridge } from "@nekzus/liop/bridge";
+```
+
+<Frame caption="LIOP Bridge: Bi-directional translation between MCP JSON-RPC and internal binary envelopes">
+  <img className="block dark:hidden" src="/images/bridge-flow-light.svg" alt="LIOP Bridge Architecture (Light)" />
+  <img className="hidden dark:block" src="/images/bridge-flow-dark.svg" alt="LIOP Bridge Architecture (Dark)" />
+</Frame>
+
+---
+
+## 1. Local STDIO Bridge (`LiopMcpBridge`)
+
+`LiopMcpBridge` operates in two distinct modes depending on the source object passed to its constructor:
+
+### Mode A: EXPOSE (LIOP Server → MCP Stdio Client)
+
+Exposes a native `LiopServer` as a standard MCP server running over `stdio`. This allows local desktop clients like Claude Desktop or Cursor to invoke tools while maintaining in-situ WASM execution and ZK-Receipt verification behind the scenes.
+
+```typescript server-stdio.ts
+import { LiopServer } from "@nekzus/liop";
+import { LiopMcpBridge } from "@nekzus/liop/bridge";
+import { z } from "zod";
+
+const server = new LiopServer({
+  name: "LocalDataEnclave",
+  version: "1.0.0",
+});
+
+server.tool(
+  "audit_records",
+  "Analyzes local records without egressing raw rows.",
+  { threshold: z.number() },
+  async ({ threshold }) => {
+    return {
+      content: [{ type: "text", text: `Audit completed above threshold ${threshold}` }],
+    };
+  }
+);
+
+// Wrap the LIOP server and listen on process.stdin / process.stdout
+const bridge = new LiopMcpBridge(server);
+await bridge.startStdio();
+```
+
+### Mode B: WRAP (Legacy MCP Server → LIOP Mesh)
+
+Wraps an existing `@modelcontextprotocol/sdk` `McpServer` and advertises its capabilities into the decentralized LIOP P2P mesh as an enclave.
+
+```typescript wrap-legacy-mcp.ts
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { LiopMcpBridge } from "@nekzus/liop/bridge";
+import { z } from "zod";
+
+const legacyServer = new McpServer({
+  name: "LegacyInventoryServer",
+  version: "2.1.0",
+});
+
+legacyServer.tool("get_stock", { sku: z.string() }, async ({ sku }) => {
+  return { content: [{ type: "text", text: `Stock for ${sku}: 42` }] };
+});
+
+// Joins the LIOP Kademlia DHT mesh automatically
+const bridge = new LiopMcpBridge(legacyServer, {
+  publishToMesh: true,
+  serverInfo: {
+    name: "LegacyInventoryServer",
+    version: "2.1.0",
+  },
+});
+```
+
+### Configuration Options (`LiopBridgeOptions`)
+
+| Option | Type | Default | Description |
+|:---|:---|:---|:---|
+| `publishToMesh` | `boolean` | `false` | When wrapping a legacy MCP server, announces its tools to the Kademlia DHT |
+| `meshIdentity` | `string` | *(auto)* | Ed25519 identity key file path for P2P mesh presence |
+| `serverInfo` | `object` | `{ name, version }` | Advertised name and semantic version exposed to clients |
+| `security` | `object` | *(inherited)* | Isolation, fuel limit, and PII shield configuration |
+
+---
+
+## 2. Remote HTTP Bridge (`LiopStreamBridge`)
+
+`LiopStreamBridge` exposes a `LiopServer` over the network using the official MCP Streamable HTTP transport powered by Hono. External agents connect via HTTP with Server-Sent Events (SSE) and mandatory Bearer token authentication.
+
+```typescript server-http.ts
+import { LiopServer } from "@nekzus/liop";
+import { LiopStreamBridge } from "@nekzus/liop/bridge";
+
+const server = new LiopServer({
+  name: "RemoteAnalyticsEnclave",
+  version: "1.0.0",
+});
+
+// Configure and start HTTP bridge on port 3000
+const streamBridge = new LiopStreamBridge(server, {
+  port: 3000,
+  maxSessionsPerIp: 10,
+  sessionTimeoutMs: 15 * 60 * 1000, // 15 minutes
+});
+
+await streamBridge.start();
+console.log("Streamable HTTP Bridge listening at http://localhost:3000/mcp");
+
+// Graceful shutdown on SIGTERM
+process.on("SIGTERM", async () => {
+  await streamBridge.close();
+});
+```
+
+### Hardening & Defense Properties
+
+1. **Bearer Token Authentication**: Enforces `Authorization: Bearer <token>` on all `/mcp` endpoints. If `ZERO_TRUST_TOKEN` is unset in the environment, generates a cryptographically secure UUID token at startup.
+2. **Session Eviction**: An automated background timer sweeps active sessions every 60 seconds, evicting any session whose inactivity exceeds `sessionTimeoutMs`.
+3. **Per-IP Concurrency Caps**: Restricts concurrent active sessions per source IP address to prevent socket exhaustion and denial-of-service attempts.
+
+### Configuration Options (`LiopStreamBridgeOptions`)
+
+| Option | Type | Default | Description |
+|:---|:---|:---|:---|
+| `port` | `number` | `3000` | HTTP TCP port for incoming client requests |
+| `maxSessionsPerIp` | `number` | `10` | Maximum active concurrent sessions permitted per IP |
+| `sessionTimeoutMs` | `number` | `1800000` (30m) | Inactivity threshold before session state is purged |
+
+---
+
+## Dual-Era Protocol Handling
+
+Both bridges incorporate automatic era negotiation:
+* **MCP 2026-07-28**: Native support for stateless `server/discover` probes, `resultType: "complete"` tool listings, and non-polling subscriptions.
+* **MCP 2025-11-25**: Automatic metadata pruning (`adaptResponseForLegacyClient`) ensures legacy desktop clients receive backward-compatible JSON payloads without syntax rejections.

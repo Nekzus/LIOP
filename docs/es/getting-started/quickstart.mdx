@@ -1,6 +1,8 @@
 ---
 title: "Inicio Rápido"
-description: "Comienza con LIOP en menos de 5 minutos usando el SDK de TypeScript"
+description: "Inicio rápido con LIOP en menos de 5 minutos mediante el SDK de TypeScript"
+icon: "rocket"
+
 ---
 
 El ecosistema `@nekzus/liop` está diseñado para ser potente pero familiar. Si has construido servidores para MCP, la transición a LIOP es casi directa.
@@ -8,127 +10,156 @@ El ecosistema `@nekzus/liop` está diseñado para ser potente pero familiar. Si 
 En esta guía, crearemos un Servidor LIOP que expone una herramienta y un Cliente que la invoca.
 
 <Note>
-  Internamente, LIOP compila tu lógica a WebAssembly y la inyecta vía P2P. El SDK abstrae todo esto para que te enfoques en la lógica de negocio.
+  Internamente, LIOP compila la lógica en módulos aislados y la distribuye por la malla. El SDK gestiona el transporte gRPC y P2P subyacente y provee métodos estándar de registro e invocación de herramientas.
 </Note>
 
-## 1. Instalación
+<Tip>
+  **¿Desarrollas en Rust?** LIOP ofrece crates nativos en Rust (`liop-client` y `liop-core`) para software de sistemas, módulos WASI huésped y agentes de baja latencia. Consulta la [Visión General del SDK de Rust](/es/rust-sdk/overview) para instrucciones de configuración con Cargo y ejemplos de inyección in-situ.
+</Tip>
 
-Instala el SDK en tu proyecto de Node.js o TypeScript.
+<Steps>
+  <Step title="Instalar el SDK">
+    Instala el SDK oficial en tu proyecto de Node.js o TypeScript:
 
-<CodeGroup>
-```bash npm
-npm install @nekzus/liop@latest zod
-```
-```bash pnpm
-pnpm add @nekzus/liop@latest zod
-```
-```bash yarn
-yarn add @nekzus/liop@latest zod
-```
-</CodeGroup>
+    <CodeGroup>
+    ```bash npm
+    npm install @nekzus/liop@latest zod
+    ```
+    ```bash pnpm
+    pnpm add @nekzus/liop@latest zod
+    ```
+    ```bash yarn
+    yarn add @nekzus/liop@latest zod
+    ```
+    </CodeGroup>
+  </Step>
 
-## 2. Crear un Servidor LIOP (Data Node)
+  <Step title="Crear un Servidor LIOP (Data Node)">
+    Un Servidor LIOP actúa como un Nodo de Datos. Se conecta a la malla y procesa la lógica inyectada por agentes remotos para ofrecer herramientas y recursos protegidos.
 
-Un Servidor LIOP actúa como un Nodo de Datos. Se conecta a la malla y espera lógica inyectada de agentes remotos.
+    Crea un archivo llamado `server.ts`:
 
-Crea un archivo llamado `server.ts`:
+    ```typescript server.ts
+    import { LiopServer } from '@nekzus/liop';
+    import { z } from 'zod';
 
-```typescript server.ts
-import { LiopServer } from '@nekzus/liop';
-import { z } from 'zod';
-
-// Inicializa el servidor con identidad
-const server = new LiopServer({
-  name: "MyLocalDataNode",
-  version: "1.0.0"
-});
-
-// Expone una capacidad (Tool)
-server.tool(
-  "query_database",
-  "Analiza tablas masivas directamente en el origen.",
-  { query: z.string() },
-  async ({ query }) => {
-    console.log(`[Server] Ejecutando Logic-Injection-on-Origin: ${query}`);
-    
-    // Aquí se procesarían los datos locales (ej. 5GB)
-    // Solo el resultado final sale del servidor
-    return {
-      content: [{ type: "text", text: `Resultado de la consulta: ${query}` }]
-    };
-  }
-);
-
-// Inicia la conexión y anúncialo en la malla DHT Kademlia
-async function main() {
-  await server.connect();
-  console.log("Servidor LIOP escuchando en la malla...");
-}
-
-main().catch(console.error);
-```
-
-## 3. Crear un Cliente LIOP (Agent Node)
-
-El Cliente actúa como la Inteligencia. Descubre servidores e inyecta solicitudes (intenciones).
-
-Crea un archivo llamado `client.ts`:
-
-```typescript client.ts
-import { LiopClient } from '@nekzus/liop';
-
-async function main() {
-  // TLS es opcional para desarrollo local
-  const client = new LiopClient();
-
-  await client.connect();
-  console.log("Conectado al Logic-Injection-on-Origin Protocol...");
-
-  try {
-    // Invoca la herramienta usando CallToolRequest
-    const result = await client.callTool({
-      name: "query_database",
-      arguments: {
-        query: "SELECT * FROM massive_table WHERE anomaly = true"
-      }
+    // Inicializa el servidor con identidad
+    const server = new LiopServer({
+      name: "MyLocalDataNode",
+      version: "1.0.0"
     });
 
-    console.log("Resultado recibido:");
-    console.log(result.content[0].text);
-  } catch (err) {
-    console.error("Fallo en la ejecución del Agente:", err);
-  }
-}
+    // Expone una capacidad (Tool)
+    // En LIOP, la lógica asíncrona se convierte en una Capacidad aislada para agentes WASM
+    server.tool(
+      "query_database",
+      "Analiza tablas masivas directamente en el origen.",
+      { query: z.string() },
+      async ({ query }) => {
+        console.log(`[Server] Ejecución de Logic-Injection-on-Origin: ${query}`);
+        
+        // El procesamiento ocurre directamente en el origen.
+        // Solo el resultado final consolidado sale del servidor.
+        return {
+          content: [{ type: "text", text: `Resultado de la consulta: ${query}` }]
+        };
+      }
+    );
 
-main().catch(console.error);
-```
+    // Inicia la conexión y anúncialo en la malla DHT Kademlia
+    async function main() {
+      await server.connect();
+      console.log("Servidor LIOP activo en la malla...");
+    }
 
-## 4. Ejecutar la Malla
+    main().catch(console.error);
+    ```
+  </Step>
 
-Primero, inicia el servidor:
-```bash
-npx tsx server.ts
-# Salida: Servidor LIOP escuchando en la malla...
-```
+  <Step title="Crear un Cliente LIOP (Agent Node)">
+    El Cliente actúa como la Inteligencia. Descubre servidores e inyecta solicitudes lógicas.
 
-En otra terminal, lanza el Agente:
-```bash
-npx tsx client.ts
-# Salida: Conectado al Logic-Injection-on-Origin Protocol...
-# Salida: Resultado recibido:
-# Salida: Resultado de la consulta: SELECT * FROM massive_table WHERE anomaly = true
-```
+    Crea un archivo llamado `client.ts`:
 
-## 5. Experimenta con la UI Interactiva del Playground Web
+    ```typescript client.ts
+    import { LiopClient } from '@nekzus/liop';
 
-Para depuración visual, probar lógica WASM/JS in-situ e inspeccionar pruebas criptográficas en tiempo real, inicia el **LIOP Web Playground**:
+    async function main() {
+      // TLS es opcional para desarrollo local
+      const client = new LiopClient();
 
-```bash
-# Iniciar la malla local completa + playground interactivo en Docker
-pnpm run demo:start
-```
+      await client.connect();
+      console.log("Conectado al Logic-Injection-on-Origin Protocol...");
 
-Una vez en ejecución, abre **`http://localhost:14000`** en tu navegador:
+      try {
+        // Invoca la herramienta mediante CallToolRequest
+        const result = await client.callTool({
+          name: "query_database",
+          arguments: {
+            query: "SELECT * FROM massive_table WHERE anomaly = true"
+          }
+        });
+
+        console.log("Resultado recibido:");
+        console.log(result.content[0].text);
+      } catch (err) {
+        console.error("Fallo en la ejecución del Agente:", err);
+      }
+    }
+
+    main().catch(console.error);
+    ```
+  </Step>
+
+  <Step title="Ejecutar la Malla">
+    Primero, inicia el servidor:
+    ```bash
+    npx tsx server.ts
+    # Salida: Servidor LIOP activo en la malla...
+    ```
+
+    En otra terminal, ejecuta el cliente del agente:
+    ```bash
+    npx tsx client.ts
+    # Salida: Conectado al Logic-Injection-on-Origin Protocol...
+    # Salida: Resultado recibido:
+    # Salida: Resultado de la consulta: SELECT * FROM massive_table WHERE anomaly = true
+    ```
+  </Step>
+</Steps>
+
+## Experimenta con LIOP Studio y el Playground Interactivo
+
+Para depuración visual, validación de lógica WASM/JS in-situ e inspección de pruebas criptográficas en tiempo real, elige el entorno correspondiente a tu instalación:
+
+<Tabs>
+  <Tab title="Independiente (NPM / npx)">
+    Si instalaste `@nekzus/liop` en tu propio proyecto, inicia **LIOP Studio** directamente sin clonar el repositorio:
+
+    ```bash
+    # Ejecuta el estudio web enlazado a tu servidor local o endpoint MCP (:16000)
+    npx @nekzus/liop-studio --http "http://localhost:3000/mcp"
+
+    # O ejecuta un escaneo de capacidades sin interfaz gráfica
+    npx @nekzus/liop-studio scan http://localhost:3000/mcp
+    ```
+
+    Abre **`http://localhost:16000`** en tu navegador para inspeccionar la malla.
+  </Tab>
+
+  <Tab title="Desde el Monorepo">
+    Si clonaste el repositorio de LIOP, inicia la malla local completa y el entorno de desarrollo:
+
+    ```bash
+    # Inicia los nodos locales y la interfaz de desarrollo (:14000)
+    pnpm run demo:start
+    ```
+
+    Abre **`http://localhost:14000`** en tu navegador.
+  </Tab>
+</Tabs>
+
+Capacidades principales en ambas interfaces:
 
 * **Línea de Tiempo de Streaming en Vivo:** Eventos Server-Sent Events (SSE) en tiempo real que rastrean 7 fases de ejecución (*Bootstrap*, *Discovery*, *Handshake PQC ML-KEM-768*, *Sellado AES-256-GCM*, *Ejecución en Sandbox WASI*, *Verificación de Recibo ZK* y *Resultado Agregado*).
 * **Editor de Código con Plantillas:** Prueba micro-módulos preconfigurados para Trading de Alta Frecuencia (HFT), detección de anomalías bancarias, análisis de historias clínicas o defensa contra exfiltración PII.
@@ -137,17 +168,29 @@ Una vez en ejecución, abre **`http://localhost:14000`** en tu navegador:
 
 ## ¿Qué acaba de ocurrir?
 
+<CardGroup cols={3}>
+  <Card title="1. Descubrimiento de Pares" icon="magnifying-glass">
+    El cliente localiza el enclave destino mediante la DHT Kademlia o el directorio Nexus sin intermediarios centralizados.
+  </Card>
+  <Card title="2. Túnel Post-Cuántico" icon="key">
+    La encapsulación de claves ML-KEM-768 establece un túnel cifrado con AES-256-GCM resistente a ataques cuánticos futuros.
+  </Card>
+  <Card title="3. Ejecución In-Situ" icon="shield-check">
+    La lógica inyectada se ejecuta en un sandbox WASI aislado. Solo los resultados agregados y los recibos ZK salen del enclave.
+  </Card>
+</CardGroup>
+
 A diferencia de las APIs tradicionales o el parsing de strings en MCP:
 1. Tu Cliente descubrió el Servidor instantáneamente mediante la **tabla de enrutamiento Kademlia P2P**.
 2. Un handshake **Post-Cuántico Kyber (ML-KEM-768)** aseguró la sesión.
-3. La consulta se serializó en un formato **binario Protobuf** ultra compacto y se selló con **AES-256-GCM**.
+3. La consulta se serializó en formato binario con **Protocol Buffers** y se cifró con **AES-256-GCM**.
 4. La ejecución ocurrió dentro de un **sandbox WASI** en el servidor, protegido por el **Guardian AST** y el **Egress PII Shield**.
 5. El resultado se selló criptográficamente con un **recibo ZK HMAC-SHA256**.
 
 ## Siguientes Pasos
 
-Ahora que has ejecutado tu primera misión en la malla, explora la arquitectura para aprovechar Watchdogs y Pruebas ZK.
+Una vez ejecutado el cliente en la malla, revisa la arquitectura del núcleo para configurar Watchdogs persistentes y atestaciones ZK.
 
-<Card title="Arquitectura del Core" icon="sitemap" href="/es/concepts/architecture">
-  Aprende cómo la capa de datos y transporte se sinergizan en LIOP.
+<Card title="Arquitectura del Protocolo" icon="sitemap" href="/es/concepts/architecture">
+  Conoce cómo interactúan las capas de transporte y datos en LIOP.
 </Card>

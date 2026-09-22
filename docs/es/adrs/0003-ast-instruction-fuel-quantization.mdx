@@ -1,0 +1,62 @@
+---
+title: "ADR-0003: Cuantización de Fuel AST en Bloques de 100 Unidades"
+description: "Decisión arquitectónica que cuantiza la medición de CPU en bloques de 100 unidades para eliminar canales laterales de temporización según NIST SP 800-53."
+icon: "gauge"
+---
+
+# Cuantización de Fuel AST en Bloques de 100 Unidades
+
+- **Estado:** Aceptada
+- **Responsables:** Comité de Arquitectura del Protocolo, Equipo de Seguridad Criptográfica
+- **Fecha:** 2026-08-29
+- **Referencia Técnica:** Defensa contra Canales Laterales de Temporización y Norma NIST SP 800-53 SC-39
+
+---
+
+## Contexto y Definición del Problema
+
+Cuando agentes remotos ejecutan lógica inyectada sobre conjuntos de datos confidenciales, un atacante puede intentar ataques de inferencia por canal lateral. Al diseñar bifurcaciones condicionales que dependen de campos privados (por ejemplo, evaluar el valor numérico de caracteres sensibles), el adversario deduce datos confidenciales al observar micro-variaciones en la duración de la respuesta o en el recuento exacto de instrucciones devuelto en los metadatos de telemetría.
+
+Aun cuando la Capa 4 (Egress PII Shield) y la Capa 5 (Aggregation-First Policy) impidan la extracción directa de filas completas, una telemetría con granularidad excesiva filtra información a través de la red.
+
+---
+
+## Factores Determinantes
+
+- **Prevención Determinista de DoS:** Límites estrictos de ciclos de CPU para prevenir bucles infinitos y agotamiento de memoria.
+- **Eliminación de Canales Laterales:** Bloqueo de la inferencia estadística de datos privados mediante variaciones temporales o métricas de ciclos exactos.
+- **Agnosticismo de Hardware:** El cómputo de recursos debe ser idéntico con independencia de la frecuencia de reloj del procesador, la jerarquía de caché o el sistema operativo anfitrión.
+- **Alineación con Estándares:** Conformidad con NIST SP 800-53 SC-39 (*Process Isolation and Timing Obfuscation*).
+
+---
+
+## Opciones Evaluadas
+
+1. **Límite Temporal Exclusivo por Reloj de Pared (Wall-Clock):** Cancela la ejecución tras un tiempo fijo (ej. $50\text{ ms}$). Presenta alta susceptibilidad a la variabilidad de CPU en máquinas virtuales compartidas y ataques de temporización de grano grueso.
+2. **Medición Exacta Instrucción por Instrucción:** Contabiliza cada nodo AST con precisión exacta ($\text{fuel} = 14,327$). Aunque ofrece exactitud matemática, las diferencias puntuales delatan las ramas ejecutadas y exponen decisiones lógicas sobre datos privados.
+3. **Ponderación de Instrucciones AST con Cuantización en Bloques de 100 Unidades:** Analiza el sobre de lógica mediante el AST de Acorn, pondera las operaciones y redondea el combustible hacia el múltiplo de 100 superior más cercano:
+   $$\text{fuel}_{\text{cuantizado}} = \left\lceil \frac{\text{fuel}_{\text{exacto}}}{100} \right\rceil \times 100$$
+
+---
+
+## Decisión Adoptada
+
+**Opción Seleccionada:** Opción 3 — Cálculo estático de combustible AST con cuantización en bloques discretos de 100 unidades.
+
+### Consecuencias Positivas
+
+- **Mitigación de Canales Laterales:** Oculta las micro-variaciones en las rutas de ejecución; cualquier diferencia inferior a 100 instrucciones virtuales emite un registro de telemetría idéntico.
+- **Presupuesto Determinista:** Los enclaves rechazan cargas útiles que excedan el límite de combustible asignado antes de iniciar la ejecución en el sandbox.
+- **Invariante de Plataforma:** La evaluación del árbol AST genera el mismo valor de combustible en arquitecturas x86_64, ARM64, servidores dedicados o contenedores en la nube.
+
+### Consecuencias Negativas y Mitigaciones
+
+- **Pérdida de Granularidad Fina:** Tareas que consumen 101 unidades reflejan un reporte de 200 unidades de fuel.  
+  *Mitigación:* La diferencia de hasta 99 unidades carece de impacto económico significativo en entornos de producción y aporta una protección criptográfica indispensable.
+
+---
+
+## Verificación y Cumplimiento
+
+- Implementado en `sdks/typescript/src/security/ast-fuel.ts` (`calculateAstInstructionFuel`).
+- Certificado en la suite `vitest.audit.config.ts` (Suite 4: *In-situ Deterministic Fuel & Token Telemetry Invariant*).

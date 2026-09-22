@@ -1,3 +1,6 @@
+// Copyright 2026 Nekzus Solutions and contributors
+// SPDX-License-Identifier: Apache-2.0
+
 import { z } from "zod";
 
 /**
@@ -170,6 +173,23 @@ export interface McpResponse {
 	};
 }
 
+/**
+ * Re-export Gateway Interceptor types for consumer convenience.
+ */
+export type {
+	GatewayAdmissionResult,
+	GatewayInterceptor,
+	GatewayInterceptorContext,
+	GatewayInterceptorOptions,
+} from "./gateway/interceptor.js";
+export type { AuditInterceptor } from "./interceptors/audit-interceptor.js";
+/**
+ * Re-export Log & Audit Interceptor types for consumer convenience.
+ */
+export type {
+	LogEvent,
+	LogInterceptor,
+} from "./interceptors/log-interceptor.js";
 /**
  * Re-export AuthInfo from the security module for convenience.
  * Compatible with MCP TypeScript SDK AuthInfo interface shape.

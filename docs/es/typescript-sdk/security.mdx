@@ -1,9 +1,11 @@
 ---
 title: "Arquitectura de Seguridad"
 description: "Capas de defensa en profundidad, pipelines criptográficos y mecanismos de protección de datos en el SDK TypeScript de LIOP"
+icon: "lock"
+
 ---
 
-El SDK TypeScript de LIOP aplica un modelo de seguridad basado en **defensa en profundidad**, compuesto por seis capas independientes. Cada capa aborda una superficie de amenaza distinta — desde el análisis estático de código hasta el filtrado de datos post-ejecución — garantizando que ningún punto único de fallo pueda comprometer el sistema.
+El SDK TypeScript de LIOP aplica un modelo de seguridad basado en **defensa en profundidad**, compuesto por seis capas independientes. Cada capa aborda una superficie de amenaza distinta (desde el análisis estático de código hasta el filtrado de datos post-ejecución), garantizando que ningún punto único de fallo pueda comprometer el sistema.
 
 <Note>
   Las características marcadas con **[ROADMAP]** están definidas arquitectónicamente pero aún no están disponibles en la versión actual.
@@ -21,17 +23,17 @@ El SDK TypeScript de LIOP aplica un modelo de seguridad basado en **defensa en p
 | Capa | Propósito | Momento |
 |:-----|:----------|:--------|
 | **Guardian AST** | Bloquea importaciones WASM no autorizadas antes de la ejecución | Pre-compilación |
-| **WASI Sandbox** | Aísla el entorno de ejecución con 25 globales envenenados y límites de CPU | Ejecución |
-| **Prototype Defense** | Congela 11 prototipos core en modo estricto para prevenir ataques de contaminación | Ejecución |
-| **PII Shield** | Previene la fuga de datos mediante validadores algorítmicos | Post-ejecución |
-| **Aggregation Policy** | Impone límites de cardinalidad en la salida de datos a nivel de fila | Post-ejecución |
-| **ZK-Receipt** | Proporciona prueba HMAC-SHA256 de computación honesta | Post-ejecución |
+| **WASI Sandbox** | Aísla el entorno de ejecución con 25 globales envenenados, congelamiento de prototipos y límites de CPU | Ejecución |
+| **IFC Taint Analyzer** | Control de flujo de información que previene derivaciones PII y canales laterales por claves computadas | Pre-flight |
+| **PII Shield** | Previene la fuga de datos mediante validadores algorítmicos y detección NER | Post-ejecución |
+| **Aggregation Policy** | Impone límites de cardinalidad en la salida de datos a nivel de fila (Aggregation-First) | Post-ejecución |
+| **ZK-Receipt** | Proporciona prueba HMAC-SHA256 de computación honesta vinculada a claves de sesión PQC | Post-ejecución |
 
 ---
 
 ## Capa 1: Guardian AST
 
-El módulo Guardian AST realiza una inspección estática de latencia cero sobre los módulos WebAssembly **antes** de su compilación. Utiliza `WebAssembly.Module.imports()` para enumerar todas las solicitudes de importación dirigidas al host y validarlas contra una lista blanca estricta.
+El módulo Guardian AST realiza una inspección estática síncrona sobre los módulos WebAssembly **antes** de su compilación. Utiliza `WebAssembly.Module.imports()` para enumerar todas las solicitudes de importación dirigidas al host y validarlas contra una lista blanca estricta.
 
 ### Lista Blanca de Funciones WASI
 
@@ -81,7 +83,7 @@ const POISONED_GLOBALS = [
 ```
 
 <Tip>
-  El **envenenamiento de `Date`** previene que la lógica inyectada realice análisis de canal lateral por temporización para inferir el tamaño del dataset o los patrones de ejecución. El **envenenamiento de TypedArrays** previene ataques DoS de tipo Heap Bomb que alojan buffers binarios masivos para crashear el proceso worker.
+  El **envenenamiento de `Date`** previene que la lógica inyectada realice análisis de canal lateral por temporización para inferir el tamaño del dataset o los patrones de ejecución. El **envenenamiento de TypedArrays** previene ataques DoS de tipo Heap Bomb que alojan buffers binarios masivos para causar la caída del proceso de trabajo.
 </Tip>
 
 Tras la asignación, el contexto completo del sandbox se congela recursivamente mediante `Object.freeze()`, impidiendo cualquier alteración del entorno aislado en tiempo de ejecución.
@@ -106,7 +108,7 @@ Object.freeze(Error.prototype);
 
 Debido a que `Function` y otros espacios de nombres globales están explícitamente envenenados (establecidos como `undefined`) en el ámbito global para eliminar vías de escape de ejecución, no es posible congelar `Function.prototype` directamente. El SDK lo resuelve dinámicamente mediante `Object.getPrototypeOf(function(){})` para aplicar el congelamiento.
 
-Toda la ejecución del huésped se envuelve en un bloque que contiene `"use strict";`. Por consiguiente, cualquier intento por parte del código inyectado de escribir o asignar propiedades a estos prototipos congelados (ej., `Object.prototype.polluted = "leak"`) arrojará inmediatamente un error duro `TypeError`, deteniendo la ejecución y previniendo vulnerabilidades de contaminación de prototipos.
+Toda la ejecución del huésped se envuelve en un bloque que contiene `"use strict";`. Por consiguiente, cualquier intento por parte del código inyectado de escribir o asignar propiedades a estos prototipos congelados (ej., `Object.prototype.polluted = "leak"`) arrojará inmediatamente un error duro `TypeError`, lo que detiene la ejecución y previene vulnerabilidades de contaminación de prototipos.
 
 ### Límites de Consumo de CPU
 
@@ -158,15 +160,51 @@ await fs.rm(workingDir, { recursive: true, force: true });
 
 ---
 
-## Capa 3: Escudo de Privacidad (PII Egress Shield)
+## Capa 3: Control de Flujo de Información (IFC Taint Analyzer)
 
-El escáner PII intercepta toda la salida del sandbox **antes** de devolver los resultados al llamador. A partir de la v3, opera un **pipeline de detección en cuatro etapas** que combina análisis estructural, coincidencia de patrones y procesamiento de lenguaje natural. Cada etapa es independiente — el sistema bloquea los datos si **cualquier** etapa detecta una violación.
+El **IFC Taint Analyzer** (`TaintAnalyzer`) inspecciona el Árbol de Sintaxis Abstracta (AST) de JavaScript generado por Acorn **antes de que el código huésped ingrese al isolate V8**. Rastrea el flujo de datos sensibles y bloquea cualquier intento de filtrar información confidencial a través de canales computacionales indirectos.
+
+### Vectores de Ataque Mitigados
+
+| Vector de Ataque | Mecanismo | Defensa |
+|:-----------------|:----------|:--------|
+| **Inferencia Booleana** | Ramas condicionales `if (record.balance > 1000000)` | El rastreo estático de ramas previene derivaciones de PII en tiempo de preflight |
+| **Derivación de Caracteres** | Fuga ASCII vía `record.ssn.charCodeAt(0)` | El acceso a miembros sobre campos sensibles contamina todas las expresiones derivadas |
+| **Colecciones con Alias** | `const accounts = env.records; accounts.filter(...)` | Detección iterativa de fuentes que identifica cadenas de asignación y vincula variables de registro |
+| **Claves Computadas Dinámicas** | `acc[record.accountHolder] = record.balance` en `.reduce()` | Marca los objetos que reciben claves o valores contaminados, deteniendo el preflight |
+| **Operadores Spread en Objetos** | `{ [record.name]: record.id, ...rest }` | Las expresiones de propiedades computadas evalúan la contaminación de la clave y bloquean diccionarios dinámicos |
+
+### Defensa contra Claves Computadas Dinámicas
+
+Los atacantes que intentan eludir la Capa 5 (Aggregation-First) transformando datasets en diccionarios dinámicos (ej., usando `reduce` para generar `{ [nombre]: saldo }`) son interceptados de forma estática en la fase de preflight:
+
+```javascript
+// Payload adversarial bloqueado en preflight:
+const accounts = env.records;
+const top5 = accounts.slice(0, 5);
+return top5.reduce((acc, a) => {
+  acc[a.accountHolder] = a.balance; // BLOQUEADO: acc marcado como derivado de PII
+  return acc;
+}, {});
+```
+
+Cuando `propagateTaint` detecta una asignación a un `MemberExpression` donde la propiedad es computada y está contaminada (`isExpressionTainted(member.property)`), el objeto contenedor se marca permanentemente como contaminado. Cualquier `ReturnStatement` posterior que intente retornar dicho objeto dispara un rechazo fail-closed:
+
+```text
+Preflight policy rejected: PII side-channel detected: output contains values derived from restricted fields. Operation: variable 'acc' is PII-derived
+```
+
+---
+
+## Capa 4: Escudo de Privacidad (PII Egress Shield)
+
+El escáner PII intercepta toda la salida del sandbox **antes** de devolver los resultados al llamador. A partir de la v3, opera un **pipeline de detección en cuatro etapas** que combina análisis estructural, coincidencia de patrones y procesamiento de lenguaje natural. Cada etapa es independiente: el sistema bloquea los datos si **cualquier** etapa detecta una violación.
 
 ### Pipeline de Detección
 
 | Etapa | Mecanismo | Propósito |
 |:------|:----------|:---------|
-| **1. Coincidencia Exacta de Claves** | `Set<string>.has()` — O(1) | Bloquea nombres de campo PII conocidos (`ssn`, `email`, `password`) |
+| **1. Coincidencia Exacta de Claves** | `Set<string>.has()` (O(1)) | Bloquea nombres de campo PII conocidos (`ssn`, `email`, `password`) |
 | **2. Coincidencia Difusa de Claves** | Regex de contorno + subcadena | Captura aliases y variaciones (`patientId`, `names`, `fullName`) |
 | **3. Validadores de Patrones** | Regex + verificaciones algorítmicas | Detecta valores PII independientemente del nombre de la clave |
 | **4. Escaneo NER de Contenido** | Motor NLP `compromise` | Identifica nombres de personas, lugares y organizaciones en texto libre |
@@ -196,7 +234,7 @@ Una **lista segura** de palabras comunes del inglés y claves internas del proto
 
 ### Etapa 4: Reconocimiento de Entidades Nombradas (NER)
 
-Cuando `enableNerScanning` se establece en `true`, el escáner utiliza la librería NLP [`compromise`](https://github.com/spencermountain/compromise) para detectar nombres de personas, ubicaciones geográficas y nombres de organizaciones embebidos en los valores de salida — independientemente de la clave utilizada para almacenarlos.
+Cuando `enableNerScanning` se establece en `true`, el escáner utiliza la librería NLP [`compromise`](https://github.com/spencermountain/compromise) para detectar nombres de personas, ubicaciones geográficas y nombres de organizaciones embebidos en los valores de salida, independientemente de la clave utilizada para almacenarlos.
 
 ```typescript
 const server = new LiopServer(
@@ -230,7 +268,7 @@ Los presets pueden combinarse con reglas regex personalizadas para cumplir con r
 
 - **Defensa contra JSON Anidado**: El análisis recursivo de cadenas con JSON embebido neutraliza la ofuscación mediante envolturas de `JSON.stringify()`
 - **Protección contra Referencias Circulares**: Un `WeakSet` de seguimiento previene la recursión infinita en objetos auto-referenciantes
-- **Política Aggregation-First**: Bloquea la exportación de datos crudos a nivel de fila — solo pasan resultados agregados (conteos, promedios, resúmenes)
+- **Política Aggregation-First**: Bloquea la exportación de datos crudos a nivel de fila; solo pasan resultados agregados (conteos, promedios, resúmenes)
 - **Aplicación de Output Schema**: Cuando se define un esquema de salida `Zod`, el modo `.strict()` se aplica automáticamente, rechazando cualquier clave no permitida explícitamente en el esquema
 - **Desempaquetado Criptográfico y de Envoltura**: Aísla y extrae automáticamente el payload de datos de negocio real de las envolturas de transporte MCP/LIOP y de las respuestas proxied de gRPC (mediante `unwrapForAggregationPolicyScan`) antes de realizar el escaneo. Esto evita falsos positivos procedentes de metadatos binarios y sellos criptográficos (como las firmas HMAC-SHA256 de los recibos ZK).
 - **Sanitización Numérica Recursiva en Memoria**: Antes de realizar el escaneo, todos los valores numéricos del payload devuelto se procesan de forma recursiva: los números decimales positivos (floats) se redondean a un máximo de 4 decimales, y los valores negativos se acotan de forma segura a `0` (mediante `sanitizeOutput()`). Esto se ejecuta enteramente en memoria para evitar canales laterales en representaciones de coma flotante y previene conversiones de cadena de caracteres redundantes.
@@ -259,7 +297,7 @@ Para mantener los invariantes de seguridad Zero-Trust a través de reinicios o f
 - **Configuración de Persistencia**: Los operadores pueden proporcionar la propiedad `budgetStorePath` de forma global en las opciones del constructor de `LiopServer` o localmente dentro de una política `LogicExecutionPolicy` a nivel de herramienta.
 - **Anclaje de Identidad del Cliente (Anti-Bypass)**: Los límites de presupuesto están estrictamente vinculados a la identidad criptográfica del cliente (`agentDid` derivado de su PeerID Ed25519 persistente, o `clientId` de los tokens JWT autorizados por el servidor Nexus OAuth 2.1). Al auditar la identidad real del cliente en lugar de tokens de transporte efímeros (como el `session_token` de gRPC), el SDK evita que los adversarios restablezcan sus presupuestos de consultas al iniciar nuevos handshakes o reconectarse.
 - **Bloqueo Atómico de Archivos**: Bajo el capó, el SDK impone la sincronización entre procesos y actualizaciones atómicas en el archivo JSON del presupuesto mediante bloqueos del sistema de archivos (archivos `.lock`). Esto evita condiciones de carrera donde múltiples peticiones paralelas de un LLM se ejecutan simultáneamente en diferentes hilos o instancias de workers para exceder los límites de presupuesto.
-- **Tolerancia a Fallos en Memoria**: Si fallan los permisos de escritura en el sistema de archivos, si el directorio de almacenamiento es de solo lectura, o si ocurre un deadlock de bloqueo, el SDK reporta automáticamente el error a los logs del sistema y realiza un fallback al rastreo de presupuesto en memoria aislado por sesión, asegurando la continuidad del servicio del nodo sin comprometer las políticas de seguridad.
+- **Tolerancia a Fallos en Memoria**: Si fallan los permisos de escritura en el sistema de archivos, si el directorio de almacenamiento es de solo lectura, o si ocurre un deadlock de bloqueo, el SDK reporta automáticamente el error a los logs del sistema y realiza un fallback al rastreo de presupuesto en memoria aislado por sesión, lo que asegura la continuidad del servicio del nodo sin comprometer las políticas de seguridad.
 
 ### Mecanismo de Laplace y Sensibilidad por Campo
 
@@ -326,7 +364,7 @@ Si bien la capa PQC de LIOP cifra todos los payloads a nivel de aplicación de e
 
 Para evitar fallos silenciosos en producción, el SDK implementa una verificación estricta a prueba de fallos:
 - En entornos de desarrollo/pruebas, la falta o mala configuración de los archivos de certificado genera una advertencia y realiza un fallback elegante a canales gRPC inseguros.
-- En producción (`process.env.NODE_ENV === 'production'`), cualquier fallo al resolver o cargar los certificados TLS configurados (`rootCert`, `certChain` o `privateKey`) lanza un error fatal, forzando al proceso a detenerse inmediatamente en lugar de degradarse silenciosamente a un canal no cifrado.
+- En producción (`process.env.NODE_ENV === 'production'`), cualquier fallo al resolver o cargar los certificados TLS configurados (`rootCert`, `certChain` o `privateKey`) lanza un error fatal, lo que fuerza al proceso a detenerse inmediatamente en lugar de degradarse silenciosamente a un canal no cifrado.
 
 ### Autenticación Zero-Trust del Bridge
 
@@ -339,15 +377,120 @@ El `LiopStreamBridge` aplica autenticación obligatoria mediante token Bearer en
 
 ---
 
+## Autorización OAuth 2.1 y Control de Acceso Basado en Alcances (RBAC)
+
+LIOP integra una pila completa de autorización Máquina a Máquina (M2M) bajo OAuth 2.1 / OIDC en conformidad con **RFC 6749**, **RFC 8707 (Indicadores de Recursos)**, **RFC 9068 (Perfil JWT)** y **RFC 9728 (Metadatos de Recursos Protegidos)**.
+
+### 1. Servidor de Autorización Integrado (`createOAuthServer`)
+
+Para los nodos coordinadores Nexus, el SDK proporciona un servidor de autorización embebido basado en `panva/node-oidc-provider`:
+
+```typescript
+import { createOAuthServer } from "@nekzus/liop";
+
+const { provider, jwks } = createOAuthServer({
+  issuer: "http://127.0.0.1:15000/oidc",
+  clients: [
+    {
+      client_id: "agent-alpha",
+      client_secret: process.env.AGENT_SECRET!,
+      grant_types: ["client_credentials"],
+      scope: "liop:tools:list liop:tools:call liop:resources:read",
+    },
+  ],
+});
+```
+
+Propiedades técnicas de seguridad:
+- **Flujo Exclusivo Client Credentials M2M**: Los flujos interactivos y con código de autorización quedan bloqueados en el núcleo del motor para eliminar vectores de secuestro de sesión.
+- **Firma de Tokens con Ed25519 (EdDSA)**: Los pares de claves asimétricas Ed25519 se generan y firman de forma síncrona sin dependencias de red externas.
+- **Tokens de Acceso JWT RFC 9068**: Los tokens contienen declaraciones verificadas `client_id`, `scope` y `aud`, lo que permite su validación sin estado en nodos distribuidos.
+
+### 2. Alcances del Protocolo (`LIOP_SCOPES`)
+
+LIOP define cinco alcances granulares de mínimo privilegio asignados a operaciones de MCP y del protocolo:
+
+| Alcance | Operaciones Cubiertas | Estándar |
+|:---|:---|:---|
+| `liop:tools:list` | Listar herramientas anunciadas vía `tools/list` | NIST SP 800-207 §4.3 |
+| `liop:tools:call` | Ejecución de lógica WASM/JS in-situ vía `tools/call` | OWASP LLM06 |
+| `liop:resources:read` | Lectura de recursos estáticos vía `resources/list`, `resources/read`, `resources/templates/list` | Mínimo Privilegio |
+| `liop:schema:read` | Lectura de plantillas de prompts y esquemas vía `prompts/list`, `prompts/get` | Minimización de Datos |
+| `liop:mesh:query` | Consulta de manifiestos DHT entre nodos y resolución de rutas | Gobernanza de Malla |
+
+```typescript
+import { LIOP_SCOPES, type LiopScope } from "@nekzus/liop";
+```
+
+### 3. Autorización de Peticiones en Pasarela (`authorizeRequest`)
+
+Las peticiones JSON-RPC entrantes se validan contra los alcances requeridos antes de ser entregadas a los despachadores del enrutador:
+
+```typescript
+import { authorizeRequest } from "@nekzus/liop";
+
+const result = authorizeRequest("tools/call", authInfo);
+if (!result.allowed) {
+  // Retorna HTTP 403 / error JSON-RPC con motivo detallado del rechazo
+  console.error("Acceso denegado:", result.reason);
+}
+```
+
+* Los métodos públicos del ciclo de vida (`initialize`, `ping`, `server/discover`) se ejecutan sin autenticación según la especificación MCP.
+* Las llamadas no autenticadas o métodos no reconocidos que requieran alcances protegidos fallan de inmediato de forma cerrada (fail-closed).
+
+### 4. Metadatos de Recursos Protegidos (`buildProtectedResourceMetadata`)
+
+Permite a los clientes MCP descubrir los endpoints de autorización conforme a **RFC 9728**:
+
+```typescript
+import { buildProtectedResourceMetadata } from "@nekzus/liop";
+
+const metadata = buildProtectedResourceMetadata(
+  "http://127.0.0.1:15000/oidc",
+  "urn:liop:enclave:vault"
+);
+// Expuesto en /.well-known/oauth-protected-resource
+```
+
+### 5. Validación de JWT (`JwtValidator`)
+
+Los nodos de datos validan tokens portadores sin estado mediante resolución dual de JWKS:
+
+```typescript
+import { JwtValidator } from "@nekzus/liop";
+
+// Resolución remota de JWKS con caché de 10 minutos
+const validator = new JwtValidator(
+  "http://127.0.0.1:15000/oidc",
+  "urn:liop:mesh",
+  new URL("http://127.0.0.1:15000/oidc/jwks")
+);
+
+const authInfo = await validator.validate(token);
+// Retorna: { token, clientId, scopes: string[], expiresAt }
+```
+
+---
+
 ## Seguridad de Red P2P
 
 | Componente | Tecnología |
 |:-----------|:-----------|
+| **Aislamiento de Enclave** | `@libp2p/pnet` (PSK Swarm Key de 256 bits) |
 | **Cifrado de Transporte** | Protocolo Noise (Ed25519) |
 | **Multiplexación de Streams** | Yamux |
 | **Identidad** | Pares de claves Ed25519 persistentes |
 | **Descubrimiento** | Kademlia DHT con nodos bootstrap públicos |
 | **Transportes** | TCP + WebSocket |
+
+### Aislamiento de Enclaves Soberanos Tier 1 (PSK Swarm Key de `pnet`)
+
+Para entornos con exigencias regulatorias críticas (Core Bancario, Registros Médicos y Defensa), LIOP aplica aislamiento físico de malla mediante **Redes Privadas de libp2p (`@libp2p/pnet`)**:
+
+- **Clave Pre-Compartida (PSK)**: Una clave criptográfica de 256 bits (con encabezado `/key/swarm/psk/1.0.0/`) se carga en los nodos de enclave (`The Bank`, `The Vault`) y en el gateway perimetral autorizado (`blg`).
+- **Blindaje a Nivel de Socket de Transporte**: La PSK opera antes de cualquier multiplexación de streams o negociación criptográfica (Noise/TLS/Kyber). Toda conexión entrante TCP, WebSocket o QUIC proveniente de un nodo que no posea la clave de enjambre coincidente es abortada inmediatamente en la capa de socket en bruto.
+- **Defensa Perimétrica**: Incluso si un nodo no autorizado descubre la multiaddr o IP del enclave en la misma subred o VPC, no puede establecer una sesión libp2p, enviar envelopes RPC ni participar en la tabla de enrutamiento DHT Kademlia.
 
 ---
 
@@ -364,7 +507,7 @@ Configuración por defecto: 2–8 threads (producción), 0–1 threads (test), p
 
 ### Defensa contra Heap Bomb
 
-Cada thread worker está restringido mediante `resourceLimits.maxOldGenerationSizeMb` de V8 (por defecto: **64 MB**, configurable vía `workerPool.maxHeapMb` o la variable de entorno `LIOP_WORKER_MAX_HEAP_MB`). Si la lógica inyectada intenta alojar memoria más allá de este límite, el worker se termina inmediatamente con un `WorkerPoolError`, previniendo ataques de denegación de servicio que buscan agotar el heap de Node.js.
+Cada thread worker está restringido mediante `resourceLimits.maxOldGenerationSizeMb` de V8 (por defecto: **64 MB**, configurable vía `workerPool.maxHeapMb` o la variable de entorno `LIOP_WORKER_MAX_HEAP_MB`). Si la lógica inyectada intenta alojar memoria más allá de este límite, el worker se termina inmediatamente con un `WorkerPoolError`, lo que previene ataques de denegación de servicio que buscan agotar el heap de Node.js.
 
 ### Precalentamiento Asíncrono del Pool de Workers
 
@@ -459,12 +602,102 @@ $$\text{Bloque}_{n}.\text{hash} = \text{SHA-256}(\text{Bloque}_{n-1}.\text{hash}
 - **Evidencia contra Manipulación**: Modificar o eliminar cualquier registro histórico rompe la integridad de la cadena SHA-256, alertando de inmediato a los auditores de cumplimiento.
 - **Soberanía de Datos**: Los registros almacenan resúmenes criptográficos y métricas de consumo de tokens sin persistir jamás datos confidenciales sin procesar.
 
-### Medición Determinista de Combustible por AST
+### Medición Determinista de Combustible por AST e Invarianza de Temporización (NIST SP 800-53)
 
-Para protegerse contra ataques de agotamiento de CPU que ejecutan bucles computacionales ocultos, el motor analiza estáticamente el Árbol de Sintaxis Abstracta (AST) de JavaScript mediante `calculateAstInstructionFuel`:
+Para neutralizar ataques de agotamiento de CPU por bucles ocultos y eliminar canales laterales de temporización, el motor analiza estáticamente el Árbol de Sintaxis Abstracta (AST) de JavaScript mediante `calculateAstInstructionFuel`:
 
-- Analiza la complejidad del AST (profundidad de bucles, factor de ramificación, declaraciones de funciones) antes de la ejecución.
-- Inyecta un presupuesto estricto y determinista de combustible en el ejecutor del isolate V8.
+- **Puntuación Estática de Complejidad**: Evalúa las operaciones del AST (profundidad de bucles, ramificaciones, llamadas a funciones e iteraciones) antes de ejecutar el código.
+- **Cuantización en Bloques de 100 Unidades**: Cumpliendo con los controles NIST SP 800-53 contra canales laterales de temporización, el valor de combustible calculado se cuantiza a bloques de 100 unidades:
+  $$\text{Combustible}_{\text{cuantizado}} = \lceil \frac{\text{CombustibleRaw}}{100} \rceil \times 100$$
+- **Desviación Estándar Cero (`stddev = 0`)**: Payloads con la misma estructura sintáctica que evalúan entradas secretas distintas consumen exactamente las mismas unidades de combustible, impidiendo que un adversario deduzca la cardinalidad de registros o valores privados mediante diferencias de temporización o métricas de combustible.
+
+---
+
+## Control Estático de Flujo de Información (`TaintAnalyzer`)
+
+La Capa 3 del modelo de defensa en profundidad de LIOP implementa **Control de Flujo de Información Estático (IFC)** mediante la clase `TaintAnalyzer`. Construido sobre el analizador sintáctico Acorn ESTree y `acorn-walk`, inspecciona la lógica JavaScript inyectada dentro del sobre `@LIOP{...}` *antes* de la compilación a bytecode o la ejecución en el isolate.
+
+```typescript
+import { TaintAnalyzer } from "@nekzus/liop";
+
+const analyzer = new TaintAnalyzer(
+  ["ssn", "credit_card", "email", "password", "medical_record"], // PII prohibida
+  ["salary", "account_balance"]                                    // Claves sensibles
+);
+
+const violation = analyzer.analyze(sourceCode, recordCount, 50);
+if (violation) {
+  throw new Error(`Ejecución rechazada por Capa 3 IFC: ${violation.reason} (línea ${violation.line})`);
+}
+```
+
+### Análisis Estático AST en Múltiples Pasadas
+
+El analizador ejecuta un pipeline determinista de 5 pasadas de inspección:
+
+1. **Identificación de Variables Ligadas a Registros (Pasada 1)**: Recorre el AST para identificar variables vinculadas a registros confidenciales individuales dentro de funciones callback de iteración (`map`, `filter`, `forEach`, `flatMap`, `find`, `some`, `every` y la familia `reduce`/`reduceRight`).
+2. **Propagación de Mancha (Pasada 2)**: Rastrea los flujos de datos a través de asignaciones de variables, desestructuración de objetos, operaciones aritméticas binarias, concatenaciones de cadenas e invocaciones de métodos. Se marca un conjunto exhaustivo de métodos de extracción de caracteres como propagadores de mancha:
+   - *Extracción de caracteres*: `charCodeAt`, `codePointAt`, `charAt`, `at`
+   - *Búsqueda y análisis estructural*: `indexOf`, `lastIndexOf`, `search`, `startsWith`, `endsWith`, `includes`
+   - *Transformaciones*: `substring`, `slice`, `substr`, `split`, `match`, `replace`, `toLowerCase`, `trim`
+3. **Fuga en Sentencias de Retorno (Pasada 3)**: Valida que ninguna variable escalar derivada de un campo PII manchado fluya hacia la sentencia `return` o el objeto exportado de la función.
+4. **Guarda de Correlación (Pasada 4 - Mitigación F-01)**: En conjuntos de datos con menos de 50 registros, detecta múltiples operaciones `reduce` distintas dirigidas al mismo campo sensible, lo que permitiría a un atacante reconstruir valores exactos mediante sistemas de ecuaciones diferenciales.
+5. **Compuerta de Extremos Min/Max (Pasada 5 - Mitigación F-02)**: Intercepta intentos de extracción de registros individuales (como ordenar registros por campos PII o extraer cotas máximas/mínimas en cohortes reducidas) que posibilitan ataques de búsqueda binaria.
+
+### Clasificación de Sensibilidad de Campos (NIST SP 800-226)
+
+Los campos se evalúan frente a una matriz de clasificación de 3 niveles:
+
+| Nivel de Sensibilidad | Comportamiento | Atributos de Ejemplo |
+|---|---|---|
+| `forbidden` | Exfiltración o derivación directa bloqueada incondicionalmente por la Capa 3 | `ssn`, `iban`, `passport_number`, `password_hash` |
+| `sensitive` | Permitido únicamente mediante algoritmos de agregación verificados con inyección de ruido DP | `balance`, `transaction_amount`, `health_diagnosis` |
+| `public` | Agregación y exportación sin restricciones | `country_code`, `currency`, `timestamp_epoch` |
+
+---
+
+## Motor de Privacidad Diferencial (`DpEngine`)
+
+Para proteger contra ataques de reconstrucción estadística e inferencia de pertenencia en conjuntos de datos pequeños o sensibles, el SDK de LIOP integra un **Motor de Privacidad Diferencial** de alto rendimiento en conformidad con **NIST SP 800-226** y las directrices de la librería Google DP.
+
+```typescript
+import { applyDpToOutput, addLaplaceNoise, type DpConfig } from "@nekzus/liop";
+
+const dpConfig: DpConfig = {
+  epsilon: 1.5,                 // Presupuesto de privacidad (menor = más ruido)
+  sensitivity: 1000,            // Delta máximo admisible para operaciones SUM
+  smallDatasetThreshold: 50,    // Solo inyectar ruido cuando la cohorte n < 50
+  seed: "tenant_audit_seed_42"  // Semilla opcional para Privacidad Diferencial Determinista (DDP)
+};
+
+const sanitizedResult = applyDpToOutput(rawOutput, dpConfig, datasetSize);
+```
+
+### Mecanismo de Laplace y Entropía Criptográfica
+
+El motor muestrea ruido a partir de la distribución continua de Laplace $\text{Lap}(0, \lambda)$ con escala $\lambda = \frac{\Delta f}{\varepsilon}$:
+
+$$f(x) = \frac{1}{2\lambda} \exp\left(-\frac{|x|}{\lambda}\right)$$
+
+#### Decisiones de Seguridad
+
+1. **Fuente CSPRNG (`crypto.randomBytes`)**: A diferencia de implementaciones genéricas basadas en `Math.random()` (Xorshift128+), `DpEngine` genera entropía mediante `crypto.randomBytes(4)` mapeado a $[-0.5, 0.5)$. Esto elimina ataques de reconstrucción de estado donde un adversario que observe 3 a 5 salidas consecutivas pueda predecir los estados pseudoaleatorios futuros y restar el ruido.
+2. **Sensibilidad Consciente de la Consulta**: La sensibilidad ($\Delta f$) se deriva automáticamente según la semántica de la clave:
+   - **Consultas `COUNT`**: Sensibilidad fijada en $\Delta f = 1$ (axioma: añadir o eliminar un registro individual altera el recuento en 1 como máximo).
+   - **Consultas `AVG` / `VARIANCE`**: La sensibilidad se escala dinámicamente por el tamaño de la cohorte: $\Delta f = \frac{\text{sensitivity}}{n}$.
+   - **Consultas `SUM`**: Aplica el límite de sensibilidad global configurado por el operador.
+3. **Piso de Épsilon ($\varepsilon \ge 1.0$)**: Para cohortes extremadamente pequeñas ($n < 10$), el motor fuerza un piso de $\varepsilon = 1.0$ para evitar la aniquilación de utilidad (aplicar $\varepsilon < 1.0$ en $n < 10$ genera números aleatorios sin utilidad analítica).
+4. **Privacidad Diferencial Determinista (DDP)**: Cuando se suministra una `seed` de auditoría, la entropía se deriva de una secuencia de contadores bajo HMAC-SHA-256. Esto garantiza la reproducibilidad determinista del ZK-Receipt en auditorías de cumplimiento manteniendo la privacidad matemática.
+5. **Preservación Estructural**: Los enteros originales se mantienen como enteros redondeados (`Math.round`), y los atributos no negativos se restringen a $\ge 0$, respetando los estándares de post-procesamiento TopDown del Censo de EE.UU.
+
+### Referencia de Configuración (`DpConfig`)
+
+| Propiedad | Tipo | Predeterminado | Propósito |
+|---|---|---|---|
+| `epsilon` | `number` | `1.0` | Parámetro de pérdida de privacidad $\varepsilon$. Regula el equilibrio entre privacidad y precisión numérica. |
+| `sensitivity` | `number` | `1.0` | Cota de sensibilidad global $\Delta f$ que representa la contribución máxima plausible de un único registro. |
+| `smallDatasetThreshold` | `number` | `50` | Umbral de cardinalidad de registros bajo el cual se activa el ruido DP (alineado con HIPAA Safe Harbor). |
+| `seed` | `string` | `undefined` | Cadena de semilla criptográfica para reproducibilidad determinista en auditorías. |
 
 ---
 
