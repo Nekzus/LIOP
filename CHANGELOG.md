@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.4.0-alpha.22](https://github.com/Nekzus/LIOP/compare/v2.4.0-alpha.21...v2.4.0-alpha.22) (2026-09-22)
+
+
+### Bug Fixes
+
+* **ci:** automate Mintlify docs.json version update in semantic-release ([11b91a1](https://github.com/Nekzus/LIOP/commit/11b91a1d209aaed82279e7ba5b8ec8da55383b86))
+
 # [2.4.0-alpha.21](https://github.com/Nekzus/LIOP/compare/v2.4.0-alpha.20...v2.4.0-alpha.21) (2026-09-22)
 
 
