@@ -1,6 +1,6 @@
 ---
-title: "Overview"
-description: "High-performance, Zero-Trust binary mesh for sovereign AI agent communication"
+title: "Introduction"
+description: "A decentralized Zero-Trust binary mesh protocol inverting AI agent communication through Logic-Injection-on-Origin"
 icon: "rocket"
 mode: "wide"
 ---
@@ -388,6 +388,58 @@ export const ArchitectureGrid = () => (
 );
 
 <LiopBrandHeader />
+
+## Protocol Foundations
+
+The **Logic-Injection-on-Origin Protocol (LIOP)** is a decentralized binary transport mesh designed for Machine-to-Machine (M2M) artificial intelligence. Rather than moving enterprise datasets across the internet into remote LLMs, LIOP inverts distributed computation: **sandboxed WebAssembly logic executes directly at the data origin**, returning exclusively aggregated results verified by cryptographic attestation.
+
+---
+
+### Scaling Limitations of Context Extraction
+
+Agent integration protocols, including the Model Context Protocol (MCP) and REST APIs, rely on **Context-Pulling**: transferring raw datasets (system logs, customer PII, medical records, financial ledgers) over the network so a centralized model can filter and evaluate information on an external server.
+
+In production environments, this operational model faces three structural constraints:
+
+1. **Network Egress and Complexity ($O(N)$ vs $O(1)$)**: Transferring entire database tables or telemetry streams to answer a specific query produces network overhead that scales with database size rather than query complexity.
+2. **Context Window Saturation**: Passing unaggregated records directly into model prompts degrades analytical precision, introduces processing latency, and multiplies token overhead.
+3. **Data Sovereignty Mandates**: Compliance frameworks including **HIPAA §164.312**, **PCI-DSS v4.0**, and **GDPR Article 9** prohibit exporting unmasked records outside protected network boundaries.
+
+---
+
+### The Logic-Injection-on-Origin Model
+
+LIOP replaces data transfer with local execution through a 3-step computational cycle:
+
+```mermaid
+flowchart LR
+    A["AI Agent / LLM"] -->|"1. Push Sandboxed Logic (@LIOP)"| B["Data Origin (Node / Enclave)"]
+    subgraph S["Secure Origin Node"]
+        B --> C["WASI / Nitro V8 Sandbox"]
+        C -->|"In-Situ Filtering & Aggregation"| D[("Local Data at Rest")]
+        D -->|"Reduced Result"| C
+    end
+    C -->|"2. Attested Output + ZK-Receipt"| A
+```
+
+1. **Push Logic**: The agent compiles its query or filtering criteria into a sandboxed WebAssembly micro-module or AST-quantized payload (`@LIOP{...}@END`).
+2. **Execute In-Situ**: The origin node processes the logic against local data within an isolated WASI sandbox with restricted global objects, frozen prototypes, and bounded instruction budgets.
+3. **Attest & Return**: The origin node streams back **exclusively the synthesized conclusion**, sealed with **ML-KEM-768** post-quantum encryption and an HMAC-SHA256 ZK-Receipt validating execution integrity.
+
+<CardGroup cols={2}>
+  <Card title="Traditional MCP: Context-Pulling" icon="arrow-down-to-bracket">
+    - **Data Scaling:** $O(N)$ linear network transfer proportional to dataset size
+    - **Context Footprint:** High token overhead from unaggregated raw records
+    - **Data Exposure:** Sensitive rows and PII transit the external network
+    - **Integrity:** Point-to-point TLS without computational execution proof
+  </Card>
+  <Card title="LIOP: Logic-Injection-on-Origin" icon="bolt">
+    - **Data Scaling:** $O(1)$ constant payload size independent of dataset volume
+    - **Context Footprint:** Minimal token usage restricted to synthesized results
+    - **Data Exposure:** Zero row-level records leave the sovereign enclave
+    - **Integrity:** Post-quantum ML-KEM-768 encryption with HMAC-SHA256 ZK-Receipt
+  </Card>
+</CardGroup>
 
 <QuickstartBanner />
 

@@ -1,6 +1,6 @@
 ---
-title: "Visión General"
-description: "Malla binaria Zero-Trust de alto rendimiento para comunicación soberana de agentes IA"
+title: "Introducción"
+description: "Protocolo de malla binaria descentralizada Zero-Trust que transforma la comunicación de agentes de IA mediante Logic-Injection-on-Origin"
 icon: "rocket"
 mode: "wide"
 ---
@@ -388,6 +388,58 @@ export const ArchitectureGrid = () => (
 );
 
 <LiopBrandHeader />
+
+## Fundamentos del Protocolo
+
+El **Protocolo Logic-Injection-on-Origin (LIOP)** es una malla de transporte binario descentralizada, diseñada para la comunicación entre máquinas (M2M) en entornos de agentes de inteligencia artificial. En lugar de transferir conjuntos de datos a través de internet hacia modelos remotos, LIOP invierte el flujo computacional: **la lógica WebAssembly en sandbox se ejecuta directamente en el origen de los datos**, y retorna exclusivamente resultados agregados con respaldo de atestación criptográfica.
+
+---
+
+### Límites de Escalamiento en la Extracción de Datos
+
+Los protocolos de integración para agentes, tales como el Model Context Protocol (MCP) y las APIs REST convencionales, operan bajo el esquema de **Context-Pulling**: transfieren registros masivos (auditorías de sistemas, historiales clínicos, libros contables) a través de la red para que un modelo centralizado filtre y analice la información en un servidor externo.
+
+En entornos empresariales de producción, este esquema presenta tres restricciones estructurales:
+
+1. **Sobrecarga de Red y Complejidad ($O(N)$ frente a $O(1)$)**: Transferir tablas completas de bases de datos o flujos de telemetría para resolver una consulta puntual genera un tráfico de red proporcional al volumen de datos almacenado, en lugar de depender de la complejidad de la consulta.
+2. **Saturación de la Ventana de Contexto**: Incorporar miles de filas sin procesar en el prompt del modelo degrada la precisión analítica del razonamiento, introduce latencia operativa y multiplica el consumo de tokens.
+3. **Restricciones de Soberanía de Datos**: Marcos regulatorios como **HIPAA §164.312**, **PCI-DSS v4.0** y **GDPR Artículo 9** prohíben la exportación de registros no enmascarados fuera de los perímetros físicos y lógicos de almacenamiento.
+
+---
+
+### El Modelo Logic-Injection-on-Origin
+
+LIOP sustituye la extracción de datos por cómputo local mediante un ciclo estructurado de tres etapas:
+
+```mermaid
+flowchart LR
+    A["Agente IA / LLM"] -->|"1. Despacho de Lógica (@LIOP)"| B["Origen de Datos (Nodo / Enclave)"]
+    subgraph S["Nodo de Origen Seguro"]
+        B --> C["Aislamiento Sandbox WASI / V8"]
+        C -->|"Filtrado y Agregación In-Situ"| D[("Datos en Reposo")]
+        D -->|"Resultado Sintetizado"| C
+    end
+    C -->|"2. Salida Atestada + Recibo ZK"| A
+```
+
+1. **Inyección de Lógica**: El agente compila su criterio de filtrado o agregación en un micro-módulo WebAssembly o carga AST cuantizada (`@LIOP{...}@END`).
+2. **Ejecución In-Situ**: El nodo de origen procesa la lógica contra los datos locales dentro de un entorno WASI aislado, con restricción de variables globales, prototipos congelados y cuotas de cómputo delimitadas.
+3. **Atestación y Retorno**: El nodo transmite **únicamente la conclusión agregada**, protegida mediante cifrado post-cuántico **ML-KEM-768** y un Recibo ZK (HMAC-SHA256) que certifica la ejecución íntegra del código.
+
+<CardGroup cols={2}>
+  <Card title="MCP Tradicional: Context-Pulling" icon="arrow-down-to-bracket">
+    - **Escalamiento:** Transferencia de red lineal $O(N)$ proporcional al volumen total
+    - **Consumo de Contexto:** Saturación de tokens por ingesta de datos en crudo
+    - **Exposición:** Registros individuales y PII atraviesan la red pública
+    - **Garantía:** Cifrado de transporte TLS sin prueba de ejecución computacional
+  </Card>
+  <Card title="LIOP: Logic-Injection-on-Origin" icon="bolt">
+    - **Escalamiento:** Carga de red constante $O(1)$ independiente del tamaño del repositorio
+    - **Consumo de Contexto:** Uso mínimo de tokens restringido al resultado consolidado
+    - **Exposición:** Cero registros individuales abandonan el enclave soberano
+    - **Garantía:** Cifrado post-cuántico ML-KEM-768 con prueba de integridad ZK-Receipt
+  </Card>
+</CardGroup>
 
 <QuickstartBanner />
 

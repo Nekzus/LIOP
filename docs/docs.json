@@ -54,7 +54,7 @@
             "tab": "Documentation",
             "groups": [
               {
-                "group": "Getting Started (Tutorials)",
+                "group": "Getting Started",
                 "pages": [
                   "getting-started/intro",
                   "getting-started/quickstart"
@@ -72,7 +72,6 @@
               },
               {
                 "group": "Architecture Decisions (ADRs)",
-                "tag": "NEW",
                 "pages": [
                   "adrs/index",
                   "adrs/0001-post-quantum-cryptography-ml-kem-768",
@@ -199,7 +198,7 @@
             "tab": "Documentación",
             "groups": [
               {
-                "group": "Primeros Pasos (Tutoriales)",
+                "group": "Primeros Pasos",
                 "pages": [
                   "es/getting-started/intro",
                   "es/getting-started/quickstart"
@@ -217,7 +216,6 @@
               },
               {
                 "group": "Decisiones de Arquitectura (ADRs)",
-                "tag": "NUEVO",
                 "pages": [
                   "es/adrs/index",
                   "es/adrs/0001-post-quantum-cryptography-ml-kem-768",
