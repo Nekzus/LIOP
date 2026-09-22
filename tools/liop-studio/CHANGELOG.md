@@ -2,6 +2,19 @@
 
 All notable changes to @nekzus/liop-studio will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.0.0-beta.2](https://github.com/Nekzus/LIOP/compare/studio-v1.0.0-beta.1...studio-v1.0.0-beta.2) (2026-09-22)
+
+
+### Bug Fixes
+
+* **docs:** resolve npmjs logo CDN paths, sync Mintlify v2.6.0, and automate metadata sync ([17a265a](https://github.com/Nekzus/LIOP/commit/17a265aee72f0ee2184623a886c092f9fe59e01e))
+* **sdk:** promote documentation, logo CDN fixes, and segregated changelog to beta ([62be4d6](https://github.com/Nekzus/LIOP/commit/62be4d63673a764e34eea97540d994e3db56d175))
+
+
+### Features
+
+* **sdk:** promote alpha channel features to beta staging ([0fef16e](https://github.com/Nekzus/LIOP/commit/0fef16e399b2b0002ca2954aa98f48f2aa2fd20e))
+
 # 1.0.0-beta.1 (2026-09-22)
 
 
