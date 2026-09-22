@@ -1,7 +1,7 @@
 <div align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="../../docs/logo/dark.svg">
-    <img alt="Logic-Injection-on-Origin Protocol Logo" src="../../docs/logo/light.svg" width="700">
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Nekzus/LIOP/main/docs/logo/dark.svg">
+    <img alt="Logic-Injection-on-Origin Protocol Logo" src="https://raw.githubusercontent.com/Nekzus/LIOP/main/docs/logo/light.svg" width="700">
   </picture>
 
   <h1>Logic-Injection-on-Origin Protocol (LIOP) — TypeScript SDK</h1>
