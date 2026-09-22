@@ -18,17 +18,19 @@ It provides an extension point for developers to attach arbitrary semantic filte
 
 The admission hook executes in strict sequential order:
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    POST /mcp (HTTP/1.1 or HTTP/2)               │
-├─────────────────────────────────────────────────────────────────┤
-│  1. OAuth 2.1 Bearer Token Verification (NIST SP 800-207)       │ → 401 if invalid
-│  2. Sliding-Window Rate Limiting (OWASP API4:2023)              │ → 429 if exceeded
-│  3. JSON-RPC Envelope Parsing                                   │ → 400 if malformed
-│  4. GatewayInterceptor (Perimeter Admission Hook)               │ → 403 if rejected
-│  5. SEP-2243 Header Verification                                │ → 400 if mismatch
-│  6. LiopMcpRouter.dispatch() → RBAC → Enclaves / P2P Mesh       │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    Req["POST /mcp (HTTP/1.1 or HTTP/2)"] --> S1["1. OAuth 2.1 Bearer Token Verification"]
+    S1 -->|Invalid| E401["HTTP 401 Unauthorized"]
+    S1 -->|Valid| S2["2. Sliding-Window Rate Limiting"]
+    S2 -->|Exceeded| E429["HTTP 429 Too Many Requests"]
+    S2 -->|Allowed| S3["3. JSON-RPC Envelope Parsing"]
+    S3 -->|Malformed| E400["HTTP 400 Bad Request"]
+    S3 -->|Valid| S4["4. GatewayInterceptor (Admission Hook)"]
+    S4 -->|Rejected| E403["HTTP 403 Forbidden"]
+    S4 -->|Admitted| S5["5. SEP-2243 Header Verification"]
+    S5 -->|Mismatch| E400B["HTTP 400 Bad Request"]
+    S5 -->|Passed| S6["6. LiopMcpRouter.dispatch() → Enclaves / P2P Mesh"]
 ```
 
 <Warning>

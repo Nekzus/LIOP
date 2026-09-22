@@ -12,23 +12,19 @@ The Logic-Injection-on-Origin Protocol addresses healthcare compliance by combin
 2. **Multi-Stage Egress PII Shield**: Automatically intercepting and redacting names, Social Security Numbers (SSN), medical record numbers (MRN), and phone numbers before output serialization.
 3. **ZK-Receipt Provenance**: Proving that the perturbed analytical output genuinely originated from an authorized hospital database without tampering.
 
-```
-Healthcare Data Enclave (Hospital Private VPC):
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  LiopServer (Clearance Tier: 5)                                             │
-│  FHIR Patient Database (HL7 v4.0.1)                                         │
-│                                                                             │
-│  Injected Query: "Incidence of Type 2 Diabetes among cohort aged 45-65"     │
-│                                                                             │
-│  Step 1: Compute Raw Count ──────────► count = 1,482                        │
-│  Step 2: Add Laplace Noise (ε = 0.5) ─► noisyCount = 1,482 + Lap(1 / 0.5)  │
-│                                                   = 1,484                   │
-│  Step 3: Egress PII Shield ──────────► Zero PHI detected (Clean)            │
-│  Step 4: Seal with ZK-Receipt ───────► Output signed under ML-KEM session   │
-└──────────────────────────────────────┬──────────────────────────────────────┘
-                                       │ Wire Transfer: 195 bytes (No PHI)
-                                       ▼
-                         External Clinical AI Agent
+```mermaid
+flowchart TD
+    subgraph Enclave["Healthcare Data Enclave (Hospital Private VPC)"]
+        direction TB
+        DB["FHIR Patient Database (HL7 v4.0.1)"]
+        Q["Injected Query: Cohort incidence"]
+        S1["1. Compute Raw Count: count = 1,482"]
+        S2["2. Add Laplace Noise ε=0.5: noisyCount = 1,484"]
+        S3["3. Egress PII Shield: Zero PHI detected"]
+        S4["4. ZK-Receipt Seal: HMAC-SHA256 under ML-KEM session"]
+        DB --> Q --> S1 --> S2 --> S3 --> S4
+    end
+    S4 -->|Wire Egress: 195 bytes (No PHI)| Agent["External Clinical AI Agent"]
 ```
 
 ---

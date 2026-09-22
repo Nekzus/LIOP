@@ -9,25 +9,10 @@ The Model Context Protocol (MCP) standardized how AI models interface with local
 
 The Logic-Injection-on-Origin Protocol (LIOP) introduces **In-Situ Execution**. You do not need to rewrite your existing MCP server codebase to benefit from LIOP's Zero-Trust sandboxing, PII shielding, and distributed P2P routing. You can wrap your existing `@modelcontextprotocol/sdk` instance using `LiopMcpBridge`.
 
-```
-Traditional MCP Architecture (Context Pulling):
-┌────────────┐   JSON-RPC (tools/call)   ┌──────────────────┐
-│ AI Client  │ ────────────────────────► │    MCP Server    │
-│  (Claude)  │ ◄──────────────────────── │ (Returns 50MB raw│
-└────────────┘    50 MB Wire Egress       └──────────────────┘
-
-LIOP Bridged Architecture (Logic-on-Origin):
-┌────────────┐   gRPC + Kyber768 (PQC)   ┌────────────────────────────────┐
-│ AI Client  │ ────────────────────────► │         LiopMcpBridge          │
-│  (Claude)  │ ◄──────────────────────── │  ┌────────────┐ ┌────────────┐ │
-└────────────┘    ZK-Receipt (300 bytes) │  │ GuardianAST│ │ Egress PII │ │
-                                         │  └────────────┘ └────────────┘ │
-                                         │         Local Host Pipe        │
-                                         │                │               │
-                                         │                ▼               │
-                                         │       Existing MCP Server      │
-                                         └────────────────────────────────┘
-```
+<Frame caption="Traditional MCP Context Pulling vs. LIOP Bridged Architecture">
+  <img className="block dark:hidden w-full" src="/images/bridge-flow-light.svg" alt="LIOP MCP Bridge Architecture" />
+  <img className="hidden dark:block w-full" src="/images/bridge-flow-dark.svg" alt="LIOP MCP Bridge Architecture" />
+</Frame>
 
 ---
 

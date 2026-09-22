@@ -22,7 +22,7 @@ Todas las métricas utilizan el prefijo canónico `liop_`:
 | Nombre de Métrica | Tipo | Etiquetas | Descripción y Fórmula |
 |---|---|---|---|
 | `liop_tool_calls_total` | Contador | `capability`, `status`, `role` | Total de invocaciones. `role="executor"` para enclaves de datos; `role="proxy"` para BLG. |
-| `liop_tool_execution_duration_seconds` | Histograma | `capability` | Latencia de ejecución extremo a extremo, incluyendo análisis AST y sandbox V8. |
+| `liop_tool_execution_duration_seconds` | Histograma | `capability` | Latencia de ejecución extremo a extremo que abarca análisis AST y sandbox V8. |
 | `liop_tokens_saved_total` | Contador | `capability` | Tokens acumulados eliminados de la ventana del LLM (`originTokens - outputTokens`). |
 | `liop_wire_egress_bytes_total` | Contador | `direction` | Bytes transmitidos por la red frente a la línea base de extracción cruda. |
 
@@ -121,20 +121,24 @@ A continuación se presentan las reglas de alerta del archivo `examples/observab
 
 El panel maestro de LIOP (`examples/observability/dashboards/master-dashboard.json`) organiza el estado operativo en secciones estructuradas:
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│ Fila 1: Estado General y Métricas Clave                                     │
-│ [Invocaciones Totales] [Enclaves: 7/7] [Red Ahorrada: 99.8%] [PQC: Válido] │
-├─────────────────────────────────────────────────────────────────────────────┤
-│ Fila 2: Topología e Inventario de Nodos                                     │
-│ Tabla: Hostname | Rol de Nodo | Nivel | Puerto gRPC | Estado (UP/DOWN)      │
-├─────────────────────────────────────────────────────────────────────────────┤
-│ Fila 3: Seguridad y Validación Zero-Trust                                   │
-│ [Capa 1: Bloqueos AST] [Capa 4: Censura PII] [Capa 6: Recibos ZK Aprobados] │
-├─────────────────────────────────────────────────────────────────────────────┤
-│ Fila 4: Telemetría de Soberanía de Datos                                    │
-│ Panel 50: Ratio de Soberanía (%)    Panel 9 (Serie C): Tokens Ahorrados/s   │
-└─────────────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    subgraph Dashboard["Estructura del Panel Maestro de Grafana"]
+        direction TB
+        subgraph Fila1["Fila 1: Estado General y Métricas Clave"]
+            R1["Invocaciones Totales | Enclaves Activos (7/7) | Red Ahorrada (99.8%) | Estado PQC"]
+        end
+        subgraph Fila2["Fila 2: Topología e Inventario de Nodos"]
+            R2["Tabla de Inventario: Hostname | Rol | Nivel | Puerto | Estado (UP/DOWN)"]
+        end
+        subgraph Fila3["Fila 3: Seguridad y Validación Zero-Trust"]
+            R3["Capa 1: Bloqueos AST | Capa 4: Censura PII | Capa 6: Recibos ZK Verificados"]
+        end
+        subgraph Fila4["Fila 4: Telemetría de Soberanía de Datos"]
+            R4["Panel 50: Ratio de Soberanía (%) | Panel 9: Velocidad (Tokens Ahorrados/s)"]
+        end
+        Fila1 --> Fila2 --> Fila3 --> Fila4
+    end
 ```
 
 ### Invariante Canónico de Expresiones PromQL

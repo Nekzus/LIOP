@@ -14,16 +14,23 @@ Interact with the Rust Core directly when:
 - Customizing the Wasmtime memory trap handler or WASI capability pre-opens.
 - Modifying Kademlia DHT routing policies or Noise handshake implementations.
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                            liop-node (Rust Core)                            │
-├───────────────────────────────┬─────────────────────────────────────────────┤
-│         Network Layer         │               Execution Layer               │
-│  Tonic gRPC (h2 / QUIC)       │  Wasmtime v29.0 (WASI Preview 1)            │
-│  rust-libp2p (Kademlia DHT)   │  Instruction Fuel Metering (`set_fuel`)     │
-│  Noise Protocol (Ed25519)     │  Memory Isolation & Linear Memory Trap      │
-│  Post-Quantum (ML-KEM-768)    │  ZK-VM Receipt Hooks (HMAC-SHA256)          │
-└───────────────────────────────┴─────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    subgraph Core["liop-node (Rust Core Architecture)"]
+        direction LR
+        subgraph Net["Network Layer"]
+            N1["Tonic gRPC (h2 / QUIC)"]
+            N2["rust-libp2p (Kademlia DHT)"]
+            N3["Noise Protocol (Ed25519)"]
+            N4["Post-Quantum (ML-KEM-768)"]
+        end
+        subgraph Exec["Execution Layer"]
+            E1["Wasmtime v29.0 (WASI Preview 1)"]
+            E2["Instruction Fuel Metering (set_fuel)"]
+            E3["Linear Memory Isolation & Trap"]
+            E4["ZK-Receipt Hooks (HMAC-SHA256)"]
+        end
+    end
 ```
 
 ---

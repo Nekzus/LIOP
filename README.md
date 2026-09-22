@@ -39,22 +39,13 @@ Traditional Model Context Protocol (MCP) architectures operate on **Context-Pull
 
 **LIOP inverts the architecture**: instead of moving data to the intelligence, the intelligence transmits an isolated, sandboxed computational micro-module (WebAssembly or AST-verified JavaScript) directly to where the data resides.
 
-```
-Traditional MCP Architecture (Context Pulling):
-┌────────────┐   JSON-RPC (tools/call)   ┌──────────────────┐
-│ AI Client  │ ────────────────────────► │    MCP Server    │
-│  (Claude)  │ ◄──────────────────────── │ (Returns 50MB raw│
-└────────────┘    50 MB Wire Egress       └──────────────────┘
-
-LIOP Sovereign Architecture (Logic-on-Origin):
-┌────────────┐   gRPC + Kyber768 (PQC)   ┌────────────────────────────────┐
-│ AI Client  │ ────────────────────────► │        LIOP Data Node          │
-│  (Claude)  │ ◄──────────────────────── │  ┌────────────┐ ┌────────────┐ │
-└────────────┘    ZK-Receipt (300 bytes) │  │ GuardianAST│ │ Egress PII │ │
-                                         │  └────────────┘ └────────────┘ │
-                                         │  [Isolated In-Situ WASI Exec]  │
-                                         └────────────────────────────────┘
-```
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/logic-vs-pull-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="docs/images/logic-vs-pull-light.svg">
+    <img alt="Traditional MCP Context-Pulling vs LIOP Logic-on-Origin" src="docs/images/logic-vs-pull-dark.svg" width="100%">
+  </picture>
+</p>
 
 ### Context-Pulling vs. Logic-on-Origin Benchmark
 

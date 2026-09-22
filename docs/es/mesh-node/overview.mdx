@@ -14,16 +14,23 @@ Interactúe directamente con el núcleo de Rust en estos escenarios:
 - Modificación del gestor de trampas de memoria de Wasmtime o de los descriptores preabiertos de WASI.
 - Ajuste de los algoritmos de enrutamiento en la DHT de Kademlia o en los protocolos de negociación Noise.
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                            liop-node (Core en Rust)                         │
-├───────────────────────────────┬─────────────────────────────────────────────┤
-│         Capa de Red           │               Capa de Ejecución             │
-│  Tonic gRPC (h2 / QUIC)       │  Wasmtime v29.0 (WASI Preview 1)            │
-│  rust-libp2p (Kademlia DHT)   │  Medición de Instrucciones (`set_fuel`)     │
-│  Protocolo Noise (Ed25519)    │  Aislamiento Lineal y Trampas de Memoria    │
-│  Post-Cuántica (ML-KEM-768)   │  Ganchos de Recibos ZK (HMAC-SHA256)        │
-└───────────────────────────────┴─────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    subgraph Core["liop-node (Arquitectura Core en Rust)"]
+        direction LR
+        subgraph Net["Capa de Red"]
+            N1["Tonic gRPC (h2 / QUIC)"]
+            N2["rust-libp2p (Kademlia DHT)"]
+            N3["Protocolo Noise (Ed25519)"]
+            N4["Criptografía Post-Cuántica (ML-KEM-768)"]
+        end
+        subgraph Exec["Capa de Ejecución"]
+            E1["Wasmtime v29.0 (WASI Preview 1)"]
+            E2["Medición de Instrucciones (set_fuel)"]
+            E3["Aislamiento Lineal y Trampas"]
+            E4["Ganchos de Recibos ZK (HMAC-SHA256)"]
+        end
+    end
 ```
 
 ---
@@ -54,9 +61,9 @@ El espacio de trabajo divide las responsabilidades del protocolo en crates espec
 LIOP exige canales bidireccionales de baja latencia con multiplexación para procesar la ejecución de capacidades y la telemetría en tiempo real:
 
 1. **Tonic (gRPC sobre HTTP/2):**
-   Tonic gestiona el empaquetado de mensajes, el control de flujo y la contrapresión de forma asíncrona sobre el runtime multihilo de `tokio`. Todas las cargas se serializan en Protobuf binario, suprimiendo la sobrecarga de codificación JSON.
+   Tonic gestiona el empaquetado de mensajes, el control de flujo y la contrapresión de forma asíncrona sobre el runtime multihilo de `tokio`. Todas las cargas se serializan en Protobuf binario; de este modo suprimen la sobrecarga de codificación JSON.
 2. **rust-libp2p (Noise y Kademlia):**
-   Los nodos autentican su identidad criptográfica Ed25519 mediante el **Noise Protocol Framework** (patrón de negociación `XX`). Los pares descubren capacidades y contenidos a través del identificador canónico de Kademlia DHT (`/ipfs/kad/1.0.0`), eliminando la dependencia de servidores DNS o autoridades de certificación centralizadas.
+   Los nodos autentican su identidad criptográfica Ed25519 mediante el **Noise Protocol Framework** (patrón de negociación `XX`). Los pares descubren capacidades y contenidos a través del identificador canónico de Kademlia DHT (`/ipfs/kad/1.0.0`), lo que suprime la dependencia de servidores DNS o autoridades de certificación centralizadas.
 
 ---
 

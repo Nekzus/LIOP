@@ -11,26 +11,10 @@ Deploying LIOP across production environments requires establishing zero-trust n
 2. **Tier 2 (Consortium & Edge Nodes)**: Shared validation and regional routing services (`Oracle`, `Edge IoT`, `Nexus OIDC`).
 3. **Tier 3 (Perimeter Gateways & Relays)**: Public or DMZ-facing reverse proxies (`Border LIO Gateway`, `Circuit Relay v2`).
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                          Tier 3: DMZ / Perimeter                            │
-│   WAN Ingress ──► [Border LIO Gateway (BLG: 15018)] ──► [Circuit Relay v2]   │
-└──────────────────────────────────────┬──────────────────────────────────────┘
-                                       │ mTLS + libp2p/pnet Swarm Key
-                                       ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                        Tier 2: Consortium Backbone                          │
-│   [Nexus Auth / OIDC (15000)] ◄──► [Market Oracle] ◄──► [Edge IoT Gateway]  │
-└──────────────────────────────────────┬──────────────────────────────────────┘
-                                       │ Hardware Firewall / Air-Gap
-                                       ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                        Tier 1: Sovereign Enclaves                           │
-│   [Confidential Bank Enclave (15021)]   [Corporate Vault Enclave (15011)]   │
-│   • Guardian AST Layer 1                • V8/WASI Sandboxing Layer 2        │
-│   • Egress PII Shield Layer 4           • ZK-Receipt Generator Layer 6      │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
+<Frame caption="Sovereign Enclaves & TEE Attestation Flow">
+  <img className="block dark:hidden w-full" src="/images/animated-tee-flow-light.svg" alt="Sovereign Enclaves & TEE Attestation Flow" />
+  <img className="hidden dark:block w-full" src="/images/animated-tee-flow-dark.svg" alt="Sovereign Enclaves & TEE Attestation Flow" />
+</Frame>
 
 ---
 

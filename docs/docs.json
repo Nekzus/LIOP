@@ -29,6 +29,16 @@
   "navbar": {
     "links": [
       {
+        "label": "npm v2.5.0",
+        "href": "https://www.npmjs.com/package/@nekzus/liop",
+        "icon": "npm"
+      },
+      {
+        "label": "Release",
+        "href": "https://github.com/Nekzus/LIOP/releases/latest",
+        "icon": "tag"
+      },
+      {
         "label": "GitHub",
         "href": "https://github.com/Nekzus/LIOP",
         "icon": "github"

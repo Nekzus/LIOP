@@ -9,29 +9,17 @@ La capa de runtime de `@nekzus/liop` coordina la detección de la topología de 
 
 Garantiza que, independientemente de si un agente opera en un entorno de desarrollo local, en un proxy perimetral inverso o en una malla distribuida de alta seguridad, las peticiones transiten por el canal más rápido y seguro disponible.
 
-```
-                         ┌────────────────────────┐
-                         │   CLI / Agente Cliente │
-                         └───────────┬────────────┘
-                                     │
-                                     ▼
-                          ┌────────────────────┐
-                          │   TopologyProbe    │ (Autodescubrimiento RFC 9728)
-                          └──────────┬─────────┘
-                                     │
-                   ┌─────────────────┼─────────────────┐
-                   ▼                 ▼                 ▼
-          [Modo Pasarela]     [Modo Híbrido]      [Modo Malla]
-          HTTP-MCP Directo    Ruta por Función    gRPC P2P Puro
-                   │                 │                 │
-                   └────────► ┌──────┴──────┐ ◄────────┘
-                              │RoutingTable │ (Circuit Breaker)
-                              └──────┬──────┘
-                                     │
-                      ┌──────────────┴──────────────┐
-                      ▼                             ▼
-               [TokenManager]              [Pool de Piscina]
-           OAuth 2.1 Preemptivo       ML-KEM / AST Fuera de Hilo
+```mermaid
+flowchart TD
+    Client["CLI / Agente Cliente"] --> Probe["TopologyProbe (Autodescubrimiento RFC 9728)"]
+    Probe --> GW["Modo Pasarela (HTTP-MCP Directo)"]
+    Probe --> HY["Modo Híbrido (Ruta por Herramienta)"]
+    Probe --> ME["Modo Malla (gRPC P2P Puro)"]
+    GW --> RT["RoutingTable (Circuit Breaker)"]
+    HY --> RT
+    ME --> RT
+    RT --> TM["TokenManager (OAuth 2.1 Preemptivo)"]
+    RT --> PP["Pool Piscina (ML-KEM / AST Fuera de Hilo)"]
 ```
 
 ---
@@ -137,7 +125,7 @@ Para evitar caídas en cascada a través de la malla, `RoutingTable` monitoriza 
 - **`recordSuccess(toolName, latencyMs)`**: Restablece el contador de fallos consecutivos a `0` y actualiza las medias móviles de latencia.
 - **`recordFailure(toolName)`**: Incrementa el contador de fallos consecutivos.
 - **Condición de Disparo (`MAX_FAILURES = 5`)**: Cuando una ruta acumula 5 fallos consecutivos, el disyuntor se abre. El runtime emite una advertencia y notifica al despachador para probar rutas de respaldo o retornar un error `ErrorCode.CIRCUIT_BREAKER_OPEN`.
-- **`getAllToolDefinitions()`**: Retorna la lista de herramientas activas ordenadas alfabéticamente, cumpliendo con la especificación `tools/list` del protocolo MCP.
+- **`getAllToolDefinitions()`**: Retorna la lista de herramientas activas ordenadas alfabéticamente según exige la especificación `tools/list` del protocolo MCP.
 
 ---
 

@@ -9,19 +9,25 @@ The `LiopClient` class acts as the primary dispatch coordinator for Agent Nodes 
 
 Unlike traditional Model Context Protocol (MCP) clients that pull massive raw datasets across the network via polling or streaming endpoints, `LiopClient` packages analytical intent into isolated micro-modules and transmits them directly to where the data resides.
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                                 LiopClient                                  │
-├────────────────────────────────┬──────────────────────────┬─────────────────┤
-│          Auth Layer            │     Discovery Layer      │ Transport Layer │
-│  TokenManager (OAuth 2.1 M2M)  │   Kademlia DHT / MDNS    │  Tonic gRPC H2  │
-│  RFC 8707 Resource Indicators  │  RFC 9728 TopologyProbe  │  Kyber768 PQC   │
-└────────────────────────────────┴──────────────────────────┴─────────────────┘
-                                 │
-                 ┌───────────────┴───────────────┐
-                 ▼                               ▼
-      [Perimeter HTTP Gateway]        [Sovereign P2P Enclave]
-       Border LIO Gateway (BLG)        Direct Peer-to-Peer Node
+```mermaid
+flowchart TD
+    subgraph Client["LiopClient Orchestration Layer"]
+        direction LR
+        subgraph Auth["Auth Layer"]
+            A1["TokenManager (OAuth 2.1 M2M)"]
+            A2["RFC 8707 Resource Indicators"]
+        end
+        subgraph Discovery["Discovery Layer"]
+            D1["Kademlia DHT / MDNS"]
+            D2["RFC 9728 TopologyProbe"]
+        end
+        subgraph Transport["Transport Layer"]
+            T1["Tonic gRPC (HTTP/2)"]
+            T2["ML-KEM-768 (Kyber PQC)"]
+        end
+    end
+    Client -->|Perimeter HTTP/2| Gateway["Perimeter HTTP Gateway\n(Border LIO Gateway :15018)"]
+    Client -->|Direct gRPC Mesh| Enclave["Sovereign P2P Enclave\n(Direct Vault / Bank Node)"]
 ```
 
 ---

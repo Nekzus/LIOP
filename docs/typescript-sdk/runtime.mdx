@@ -9,29 +9,17 @@ The `@nekzus/liop` runtime layer coordinates network topology detection, dynamic
 
 It ensures that whether an agent executes in a local development environment, an edge reverse proxy, or a high-security distributed mesh, requests route through the most performant and secure channel available.
 
-```
-                         ┌────────────────────────┐
-                         │   CLI / Agent Client   │
-                         └───────────┬────────────┘
-                                     │
-                                     ▼
-                          ┌────────────────────┐
-                          │   TopologyProbe    │ (RFC 9728 Auto-Discovery)
-                          └──────────┬─────────┘
-                                     │
-                   ┌─────────────────┼─────────────────┐
-                   ▼                 ▼                 ▼
-           [Gateway Mode]      [Hybrid Mode]      [Mesh Mode]
-           Direct HTTP-MCP     Route per Tool     Pure P2P gRPC
-                   │                 │                 │
-                   └────────► ┌──────┴──────┐ ◄────────┘
-                              │RoutingTable │ (Circuit Breaker)
-                              └──────┬──────┘
-                                     │
-                      ┌──────────────┴──────────────┐
-                      ▼                             ▼
-               [TokenManager]              [Piscina Pool]
-          Preemptive OAuth 2.1         ML-KEM / AST Off-Thread
+```mermaid
+flowchart TD
+    Client["CLI / Agent Client"] --> Probe["TopologyProbe (RFC 9728 Auto-Discovery)"]
+    Probe --> GW["Gateway Mode (Direct HTTP-MCP)"]
+    Probe --> HY["Hybrid Mode (Route per Tool)"]
+    Probe --> ME["Mesh Mode (Pure P2P gRPC)"]
+    GW --> RT["RoutingTable (Circuit Breaker)"]
+    HY --> RT
+    ME --> RT
+    RT --> TM["TokenManager (Preemptive OAuth 2.1)"]
+    RT --> PP["Piscina Pool (ML-KEM / AST Off-Thread)"]
 ```
 
 ---

@@ -18,17 +18,19 @@ Proporciona un punto de extensión para incorporar filtros semánticos arbitrari
 
 El gancho de admisión se ejecuta en secuencia estricta:
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    POST /mcp (HTTP/1.1 o HTTP/2)                │
-├─────────────────────────────────────────────────────────────────┤
-│  1. Verificación Bearer OAuth 2.1 (NIST SP 800-207)             │ → 401 si es inválido
-│  2. Límite de Tasa por Ventana Deslizante (OWASP API4:2023)     │ → 429 si se excede
-│  3. Análisis de Trama JSON-RPC                                  │ → 400 si está mal formada
-│  4. GatewayInterceptor (Gancho de Admisión Perimetral)          │ → 403 si es rechazada
-│  5. Validación de Cabeceras SEP-2243                            │ → 400 si hay discrepancia
-│  6. LiopMcpRouter.dispatch() → RBAC → Enclaves / Malla P2P      │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    Req["POST /mcp (HTTP/1.1 o HTTP/2)"] --> S1["1. Verificación Bearer OAuth 2.1"]
+    S1 -->|Inválido| E401["HTTP 401 No Autorizado"]
+    S1 -->|Válido| S2["2. Límite de Tasa por Ventana Deslizante"]
+    S2 -->|Excedido| E429["HTTP 429 Demasiadas Solicitudes"]
+    S2 -->|Permitido| S3["3. Análisis de Trama JSON-RPC"]
+    S3 -->|Malformado| E400["HTTP 400 Solicitud Incorrecta"]
+    S3 -->|Válido| S4["4. GatewayInterceptor (Gancho de Admisión)"]
+    S4 -->|Rechazado| E403["HTTP 403 Prohibido"]
+    S4 -->|Admitido| S5["5. Validación de Cabeceras SEP-2243"]
+    S5 -->|Discrepancia| E400B["HTTP 400 Solicitud Incorrecta"]
+    S5 -->|Superada| S6["6. LiopMcpRouter.dispatch() → Enclaves / Malla P2P"]
 ```
 
 <Warning>
@@ -282,7 +284,7 @@ El despliegue de interceptores en una malla LIOP distribuida exige respetar estr
 
 ### 3. Pasarelas Fronterizas Asimétricas (`BLG`)
 - **Nodo Destino**: Border LIO Gateway (`BLG`) que conecta Tier 2 (Consorcio) con Tier 1 (Enclaves Privados).
-- **Política**: Valida niveles de autorización (`clearanceTier: 4`), certificados mTLS y la clave simétrica Swarm Key (`tier1.psk`). El código enrutado hacia el enclave pasa sin ser interceptado por un `GatewayInterceptor` local, garantizando que el enclave ejecute su propia validación in-situ.
+- **Política**: Valida niveles de autorización (`clearanceTier: 4`), certificados mTLS y la clave simétrica Swarm Key (`tier1.psk`). El código enrutado hacia el enclave pasa sin ser interceptado por un `GatewayInterceptor` local; esto asegura que el enclave ejecute su propia validación in-situ.
 
 ---
 

@@ -9,26 +9,10 @@ El Model Context Protocol (MCP) estandarizó la interfaz de los modelos de IA co
 
 El Logic-Injection-on-Origin Protocol (LIOP) introduce la **ejecución in-situ**. No es necesario reescribir la base de código de su servidor MCP existente para beneficiarse del aislamiento Zero-Trust, el filtrado de PII y el enrutamiento descentralizado P2P de LIOP. Puede envolver su instancia existente de `@modelcontextprotocol/sdk` mediante la clase `LiopMcpBridge`.
 
-```
-Arquitectura MCP Tradicional (Extracción de Contexto):
-┌────────────┐   JSON-RPC (tools/call)   ┌──────────────────┐
-│ Cliente IA │ ────────────────────────► │   Servidor MCP   │
-│  (Claude)  │ ◄──────────────────────── │ (Devuelve 50MB   │
-└────────────┘    50 MB por la red       │  de datos crudos)│
-                                         └──────────────────┘
-
-Arquitectura Puenteada de LIOP (Logic-on-Origin):
-┌────────────┐   gRPC + Kyber768 (PQC)   ┌────────────────────────────────┐
-│ Cliente IA │ ────────────────────────► │         LiopMcpBridge          │
-│  (Claude)  │ ◄──────────────────────── │  ┌────────────┐ ┌────────────┐ │
-└────────────┘    Recibo ZK (300 bytes)  │  │ GuardianAST│ │ Escudo PII │ │
-                                         │  └────────────┘ └────────────┘ │
-                                         │       Tubería Local Host       │
-                                         │                │               │
-                                         │                ▼               │
-                                         │      Servidor MCP Existente    │
-                                         └────────────────────────────────┘
-```
+<Frame caption="Arquitectura Tradicional MCP frente a Arquitectura Puenteada de LIOP">
+  <img className="block dark:hidden w-full" src="/images/bridge-flow-light.svg" alt="Arquitectura del Puente LIOP MCP" />
+  <img className="hidden dark:block w-full" src="/images/bridge-flow-dark.svg" alt="Arquitectura del Puente LIOP MCP" />
+</Frame>
 
 <Steps>
   <Step title="Instalación de Dependencias">

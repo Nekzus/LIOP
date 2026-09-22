@@ -7,20 +7,27 @@ icon: "hard-drive"
 
 La clase `LiopServer` constituye la infraestructura receptora del protocolo Logic-Injection-on-Origin. Aloja conjuntos de datos confidenciales, aplica fronteras criptográficas, valida módulos de lógica entrantes en WebAssembly o JavaScript mediante Guardian AST y los ejecuta dentro de sandboxes aislados de V8 bajo estrictos límites de memoria e instrucciones de CPU.
 
-En lugar de exponer endpoints de alto riesgo basados en REST o consultas SQL directas a agentes remotos de inteligencia artificial, un `LiopServer` declara **Capacidades** (Herramientas) estrictamente tipadas. Los agentes envían programas compilados para computar los resultados in-situ, impidiendo que los registros crudos viajen por la red.
+En lugar de exponer endpoints de alto riesgo basados en REST o consultas SQL directas a agentes remotos de inteligencia artificial, un `LiopServer` declara **Capacidades** (Herramientas) estrictamente tipadas. Los agentes envían programas compilados para computar los resultados in-situ; de este modo impiden que los registros crudos viajen por la red.
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                                 LiopServer                                  │
-├───────────────────────────────┬─────────────────────────────────────────────┤
-│         Capa de Ingreso       │               Escudo de Seguridad           │
-│  Tonic gRPC H2 / TLS / mTLS   │  Capa 1: Guardian AST (14 funciones WASI)   │
-│  Validador RFC 8707 OAuth 2.1 │  Capa 2: Sandbox V8 (25 globales anulados)  │
-│  Claves ML-KEM-768 Post-Cuánt.│  Capa 3: Analizador de Flujo Taint (IFC)    │
-│  Pool Piscina (Criptografía)  │  Capa 4: Escudo PII de Salida (Regex/NER)   │
-│                               │  Capa 5: Política de Agregación Obligatoria │
-│                               │  Capa 6: Recibo ZK (Sello HMAC-SHA256)      │
-└───────────────────────────────┴─────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    subgraph Server["Arquitectura LiopServer"]
+        direction LR
+        subgraph Ingress["Capa de Ingreso y Red"]
+            I1["Tonic gRPC (HTTP/2) / mTLS"]
+            I2["Validador RFC 8707 OAuth 2.1"]
+            I3["Claves ML-KEM-768 Post-Cuánticas"]
+            I4["Pool de Workers Piscina"]
+        end
+        subgraph Shield["The Shield: Pipeline de Seguridad"]
+            S1["Capa 1: Guardian AST (Allowlist)"]
+            S2["Capa 2: Sandbox V8 (Globales Anulados)"]
+            S3["Capa 3: Analizador de Flujo Taint (IFC)"]
+            S4["Capa 4: Escudo PII de Salida (Regex/NER)"]
+            S5["Capa 5: Política de Agregación"]
+            S6["Capa 6: Recibo ZK (Sello HMAC-SHA256)"]
+        end
+    end
 ```
 
 ---

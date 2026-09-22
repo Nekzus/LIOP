@@ -112,31 +112,10 @@ These guarantees are not marketing claims. Each one maps directly to an implemen
 
 ## 7. The Contrast
 
-```
-    CONTEXT-PULLING (Status Quo)
-    ─────────────────────────────────────────────────
-
-    ┌──────────────┐                     ┌──────────────┐
-    │              │   GB of raw data    │              │
-    │  Data Node   │ ──────────────────▶ │  Remote LLM  │
-    │              │                     │              │
-    └──────────────┘  PII in transit     └──────────────┘
-
-
-    LOGIC-INJECTION-ON-ORIGIN (LIOP)
-    ─────────────────────────────────────────────────
-
-    ┌──────────────┐                     ┌──────────────┐
-    │              │  KB of WASM logic   │              │
-    │  Data Node   │ ◀────────────────── │  Agent (LLM) │
-    │              │                     │              │
-    └──────────────┘                     └──────────────┘
-           │                                    ▲
-           │  Aggregated result + ZK-Receipt    │
-           └────────────────────────────────────┘
-
-            Data never leaves. Proof travels.
-```
+<Frame caption="Context-Pulling vs. Logic-Injection-on-Origin (LIOP)">
+  <img className="block dark:hidden w-full" src="/images/logic-vs-pull-light.svg" alt="Context-Pulling vs Logic-Injection-on-Origin" />
+  <img className="hidden dark:block w-full" src="/images/logic-vs-pull-dark.svg" alt="Context-Pulling vs Logic-Injection-on-Origin" />
+</Frame>
 
 ## 8. Governance & Protocol Evolution
 

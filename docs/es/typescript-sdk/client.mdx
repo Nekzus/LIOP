@@ -9,19 +9,25 @@ La clase `LiopClient` actúa como el coordinador principal de despacho para los 
 
 A diferencia de los clientes tradicionales del Model Context Protocol (MCP) que extraen volúmenes masivos de datos crudos a través de la red mediante sondeos o conexiones continuas, `LiopClient` empaqueta la intención analítica en micro-módulos aislados y los transmite directamente hacia el origen físico donde residen los datos.
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                                 LiopClient                                  │
-├────────────────────────────────┬──────────────────────────┬─────────────────┤
-│       Capa de Autorización     │   Capa de Descubrimiento │Capa de Transporte│
-│  TokenManager (OAuth 2.1 M2M)  │   Kademlia DHT / MDNS    │  Tonic gRPC H2  │
-│  RFC 8707 Resource Indicators  │  RFC 9728 TopologyProbe  │  Kyber768 PQC   │
-└────────────────────────────────┴──────────────────────────┴─────────────────┘
-                                 │
-                 ┌───────────────┴───────────────┐
-                 ▼                               ▼
-     [Pasarela HTTP Perimetral]       [Enclave Soberano P2P]
-      Border LIO Gateway (BLG)        Nodo Directo Peer-to-Peer
+```mermaid
+flowchart TD
+    subgraph Client["Capa de Orquestación LiopClient"]
+        direction LR
+        subgraph Auth["Capa de Autorización"]
+            A1["TokenManager (OAuth 2.1 M2M)"]
+            A2["Indicadores de Recursos RFC 8707"]
+        end
+        subgraph Discovery["Capa de Descubrimiento"]
+            D1["Kademlia DHT / MDNS"]
+            D2["Sondeo de Topología RFC 9728"]
+        end
+        subgraph Transport["Capa de Transporte"]
+            T1["Tonic gRPC (HTTP/2)"]
+            T2["ML-KEM-768 (Kyber PQC)"]
+        end
+    end
+    Client -->|HTTP/2 Perimetral| Gateway["Pasarela HTTP Perimetral\n(Border LIO Gateway :15018)"]
+    Client -->|Malla gRPC Directa| Enclave["Enclave Soberano P2P\n(Nodo Directo Bóveda / Banco)"]
 ```
 
 ---
@@ -123,7 +129,7 @@ await client.connect(undefined, {
       Token Bearer estático precalculado. Omite la negociación dinámica de `TokenManager` cuando se suministra.
     </ResponseField>
     <ResponseField name="meshConfig" type="MeshNodeConfig" optional>
-      Objeto de configuración para la instancia subyacente de `libp2p`, incluyendo multiaddrs de arranque y claves de enjambre (swarm keys).
+      Objeto de configuración para la instancia subyacente de `libp2p` que comprende multiaddrs de arranque y claves de enjambre (swarm keys).
     </ResponseField>
   </Expandable>
 </ParamField>

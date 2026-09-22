@@ -12,23 +12,19 @@ El protocolo Logic-Injection-on-Origin responde a los requisitos de cumplimiento
 2. **Escudo PII de Salida en Múltiples Etapas**: Detección y censura automática de nombres de pacientes, números de seguridad social (SSN), historiales clínicos (MRN) y teléfonos antes de emitir la respuesta.
 3. **Integridad Probatoria mediante Recibos ZK**: Certificación matemática de que el cómputo perturbado procede del servidor hospitalario legítimo y no experimentó alteraciones en tránsito.
 
-```
-Enclave Hospitalario (VPC Privada de Salud):
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  LiopServer (Nivel de Autorización: 5)                                      │
-│  Base de Datos de Pacientes FHIR (HL7 v4.0.1)                              │
-│                                                                             │
-│  Consulta Inyectada: "Incidencia de Diabetes Tipo 2 en cohorte de 45-65 años"│
-│                                                                             │
-│  Paso 1: Conteo Real ────────────────► total = 1.482                        │
-│  Paso 2: Ruido de Laplace (ε = 0.5) ─► totalPerturbado = 1.482 + Lap(1/0.5)│
-│                                                        = 1.484              │
-│  Paso 3: Escudo PII de Salida ───────► Cero datos nominales detectados     │
-│  Paso 4: Sello Criptográfico ZK ─────► Salida firmada con clave ML-KEM      │
-└──────────────────────────────────────┬──────────────────────────────────────┘
-                                       │ Red WAN: 195 bytes (Cero PHI)
-                                       ▼
-                       Agente de IA Clínica Externo
+```mermaid
+flowchart TD
+    subgraph Enclave["Enclave Hospitalario (VPC Privada de Salud)"]
+        direction TB
+        DB["Base de Datos FHIR (HL7 v4.0.1)"]
+        Q["Consulta Inyectada: Incidencia en cohorte"]
+        S1["1. Conteo Real: total = 1.482"]
+        S2["2. Ruido Laplace ε=0.5: perturbado = 1.484"]
+        S3["3. Escudo PII de Salida: Cero PHI detectado"]
+        S4["4. Sello Recibo ZK: HMAC-SHA256 con clave ML-KEM"]
+        DB --> Q --> S1 --> S2 --> S3 --> S4
+    end
+    S4 -->|Tráfico de Red: 195 bytes (Cero PHI)| Agent["Agente de IA Clínica Externo"]
 ```
 
 ---

@@ -7,11 +7,16 @@ icon: "shield-check"
 
 En un ecosistema donde agentes de IA inyectan y ejecutan lógica en nodos de datos de forma autónoma, la seguridad perimetral tradicional (VPNs, firewalls, contraseñas) es insuficiente. 
 
-El Logic-Injection-on-Origin Protocol (LIOP) asume que la red es hostil por defecto, adoptando una **arquitectura Zero-Trust integral**. Cada capa integra protecciones criptográficas y de aislamiento avanzadas.
+El Logic-Injection-on-Origin Protocol (LIOP) asume que la red es hostil por defecto e implementa una **arquitectura Zero-Trust integral**. Cada capa integra protecciones criptográficas y de aislamiento avanzadas.
+
+<Frame caption="The Shield: Pipeline de Seguridad Zero-Trust en Seis Capas">
+  <img className="block dark:hidden w-full" src="/images/animated-security-layers-light.svg" alt="Pipeline de Seguridad The Shield" />
+  <img className="hidden dark:block w-full" src="/images/animated-security-layers-dark.svg" alt="Pipeline de Seguridad The Shield" />
+</Frame>
 
 ## 1. Cifrado de Transporte (P2P & PQC)
 
-LIOP utiliza el **Noise Protocol Framework** para el establecimiento de conexiones P2P, eliminando la dependencia de Autoridades de Certificación (CAs) centralizadas y reforzado con Criptografía Post-Cuántica:
+LIOP utiliza el **Noise Protocol Framework** para el establecimiento de conexiones P2P; de este modo suprime la dependencia de Autoridades de Certificación (CAs) centralizadas y añade Criptografía Post-Cuántica:
 
 - **Identidades Ed25519**: Cada Agente y Nodo de Datos genera un par de claves. Tu Clave Pública *es* tu identidad (Peer ID) en la red.
 - **Autenticación Mutua**: Las conexiones se autentican de forma bilateral instantánea. Ambos extremos saben exactamente con quién están transaccionando mediante pruebas de posesión de clave.
@@ -35,7 +40,7 @@ Para scripts interpretados (como payloads en JavaScript), el **Taint Analyzer** 
 
 **Protección contra Evasión por Generadores e Iteradores**:
 Para prevenir intentos de bypass que utilicen generadores o iteradores (`function*` / `yield`) para extraer registros evadiendo los escaneos estándar de propiedades, el Taint Analyzer realiza un análisis estático profundo de los ámbitos de función:
-- **Rastreo de `YieldExpression`**: El motor evalúa recursivamente los argumentos de `yield`, garantizando que los valores derivados de PII sean marcados incluso si se encapsulan en yields de generadores.
+- **Rastreo de `YieldExpression`**: El motor evalúa recursivamente los argumentos de `yield` para certificar que los valores derivados de PII queden marcados incluso si se encapsulan en yields de generadores.
 - **Contaminación (Tainting) del Scope de Funciones**: Las funciones locales (`FunctionDeclaration`, `FunctionExpression`, `ArrowFunctionExpression`) que retornan o hacen `yield` de campos con taint son marcadas permanentemente como *tainted*.
 - **Cadenas de Métodos de Iteración**: Al invocar una función contaminada (`gen()`), el iterador resultante y sus llamadas subsiguientes (como `.next().value`) heredan el taint, lo que propaga la restricción a través del árbol de expresiones y neutraliza la exfiltración por generadores.
 
@@ -61,7 +66,7 @@ En entornos de producción (`NODE_ENV=production`), todas las violaciones de Egr
 
 ## 4. Sandboxing (WASI)
 
-Como se detalla en [Sandboxing con WASI](/es/concepts/wasi-sandboxing), la ejecución está aislada por las restricciones de CPU y memoria del runtime, garantizando que no haya acceso no autorizado a recursos del host.
+Como se detalla en [Sandboxing con WASI](/es/concepts/wasi-sandboxing), la ejecución está aislada por las restricciones de CPU y memoria del runtime; de esta manera impide cualquier acceso no autorizado a recursos del host.
 
 ## 5. Aislamiento por Hardware (TEEs)
 
@@ -73,11 +78,11 @@ Al ejecutar la lógica dentro de un Enclave, garantizamos que ni el proveedor de
 
 ¿Cómo sabe un Agente que el servidor ejecutó realmente su lógica y no manipuló el resultado? LIOP implementa soporte para **Máquinas Virtuales de Cero Conocimiento (zkVMs)**.
 
-Junto a la respuesta, el servidor puede emitir un **Recibo ZK**. El Agente verifica este recibo criptográfico en milisegundos, asegurando matemáticamente que el resultado proviene de la ejecución exacta de su binario sobre los datos protegidos, sin que el servidor tenga que revelar los datos al exterior para ser auditado. 
+Junto a la respuesta, el servidor puede emitir un **Recibo ZK**. El Agente verifica este recibo criptográfico en milisegundos y confirma matemáticamente que el resultado proviene de la ejecución exacta de su binario sobre los datos protegidos, sin que el servidor tenga que revelar los datos al exterior para ser auditado. 
 
-**Ancla de Integridad de Datos**: Cada Recibo ZK incluye un `dataset_hash` — un digest SHA-256 del dataset subyacente al momento de la ejecución. Este ancla criptográfica permite a los clientes verificar que el dataset fue idéntico entre consultas consecutivas, separando definitivamente el ruido legítimo de Privacidad Diferencial de cualquier mutación no autorizada de los datos.
+**Ancla de Integridad de Datos**: Cada Recibo ZK incluye un `dataset_hash` — un digest SHA-256 del dataset subyacente al momento de la ejecución. Este ancla criptográfica permite a los clientes verificar que el dataset fue idéntico entre consultas consecutivas; esto desvincula definitivamente el ruido legítimo de Privacidad Diferencial de cualquier mutación no autorizada de los datos.
 
-**Validación Estructural ZK**: Esta validación (`verifyZkReceipt`) es ejecutada de forma nativa tanto por el `LiopClient` como por el adaptador `LiopMcpBridge`. Estos componentes actúan como filtros de verificación criptográfica, comprobando las firmas e impidiendo que datos adulterados u orígenes comprometidos sean entregados a la IA.
+**Validación Estructural ZK**: Esta validación (`verifyZkReceipt`) es ejecutada de forma nativa tanto por el `LiopClient` como por el adaptador `LiopMcpBridge`. Estos componentes actúan como filtros de verificación criptográfica que comprueban las firmas e impiden la entrega de datos adulterados u orígenes comprometidos a la IA.
 
 ## 7. Motor de Privacidad Diferencial (Mecanismo de Laplace)
 
@@ -131,12 +136,12 @@ Para evitar esta reconstrucción diferencial, LIOP implementa un **Motor de Pres
 
 - **Aislamiento y Persistencia de Sesión (Anti-Bypass)**: Los presupuestos se rastrean *por cliente* utilizando la identidad criptográfica (`agentDid` derivado de su PeerID Ed25519 persistente, o `clientId` de los tokens JWT autorizados por el servidor Nexus OAuth 2.1) verificada durante el handshake PQC (`negotiateIntent`). Bajo el capó, estos presupuestos se pueden escribir en el disco a través de un archivo JSON compartido (`budgetStorePath`). Esto evita que los límites se omitan mediante reconexiones, el inicio de un nuevo intent gRPC o el reinicio del servidor, ya que el presupuesto se ancla a la identidad criptográfica persistente del cliente en lugar de a tokens de transporte efímeros (como el `session_token` de gRPC).
 - **Concurrencia y Bloqueo de Archivos**: Para evitar ataques de diferenciación estadística en los que se envían múltiples solicitudes paralelas simultáneamente para evadir los presupuestos, el motor sincroniza el acceso utilizando bloqueos a nivel de archivo (archivos `.lock`). Las actualizaciones son atómicas, lo que garantiza que ninguna solicitud pueda eludir las comprobaciones de validación en entornos multiproceso o distribuidos.
-- **Validación en Pre-Vuelo (Preflight)**: El `TaintAnalyzer` decodifica y escanea el AST de la lógica inyectada *antes* de instanciar el sandbox. Extrae todos los campos consultados, incluyendo aquellos dentro de bucles de generadores o indexaciones directas. Si el conteo acumulado de consultas de un campo (cargado dinámicamente desde el archivo de presupuestos) supera el límite de su tier, la petición se aborta inmediatamente en el preflight y devuelve un error limpio a la IA.
-- **Tolerancia a Fallos (Fallback)**: Si las restricciones de permisos o deadlocks impiden el bloqueo o escritura en el sistema de archivos, el motor emite una advertencia en los logs y hace un fallback dinámico a un rastreo en memoria, manteniendo la seguridad de los datos activa en todo momento.
+- **Validación en Pre-Vuelo (Preflight)**: El `TaintAnalyzer` decodifica y escanea el AST de la lógica inyectada *antes* de instanciar el sandbox. Extrae todos los campos consultados, tanto los anidados en bucles de generadores como los accesos directos por índice. Si el conteo acumulado de consultas de un campo (cargado dinámicamente desde el archivo de presupuestos) supera el límite de su tier, la petición se aborta inmediatamente en el preflight y devuelve un error limpio a la IA.
+- **Tolerancia a Fallos (Fallback)**: Si las restricciones de permisos o deadlocks impiden el bloqueo o escritura en el sistema de archivos, el motor emite una advertencia en los logs y recurre de manera dinámica a un rastreo en memoria; esto mantiene la seguridad de los datos activa en todo momento.
 
 ### Tiers de Sensibilidad
 
-LIOP clasifica los campos en tres tiers de sensibilidad, aplicando límites de consulta específicos por sesión:
+LIOP clasifica los campos en tres tiers de sensibilidad y aplica límites de consulta específicos por sesión:
 
 | Tier de Sensibilidad | Campos Objetivo | Límite de Consultas / Sesión | Descripción y Rationale |
 |:---|:---|:---|:---|
@@ -156,7 +161,7 @@ LIOP mitiga matemática y estructuralmente las siete categorías de amenazas del
 
 - **Linkability (L) e Identifiability (I)** *(Enlazabilidad e Identificabilidad)*: Neutralizadas por el **Motor de Privacidad Diferencial de Laplace** calibrado que perturba las salidas numéricas, un **Taint Analyzer** a nivel de AST que detecta exfiltraciones basadas en la extracción de caracteres y un estricto **umbral de K-Anonymity** ($n < 10$) que bloquea respuestas sobre datasets diminutos.
 - **Non-repudiation (N)** *(No repudio)*: Resuelto mediante **ZK-Receipts** (compromisos HMAC-SHA256 y recibos de ejecución criptográficos) vinculados a firmas de identidad de nodo persistentes con claves **Ed25519**, lo que proporciona una prueba de ejecución inalterable.
-- **Detectability (D)** *(Detectabilidad)*: Mitigada al normalizar las métricas de consumo de combustible de CPU en buckets discretos de 100 unidades y al utilizar un CSPRNG (`crypto.randomBytes()`) seguro para el ruido de Laplace, neutralizando ataques laterales de temporización y de reconstrucción de estado del generador.
+- **Detectability (D)** *(Detectabilidad)*: Mitigada al normalizar las métricas de consumo de combustible de CPU en buckets discretos de 100 unidades y al utilizar un CSPRNG (`crypto.randomBytes()`) seguro para el ruido de Laplace; esta salvaguarda neutraliza ataques laterales de temporización y de reconstrucción de estado del generador.
 - **Data Disclosure (D)** *(Divulgación de datos)*: Impedida estructuralmente por el paradigma central **Logic-on-Origin** (trasladar la lógica al dato en vez del dato a la inteligencia), reforzada por el **Escudo Egress PII** de múltiples capas y la **Política Aggregation-First** que bloquea la exportación de filas de datos en bruto.
 - **Unawareness (U) y Non-compliance (N)** *(Falta de conciencia e Incumplimiento)*: Resuelto a través de recursos dinámicos de instrucciones de esquemas (`liop://schema/guidelines`) que guían a los agentes sobre las restricciones activas en tiempo real, diseñados nativamente para cumplir con las guías de **NIST SP 800-226** y **OWASP DLP 2025**.
 

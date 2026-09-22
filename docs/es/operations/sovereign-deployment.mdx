@@ -11,26 +11,10 @@ El despliegue de LIOP en entornos de producción exige una segmentación de red 
 2. **Nivel 2 (Nodos de Consorcio y Extremo)**: Servicios de validación compartida y enrutamiento regional (`Oracle`, `Edge IoT`, `Nexus OIDC`).
 3. **Nivel 3 (Pasarelas Perimetrales y Relés)**: Proxies inversos expuestos en la DMZ (`Border LIO Gateway`, `Circuit Relay v2`).
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                          Nivel 3: DMZ / Perímetro                           │
-│   Ingreso WAN ──► [Border LIO Gateway (BLG: 15018)] ──► [Circuit Relay v2]   │
-└──────────────────────────────────────┬──────────────────────────────────────┘
-                                       │ mTLS + Clave de Enjambre libp2p/pnet
-                                       ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                        Nivel 2: Troncal de Consorcio                        │
-│   [Nexus Auth / OIDC (15000)] ◄──► [Market Oracle] ◄──► [Edge IoT Gateway]  │
-└──────────────────────────────────────┬──────────────────────────────────────┘
-                                       │ Cortafuegos Físico / Red Aislada
-                                       ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                        Nivel 1: Enclaves Soberanos                          │
-│   [Enclave Bancario Seguro (15021)]     [Enclave de Bóveda Corporativa]     │
-│   • Guardian AST Capa 1                 • Sandbox V8/WASI Capa 2            │
-│   • Escudo PII de Salida Capa 4         • Generador de Recibos ZK Capa 6    │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
+<Frame caption="Flujo de Enclaves Soberanos y Atestación TEE">
+  <img className="block dark:hidden w-full" src="/images/animated-tee-flow-light.svg" alt="Flujo de Enclaves Soberanos y Atestación TEE" />
+  <img className="hidden dark:block w-full" src="/images/animated-tee-flow-dark.svg" alt="Flujo de Enclaves Soberanos y Atestación TEE" />
+</Frame>
 
 ---
 

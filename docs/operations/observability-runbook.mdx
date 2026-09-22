@@ -121,20 +121,24 @@ Below are production alerting rules defined in `examples/observability/alerting_
 
 The LIOP Master Dashboard (`examples/observability/dashboards/master-dashboard.json`) organizes operational health into structured sections:
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│ Row 1: Global Health & KPIs                                                 │
-│ [Total Invocations] [Active Enclaves: 7/7] [Wire Saved: 99.8%] [PQC: Valid] │
-├─────────────────────────────────────────────────────────────────────────────┤
-│ Row 2: Fleet Topology & Node Inventory                                      │
-│ Table: Hostname | Node Role | Tier | gRPC Port | Status (UP/DOWN) | Uptime  │
-├─────────────────────────────────────────────────────────────────────────────┤
-│ Row 3: Security & Zero-Trust Verification                                    │
-│ [Layer 1: AST Blocks]  [Layer 4: PII Redactions]  [Layer 6: ZK Verified]    │
-├─────────────────────────────────────────────────────────────────────────────┤
-│ Row 4: Data Sovereignty Telemetry                                           │
-│ Panel 50: Sovereignty Ratio (%)     Panel 9 (Series C): Saved Tokens/s      │
-└─────────────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    subgraph Dashboard["LIOP Grafana Master Dashboard Structure"]
+        direction TB
+        subgraph Row1["Row 1: Global Health & KPIs"]
+            R1["Total Invocations | Active Enclaves (7/7) | Wire Saved (99.8%) | PQC Status"]
+        end
+        subgraph Row2["Row 2: Fleet Topology & Node Inventory"]
+            R2["Inventory Table: Hostname | Role | Tier | Port | Status (UP/DOWN) | Uptime"]
+        end
+        subgraph Row3["Row 3: Security & Zero-Trust Verification"]
+            R3["Layer 1: AST Blocks | Layer 4: PII Redactions | Layer 6: ZK Verified Receipts"]
+        end
+        subgraph Row4["Row 4: Data Sovereignty Telemetry"]
+            R4["Panel 50: Sovereignty Ratio (%) | Panel 9: Token Velocity (Saved Tokens/s)"]
+        end
+        Row1 --> Row2 --> Row3 --> Row4
+    end
 ```
 
 ### Canonical PromQL Invariant

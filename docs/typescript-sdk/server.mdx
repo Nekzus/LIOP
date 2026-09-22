@@ -9,18 +9,25 @@ The `LiopServer` class represents the host-side infrastructure of the Logic-Inje
 
 Rather than exposing high-risk REST or SQL query endpoints to remote AI agents, a `LiopServer` exposes typed **Capabilities** (Tools). Agents submit compiled computation payloads to execute in-situ, ensuring raw rows never traverse the network.
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                                 LiopServer                                  │
-├───────────────────────────────┬─────────────────────────────────────────────┤
-│         Ingress Layer         │               Security Shield               │
-│  Tonic gRPC H2 / TLS / mTLS   │  Layer 1: Guardian AST (14-import allowlist)│
-│  OAuth 2.1 RFC 8707 Validator │  Layer 2: V8 Sandbox (25 poisoned globals)  │
-│  ML-KEM-768 Post-Quantum Key  │  Layer 3: Taint Analyzer (IFC)              │
-│  Piscina Worker Pool (Crypto) │  Layer 4: Egress PII Shield (Regex/NER)     │
-│                               │  Layer 5: Aggregation-First Policy          │
-│                               │  Layer 6: ZK-Receipt (HMAC-SHA256 Seal)     │
-└───────────────────────────────┴─────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    subgraph Server["LiopServer Architecture"]
+        direction LR
+        subgraph Ingress["Ingress & Transport Layer"]
+            I1["Tonic gRPC (HTTP/2) / mTLS"]
+            I2["OAuth 2.1 RFC 8707 Validator"]
+            I3["ML-KEM-768 Post-Quantum Key"]
+            I4["Piscina Worker Pool (Crypto)"]
+        end
+        subgraph Shield["The Shield: Security Pipeline"]
+            S1["Layer 1: Guardian AST (Allowlist)"]
+            S2["Layer 2: V8 Sandbox (Poisoned Globals)"]
+            S3["Layer 3: Taint Analyzer (IFC)"]
+            S4["Layer 4: Egress PII Shield (Regex/NER)"]
+            S5["Layer 5: Aggregation-First Policy"]
+            S6["Layer 6: ZK-Receipt (HMAC-SHA256)"]
+        end
+    end
 ```
 
 ---

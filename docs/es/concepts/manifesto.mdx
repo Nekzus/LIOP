@@ -12,7 +12,7 @@ Una malla de transporte binario descentralizada que invierte el paradigma domina
 ## 1. La Crisis del Context-Pulling
 
 <Note>
-**Definición 1 (Context-Pulling).** Patrón arquitectónico en el cual un agente de IA extrae datos crudos y sin procesar desde su nodo de origen, cruzando una frontera de red hacia un entorno de ejecución remoto para su análisis. Este patrón requiere que el propietario de los datos renuncie a la custodia física de los mismos antes de que ocurra cualquier cómputo.
+**Definición 1 (Context-Pulling).** Patrón arquitectónico en el cual un agente de IA extrae datos crudos y sin procesar desde su nodo de origen y los transfiere a través de una frontera de red hacia un entorno de ejecución remoto para su análisis. Este patrón requiere que el propietario de los datos renuncie a la custodia física de los mismos antes de que ocurra cualquier cómputo.
 </Note>
 
 La generación actual de protocolos de integración de IA — incluyendo el Model Context Protocol (MCP) — estandariza esta extracción. Si bien resulta altamente efectiva para la ergonomía de herramientas de agentes locales, extensiones de IDEs y utilidades de escritorio para desarrolladores, aplicar Context-Pulling sobre datos empresariales distribuidos transfiere megabytes o gigabytes de registros sensibles a través de internet para que un modelo centralizado pueda analizar, razonar y resumir en un servidor remoto.
@@ -112,31 +112,10 @@ Estas garantías no son claims de marketing. Cada una se mapea directamente a un
 
 ## 7. El Contraste
 
-```
-    CONTEXT-PULLING (Statu Quo)
-    ─────────────────────────────────────────────────
-
-    ┌──────────────┐                     ┌──────────────┐
-    │              │ GB de datos crudos  │              │
-    │  Nodo Datos  │ ──────────────────▶ │  LLM Remoto  │
-    │              │                     │              │
-    └──────────────┘ PII en tránsito     └──────────────┘
-
-
-    LOGIC-INJECTION-ON-ORIGIN (LIOP)
-    ─────────────────────────────────────────────────
-
-    ┌──────────────┐                     ┌──────────────┐
-    │              │ KB de lógica WASM   │              │
-    │  Nodo Datos  │ ◀────────────────── │ Agente (LLM) │
-    │              │                     │              │
-    └──────────────┘                     └──────────────┘
-           │                                    ▲
-           │ Resultado agregado + ZK-Receipt    │
-           └────────────────────────────────────┘
-
-       Los datos nunca salen. La prueba viaja.
-```
+<Frame caption="Contraste: Extracción de Contexto frente a Logic-Injection-on-Origin (LIOP)">
+  <img className="block dark:hidden w-full" src="/images/logic-vs-pull-light.svg" alt="Extracción de Contexto frente a Logic-Injection-on-Origin" />
+  <img className="hidden dark:block w-full" src="/images/logic-vs-pull-dark.svg" alt="Extracción de Contexto frente a Logic-Injection-on-Origin" />
+</Frame>
 
 ## 8. Gobernanza y Evolución del Protocolo
 

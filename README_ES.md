@@ -39,23 +39,13 @@ Las arquitecturas habituales del Model Context Protocol (MCP) operan bajo el pri
 
 **LIOP invierte esta arquitectura**: en lugar de trasladar los datos hacia la inteligencia artificial, la inteligencia despacha un micro-módulo de cómputo aislado (WebAssembly o JavaScript verificado por AST) directamente hacia el servidor donde residen los datos.
 
-```
-Arquitectura Tradicional MCP (Extracción de Contexto):
-┌────────────┐   JSON-RPC (tools/call)   ┌──────────────────┐
-│ Cliente IA │ ────────────────────────► │   Servidor MCP   │
-│  (Claude)  │ ◄──────────────────────── │ (Devuelve 50MB   │
-└────────────┘    50 MB por la red       │  de datos crudos)│
-                                         └──────────────────┘
-
-Arquitectura Soberana de LIOP (Logic-on-Origin):
-┌────────────┐   gRPC + Kyber768 (PQC)   ┌────────────────────────────────┐
-│ Cliente IA │ ────────────────────────► │      Nodo de Datos LIOP        │
-│  (Claude)  │ ◄──────────────────────── │  ┌────────────┐ ┌────────────┐ │
-└────────────┘    Recibo ZK (300 bytes)  │  │ GuardianAST│ │ Escudo PII │ │
-                                         │  └────────────┘ └────────────┘ │
-                                         │  [Ejecución WASI In-Situ]      │
-                                         └────────────────────────────────┘
-```
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/logic-vs-pull-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="docs/images/logic-vs-pull-light.svg">
+    <img alt="Arquitectura Tradicional MCP frente a Arquitectura Soberana de LIOP" src="docs/images/logic-vs-pull-dark.svg" width="100%">
+  </picture>
+</p>
 
 ### Comparativa: Extracción de Contexto vs. Lógica en el Origen
 
@@ -175,7 +165,7 @@ LIOP impone seis capas de seguridad programática antes de que cualquier dato o 
 2. **Capa 2: Aislamiento en Sandbox V8**: Sustituye 25 variables globales sensibles por trampas de seguridad y aplica `Object.freeze` sobre 11 prototipos nativos para cumplir con las normas de PCI-DSS.
 3. **Capa 3: Analizador de Flujo Taint (IFC)**: El control estático de flujo bloquea la inferencia indirecta de datos confidenciales por canales laterales.
 4. **Capa 4: Escudo PII de Salida**: Un filtro en múltiples etapas (expresiones regulares, validadores de Luhn/IBAN y modelos de lenguaje NER) censura tokens confidenciales.
-5. **Capa 5: Política de Agregación**: Prohíbe la exportación de listas de registros individuales, exigiendo resultados estadísticos o resúmenes.
+5. **Capa 5: Política de Agregación**: Prohíbe la exportación de listas de registros individuales y exige resultados estadísticos o resúmenes.
 6. **Capa 6: Generación de Recibos ZK**: Sella los resultados mediante resúmenes HMAC-SHA256 vinculados matemáticamente al código exacto ejecutado y a la clave efímera de sesión post-cuántica.
 
 ---
