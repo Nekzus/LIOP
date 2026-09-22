@@ -48,6 +48,7 @@ This addresses the data privacy, bandwidth, and latency bottlenecks of distribut
 | **Logic-Injection-on-Origin** | LLMs send code, not queries. Data never leaves the origin server.                                                                          |
 | **Dual-Era MCP Compliance**   | Dual-era compatibility supporting modern stateless MCP v2 (2026-07-28) and legacy MCP (2025-11-25) clients (Claude Desktop, Cursor).    |
 | **Token Economy Engine**      | Inlined BPE `o200k_base` tokenizer with zero runtime dependencies (16.5MB footprint reduction) and OpenTelemetry `gen_ai.*` bridge.       |
+| **Protocol Interceptors & Jev** | In-situ pre/post execution admission hooks (`LogInterceptor`, `AuditInterceptor`, `GatewayInterceptor`) with TypeSafe Jev schema validation for protocol payload governance. |
 | **Interactive Playground UI** | Real-time Web UI (`:16000` prod / `:14000` dev) with 4-tab modular architecture (`Output`, `Debug`, `Telemetry`, `Export`), code generation (TS/cURL/Python), and dual OLED/Slate themes. |
 | **Multi-Tier Sovereign Enclaves** | Physical socket isolation via `@libp2p/pnet` (256-bit Swarm Key PSK) and Border LIO Gateway (`blg`) with OAuth 2.1 authentication.       |
 | **AST Fuel Metering**         | Deterministic AST instruction fuel scoring with 100-bucket quantization for NIST SP 800-53 timing side-channel elimination (`stddev = 0`).|
