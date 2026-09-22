@@ -91,7 +91,7 @@ export const UseCaseTabs = () => {
   const useCases = [
     {
       label: "Big Data In-Situ",
-      description: "Despacha lógica de filtrado en sandbox directamente a los datos de origen. El modelo recibe únicamente un resumen analítico agregado (312 bytes egress, 184 tokens), lo que suprime el tráfico masivo de red.",
+      description: "Despacha lógica de filtrado en sandbox directamente a los datos de origen. El modelo recibe exclusivamente un resumen analítico agregado, lo que suprime el tráfico masivo de red.",
       codeExamples: [
         `import { LiopClient } from "@nekzus/liop";
 
@@ -103,7 +103,7 @@ const result = await client.callTool({
   name: "filter_telemetry",
   arguments: {
     payload: \`@LIOP{wasi_v1,LogAnomalies}
-      // Evaluado in-situ en V8 Isolate sobre 500 MB de registros crudos
+      // Evaluado in-situ en V8 Isolate sobre los registros en reposo
       const anomalies = records
         .filter(r => r.status >= 500 && r.latencyMs > 250)
         .map(r => r.latencyMs);
@@ -111,7 +111,7 @@ const result = await client.callTool({
       return {
         totalAnomalies: anomalies.length,
         p99LatencyMs: anomalies.sort((a, b) => a - b)[Math.floor(anomalies.length * 0.99)] || 0,
-        egressBytes: 312 // Únicamente viaja el resumen analítico
+        resumen: "Anomalías calculadas en el origen"
       };
     @END\`
   }
@@ -133,7 +133,8 @@ curl -X POST http://127.0.0.1:15018/mcp \\
       }
     }
   }'`,
-        `use liop_client::{LiopRpcClient, CallToolRequest};
+        `// SDK nativo de Rust (Alpha): consulte /es/rust-sdk/overview
+use liop_client::{LiopRpcClient, CallToolRequest};
 
 let mut client = LiopRpcClient::connect("http://127.0.0.1:15021").await?;
 let request = CallToolRequest {
@@ -144,7 +145,7 @@ let request = CallToolRequest {
 };
 
 let response = client.call_tool(request).await?;
-println!("Salida atestada: {:?}", response.content);`
+println!("Resultado atestado: {:?}", response.content);`
       ]
     },
     {
@@ -317,7 +318,7 @@ bridge.run().await?;`
           <pre className="language-bash" filename="cURL / CLI">
             <code>{active.codeExamples[1]}</code>
           </pre>
-          <pre className="language-rust" filename="Rust">
+          <pre className="language-rust" filename="Rust (Alpha)">
             <code>{active.codeExamples[2]}</code>
           </pre>
         </CodeGroup>

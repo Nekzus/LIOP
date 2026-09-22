@@ -10,8 +10,12 @@ El ecosistema `@nekzus/liop` está diseñado para ser potente pero familiar. Si 
 En esta guía, crearemos un Servidor LIOP que expone una herramienta y un Cliente que la invoca.
 
 <Note>
-  Internamente, LIOP compila la lógica en módulos aislados y la distribuye por la malla. El SDK gestiona el transporte gRPC y P2P subyacente, proporcionando métodos estándar de registro e invocación de herramientas.
+  Internamente, LIOP compila la lógica en módulos aislados y la distribuye por la malla. El SDK gestiona el transporte gRPC y P2P subyacente y provee métodos estándar de registro e invocación de herramientas.
 </Note>
+
+<Tip>
+  **¿Desarrollas en Rust?** LIOP ofrece crates nativos en Rust (`liop-client` y `liop-core`) para software de sistemas, módulos WASI huésped y agentes de baja latencia. Consulta la [Visión General del SDK de Rust](/es/rust-sdk/overview) para instrucciones de configuración con Cargo y ejemplos de inyección in-situ.
+</Tip>
 
 <Steps>
   <Step title="Instalar el SDK">
@@ -31,7 +35,7 @@ En esta guía, crearemos un Servidor LIOP que expone una herramienta y un Client
   </Step>
 
   <Step title="Crear un Servidor LIOP (Data Node)">
-    Un Servidor LIOP actúa como un Nodo de Datos. Se conecta a la malla y espera lógica inyectada de agentes remotos, exponiendo herramientas y recursos protegidos.
+    Un Servidor LIOP actúa como un Nodo de Datos. Se conecta a la malla y procesa la lógica inyectada por agentes remotos para ofrecer herramientas y recursos protegidos.
 
     Crea un archivo llamado `server.ts`:
 
@@ -52,7 +56,7 @@ En esta guía, crearemos un Servidor LIOP que expone una herramienta y un Client
       "Analiza tablas masivas directamente en el origen.",
       { query: z.string() },
       async ({ query }) => {
-        console.log(`[Server] Ejecutando Logic-Injection-on-Origin: ${query}`);
+        console.log(`[Server] Ejecución de Logic-Injection-on-Origin: ${query}`);
         
         // El procesamiento ocurre directamente en el origen.
         // Solo el resultado final consolidado sale del servidor.
@@ -65,7 +69,7 @@ En esta guía, crearemos un Servidor LIOP que expone una herramienta y un Client
     // Inicia la conexión y anúncialo en la malla DHT Kademlia
     async function main() {
       await server.connect();
-      console.log("Servidor LIOP escuchando en la malla...");
+      console.log("Servidor LIOP activo en la malla...");
     }
 
     main().catch(console.error);
@@ -111,7 +115,7 @@ En esta guía, crearemos un Servidor LIOP que expone una herramienta y un Client
     Primero, inicia el servidor:
     ```bash
     npx tsx server.ts
-    # Salida: Servidor LIOP escuchando en la malla...
+    # Salida: Servidor LIOP activo en la malla...
     ```
 
     En otra terminal, ejecuta el cliente del agente:
@@ -133,7 +137,7 @@ Para depuración visual, validación de lógica WASM/JS in-situ e inspección de
     Si instalaste `@nekzus/liop` en tu propio proyecto, inicia **LIOP Studio** directamente sin clonar el repositorio:
 
     ```bash
-    # Ejecuta el estudio web apuntando a tu servidor local o endpoint MCP (:16000)
+    # Ejecuta el estudio web enlazado a tu servidor local o endpoint MCP (:16000)
     npx @nekzus/liop-studio --http "http://localhost:3000/mcp"
 
     # O ejecuta un escaneo de capacidades sin interfaz gráfica

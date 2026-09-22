@@ -170,13 +170,20 @@
             ]
           },
           {
-            "tab": "Rust Backend",
+            "tab": "Rust Core & SDK",
             "groups": [
               {
-                "group": "Rust Backend",
+                "group": "Rust Core Mesh Node",
                 "pages": [
                   "mesh-node/overview",
                   "mesh-node/compilation"
+                ]
+              },
+              {
+                "group": "Rust SDK",
+                "tag": "Alpha",
+                "pages": [
+                  "rust-sdk/overview"
                 ]
               }
             ]
@@ -314,13 +321,20 @@
             ]
           },
           {
-            "tab": "Backend Rust",
+            "tab": "Backend y SDK de Rust",
             "groups": [
               {
-                "group": "Nodo Mesh",
+                "group": "Nodo Core de la Malla",
                 "pages": [
                   "es/mesh-node/overview",
                   "es/mesh-node/compilation"
+                ]
+              },
+              {
+                "group": "SDK de Rust",
+                "tag": "Alpha",
+                "pages": [
+                  "es/rust-sdk/overview"
                 ]
               }
             ]

@@ -13,6 +13,10 @@ In this guide, we'll build a basic LIOP Server that exposes a tool, and a Client
   Under the hood, LIOP compiles logic into sandboxed execution envelopes and dispatches it across the mesh. The SDK abstracts the underlying gRPC and P2P transport, exposing standard tool registration and execution methods.
 </Note>
 
+<Tip>
+  **Building in Rust?** LIOP provides native Rust crates (`liop-client` and `liop-core`) for systems engineers, WASI guest filters, and low-latency agents. Check out the [Rust SDK Overview](/rust-sdk/overview) for Cargo configuration and in-situ injection examples.
+</Tip>
+
 <Steps>
   <Step title="Install the SDK">
     Install the official SDK in your Node.js or TypeScript project:
