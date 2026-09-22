@@ -1,47 +1,68 @@
 # Logic-Injection-on-Origin Protocol: The Blind Analyst (Hi-Fi Demo)
 
-An industrial-grade, dynamic, high-fidelity demonstration simulating a complete Logic-Injection-on-Origin Protocol (LIOP) Logic-Injection-on-Origin injection attack, defense, and execution cycle.
+A dynamic, high-fidelity demonstration showcasing an end-to-end Logic-Injection-on-Origin Protocol (LIOP) execution cycle, layered security verification, and resource exhaustion defense.
+
+---
+
+## 📚 Official Documentation
+
+For comprehensive guides and architecture specifications, visit the [official LIOP documentation](https://nekzus-32.mintlify.app/).
+
+---
 
 ## Overview
-Unlike legacy systems (like MCP) that pull data toward large language models, LIOP pushes computational **WebAssembly (or JIT-compiled JS)** logic directly to the source of the data ("The Vault"). 
 
-This demo runs a simulated P2P connection between `agent.ts` and `server-node.ts` to showcase:
-1. **The Power:** Running varied logic payloads (Hypertension analysis, Age computation) over sensitive mock data without extracting it.
-2. **The Shield:** Actively triggering Zero-Time protection mechanisms via AST validation (Sandbox Escape) and Fuel Exhaustion limiters (Logic Bombs).
+Unlike legacy Model Context Protocol (MCP) systems that pull raw records across networks toward large language models, LIOP pushes computational WebAssembly (WASI) or sandboxed JavaScript logic directly to the source of the data ("The Vault").
 
-## The Scenarios
-The agent implements four dynamic scenarios that can be injected at will:
+This demo executes peer-to-peer interactions between `agent.ts` and `server-node.ts` to demonstrate:
+1. **In-Situ Execution**: Running analytical logic payloads (Hypertension analysis, Age distribution) over sensitive records without transferring raw datasets over the wire.
+2. **Layered Defense**: Enforcing pre-execution AST validation against sandbox escapes and halting infinite loops via deterministic CPU fuel limits.
 
-### 1. `average-age` (The Power)
-Computes the mean age of all patient records within the secure dataset and returns a **ZK-Receipt** (Zero-Knowledge proof representation) proving the math was correctly executed inside the Vault.
+---
 
-### 2. `hypertension` (The Power)
-Filters specifically for patients with a `Hypertension` condition and a Risk Score `> 0.8`. Demonstrates complex conditional filtering pushed to the origin without leaking individual records.
+## Scenarios
 
-### 3. `ast-attack` (The Shield)
-I/O Injection Attempt. The Client attempts to send a logic module that invokes `fs.readFileSync('/etc/passwd')`. The Vault's **Guardian AST** catches the malicious heuristic and completely blocks execution with a Zero-Time fatal drop.
+The agent implements four distinct scenarios:
 
-### 4. `fuel-exhaustion` (The Shield)
-The Infinite Loop Attack. The Client sends an innocent-looking loop that attempts to spin out CPU cycles indefinitely. The server's **WASI Sandbox** measures cycle execution against its Fuel Reserve and successfully amputates the process throwing a `Resource Exhaustion` error, protecting the Host infrastructure.
+### 1. `average-age` (Analytical Computation)
+Computes the mean age of patient records within the secure dataset and returns an HMAC-SHA256 **ZK-Receipt** proving the calculation was correctly executed inside the Vault.
+
+### 2. `hypertension` (Conditional Aggregation)
+Filters specifically for patients with a `Hypertension` diagnosis and a Risk Score `> 0.8`. Demonstrates complex conditional filtering pushed to the origin without leaking individual records.
+
+### 3. `ast-attack` (AST Static Inspection)
+Simulates an I/O injection attack. The client attempts to dispatch a logic module that invokes `fs.readFileSync('/etc/passwd')`. The Vault's **Guardian AST** catches the unauthorized import and halts execution before compilation.
+
+### 4. `fuel-exhaustion` (Resource Exhaustion Defense)
+Simulates an infinite loop. The client sends a module designed to consume CPU cycles indefinitely. The server's **WASI Sandbox** tracks instruction cycles against the allocated fuel budget and terminates the process with an out-of-fuel error.
+
+---
 
 ## How to Run
-All scenarios can be ran utilizing `pnpm`:
+
+From the repository root or demo directory:
 
 ```bash
-# Run The Power Scenarios
+# Run Analytical Scenarios
 pnpm run hifi:agent --scenario=average-age
 pnpm run hifi:agent --scenario=hypertension
 
-# Run The Shield Scenarios
+# Run Security Defense Scenarios
 pnpm run hifi:agent --scenario=ast-attack
 pnpm run hifi:agent --scenario=fuel-exhaustion
 ```
 
-## Security Stack Displayed
-- **Simulated Kyber ML-KEM-768 & AES-256-GCM Handshakes.**
-- **Guardian AST:** Deep packet / Logic inspection pre-compilation.
-- **Wasmtime WASI Fuel Management:** Strict instruction limit encapsulation.
-- **ZK-Receipt Integrity (HMAC-SHA256).** 
+---
 
-## Repository Architecture Highlight
-By executing `agent.ts` you will see how it completely encapsulates the intended remote operations by seamlessly sending a compiled manifest into the isolated context of `server-node.ts`.
+## Security Stack Displayed
+
+- **Post-Quantum Cryptography**: NIST FIPS 203 ML-KEM-768 key encapsulation and AES-256-GCM encryption.
+- **Guardian AST**: Pre-compilation import allowlist inspection (14 safe WASI symbols).
+- **WASI Sandbox Fuel Management**: Instruction-level fuel budgeting quantized to 100-unit buckets.
+- **ZK-Receipt Integrity**: HMAC-SHA256 proof binding output hash to logic digest and dataset anchor.
+
+---
+
+## License
+
+Licensed under the [Apache License, Version 2.0](../../../LICENSE). Copyright 2026 [Nekzus Solutions](https://github.com/Nekzus) and contributors.

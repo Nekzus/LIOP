@@ -1,0 +1,247 @@
+---
+title: "Enterprise Observability"
+description: "Native Prometheus metrics, production-agnostic deployment, Grafana IaC stack, and operational alerting for LIOP mesh nodes"
+icon: "chart-line"
+
+---
+
+Every `@nekzus/liop` server instance exposes a native **Prometheus text-format** metrics endpoint at `GET /metrics`. No sidecar, agent, or external dependency is required — the metrics registry is built into the SDK core and refreshes process-level gauges synchronously on each scrape request.
+
+## Two-Tier Observability Architecture
+
+The LIOP telemetry model is architecturally segregated into two complementary layers:
+
+### Layer A: Native In-Situ Telemetry (Zero External Dependencies)
+Embedded directly into the `@nekzus/liop` core runtime:
+- **Inlined BPE Tokenizer (`o200k_base`)**: Measures exact input and output token consumption in-situ with zero external npm dependencies (16.5 MB footprint reduction).
+- **Origin Dataset Footprint Tracking**: Measures the raw size of origin datasets (`originDatasetTokens`) and computes net token savings (`liop_tokens_saved_total = originDatasetTokens - outputTokens`) whenever logic is executed in-situ.
+- **Deterministic AST Instruction Fuel**: Instruction-level AST execution scoring quantized into 100-unit buckets per NIST SP 800-53 to eliminate timing side-channel leaks.
+- **Immutable Audit Ledger (`audit.jsonl`)**: Cryptographic SHA-256 hash-chained execution records satisfying SOC 2 Type II and HIPAA controls.
+- **Dynamic Prometheus Text Endpoint**: Serves instant runtime counters, gauges, and histograms via `GET /metrics`.
+
+### Layer B: Auxiliary Production Observability Stack
+Production-ready monitoring and developer tooling deployed alongside the mesh:
+- **Prometheus v3.14**: Scrapes mesh enclaves every 15 seconds, attributing `node_role` (`nexus-seed`, `vault-enclave`, `bank-enclave`, `oracle-consortium`, `edge-remote`, `relay-backbone`, `blg-perimeter`) and `tier` metadata labels.
+- **Grafana v13.2.1**: Master Dashboard (`tools/dashboards/liop-overview.json`) with 26 real-time panels tracking service availability SLOs, data sovereignty ratios, and cryptographic latencies.
+- **LIOP Studio (`@nekzus/liop-studio`)**: Official developer studio, mesh scanner, and logic-on-origin inspector running on port `:16000` (interactive UI and headless CLI).
+
+---
+
+## Metrics Reference
+
+The SDK emits three categories of metrics: **protocol counters**, **resource gauges**, and **cryptographic histograms**.
+
+### Protocol Counters
+
+| Metric | Type | Labels | Description |
+|---|---|---|---|
+| `liop_tool_calls_total` | Counter | `capability`, `role` | Total logic-injection executions (`role="executor"` on enclaves, `role="proxy"` on gateways) |
+| `liop_tool_call_errors_total` | Counter | `capability`, `error_type` | Failed executions or policy rejections |
+| `liop_egress_blocks_total` | Counter | — | Outputs blocked by Egress PII Shield |
+| `liop_wire_egress_bytes_total` | Counter | `capability` | Physical bytes transmitted over the wire |
+| `liop_wire_saved_bytes_total` | Counter | `capability` | Bytes retained in-situ at the data origin |
+| `liop_tokens_input_total` | Counter | — | BPE input tokens processed (`o200k_base`) |
+| `liop_tokens_output_total` | Counter | — | BPE output tokens emitted |
+| `liop_tokens_saved_total` | Counter | — | Estimated tokens saved vs extracting the origin dataset (`originDatasetTokens - outputTokens`) |
+| `liop_zk_verifications_total` | Counter | `status` | ZK-Receipt HMAC-SHA256 attestation checks |
+| `liop_pqc_handshakes_total` | Counter | `algorithm`, `status` | ML-KEM-768 key encapsulation operations |
+
+### Resource Gauges
+
+| Metric | Type | Labels | Description |
+|---|---|---|---|
+| `liop_mesh_peers_connected` | Gauge | — | Active P2P peer connections (Kademlia DHT) |
+| `liop_manifest_cache_size` | Gauge | — | Verified remote tool manifests in cache |
+| `liop_node_health_status` | Gauge | — | Operational health: `1` = healthy, `0` = degraded |
+| `liop_process_uptime_seconds` | Gauge | — | Node process uptime in seconds |
+| `liop_process_memory_rss_bytes` | Gauge | — | Resident Set Size (physical memory) |
+| `liop_process_memory_heap_used_bytes` | Gauge | — | V8 heap memory in use |
+| `liop_process_memory_heap_total_bytes` | Gauge | — | V8 total allocated heap |
+| `liop_process_memory_external_bytes` | Gauge | — | Memory bound to C++ objects and ArrayBuffers |
+
+<Note>
+  Gauges like `liop_mesh_peers_connected` and `liop_manifest_cache_size` are sampled **synchronously inside the `GET /metrics` handler**, ensuring Prometheus always receives the instantaneous runtime state — not a stale cached snapshot.
+</Note>
+
+### Cryptographic Histograms
+
+| Metric | Type | Buckets | Description |
+|---|---|---|---|
+| `liop_fuel_consumed_total` | Histogram | 100, 500, 1K, 2.5K, 5K, 10K, 50K, 100K | Deterministic WASI fuel units per execution |
+| `liop_operation_duration_ms` | Histogram | 5, 15, 30, 50, 100, 250, 500, 1K, 2.5K, 5K | End-to-end operation latency |
+| `liop_pqc_handshake_duration_ms` | Histogram | 1, 5, 10, 25, 50, 100, 250, 500 | ML-KEM-768 key encapsulation latency |
+| `liop_zk_verification_duration_ms` | Histogram | 1, 2, 5, 10, 25, 50, 100 | ZK-Receipt HMAC attestation latency |
+
+---
+
+## Production-Agnostic Deployment
+
+The LIOP server is a standard Node.js process. It binds to a configurable HTTP port and operates identically across bare metal, VMs, containers, or serverless runtimes. No orchestrator dependency exists.
+
+### Environment Variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `LIOP_PORT` | `3000` | HTTP port for the gateway server |
+| `LIOP_NODE_ROLE` | `enclave` | Node role label exposed in Prometheus (`nexus-seed`, `vault-enclave`, `bank-enclave`, etc.) |
+| `LIOP_TIER` | `tier1-enclave` | Security tier label for fleet grouping |
+| `NODE_OPTIONS` | — | V8 heap configuration (recommended: `--max-old-space-size=2048`) |
+
+### Running as a System Service
+
+<CodeGroup>
+```ini Linux (systemd)
+# /etc/systemd/system/liop-enclave.service
+[Unit]
+Description=LIOP Mesh Enclave Node
+After=network.target
+
+[Service]
+Type=simple
+User=liop
+WorkingDirectory=/opt/liop
+ExecStart=/usr/bin/node dist/server.js
+Environment=LIOP_PORT=3000
+Environment=LIOP_NODE_ROLE=vault-enclave
+Environment=LIOP_TIER=tier1-enclave
+Environment="NODE_OPTIONS=--max-old-space-size=2048"
+Restart=on-failure
+RestartSec=5
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```powershell Windows (NSSM)
+# Install as a Windows service using NSSM (Non-Sucking Service Manager)
+nssm install LiopEnclave "C:\Program Files\nodejs\node.exe" "C:\liop\dist\server.js"
+nssm set LiopEnclave AppEnvironmentExtra `
+  "LIOP_PORT=3000" `
+  "LIOP_NODE_ROLE=vault-enclave" `
+  "LIOP_TIER=tier1-enclave" `
+  "NODE_OPTIONS=--max-old-space-size=2048"
+nssm start LiopEnclave
+```
+
+```bash PM2 (Cross-Platform)
+# Start with PM2 process manager
+LIOP_PORT=3000 \
+LIOP_NODE_ROLE=vault-enclave \
+LIOP_TIER=tier1-enclave \
+NODE_OPTIONS="--max-old-space-size=2048" \
+pm2 start dist/server.js --name liop-enclave
+pm2 save
+pm2 startup
+```
+</CodeGroup>
+
+### Prometheus Scraping
+
+<CodeGroup>
+```yaml Static Target
+# prometheus.yml
+scrape_configs:
+  - job_name: liop-mesh
+    scrape_interval: 15s
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - "10.0.1.10:3000"
+          - "10.0.1.11:3000"
+          - "10.0.1.12:3000"
+        labels:
+          cluster: "production"
+```
+
+```yaml AWS EC2 Discovery
+scrape_configs:
+  - job_name: liop-mesh
+    ec2_sd_configs:
+      - region: us-east-1
+        port: 3000
+        filters:
+          - name: tag:service
+            values: ["liop-enclave"]
+    relabel_configs:
+      - source_labels: [__meta_ec2_tag_NodeRole]
+        target_label: node_role
+      - source_labels: [__meta_ec2_tag_Tier]
+        target_label: tier
+```
+
+```yaml Consul Service Discovery
+scrape_configs:
+  - job_name: liop-mesh
+    consul_sd_configs:
+      - server: "consul.internal:8500"
+        services: ["liop-enclave"]
+    relabel_configs:
+      - source_labels: [__meta_consul_service_metadata_node_role]
+        target_label: node_role
+```
+</CodeGroup>
+
+For environments with outbound-only firewalls (banking, healthcare), configure [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/) with the `prometheusreceiver` scraping locally and `otlphttp` exporting to your OTLP backend.
+
+---
+
+## Official Observability Stack (IaC)
+
+The SDK ships a ready-to-deploy monitoring stack under `examples/observability/`:
+
+```bash
+docker compose -f examples/observability/docker-compose.observability.yml up -d
+```
+
+This starts:
+- **Prometheus** on `:9090` with pre-configured scrape targets and alerting rules
+- **Grafana** on `:3001` with the Master Dashboard auto-provisioned
+
+### Grafana Master Dashboard
+
+The [LIOP Overview Dashboard](https://github.com/nekzus/liop/blob/main/tools/dashboards/liop-overview.json) provides 26 panels organized in five operational sections:
+
+| Section | Panels | Key Metrics |
+|---|---|---|
+| **Executive KPIs** | Service Availability SLO, Total Injections, P2P Peers, Panel 50 (Data Sovereignty Ratio), Uptime | `liop_tool_calls_total`, `liop_mesh_peers_connected`, Data Sovereignty % |
+| **RED Method** | Request Rate, Error Rate, Panel 9 (Token Ingestion, Egress & Saved Tokens/s Velocity), Duration p50/p95/p99 | `liop_operation_duration_ms`, `liop_tool_call_errors_total`, `liop_tokens_saved_total` |
+| **USE Method** | WASI Fuel Distribution, RSS Memory, V8 Heap Saturation | `liop_fuel_consumed_total`, `liop_process_memory_*` |
+| **Crypto & Security** | ZK-Receipt Rate, Egress Blocks, ML-KEM-768 Ops, Wire Egress vs Saved | `liop_wire_egress_bytes_total`, `liop_wire_saved_bytes_total`, `liop_pqc_handshakes_total` |
+| **Fleet Inventory** | Live Inventory Table (Role, Tier, Health, Peers, RSS, Heap, Uptime) | All gauges per `instance` |
+
+To import the dashboard into an existing Grafana instance, navigate to **Dashboards → Import** and upload `tools/dashboards/liop-overview.json`.
+
+---
+
+## Alerting Rules
+
+The SDK includes production-tested Prometheus alerting rules in [`examples/observability/prometheus/alerting_rules.yml`](https://github.com/nekzus/liop/blob/main/examples/observability/prometheus/alerting_rules.yml):
+
+| Alert | Severity | Trigger | Purpose |
+|---|---|---|---|
+| `LiopMeshZeroPeers` | `critical` | `liop_mesh_peers_connected == 0` for 1m | Node isolated from Kademlia DHT |
+| `LiopEnclaveDown` | `critical` | `up == 0` for 30s | Enclave unresponsive to scrape |
+| `LiopZeroTrustEgressViolation` | `critical` | `increase(liop_egress_blocks_total[1m]) > 0` | PII exfiltration attempt blocked |
+| `LiopRepeatedEnclaveEgressRejection` | `warning` | `increase(liop_tool_call_errors_total[5m]) > 3` | Repeated capability execution or egress policy rejections in enclave |
+| `LiopZkVerificationFailure` | `critical` | `increase(liop_zk_verifications_total{status="invalid"}[1m]) > 0` | Computational integrity violation |
+| `LiopPqcHandshakeFailure` | `critical` | `increase(liop_pqc_handshakes_total{status="failure"}[1m]) > 0` | ML-KEM-768 negotiation failure |
+| `LiopHighErrorRate` | `warning` | Error rate > 5% over 2m | SLA error budget exceeded |
+| `LiopPqcLatencySpike` | `warning` | ML-KEM-768 p99 > 25ms over 2m | Worker pool contention |
+| `LiopHeapSaturation` | `warning` | Heap used / heap total > 90% for 2m | V8 memory pressure |
+
+---
+
+## Synthetic Traffic Generator
+
+The SDK includes a built-in telemetry stream generator for pre-production validation and load testing:
+
+```bash
+pnpm --filter @nekzus/liop telemetry:stream
+```
+
+This script executes a continuous stream of logic-injection calls against the running mesh, cycling through all registered capabilities (banking, healthcare, edge IoT) and producing real Prometheus metric emissions. Use it to:
+
+- Validate Prometheus scraping and Grafana panel rendering before production rollout
+- Stress-test WASI fuel consumption scaling under sustained load
+- Verify alerting rule thresholds against empirical traffic patterns

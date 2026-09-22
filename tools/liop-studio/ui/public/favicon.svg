@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+    <g stroke="#0ea5e9" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none">
+        <polygon points="100,76.57 76.57,100 43.43,100 20,76.57 20,43.43 43.43,20 76.57,20 100,43.43" />
+        <circle cx="60" cy="60" r="10" fill="#0ea5e9" stroke="none" />
+        <path d="M 60 60 C 60 45, 100 75, 100 60" />
+        <path d="M 60 60 C 60 45, 100 75, 100 60" transform="rotate(45 60 60)" />
+        <path d="M 60 60 C 60 45, 100 75, 100 60" transform="rotate(90 60 60)" />
+        <path d="M 60 60 C 60 45, 100 75, 100 60" transform="rotate(135 60 60)" />
+        <path d="M 60 60 C 60 45, 100 75, 100 60" transform="rotate(180 60 60)" />
+        <path d="M 60 60 C 60 45, 100 75, 100 60" transform="rotate(225 60 60)" />
+        <path d="M 60 60 C 60 45, 100 75, 100 60" transform="rotate(270 60 60)" />
+        <path d="M 60 60 C 60 45, 100 75, 100 60" transform="rotate(315 60 60)" />
+    </g>
+</svg>

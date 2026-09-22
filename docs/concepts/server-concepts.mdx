@@ -1,6 +1,8 @@
 ---
 title: "Server Concepts"
 description: "Understanding how an LIOP Data Node protects resources and executes logic"
+icon: "server"
+
 ---
 
 In the Logic-Injection-on-Origin Protocol (LIOP), a "Server" is historically termed a **Data Node**. Unlike a traditional web server that passively serves JSON responses upon request, an LIOP Server is an active Execution Engine. Its primary duty is to receive foreign logic, strictly isolate it, and allow it to operate on local data.
@@ -25,13 +27,11 @@ The Agent sends a completely dynamic **WebAssembly Module (`.wasm`)** containing
 *   Instead of executing it natively, the Server spins up an ephemeral **WASI Sandbox** (using Bytecode Alliance's `Wasmtime`) and injects the WASM module into it.
 *   **Extreme Scalability:** Both the Rust backend and the TS SDK leverage advanced threading models (Native OS Threads and Node.js `piscina` Worker Pools) to process thousands of these sandboxes concurrently without blocking the Main Event Loop.
 
-This allows infinite capabilities without requiring the server administrator to constantly write new tool endpoints.
+This provides extensive analytical flexibility without requiring the server administrator to deploy new endpoint handlers for every query pattern.
 
 ## 2. Capabilities (The Resources)
 
-If the server executes arbitrary code via WASM, how is it secure? Through **Capabilities-Based Security**.
-
-Capabilities are the LIOP equivalent of MCP "Resources", but radically more secure. By default, a running WASM module in LIOP has **absolute zero access** to anything:
+Capabilities enforce security boundaries through a strict capability-based authorization model. By default, an executing WebAssembly module operates with no ambient authority:
 - No file system read/write.
 - No network socket access.
 - No environment variables.
@@ -41,13 +41,13 @@ Capabilities are the LIOP equivalent of MCP "Resources", but radically more secu
 When an Agent sends a Module, it must specify the Capabilities it requires to function. The Server verifies these requests against its configured manifest. If approved, the Server *dynamically maps* specific file descriptors directly into the Sandbox memory space.
 
 For example, a Capability might be: `READ_ONLY_ACCESS: /var/logs/nginx/`. 
-The WASM module can now read the nginx logs at blinding speed, but if the malicious logic attempts to read `/etc/passwd`, the Sandboxing Engine will trigger an immediate, uncatchable `WASI Trap`, instantly terminating the agent's logic.
+The WASM module can read the nginx logs directly within its assigned memory bounds. If the module attempts to access unmapped paths (such as `/etc/passwd`), the Wasmtime runtime triggers a `WASI Trap` and aborts execution immediately.
 
 ## 3. Watchdogs (Persistent Asynchronous Events)
 
 One of LIOP's most powerful features is **Watchdogs**, superseding the concept of simple prompts or manual polling.
 
-AI applications often need to monitor a server (e.g., "Tell me when memory usage exceeds 90%"). In HTTP/REST or JSON-RPC, the AI must constantly send manual requests every 5 seconds, wasting massive network bandwidth and LLM tokens.
+AI applications often need to monitor a server (e.g., "Tell me when memory usage exceeds 90%"). In HTTP/REST or JSON-RPC, the AI must constantly send manual requests every few seconds, consuming significant network bandwidth and LLM tokens.
 
 **LIOP push architecture solves this:**
 *   The Agent sends a Watchdog WASM Module to the Data Node.
@@ -79,7 +79,7 @@ The core computation does not run in the Host OS. It is pushed into a physical H
 Inside the TEE, the `Wasmtime` engine boots the WASI context. Since WebAssembly is Turing Complete, it could theoretically execute an infinite loop to starve the server. The **Fuel Monitor** defends against this by enforcing `.consume_fuel()`. Every operation deducts "fuel" limits; if exhausted, the engine unconditionally kills the execution thread, repelling DoS bombs.
 
 #### 4. ZK Prover (Mathematical Certainty)
-When the `.wasm` finishes outputting data, the result passes to the **Zero-Knowledge Prover** (e.g., `RISC Zero` integration). This module generates a mathematical *Receipt* (consisting of a Journal and a cryptographic Seal). The returned packet proves unconditionally to the Agent that the specific logic payload executed flawlessly, and the output was not tampered with by the execution Node.
+When the `.wasm` finishes outputting data, the result passes to the **Zero-Knowledge Prover** (e.g., `RISC Zero` integration). This module generates a mathematical *Receipt* (consisting of a Journal and a cryptographic Seal). The returned packet proves to the Agent that the specific logic payload executed without tampering by the execution Node.
 
 ## 5. TypeScript Server & MCP Bridge (The SDK Node)
 While the Rust Dataplane dominates heavy WASI Sandboxing and Mathematical Evidence, the LIOP Ecosystem also provides a lightweight, pure-TypeScript Server implementation (`@nekzus/liop`). 
@@ -93,12 +93,12 @@ This Server acts primarily as a backward-compatibility layer and local endpoint 
 
 ### How the Bridge handles Legacy MCP Clients:
 1. **JSON-RPC Interception**: Legacy tools (like older MCP Clients) dispatch standard text-heavy `tools/call` JSON-RPC 2.0 requests over traditional network ports.
-2. **LiopMcpBridge Adapter**: The SDK intercepts these primitive payloads and translates them into an internalized `CallToolRequest`. It also flawlessly exposes registered `resources/list` and `resources/read` endpoints, enabling *Zero-Shot Self-Discovery* of Data Schemas for generic LLMs.
+2. **LiopMcpBridge Adapter**: The SDK intercepts these primitive payloads and translates them into an internalized `CallToolRequest`. It exposes registered `resources/list` and `resources/read` endpoints, enabling schema discovery for LLM clients.
 3. **LiopServer Zod Validation**: Before any logic touches the Node.js Main Thread, the `LiopServer` imposes strict Zod schema runtime validations ensuring structural integrity.
 4. **Native Node.js Execution**: The registered Tool Handler executes locally (using standard Node.js/TypeScript code) rather than isolating itself in a sandboxed WebAssembly boundary.
-5. **JSON-RPC Response**: The finding returns seamlessly down the pipeline formatted as a legacy `result` block.
+5. **JSON-RPC Response**: The finding returns down the pipeline formatted as a standard MCP `result` block.
 
-This guarantees that developers can immediately adopt `@nekzus/liop` and serve their existing Tools into the LIOP ecosystem with **Zero-Code modifications**, slowly transitioning towards full *WASM Logic-on-Origin* payloads when required.
+This allows developers to deploy `@nekzus/liop` alongside existing Tools without code modifications, adopting WASM Logic-on-Origin payloads incrementally.
 
 ## 6. Advanced Security & Data Dictionary
 
@@ -283,12 +283,15 @@ The engine automatically derives **per-field sensitivity** based on the output k
 | Finance (SOX/PCI) | `2.0` | DOJ PET Guidelines |
 | Public Data | `4.0–8.0` | US Census, Google RAPPOR |
 
-See [Zero-Trust Security — Differential Privacy](/concepts/zero-trust#7-differential-privacy-engine-laplace-mechanism) for the full technical deep-dive.
+See [Zero-Trust Security — Differential Privacy](/concepts/zero-trust#7-differential-privacy-engine-laplace-mechanism) for the detailed technical specification.
 
-### Dynamic Return Structure (Native Auto-i18n) [PLANNED]
-LIOP introduces an architectural pattern where cross-border language translation friction is non-existent. This feature is on the roadmap.
+### Dynamic Return Structure (Native Auto-i18n)
 
-When a Data Node registers its capabilities, it intrinsically embeds a structural directive into the payload definition (`DYNAMIC RETURN STRUCTURE`). This forces the executing agent to output JSON schemas using keys mathematically mapped to the **exact language spoken by the user on the initial prompt.**
+<Note>
+**Roadmap Specification** — Dynamic Return Structure is scheduled for a future protocol release and is not yet available in the active SDK runtime.
+</Note>
 
-*   If the user queries *"¿Cuántos pacientes tienen hipertensión?"*, the Node naturally receives a response matching native Spanish taxonomy (e.g., `{"cantidad": 25, "edad_promedio": 45}`).
-*   This entirely eliminates the need for heavyweight frontend internationalization (i18n) libraries, dropping the cognitive load of data parsing right at the Origin without hallucination risks.
+When a Data Node registers its capabilities, it embeds a structural directive into the payload definition (`DYNAMIC RETURN STRUCTURE`). This instructs the executing agent to output JSON schemas using keys mapped to the **language detected in the user's initial prompt.**
+
+* If the user queries *"¿Cuántos pacientes tienen hipertensión?"*, the Node returns a response matching Spanish keys (such as `{"cantidad": 25, "edad_promedio": 45}`).
+* This removes the need for client-side internationalization (i18n) layers, localizing schema taxonomy directly at Origin without requiring prompt re-translation.

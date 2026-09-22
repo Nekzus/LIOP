@@ -1,4 +1,8 @@
+// Copyright 2026 Nekzus Solutions and contributors
+// SPDX-License-Identifier: Apache-2.0
+
 import { LiopVerifier } from "../crypto/verifier.js";
+import { TokenTelemetryEngine } from "../economy/telemetry.js";
 import {
 	MCP_LEGACY_SUPPORT_ENABLED,
 	MCP_PROTOCOL_VERSION_LEGACY,
@@ -8,11 +12,19 @@ import {
 	MeshNode,
 	type MeshNodeConfig,
 } from "../mesh/node.js";
+import {
+	pqcHandshakeDurationMs,
+	pqcHandshakesTotal,
+	toolCallErrorsTotal,
+	wireEgressBytesTotal,
+	zkVerificationsTotal,
+} from "../observability/metrics.js";
 import { LiopRpcClient } from "../rpc/client.js";
 import { AesGcmWrapper } from "../rpc/crypto/aes.js";
 import { Kyber768Wrapper } from "../rpc/crypto/kyber.js";
 import type { LiopTlsOptions } from "../rpc/tls.js";
 import type { LogicRequest, LogicResponse } from "../rpc/types.js";
+import { TokenManager } from "../runtime/token-manager.js";
 import {
 	type CallToolRequest,
 	type CallToolResult,
@@ -33,6 +45,7 @@ export class LiopClient {
 	private serverInfo?: { name: string; version: string };
 	public verifier: LiopVerifier = new LiopVerifier();
 	private oauthToken?: string;
+	private tokenManager?: TokenManager;
 
 	/** Protocol negotiation era */
 	public era: McpEra = "modern";
@@ -41,59 +54,6 @@ export class LiopClient {
 
 	constructor(tls?: LiopTlsOptions) {
 		this.tlsOptions = tls;
-	}
-
-	/**
-	 * Requests an M2M access token from the Nexus Authorization Server using Client Credentials.
-	 */
-	private async acquireM2MToken(authOpts: {
-		clientId: string;
-		clientSecret: string;
-		nexusUrl: string;
-		audience: string;
-		scope?: string;
-	}): Promise<string> {
-		const baseUrl = authOpts.nexusUrl.endsWith("/oidc")
-			? authOpts.nexusUrl
-			: `${authOpts.nexusUrl}/oidc`;
-		const tokenUrl = `${baseUrl}/token`;
-		log.info(`[LiopClient] Requesting M2M Token from Nexus AS: ${tokenUrl}`);
-
-		const params = new URLSearchParams({
-			grant_type: "client_credentials",
-			scope:
-				authOpts.scope ||
-				"liop:tools:call liop:tools:list liop:resources:read liop:schema:read liop:mesh:query",
-			resource: authOpts.audience,
-			client_id: authOpts.clientId,
-			client_secret: authOpts.clientSecret,
-		});
-
-		const response = await fetch(tokenUrl, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/x-www-form-urlencoded",
-			},
-			body: params.toString(),
-		});
-
-		if (!response.ok) {
-			const text = await response.text();
-			throw new Error(
-				`OAuth token request failed with status ${response.status}: ${text}`,
-			);
-		}
-
-		const data = (await response.json()) as {
-			access_token: string;
-			expires_in?: number;
-		};
-		if (!data.access_token) {
-			throw new Error("OAuth token response did not contain an access_token.");
-		}
-
-		log.info("[LiopClient] M2M Token acquired successfully.");
-		return data.access_token;
 	}
 
 	/**
@@ -142,14 +102,24 @@ export class LiopClient {
 			process.env.LIOP_TOKEN;
 
 		if (clientId && clientSecret) {
+			const baseUrl = (nexusUrl || "http://127.0.0.1:3000").endsWith("/oidc")
+				? nexusUrl || "http://127.0.0.1:3000"
+				: `${nexusUrl || "http://127.0.0.1:3000"}/oidc`;
+			const tokenEndpoint = `${baseUrl}/token`;
+
+			this.tokenManager = new TokenManager({
+				tokenEndpoint,
+				clientId,
+				clientSecret,
+				audience,
+				scopes: scope,
+			});
+
 			try {
-				this.oauthToken = await this.acquireM2MToken({
-					clientId,
-					clientSecret,
-					nexusUrl,
-					audience,
-					scope,
-				});
+				this.oauthToken = await this.tokenManager.getToken();
+				log.info(
+					"[LiopClient] Dynamic TokenManager configured and initial token acquired.",
+				);
 			} catch (err: unknown) {
 				log.error(
 					`[LiopClient] Failed to acquire OAuth M2M Token: ${
@@ -167,9 +137,15 @@ export class LiopClient {
 		);
 
 		if (address) {
+			const tokenResolver = async () => {
+				if (this.tokenManager) {
+					return await this.tokenManager.getToken();
+				}
+				return this.oauthToken;
+			};
 			this.rpcClients.set(
 				"static",
-				new LiopRpcClient(address, this.tlsOptions, this.oauthToken),
+				new LiopRpcClient(address, this.tlsOptions, tokenResolver),
 			);
 			this.serverInfo = { name: `LiopServer (${address})`, version: "1.0.0" };
 			log.info(`[LiopClient] Static gRPC configured for: ${address}`);
@@ -333,6 +309,8 @@ export class LiopClient {
 			throw new Error("Client must be connected before discovering tools.");
 		}
 
+		const discoveryStartTime = Date.now();
+
 		log.info(
 			`[LiopClient] Discovery started (forceRefresh: ${forceRefresh})...`,
 		);
@@ -375,6 +353,23 @@ export class LiopClient {
 		log.info(
 			`[LiopClient] Discovery finished. Found ${tools.length} unique tools.`,
 		);
+
+		// [Token Economy] Record telemetry for discoverTools
+		try {
+			const telemetry = TokenTelemetryEngine.getInstance();
+			const toolsPayload = JSON.stringify(tools);
+			const toolsResponsePayload = JSON.stringify({ tools });
+			telemetry.record({
+				type: "tools_list",
+				method: "discoverTools",
+				estimatedInputTokens: telemetry.countTokens(toolsPayload),
+				estimatedOutputTokens: telemetry.countTokens(toolsResponsePayload),
+				durationMs: Date.now() - discoveryStartTime,
+			});
+		} catch {
+			// Telemetry error isolation
+		}
+
 		return tools;
 	}
 
@@ -389,6 +384,7 @@ export class LiopClient {
 			throw new Error("Client must be connected before calling tools.");
 		}
 
+		const callStartTime = Date.now();
 		const toolName = request.name;
 		log.info(`[LiopClient] Resolving Tool: ${toolName}`);
 
@@ -451,11 +447,7 @@ export class LiopClient {
 			? await this.meshNode.sign(intentPayload)
 			: intentPayload;
 
-		const intentResponse = (await rpcClient.negotiateIntent({
-			agent_did: agentDid,
-			capability_hash: toolName,
-			proof_of_intent: proofOfIntent,
-		})) as unknown as {
+		let intentResponse: {
 			accepted: boolean;
 			error_message: string;
 			kyber_public_key: Uint8Array;
@@ -464,8 +456,64 @@ export class LiopClient {
 			sessionToken: string;
 		};
 
+		try {
+			intentResponse = (await rpcClient.negotiateIntent({
+				agent_did: agentDid,
+				capability_hash: toolName,
+				proof_of_intent: proofOfIntent,
+			})) as unknown as typeof intentResponse;
+		} catch (err: unknown) {
+			const errMsg = err instanceof Error ? err.message : String(err);
+			if (
+				this.tokenManager &&
+				(errMsg.includes("UNAUTHENTICATED") ||
+					errMsg.includes("Invalid JWT") ||
+					errMsg.includes("timestamp check failed") ||
+					errMsg.includes("expired"))
+			) {
+				log.warn(
+					`[LiopClient] Token expired/unauthenticated for ${toolName}. Preemptively refreshing OAuth token and retrying negotiateIntent...`,
+				);
+				this.tokenManager.invalidate();
+				const freshToken = await this.tokenManager.getToken();
+				this.oauthToken = freshToken;
+				rpcClient.setToken(freshToken);
+				intentResponse = (await rpcClient.negotiateIntent({
+					agent_did: agentDid,
+					capability_hash: toolName,
+					proof_of_intent: proofOfIntent,
+				})) as unknown as typeof intentResponse;
+			} else {
+				throw err;
+			}
+		}
+
 		if (!intentResponse.accepted) {
-			throw new Error(`Intent denied by host: ${intentResponse.error_message}`);
+			if (
+				this.tokenManager &&
+				(intentResponse.error_message?.includes("token") ||
+					intentResponse.error_message?.includes("UNAUTHENTICATED") ||
+					intentResponse.error_message?.includes("expired") ||
+					intentResponse.error_message?.includes("timestamp check failed"))
+			) {
+				log.warn(
+					`[LiopClient] Intent rejected with auth error: "${intentResponse.error_message}". Refreshing token and retrying...`,
+				);
+				this.tokenManager.invalidate();
+				const freshToken = await this.tokenManager.getToken();
+				this.oauthToken = freshToken;
+				rpcClient.setToken(freshToken);
+				intentResponse = (await rpcClient.negotiateIntent({
+					agent_did: agentDid,
+					capability_hash: toolName,
+					proof_of_intent: proofOfIntent,
+				})) as unknown as typeof intentResponse;
+			}
+			if (!intentResponse.accepted) {
+				throw new Error(
+					`Intent denied by host: ${intentResponse.error_message}`,
+				);
+			}
 		}
 
 		// LIOP Robust Field Extraction (Supports both snake_case and camelCase via gRPC-JS)
@@ -479,6 +527,12 @@ export class LiopClient {
 				"[LiopClient] Critical Error: Kyber Public Key not found in IntentResponse.",
 				intentResponse,
 			);
+			try {
+				pqcHandshakesTotal.inc({
+					algorithm: "ml-kem-768",
+					status: "failure",
+				});
+			} catch {}
 			throw new Error(
 				"Handshake failed: Remote host did not provide a valid Kyber Public Key.",
 			);
@@ -488,8 +542,28 @@ export class LiopClient {
 		log.info(
 			`[LiopClient] Encapsulating Post-Quantum Shared Secret for ${request.name}...`,
 		);
-		const { ciphertext: kyberCiphertext, sharedSecret } =
-			await Kyber768Wrapper.encapsulateAsymmetric(publicKey);
+		const pqcStart = performance.now();
+		let kyberCiphertext: Uint8Array;
+		let sharedSecret: Uint8Array;
+		try {
+			const res = await Kyber768Wrapper.encapsulateAsymmetric(publicKey);
+			kyberCiphertext = res.ciphertext;
+			sharedSecret = res.sharedSecret;
+			const pqcDuration = performance.now() - pqcStart;
+			pqcHandshakeDurationMs.observe({ tool: request.name }, pqcDuration);
+			pqcHandshakesTotal.inc({
+				algorithm: "ml-kem-768",
+				status: "success",
+			});
+		} catch (encapError) {
+			try {
+				pqcHandshakesTotal.inc({
+					algorithm: "ml-kem-768",
+					status: "failure",
+				});
+			} catch {}
+			throw encapError;
+		}
 
 		// 3. Symmetric Sealing (AES-256-GCM)
 		log.info(`[LiopClient] Sealing WASM Payload and Inputs...`);
@@ -556,7 +630,21 @@ export class LiopClient {
 							response.semantic_evidence,
 						);
 
+						try {
+							zkVerificationsTotal.inc({
+								status: isValid ? "valid" : "invalid",
+							});
+						} catch {
+							// Metrics isolation
+						}
+
 						if (!isValid) {
+							try {
+								toolCallErrorsTotal.inc({
+									capability: toolName,
+									error_type: "zk_verification_failed",
+								});
+							} catch {}
 							reject(
 								new Error(
 									"PROTOCOL INTEGRITY VIOLATION: ZK-Receipt verification failed.",
@@ -564,9 +652,45 @@ export class LiopClient {
 							);
 							return;
 						}
+					} else {
+						try {
+							toolCallErrorsTotal.inc({
+								capability: toolName,
+								error_type: "remote_execution_error",
+							});
+						} catch {}
 					}
 
 					resultFulfilled = true;
+
+					// [Token Economy & Wire Telemetry] Record telemetry for callTool
+					try {
+						const telemetry = TokenTelemetryEngine.getInstance();
+						const inputPayload = JSON.stringify(request.arguments ?? {});
+						telemetry.record({
+							type: "tool_call",
+							method: "callTool",
+							toolName,
+							peerId:
+								targetClientKey !== toolName ? targetClientKey : undefined,
+							estimatedInputTokens: telemetry.countTokens(inputPayload),
+							estimatedOutputTokens: telemetry.countTokens(
+								response.semantic_evidence,
+							),
+							durationMs: Date.now() - callStartTime,
+						});
+
+						const egressBytes =
+							Buffer.byteLength(response.semantic_evidence || "") +
+							(response.cryptographic_proof
+								? response.cryptographic_proof.length
+								: 0) +
+							(response.zk_receipt ? response.zk_receipt.length : 0);
+						wireEgressBytesTotal.inc({ capability: toolName }, egressBytes);
+					} catch {
+						// Telemetry error isolation
+					}
+
 					resolve({
 						content: [
 							{
@@ -577,6 +701,12 @@ export class LiopClient {
 						isError: response.is_error,
 					});
 				} catch (err) {
+					try {
+						toolCallErrorsTotal.inc({
+							capability: toolName,
+							error_type: "verification_exception",
+						});
+					} catch {}
 					reject(err);
 				}
 			});
@@ -585,6 +715,12 @@ export class LiopClient {
 				// Evict faulted client from cache so subsequent requests reconnect cleanly
 				this.rpcClients.delete(targetClientKey);
 				this.rpcClients.delete(toolName);
+				try {
+					toolCallErrorsTotal.inc({
+						capability: toolName,
+						error_type: "stream_error",
+					});
+				} catch {}
 				if (resultFulfilled) return;
 				log.error("[LiopClient] Stream Error:", err);
 				reject(err);
@@ -603,8 +739,6 @@ export class LiopClient {
 	private getOrCreateRpcClient(peerId: string, address: string): LiopRpcClient {
 		let client = this.rpcClients.get(peerId);
 		if (!client) {
-			let nodeToken = this.oauthToken;
-
 			let manifest = this.manifests.get(peerId);
 			let realPeerId = peerId;
 
@@ -670,10 +804,17 @@ export class LiopClient {
 				log.info(
 					`[LiopClient] Resolved node-specific token for peer ${realPeerId.slice(-8)} (${providerName || "unknown"})`,
 				);
-				nodeToken = envToken;
 			}
 
-			client = new LiopRpcClient(address, this.tlsOptions, nodeToken);
+			const tokenResolver = async () => {
+				if (envToken) return envToken;
+				if (this.tokenManager) {
+					return await this.tokenManager.getToken();
+				}
+				return this.oauthToken;
+			};
+
+			client = new LiopRpcClient(address, this.tlsOptions, tokenResolver);
 			this.rpcClients.set(peerId, client);
 		}
 		return client;
@@ -689,6 +830,7 @@ export class LiopClient {
 		if (!this.meshNode) {
 			throw new Error("Client must be connected before reading resources.");
 		}
+		const readStartTime = Date.now();
 		log.info(`[LiopClient] Querying Mesh for Resource: ${uri}...`);
 
 		// We search for the peer hosting the resource in the P2P Mesh
@@ -710,7 +852,7 @@ export class LiopClient {
 		}
 
 		// Return the declarative metadata (Logic-Injection is required for actual data extraction)
-		return {
+		const result = {
 			contents: [
 				{
 					uri,
@@ -719,6 +861,47 @@ export class LiopClient {
 				},
 			],
 		};
+
+		// [Token Economy] Record telemetry for readResource
+		try {
+			const telemetry = TokenTelemetryEngine.getInstance();
+			const outputPayload = JSON.stringify(result);
+			telemetry.record({
+				type: "resource_read",
+				method: "readResource",
+				toolName: uri,
+				peerId: providers[0],
+				estimatedInputTokens: telemetry.countTokens(uri),
+				estimatedOutputTokens: telemetry.countTokens(outputPayload),
+				durationMs: Date.now() - readStartTime,
+			});
+		} catch {
+			// Telemetry error isolation
+		}
+
+		return result;
+	}
+
+	/**
+	 * Returns the local PeerId string if the mesh node is active, null otherwise.
+	 * PeerIds are public identifiers by libp2p protocol design (Ed25519 public key hash).
+	 */
+	public get peerId(): string | null {
+		return this.meshNode?.getPeerId() ?? null;
+	}
+
+	/**
+	 * Returns true if the mesh node is initialized and running.
+	 */
+	public get isMeshActive(): boolean {
+		return this.meshNode?.isStarted() ?? false;
+	}
+
+	/**
+	 * Returns the number of active P2P connections, or 0 if the mesh is inactive.
+	 */
+	public get connectionCount(): number {
+		return this.meshNode?.getPeers().length ?? 0;
 	}
 
 	public getServerInfo(): { name: string; version: string } | undefined {

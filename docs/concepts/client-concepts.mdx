@@ -1,17 +1,19 @@
 ---
 title: "Client Concepts"
 description: "How Agent Nodes leverage the LIOP Mesh for discovery and execution"
+icon: "laptop"
+
 ---
 
-In the Logic-Injection-on-Origin Protocol, a "Client" is best understood as an **Agent Node** or an Intelligence orchestrator. While the Server guarantees safe execution, the Client is responsible for discovering data, defining intents, and weaving the logic that traverses the network.
+In the Logic-Injection-on-Origin Protocol, a "Client" is best understood as an **Agent Node** or an intelligence orchestrator. While the Server guarantees safe execution, the Client is responsible for discovering data, defining intents, and dispatching execution logic across the network.
 
-Agent Nodes harness the Mesh through three core mechanisms: **Discovery (DHT)**, **Elicitation Handshakes**, and **Logic Injection**.
+Agent Nodes interact with the Mesh through three core mechanisms: **Discovery (DHT)**, **Elicitation Handshakes**, and **Logic Injection**.
 
 ## 1. Network Discovery (Kademlia DHT)
 
 In traditional Client-Server architectures, the Client must know the exact IP address or Domain Name System (DNS) entry of the server it wishes to query (e.g., `https://api.internal.corp/`). 
 
-Agent Nodes in LIOP operate in a purely decentralized topology. Here is how they rapidly discover the resources they need:
+Agent Nodes in LIOP operate in a decentralized peer-to-peer topology:
 
 <Frame>
   <img className="block dark:hidden w-full" src="/images/client-dht-light.svg" alt="Distributed Hash Table Routing" />
@@ -20,61 +22,57 @@ Agent Nodes in LIOP operate in a purely decentralized topology. Here is how they
 
 - Every Agent and Data Node generates a cryptographic **Ed25519 Peer ID** upon startup.
 - Nodes connect to a peer-to-peer bootstrap network and form a **Kademlia Distributed Hash Table (DHT)**.
-- When an Agent needs to access a specific capability (e.g., `Company_SQL_Database`), it simply queries the entire swarm: *"Which Peer ID currently holds this capability?"*
-- The DHT algorithm mathematically calculates the shortest network path to the target node, resolving its dynamic IP automatically behind NATs and Firewalls without a central registry.
+- When an Agent needs to access a specific capability (e.g., `Company_SQL_Database`), it queries the peer network: *"Which Peer ID currently holds this capability?"*
+- The DHT algorithm calculates the routing path to the target node, resolving its dynamic IP automatically behind NATs and firewalls without a central registry.
 
-This grants AI ecosystems extreme resilience and automatic load balancing. 
+This provides fault tolerance and dynamic route resolution across distributed nodes.
 
 ## 2. Elicitation & Trust Handshakes
 
-Because the Mesh is decentralized, trust cannot be derived from standard centralized Certificate Authorities (CAs) used in mTLS.
+Because the Mesh is decentralized, trust cannot be derived from standard centralized Certificate Authorities (CAs) used in traditional mTLS.
 
 When an Agent Node locates a Data Node, it initiates a **Zero-Trust Handshake (Elicitation)** before any logic is executed.
-- LIOP uses the **Noise Protocol Framework**, meaning connections are encrypted natively at the transport layer (QUIC) using symmetric keys derived from the Agent's identity.
-- **Post-Quantum Cryptography (PQC)**: LIOP Client Elicitations encapsulate intents using ML-KEM-768. This prevents intercepting adversaries from recording the communication today and decrypting it a decade from now with quantum machines.
+- LIOP uses the **Noise Protocol Framework**, encrypting connections natively at the transport layer (QUIC) using symmetric keys derived from peer identity.
+- **Post-Quantum Cryptography (PQC)**: LIOP Client Elicitations encapsulate session keys using ML-KEM-768. This prevents adversary capture of encrypted traffic for retrospective decryption by future quantum hardware (*Harvest Now, Decrypt Later*).
 
-If the Data Node requires human consent or specific authorization tokens, it responds to the Elicitation request prompting the Agent/User for the required OAuth scopes natively.
+If the Data Node requires user consent or authorization tokens, it responds to the Elicitation request prompting the Agent for the required OAuth scopes.
 
 ## 3. Logic Injection (The Payload)
 
-Once trust is mathematically established, the Client performs its primary action: **Injecting Logic**.
+Once the secure channel is established, the Client executes its core function: **Logic Injection**.
 
-Instead of dispatching sequential JSON commands to retrieve raw text, the Agent relies on local logic-generation orchestrated natively by the TypeScript SDK:
+Instead of dispatching sequential JSON commands to retrieve raw text, the Agent relies on local logic compilation orchestrated by the TypeScript SDK:
 
-<Frame>
-  <img className="block dark:hidden w-full" src="/images/sdk-flow-light.svg" alt="TypeScript SDK E2E Flow" />
-  <img className="hidden dark:block w-full" src="/images/sdk-flow-dark.svg" alt="TypeScript SDK E2E Flow" />
-</Frame>
 
-1. **Compilation**: The Agent (often leveraging a Javy/Component Model subsystem provided by the `@nekzus/liop`) translates its high-level logic (JavaScript, Python) into a tiny binary WebAssembly module.
-2. **Client AST Sentinel (`GuardianTS`)**: Before departure, rigid Heuristic AST rules block malicious instructions within the `.wasm` file, averting "sandbox escape" strategies outright in zero-time.
-3. **Payload Stamping (`Crypto Module`)**: The Client encapsulates the session using `Kyber768` Post-Quantum Cryptography and seals the payload hermetically inside an `AES-256-GCM` envelope.
-4. **Streaming (`MeshNode`)**: The Client multiplexes the connection via `Yamux` along with `Noise` and streams the encrypted `.wasm` binary to the target Mesh exactly once.
-5. **ZK-Verification**: Upon result retrieval via the libp2p ingress, the Agent locally validates the ZK-Receipt, generating absolute trust in the foreign computational output.
+1. **Compilation**: The Agent translates its high-level logic (JavaScript, Python) into a compact WebAssembly module.
+2. **Client AST Sentinel (`GuardianTS`)**: Before transmission, static AST rules verify that the `.wasm` binary does not contain unauthorized host syscall imports.
+3. **Payload Sealing (`Crypto Module`)**: The Client encapsulates the session using `ML-KEM-768` (Kyber768) and encrypts the payload with `AES-256-GCM`.
+4. **Streaming (`MeshNode`)**: The Client multiplexes the connection via `Yamux` along with `Noise` and transmits the encrypted binary to the target peer.
+5. **ZK-Verification**: Upon result retrieval via libp2p ingress, the Agent verifies the ZK-Receipt to validate execution integrity.
 
-By offloading the computation *away* from its own core loop, the Agent Client remains highly lightweight, free to orchestrate hundreds of other concurrent data connections across the LIOP Mesh simultaneously while remote servers perform the heavy mathematical and memory-intensive lifting.
+By delegating execution to the Origin node, the Agent Client remains lightweight, coordinating concurrent connections across the Mesh while remote servers execute data processing locally.
 
-### Execution Runtime Model (Node.js Tier-0)
+### SDK Runtime Architecture (Node.js)
 
-Once the data is flowing, the Node.js Host orchestrates the process leveraging extreme concurrency. The overarching goal of the LIOP SDK is to execute rigorous cryptographic and security boundaries without ever blocking the **Main Event Loop**, securing the responsiveness needed for high-traffic Agent applications.
+The Node.js Host orchestrates this pipeline using asynchronous worker pools. The LIOP SDK executes cryptographic operations and verification tasks off the **Main Event Loop**, maintaining responsiveness under high query volumes.
 
 <Frame>
   <img className="block dark:hidden w-full" src="/images/animated-sdk-flow-light.svg" alt="Animated SDK Runtime Flow" />
   <img className="hidden dark:block w-full" src="/images/animated-sdk-flow-dark.svg" alt="Animated SDK Runtime Flow" />
 </Frame>
 
-The visual flow above details the four pivotal components inside the local `@nekzus/liop`:
+The visual flow above details the four core components inside the local `@nekzus/liop`:
 
 #### 1. Agent App (LLM Logic Emitter)
-This is the origin point representing your custom application. Whether it is an AI Auto-Coder, a data scraper, or a local utility, it dictates the "Intent" and outputs the initial raw capabilities that need to be packaged and pushed to the remote Mesh Network.
+The origin application layer (such as an analytical agent or internal orchestration service) that defines the query intent and provides the initial logic to be dispatched to the Mesh.
 
 #### 2. GuardianTS (AST Heuristics)
-Prior to network transmission, `GuardianTS` acts as the first defensive checkpoint. Utilizing V8's native `WebAssembly.compile()` pipeline as a dry-run heuristic, it scans the generated `.wasm` binary in *zero-time* for malicious syscall imports (e.g., trying to escape the `wasi_snapshot_preview1` sandbox). If illegal instructions are detected, the payload is destroyed before it even reaches the cryptography module.
+Prior to network transmission, `GuardianTS` validates module safety. Utilizing V8's native compilation pipeline as a static validation step, it scans the generated `.wasm` binary for unauthorized host imports outside `wasi_snapshot_preview1`. Payloads failing validation are discarded immediately.
 
 #### 3. Worker Pool (Piscina Cryptography)
-Instead of forcing the Node.js Main Thread to calculate intensive mathematical encryptions, LIOP implements parallel offloading using a native `piscina` Worker Pool. 
-- **Egress (Outbound):** Worker threads simultaneously lock the validated `.wasm` using `Kyber768` (Post-Quantum Cryptography) and seal it inside an `AES-256-GCM` envelope.
-- **Ingress (Return):** When the resulting `ZK-Receipt / AES Payload` arrives back from the network, it is immediately routed *back* into this Worker Pool to be decrypted and mathematically verified *concurrently*, completely saving the primary Node thread from blocking.
+To keep the Node.js event loop free of computational bottlenecks, cryptographic operations run inside a native `piscina` Worker Pool.
+- **Egress (Outbound):** Worker threads encrypt the validated `.wasm` module with ML-KEM-768 and seal it inside an `AES-256-GCM` envelope.
+- **Ingress (Return):** When the resulting payload and ZK-Receipt return, the Worker Pool decrypts and verifies the cryptographic proof concurrently, preventing main-thread blocking.
 
 #### 4. MeshNode (Yamux/Noise Multiplexing)
-The outermost border of the SDK. `MeshNode` opens a sustained `libp2p` gateway to the decentralized network, encapsulating the traffic in a `Noise` protocol tunnel and multiplexing streams via `Yamux`. This ensures that a single TLS/QUIC connection can handle hundreds of simultaneous Logic-on-Origin injections to different remote servers with zero latency overhead.
+The network boundary interface. `MeshNode` maintains a `libp2p` gateway to the decentralized network, encapsulating traffic in a `Noise` protocol tunnel and multiplexing streams via `Yamux`. This enables a single connection to support concurrent Logic-on-Origin executions with minimal framing overhead.

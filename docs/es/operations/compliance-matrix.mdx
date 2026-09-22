@@ -1,0 +1,68 @@
+---
+title: "Matriz de Cumplimiento Normativo y Estándares Empresariales"
+description: "Mapeo exhaustivo de controles para SOC 2 Type II, Norma de Seguridad HIPAA, PCI-DSS v4.0, NIST SP 800-207 y OWASP Top 10 para LLMs"
+icon: "scale"
+
+---
+
+La adopción de agentes de inteligencia artificial en entornos corporativos requiere demostrar el cumplimiento riguroso de marcos internacionales de ciberseguridad, privacidad de datos e integridad financiera. Las arquitecturas tradicionales de extracción de contexto presentan dificultades para superar estas auditorías porque los registros confidenciales cruzan de forma recurrente las fronteras perimetrales y administrativas.
+
+El protocolo Logic-Injection-on-Origin aporta controles técnicos verificables matemáticamente al trasladar el cómputo hacia el origen de los datos en lugar de exportar las bases de datos.
+
+---
+
+## 1. Criterios de Confianza SOC 2 Type II
+
+| Identificador | Categoría de Criterio | Requisito Normativo | Implementación en Protocolo LIOP |
+|---|---|---|---|
+| **CC6.1** | Controles de Acceso Lógico | El acceso a los activos de datos confidenciales está limitado a entidades autorizadas. | OAuth 2.1 M2M con Indicadores de Recursos RFC 8707 y rangos de autorización por niveles (`clearanceTier: 1` a `5`). |
+| **CC6.6** | Protección Perimetral | Las defensas perimetrales protegen las redes frente a accesos no autorizados y exfiltración. | `GatewayInterceptor` ejecuta inspección L7 perimetral (bloqueando SQLi/escapes); `EgressPIIShield` aplica filtrado determinista de salida. |
+| **CC6.7** | Transmisión de Datos | Los datos viajan cifrados a través de redes públicas o no confiables. | Cifrado simétrico AES-256-GCM combinado con encapsulación de claves post-cuánticas ML-KEM-768 y TLS mutuo (mTLS). |
+| **CC7.2** | Monitorización de Amenazas | La monitorización continua alerta de eventos no autorizados de seguridad. | Interceptores universales fuera de banda `AuditInterceptor` y métricas Prometheus (`liop_ast_rejections_total`, `liop_egress_pii_violations_total`). |
+
+---
+
+## 2. Norma de Seguridad HIPAA (§164.312)
+
+| Sección | Tipo de Salvaguarda | Estándar Regulatorio | Control Técnico en LIOP |
+|---|---|---|---|
+| **§164.312(a)(1)** | Técnica | **Control de Acceso**: Identificación única de usuarios y procedimientos de acceso de emergencia. | Credenciales emitidas por Nexus OIDC; comprobación de niveles de autorización antes de despachar cada herramienta. |
+| **§164.312(b)** | Técnica | **Controles de Auditoría**: Mecanismos para registrar y auditar la actividad que involucre EPHI. | El interceptor `AuditInterceptor` emite registros no bloqueantes hacia sistemas SIEM con trazabilidad de identidad, herramienta y firma de ejecución. |
+| **§164.312(c)(1)** | Técnica | **Controles de Integridad**: Políticas para proteger EPHI frente a alteraciones o destrucción no autorizadas. | Recibos ZK (HMAC-SHA256) que vinculan el resultado al hash del código WASI procesado. |
+| **§164.312(d)** | Técnica | **Autenticación de Entidades**: Verificación de la identidad de la entidad que solicita acceso. | TLS Mutuo con anclaje de certificados CA y acuerdos de sesión post-cuánticos. |
+| **§164.312(e)(1)** | Técnica | **Seguridad en Transmisión**: Protección frente a accesos no autorizados a EPHI en tránsito de red. | **Supresión de Salida de Datos Médicos**: Los datos se procesan in-situ. Solo viajan agregaciones estadísticas perturbadas (Privacidad Diferencial). |
+
+---
+
+## 3. Estándar de Seguridad PCI-DSS v4.0
+
+| Requisito | Mandato del Estándar | Capa de Seguridad del Protocolo |
+|---|---|---|
+| **Req 3.4** | Proteger los números de tarjeta principales (PAN) en cualquier entorno. | El Escudo de Salida de Capa 4 suprime códigos CVV y PAN mediante `forbiddenKeys` y expresiones regulares antes de entregar la respuesta. |
+| **Req 6.4** | Neutralizar vulnerabilidades de inyección (SQLi, polución de prototipos, corrupción de memoria). | El análisis de Guardian AST en Capa 1 bloquea llamadas no autorizadas; el sandbox V8 anula 25 variables globales y congela 11 prototipos nativos con `Object.freeze`. |
+| **Req 10.2** | Pistas de auditoría automatizadas para todos los eventos de acceso a datos. | Los interceptores nativos registran telemetría estructurada sin reducir la velocidad de ejecución en el hilo anfitrión. |
+| **Req 11.3** | Proteger el tráfico de red interno e inalámbrico frente a escuchas no autorizadas. | El transporte gRPC aplica intercambio de claves ML-KEM-768 resistente a computación cuántica junto con canales mTLS. |
+
+---
+
+## 4. Arquitectura Zero Trust según NIST SP 800-207
+
+NIST SP 800-207 establece siete directivas esenciales de arquitectura Zero Trust. LIOP satisface estas directivas mediante verificación criptográfica continua:
+
+1. **Directiva 1 (Todas las fuentes de datos son recursos)**: Cada base de datos, archivo o flujo constituye un Nodo de Datos LIOP aislado.
+2. **Directiva 2 (Toda comunicación es segura independientemente de la ubicación de red)**: Las redes privadas de libp2p emplean claves precompartidas (`libp2p/pnet`), mientras que los canales gRPC imponen mTLS.
+3. **Directiva 3 (El acceso a recursos se concede por sesión)**: Los tokens Bearer OAuth 2.1 se validan en cada llamada con renovaciones preemptivas de 30 segundos.
+4. **Directiva 4 (El acceso se determina mediante políticas dinámicas)**: La tabla de rutas y los niveles de autorización evalúan los permisos del cliente antes de ejecutar el código.
+5. **Directiva 5 (La organización monitoriza y mide la integridad de sus activos)**: Los Recibos ZK garantizan matemáticamente que los resultados proceden de una ejecución legítima sin alteraciones de memoria.
+6. **Directiva 6 (La autenticación es dinámica y de cumplimiento estricto)**: Los tokens obsoletos se invalidan ante respuestas HTTP 401.
+7. **Directiva 7 (Recopilación continua de telemetría)**: Las métricas de Prometheus reportan el estado de los nodos, los rechazos del AST y la distribución de latencias.
+
+---
+
+## 5. OWASP Top 10 para Aplicaciones con Modelos de Lenguaje (LLMs)
+
+| Vulnerabilidad OWASP | Perfil de Amenaza | Mecanismo de Defensa en LIOP |
+|---|---|---|
+| **LLM01: Prompt Injection** | Instrucciones maliciosas manipulan al modelo para ejecutar acciones no autorizadas. | **Aislamiento en WASI**: El código inyectado no puede ejecutar comandos de terminal, crear subprocesos ni acceder al sistema de archivos fuera del sandbox. |
+| **LLM02: Divulgación de Información Sensible** | El modelo expone accidentalmente datos confidenciales en sus respuestas. | **Cómputo In-Situ y Escudo de Salida**: Los registros crudos nunca ingresan al contexto del modelo. La salida atraviesa filtros regex y NER. |
+| **LLM06: Delegación Excesiva de Acciones** | Un agente autónomo ejecuta operaciones destructivas no previstas. | **Capacidades de Solo Lectura y Validación Zod**: Los esquemas restringen estrictamente los parámetros aceptados. Los nodos operan con privilegios mínimos en el host. |

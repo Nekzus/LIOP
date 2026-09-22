@@ -1,0 +1,205 @@
+---
+title: "Runtime & Mesh Discovery"
+description: "Adaptive topology discovery, hybrid per-tool routing, Piscina worker pools, and OAuth 2.1 token lifecycles"
+icon: "activity"
+
+---
+
+The `@nekzus/liop` runtime layer coordinates network topology detection, dynamic routing across heterogeneous transports, off-thread compute pools, and machine-to-machine (M2M) authentication lifecycles.
+
+It ensures that whether an agent executes in a local development environment, an edge reverse proxy, or a high-security distributed mesh, requests route through the most performant and secure channel available.
+
+```mermaid
+flowchart TD
+    Client["CLI / Agent Client"] --> Probe["TopologyProbe (RFC 9728 Auto-Discovery)"]
+    Probe --> GW["Gateway Mode (Direct HTTP-MCP)"]
+    Probe --> HY["Hybrid Mode (Route per Tool)"]
+    Probe --> ME["Mesh Mode (Pure P2P gRPC)"]
+    GW --> RT["RoutingTable (Circuit Breaker)"]
+    HY --> RT
+    ME --> RT
+    RT --> TM["TokenManager (Preemptive OAuth 2.1)"]
+    RT --> PP["Piscina Pool (ML-KEM / AST Off-Thread)"]
+```
+
+---
+
+## Adaptive Network Discovery (`TopologyProbe`)
+
+Rather than requiring operators to manually configure endpoints, multiaddrs, and OIDC discovery URLs, `TopologyProbe` implements single-URL auto-discovery conforming to **RFC 9728 (OAuth 2.0 Protected Resource Metadata)**, **RFC 8414**, and **NIST SP 800-207 (Zero Trust Architecture)**.
+
+```typescript
+import { probeTopology, type TopologyProbeOptions } from "@nekzus/liop";
+
+const options: TopologyProbeOptions = {
+  blgUrl: "http://127.0.0.1:15018",      // Border LIO Gateway perimeter endpoint
+  nexusUrl: "http://127.0.0.1:15000",    // Nexus OIDC authorization server
+  clientId: "mesh-diagnostic-agent",
+  clientSecret: process.env.LIOP_CLIENT_SECRET,
+  bootstrapNodes: [                      // P2P DHT multiaddrs for sovereign routing
+    "/ip4/127.0.0.1/tcp/15001/p2p/12D3KooWDpJ7As7BWAwRMfu1VU2WCqNjvq387JEYKDBj4kx6nXTN"
+  ],
+  timeoutMs: 5_000,
+};
+
+const topology = await probeTopology(options);
+console.log(`Resolved Mode: ${topology.mode}`); // "gateway" | "mesh" | "hybrid"
+console.log(`Target Tools:`, topology.advertisedTools);
+```
+
+### Topology Probe Options
+
+<ParamField path="options" type="TopologyProbeOptions" required>
+  Endpoint descriptors and credentials for network probing.
+
+  <Expandable title="TopologyProbeOptions Properties">
+    <ResponseField name="blgUrl" type="string" optional>
+      HTTP base URL of the Border LIO Gateway. Probed via `/.well-known/oauth-protected-resource` and `/health`.
+    </ResponseField>
+    <ResponseField name="nexusUrl" type="string" optional>
+      HTTP base URL of the central Nexus OIDC authorization server.
+    </ResponseField>
+    <ResponseField name="clientId" type="string" optional>
+      OAuth 2.1 client identifier for M2M resource access.
+    </ResponseField>
+    <ResponseField name="clientSecret" type="string" optional>
+      Client secret corresponding to `clientId`.
+    </ResponseField>
+    <ResponseField name="bootstrapNodes" type="string[]" optional>
+      Array of libp2p multiaddrs designating active Kademlia DHT bootstrap peers.
+    </ResponseField>
+    <ResponseField name="timeoutMs" type="number" optional>
+      Maximum wait duration in milliseconds for discovery probes (default: `5000`).
+    </ResponseField>
+  </Expandable>
+</ParamField>
+
+### Mode Resolution Matrix
+
+| Resolved Mode | Condition | Behavior |
+|---|---|---|
+| `gateway` | Reachable Border LIO Gateway, no P2P bootstraps. | Uses lightweight HTTP/JSON-RPC transport without spawning libp2p background threads. |
+| `mesh` | No gateway reachable, valid P2P bootstrap peers. | Mounts full libp2p node, establishes gRPC channels, and uses Noise + Kyber768 encryption. |
+| `hybrid` | Both Gateway and P2P bootstrap peers reachable. | Routes perimeter tools through the gateway while executing confidential queries directly on enclaves. |
+
+---
+
+## Per-Tool Hybrid Routing (`RoutingTable`)
+
+In enterprise architectures, different capabilities have different latency and compliance boundaries. `RoutingTable` manages per-tool transport mapping, latency telemetry, and automatic circuit breaker isolation.
+
+```typescript
+import { RoutingTable, type ToolDefinition } from "@nekzus/liop";
+
+const table = new RoutingTable();
+
+// 1. Register tools exposed by an HTTP Gateway
+table.registerGatewayTools(
+  [{ name: "Search_Public_Docs", description: "Query documentation index" }],
+  "http://127.0.0.1:15018/mcp",
+  true, // Requires Bearer authentication
+);
+
+// 2. Register tools discovered over the P2P Mesh
+table.registerMeshTools(
+  [{ name: "Analyze_Bank_Ledger", description: "In-situ financial aggregation" }],
+  "127.0.0.1:15021", // Direct gRPC target
+  false, // Handled via internal mesh auth
+);
+
+// 3. Register local in-process diagnostic tools
+table.registerLocalTool({
+  name: "LiopMeshStatus",
+  description: "Instantaneous node telemetry",
+});
+
+// 4. Resolve the route for an incoming invocation
+const route = table.resolve("Analyze_Bank_Ledger");
+console.log(`Route provider: ${route?.provider}`); // "p2p-grpc"
+```
+
+### Circuit Breaker Invariants
+
+To prevent cascading failures across the distributed mesh, `RoutingTable` maintains active health metrics for every registered route:
+
+- **`recordSuccess(toolName, latencyMs)`**: Resets consecutive failure counters to `0` and updates latency rolling averages.
+- **`recordFailure(toolName)`**: Increments consecutive failure count.
+- **Trip Condition (`MAX_FAILURES = 5`)**: When a route reaches 5 consecutive failures, the circuit breaker opens. The runtime logs a warning and instructs dispatchers to try fallback routes or return an explicit `ErrorCode.CIRCUIT_BREAKER_OPEN`.
+- **`getAllToolDefinitions()`**: Returns an alphabetically sorted list of active tools, automatically fulfilling the MCP `tools/list` protocol requirement.
+
+---
+
+## Off-Thread Concurrency (`Piscina` Worker Pool)
+
+Cryptographic operations (ML-KEM-768 key exchange, AES-256-GCM decryption) and Abstract Syntax Tree parsing via Acorn are computationally expensive. Executing them directly on the main Node.js thread can cause event loop lag, dropping real-time network packets.
+
+LIOP embeds a tuned [Piscina](https://github.com/piscinajs/piscina) worker pool to isolate heavy computation off the event loop:
+
+```typescript
+import { LiopServer } from "@nekzus/liop";
+
+const server = new LiopServer(
+  { name: "HighThroughputNode", version: "1.0.0" },
+  {
+    workerPool: {
+      enabled: true,          // Spawns background worker threads
+      maxThreads: 8,          // Dedicated worker threads
+      maxHeapMb: 128,         // Memory limit per thread (Heap Bomb defense)
+      idleTimeout: 30_000,    // Thread reclamation interval (ms)
+    },
+  },
+);
+```
+
+### Worker Pool Properties
+
+| Property | Type | Default | Rationale |
+|---|---|---|---|
+| `enabled` | `boolean` | `true` | When `false`, executes synchronously on main thread (only recommended for testing). |
+| `maxThreads` | `number` | `os.cpus().length` | Spawns dedicated workers to saturate multi-core host compute without thread contention. |
+| `maxHeapMb` | `number` | `64` | Hard V8 heap limit per worker. Terminates threads that allocate excessive memory to stop DoS attacks. Configurable via `LIOP_WORKER_MAX_HEAP_MB`. |
+| `idleTimeout` | `number` | `30000` | Reclaims inactive threads after 30 seconds of idle time to conserve host RAM. |
+
+---
+
+## Machine-to-Machine Token Lifecycle (`TokenManager`)
+
+The `TokenManager` class handles Machine-to-Machine (M2M) Bearer token lifecycles under **OAuth 2.1 (RFC 6749, RFC 8707 Resource Indicators, RFC 9068 JWT Profile)**.
+
+```typescript
+import { TokenManager } from "@nekzus/liop";
+
+const tokenManager = new TokenManager({
+  tokenEndpoint: "http://127.0.0.1:15000/oidc/token",
+  clientId: "border-gateway-client",
+  clientSecret: process.env.LIOP_CLIENT_SECRET!,
+  audience: "urn:liop:mesh:api",
+  scopes: "liop:tools:call liop:mesh:query",
+});
+
+// Retrieves active cached token or executes dynamic Client Credentials grant
+const token = await tokenManager.getToken();
+```
+
+### Preemptive Refresh & Concurrency De-duplication
+
+To survive bursty workloads without transient 401 Unauthorized errors, `TokenManager` implements two core patterns:
+
+1. **Preemptive Refresh Buffer (`REFRESH_BUFFER_MS = 30_000`)**: If an active access token has fewer than 30 seconds of remaining validity, `TokenManager` triggers a refresh *before* dispatching the request. This eliminates authentication race conditions during long-running WASI executions.
+2. **In-Flight Request Coalescing**: When multiple concurrent calls invoke `getToken()` on an expired or uninitialized cache, `TokenManager` deduplicates them into a single in-flight HTTP POST promise (`pendingPromise`). All callers resolve against the single response, avoiding token endpoint rate-limit throttling.
+
+### Reactive Invalidation
+
+When upstream enclaves rotate certificates or revoke active keys, gateways invalidate stale tokens on demand:
+
+```typescript
+try {
+  await dispatchRpc(route, payload, await tokenManager.getToken());
+} catch (error) {
+  if (isHttp401(error)) {
+    tokenManager.invalidate(); // Evicts stale token from memory cache
+    return await dispatchRpc(route, payload, await tokenManager.getToken());
+  }
+  throw error;
+}
+```

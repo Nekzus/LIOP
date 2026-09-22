@@ -1,0 +1,154 @@
+---
+title: "Runbook SRE de Observabilidad y Catálogo de Alertas"
+description: "Taxonomía de métricas de Prometheus en producción, umbrales de alerta crítica, procedimientos de remediación y navegación del cuadro de mando maestro de Grafana"
+icon: "gauge"
+
+---
+
+La operación de una malla distribuida de Logic-Injection-on-Origin exige una estrategia de observabilidad multidimensional. Dado que el cómputo se procesa in-situ en los enclaves remotos, los equipos de fiabilidad de sitios (SRE) deben monitorizar tanto el estado del transporte de red como las fronteras de seguridad de cada enclave (bloqueos de PII, trampas en el AST y acuerdos criptográficos post-cuánticos).
+
+La arquitectura de observabilidad de LIOP opera en dos niveles:
+- **Nivel A (Telemetría Nativa In-Situ)**: El SDK registra instrucciones de CPU, consumo de tokens (`TokenTelemetryEngine`) y bytes de red prevenidos sin requerir servicios externos.
+- **Nivel B (Monitorización de Flota en Producción)**: Prometheus recopila métricas desde los endpoints `/metrics` de cada enclave y las visualiza en un panel maestro de Grafana de 26 componentes.
+
+---
+
+## 1. Taxonomía de Métricas de Prometheus
+
+Todas las métricas utilizan el prefijo canónico `liop_`:
+
+### Métricas de Cómputo y Protocolo
+
+| Nombre de Métrica | Tipo | Etiquetas | Descripción y Fórmula |
+|---|---|---|---|
+| `liop_tool_calls_total` | Contador | `capability`, `status`, `role` | Total de invocaciones. `role="executor"` para enclaves de datos; `role="proxy"` para BLG. |
+| `liop_tool_execution_duration_seconds` | Histograma | `capability` | Latencia de ejecución extremo a extremo que abarca análisis AST y sandbox V8. |
+| `liop_tokens_saved_total` | Contador | `capability` | Tokens acumulados eliminados de la ventana del LLM (`originTokens - outputTokens`). |
+| `liop_wire_egress_bytes_total` | Contador | `direction` | Bytes transmitidos por la red frente a la línea base de extracción cruda. |
+
+### Métricas de Seguridad y Criptografía
+
+| Nombre de Métrica | Tipo | Etiquetas | Descripción |
+|---|---|---|---|
+| `liop_pqc_handshakes_total` | Contador | `status`, `algorithm` | Acuerdos de claves post-cuánticas ML-KEM-768 negociados. |
+| `liop_pqc_handshake_duration_ms` | Histograma | `algorithm` | Latencia de encapsulación y desencapsulación de claves (objetivo: < 2ms). |
+| `liop_zk_receipts_verified_total` | Contador | `status` | Recibos computacionales matemáticos HMAC-SHA256 verificados. |
+| `liop_egress_pii_violations_total` | Contador | `rule_id`, `enclave` | Intentos de código inyectado para filtrar claves restringidas, PANs o SSNs. |
+| `liop_ast_rejections_total` | Contador | `violation_type` | Cargas bloqueadas por Guardian AST por intentar importar APIs no autorizadas. |
+
+### Métricas de Infraestructura y Disyuntores
+
+| Nombre de Métrica | Tipo | Etiquetas | Descripción |
+|---|---|---|---|
+| `liop_mesh_peers_connected` | Calibrador | `node_id`, `tier` | Conteo en tiempo real de nodos activos en la red Kademlia DHT. |
+| `liop_circuit_breaker_tripped_total` | Contador | `target_endpoint` | Número de aperturas del disyuntor tras 5 fallos consecutivos. |
+| `liop_worker_pool_active_threads` | Calibrador | `enclave` | Hilos de Piscina que ejecutan tareas criptográficas o análisis AST. |
+
+---
+
+## 2. Catálogo de Alertas Críticas y Procedimientos de Remediación
+
+A continuación se presentan las reglas de alerta del archivo `examples/observability/alerting_rules.yml`:
+
+### Alerta 1: `LiopRepeatedEnclaveEgressRejection`
+
+```yaml
+- alert: LiopRepeatedEnclaveEgressRejection
+  expr: rate(liop_egress_pii_violations_total[2m]) > 0.1
+  for: 1m
+  labels:
+    severity: critical
+  annotations:
+    summary: "Exfiltración Reiterada de PII Detectada en Enclave {{ $labels.enclave }}"
+    description: "La lógica inyectada en {{ $labels.enclave }} superó 10 violaciones de salida en los últimos 2 minutos."
+```
+
+#### Procedimiento de Remediación
+1. **Identificar el Origen**: Examine los registros del interceptor `AuditInterceptor` en el enclave afectado para aislar el identificador `requesterPeerId` o el `clientId` de OAuth.
+2. **Revocar Credenciales**: Cancele el token del cliente en el servidor Nexus OIDC:
+   ```bash
+   curl -X POST http://liop-nexus:15000/admin/clients/{clientId}/revoke
+   ```
+3. **Analizar el Código Inyectado**: Obtenga el hash del payload desde el registro de auditoría e inspeccione el módulo en el directorio de cuarentena.
+
+---
+
+### Alerta 2: `LiopCircuitBreakerTripped`
+
+```yaml
+- alert: LiopCircuitBreakerTripped
+  expr: increase(liop_circuit_breaker_tripped_total[5m]) > 0
+  for: 30s
+  labels:
+    severity: warning
+  annotations:
+    summary: "Disyuntor Activado para la Ruta {{ $labels.target_endpoint }}"
+    description: "El destino {{ $labels.target_endpoint }} falló 5 comprobaciones consecutivas y quedó aislado."
+```
+
+#### Procedimiento de Remediación
+1. **Verificar el Estado del Contenedor**: Compruebe la respuesta del servicio:
+   ```bash
+   docker ps --filter "name={{ $labels.target_endpoint }}"
+   ```
+2. **Sondear el Puerto gRPC**: Emita un sondeo desde el perímetro de Border LIO Gateway:
+   ```bash
+   grpc_health_probe -addr={{ $labels.target_endpoint }}
+   ```
+3. **Inspeccionar la Memoria del Pool de Workers**: Si el contenedor responde, determine si el pool de workers de Piscina terminó por desborde de heap (`maxHeapMb`). Reinicie el proceso si los hilos quedaron bloqueados.
+
+---
+
+### Alerta 3: `LiopHighExecutionLatency`
+
+```yaml
+- alert: LiopHighExecutionLatency
+  expr: histogram_quantile(0.99, sum(rate(liop_tool_execution_duration_seconds_bucket[5m])) by (le, capability)) > 5.0
+  for: 2m
+  labels:
+    severity: warning
+  annotations:
+    summary: "La Latencia p99 de Ejecución Supera los 5s en {{ $labels.capability }}"
+```
+
+#### Procedimiento de Remediación
+1. **Evaluar el Consumo de Instrucciones AST**: Compruebe si la carga inyectada contiene bucles anidados sin límite superior.
+2. **Incrementar Hilos en el Pool de Piscina**: En entornos con alto volumen transaccional, incremente el valor de `workerPool.maxThreads` o eleve la cuota de CPU en la configuración del contenedor.
+
+---
+
+## 3. Arquitectura del Panel Maestro de Grafana
+
+El panel maestro de LIOP (`examples/observability/dashboards/master-dashboard.json`) organiza el estado operativo en secciones estructuradas:
+
+```mermaid
+flowchart TD
+    subgraph Dashboard["Estructura del Panel Maestro de Grafana"]
+        direction TB
+        subgraph Fila1["Fila 1: Estado General y Métricas Clave"]
+            R1["Invocaciones Totales | Enclaves Activos (7/7) | Red Ahorrada (99.8%) | Estado PQC"]
+        end
+        subgraph Fila2["Fila 2: Topología e Inventario de Nodos"]
+            R2["Tabla de Inventario: Hostname | Rol | Nivel | Puerto | Estado (UP/DOWN)"]
+        end
+        subgraph Fila3["Fila 3: Seguridad y Validación Zero-Trust"]
+            R3["Capa 1: Bloqueos AST | Capa 4: Censura PII | Capa 6: Recibos ZK Verificados"]
+        end
+        subgraph Fila4["Fila 4: Telemetría de Soberanía de Datos"]
+            R4["Panel 50: Ratio de Soberanía (%) | Panel 9: Velocidad (Tokens Ahorrados/s)"]
+        end
+        Fila1 --> Fila2 --> Fila3 --> Fila4
+    end
+```
+
+### Invariante Canónico de Expresiones PromQL
+
+En las expresiones de Prometheus, operadores como `or` funcionan exclusivamente entre vectores instantáneos. Formule siempre:
+
+```promql
+# Sintaxis correcta: Fallback vectorial
+(sum(rate(liop_tokens_saved_total[5m])) or vector(0))
+
+# Sintaxis prohibida: El valor escalar produce un error de análisis sintáctico
+(sum(rate(liop_tokens_saved_total[5m])) or 0)
+```

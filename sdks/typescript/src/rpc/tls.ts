@@ -1,3 +1,6 @@
+// Copyright 2026 Nekzus Solutions and contributors
+// SPDX-License-Identifier: Apache-2.0
+
 /**
  * LIOP TLS Configuration
  *
@@ -31,11 +34,29 @@ export interface LiopTlsOptions {
 	mutualTls?: boolean;
 	/** Optional CertManager instance for automated certificate management and hot reloading */
 	certManager?: CertManager;
+	/**
+	 * Explicitly permit unencrypted (insecure) credentials for local development,
+	 * Docker testbeds, or tooling harnesses without emitting console warnings.
+	 * Ignored if isTlsEnforced() is true (production/enforced mode always throws).
+	 */
+	insecure?: boolean;
+	/**
+	 * Explicitly suppress the fallback warning when insecure credentials are created.
+	 */
+	suppressWarning?: boolean;
 }
 
 const isTlsEnforced = () =>
 	process.env.NODE_ENV === "production" ||
 	process.env.LIOP_ENFORCE_TLS === "true";
+
+const isTlsWarningSuppressed = (tls?: LiopTlsOptions) =>
+	tls?.insecure === true ||
+	tls?.suppressWarning === true ||
+	process.env.LIOP_SUPPRESS_TLS_WARNING === "true";
+
+let hasWarnedInsecureServer = false;
+let hasWarnedInsecureChannel = false;
 
 /**
  * Creates gRPC server credentials from TLS options.
@@ -89,9 +110,12 @@ export function createServerCredentials(
 				"[LIOP-TLS] FATAL: TLS certificates required in production or when LIOP_ENFORCE_TLS=true.",
 			);
 		}
-		log.warn(
-			"[LIOP-TLS] No TLS certificates configured — using insecure server credentials",
-		);
+		if (!isTlsWarningSuppressed(tls) && !hasWarnedInsecureServer) {
+			hasWarnedInsecureServer = true;
+			log.debug(
+				"[LIOP-TLS] No TLS certificates configured — using insecure server credentials",
+			);
+		}
 		return grpc.ServerCredentials.createInsecure();
 	}
 
@@ -163,9 +187,12 @@ export function createChannelCredentials(
 				"[LIOP-TLS] FATAL: TLS root certificate required in production or when LIOP_ENFORCE_TLS=true.",
 			);
 		}
-		log.warn(
-			"[LIOP-TLS] No TLS root certificate configured — using insecure channel credentials",
-		);
+		if (!isTlsWarningSuppressed(tls) && !hasWarnedInsecureChannel) {
+			hasWarnedInsecureChannel = true;
+			log.debug(
+				"[LIOP-TLS] No TLS root certificate configured — using insecure channel credentials",
+			);
+		}
 		return grpc.credentials.createInsecure();
 	}
 

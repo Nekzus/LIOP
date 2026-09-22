@@ -1,6 +1,8 @@
 ---
 title: "Sandboxing con WASI"
 description: "Cómo LIOP aísla la ejecución a través de la Interfaz de Sistema de WebAssembly (WASI)"
+icon: "box"
+
 ---
 
 El mayor cambio de paradigma de MCP a LIOP es el concepto de **Logic-Injection-on-Origin** (Lógica Inyectada en el Origen). Sin embargo, inyectar lógica de agentes remotos en tu infraestructura introduce desafíos de seguridad críticos.
@@ -11,7 +13,7 @@ Para solucionar esto, LIOP confía plenamente en el aislamiento matemático a ni
 
 Cuando una herramienta convencional se ejecuta en un entorno de agentes, suele depender del sandboxing del sistema operativo (como contenedores Docker). Si una dependencia se compromete, podría intentar una escalada de privilegios o escapar del contenedor.
 
-**WASI invierte el modelo de seguridad.** WebAssembly es un formato de computación seguro en memoria y puramente matemático. Por defecto, un módulo `.wasm` carece literalmente de instrucciones de CPU para hablar con el sistema operativo, disco, red o periféricos. WASI es el puente estrictamente controlado que reintroduce estas funciones exacta y únicamente cuando se conceden de forma explícita mediante capacidades.
+**WASI establece un modelo de seguridad basado en capacidades.** WebAssembly es un formato de computación seguro en memoria y portable. Por defecto, un módulo `.wasm` no incluye instrucciones directas para interactuar con el sistema operativo, disco, red o periféricos. WASI es el puente controlado que reintroduce estas funciones exclusivamente cuando se conceden mediante capacidades explícitas.
 
 ## El Ciclo de Vida del Sandbox LIOP
 
@@ -23,22 +25,22 @@ Cuando un Nodo Agente inyecta un módulo WebAssembly en un Nodo de Datos, se act
 </Frame>
 
 ### 1. Verificación de Capacidades
-El Agente declara las capacidades que requiere por adelantado (ej., `requires_capability: ["logs_read", "db_query"]`). El Nodo de Datos verifica su manifiesto local para ver si permite a este Agente específico acceder a esos recursos.
+El Agente declara las capacidades que requiere por adelantado (ej., `requires_capability: ["logs_read", "db_query"]`). El Nodo de Datos verifica su manifiesto local para comprobar si autoriza a este Agente específico a acceder a esos recursos.
 
-### 2. Pre-aperturas (Preopens) Microscópicas
-Si se aprueba, el Nodo de Datos **no** concede al módulo acceso libre al sistema de archivos. En su lugar, "pre-abre" recursos muy específicos y los mapea en el espacio virtualizado del módulo WASM.
-Si el agente pide leer `/var/log/nginx/` y el servidor lo permite como `/logs`, el Agente *solo* ve `/logs` como la raíz absoluta de su universo. Intentar subir directorios con `../` se detiene en seco en el límite del Sandbox.
+### 2. Pre-apertura Restringida de Directorios (Preopens)
+Si se aprueba, el Nodo de Datos **no** concede al módulo acceso arbitrario al sistema de archivos. En su lugar, abre de manera previa descriptores específicos y los mapea en el espacio virtualizado del módulo WASM.
+Si el agente solicita `/var/log/nginx/` y el servidor lo expone como `/logs`, el Agente visualiza `/logs` como su raíz aislada. Cualquier intento de recorrer rutas superiores mediante `../` se bloquea en el límite del sandbox.
 
 ### 3. Límites de Ejecución y Memoria (Fuel & Caps)
-El motor arranca con limitadores estrictos:
-- **Tiempo de Ejecución (Combustible):** Si el módulo entra en un bucle infinito, el motor lo detiene por agotamiento de combustible (`Out-Of-Fuel`).
-- **Límite de Memoria Máximo:** Si el módulo intenta un desbordamiento o alojar memoria excesiva, se dispara un `OOM Trap` inmediato.
-- **Cero Sockets Prohibidos:** La lógica corre offline dentro del Servidor. No puede abrir puertos ni conectarse a internet sin autorización. Su única salida es lo que `retorna` al orquestador.
-- **Aislamiento en Node.js (V8 Isolation):** En el SDK de TypeScript (`@nekzus/liop`), implementamos límites idénticos empleando contextos aislados (`node:vm`). Esto asegura un aislamiento rígido, despojando al entorno de ejecución de **25 globales envenenados** (`process`, `require`, `eval`, `Function`, `Date`, `ArrayBuffer`, `Uint8Array`, y más), eliminando cualquier posibilidad de escalada al sistema host.
-- **Defensa contra Canal Lateral de Tiempo:** El objeto `Date` se envenena dentro del sandbox para prevenir que la lógica inyectada mida diferencias de tiempo de ejecución, que podrían usarse para inferir el tamaño del dataset o patrones de ejecución internos. Dado que la clase global `Date` está establecida como `undefined` (llamar a `new Date()` o `Date.now()` arrojará un error de referencia), el filtrado y ordenamiento cronológico debe realizarse mediante comparaciones lexicográficas sobre cadenas en formato ISO 8601 (ej., `record.date >= '2024-01-01'`).
-- **Defensa contra Heap Bomb:** Los 12 constructores de `TypedArray` (`Uint8Array`, `Float64Array`, `DataView`, etc.) se neutralizan para prevenir la asignación de buffers binarios masivos que crashearían el proceso worker por agotamiento del heap V8. Cada worker está adicionalmente restringido a un techo de memoria configurable vía `maxHeapMb` (por defecto: 64 MB).
-- **Defensa contra Contaminación de Prototipos:** Once prototipos core de JavaScript (`Object`, `Array`, `String`, `Number`, `Boolean`, `RegExp`, `Map`, `Set`, `Promise`, `Error` y `Function` resuelto dinámicamente) se congelan vía `Object.freeze()` dentro del IIFE del sandbox antes de que el código de usuario se ejecute. Al forzar `"use strict";` en el contenedor, cualquier intento no autorizado de alterar los prototipos arroja un error inmediato de tipo `TypeError` en lugar de fallar en silencio, previniendo que la lógica inyectada sobreescriba métodos nativos.
-- **Pool de Workers (Piscina):** Para evitar bloqueos, el SDK aísla este ciclo dentro de hilos paralelos (vía `piscina`), logrando un rendimiento industrial consistente. El pool de workers implementa un precalentamiento asíncrono en segundo plano (No-Op Warmup) al inicializarse para mitigar la latencia del cold-start de V8 y la carga inicial de WASI (~820k unidades de combustible).
+El motor arranca con restricciones operativas estrictas:
+- **Tiempo de Ejecución (Combustible):** Si el módulo entra en un bucle infinito, el motor detiene la ejecución por agotamiento de combustible (`Out-Of-Fuel`).
+- **Límite de Memoria Máximo:** Si el módulo intenta un desbordamiento o alojar memoria excesiva, se dispara una interrupción irrecuperable de tipo `OOM Trap`.
+- **Prohibición de Sockets:** La lógica se ejecuta desconectada dentro del Servidor. No puede abrir puertos ni iniciar conexiones TCP o UDP hacia el exterior. Su única salida consiste en el resultado devuelto al orquestador.
+- **Aislamiento en Node.js (V8 Isolation):** En entornos de desarrollo o demostración sin WebAssembly preinstalado, el SDK implementa límites equivalentes mediante `node:vm` (`vm.createContext(Object.create(null))`). El entorno de ejecución restringe **25 globales críticos** (`process`, `require`, `eval`, `Function`, `Date`, `ArrayBuffer`, `Uint8Array`, entre otros), lo que previene la escalada de privilegios hacia el sistema anfitrión.
+- **Defensa contra Canal Lateral de Tiempo:** El objeto `Date` se inhabilita dentro del sandbox para prevenir que la lógica inyectada mida variaciones de tiempo de ejecución para inferir el volumen del dataset. Como el acceso a `new Date()` o `Date.now()` produce un error de referencia (`ReferenceError`), el filtrado y ordenamiento cronológico debe realizarse mediante comparaciones lexicográficas sobre cadenas en formato ISO 8601 (por ejemplo, `record.date >= '2024-01-01'`).
+- **Defensa contra Heap Bomb:** Los 12 constructores de `TypedArray` (`Uint8Array`, `Float64Array`, `DataView`, etc.) se neutralizan para prevenir la asignación de buffers binarios masivos que podrían causar agotamiento de memoria en el proceso trabajador. Cada worker está adicionalmente restringido por un límite de memoria configurable vía `maxHeapMb` (por defecto: 64 MB).
+- **Defensa contra Contaminación de Prototipos:** Once prototipos del núcleo de JavaScript (`Object`, `Array`, `String`, `Number`, `Boolean`, `RegExp`, `Map`, `Set`, `Promise`, `Error` y `Function`) se congelan vía `Object.freeze()` dentro del IIFE del sandbox antes de ejecutar código de usuario. Al operar bajo `"use strict";`, cualquier intento de alterar los prototipos produce un error inmediato de tipo `TypeError` en lugar de fallar de manera silenciosa, lo que impide que el código inyectado sobreescriba métodos nativos.
+- **Pool de Workers (Piscina):** Para evitar bloqueos en el bucle de eventos, el SDK procesa las ejecuciones en hilos de trabajo independientes (vía `piscina`), manteniendo un rendimiento predecible y concurrente. El pool implementa un precalentamiento asíncrono en segundo plano (No-Op Warmup) al inicializarse para mitigar la latencia de arranque en frío de V8 (~820k unidades de combustible).
 - **Aislamiento Seguro de Variables de Entorno del Host (`allowEnv`):** Por defecto, el sandbox WASI aísla por completo la ejecución de cualquier variable de entorno del host. Si su lógica de negocio requiere estrictamente variables de entorno, puede habilitar la propagación segura del entorno:
   ```typescript
   const server = new LiopServer(info, {

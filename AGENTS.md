@@ -90,6 +90,35 @@ Logic-Injection-on-Origin Protocol (LIOP) is the high-performance successor to t
 21. **Verified GPG Release Commits & Channel-Segregated Changelogs**:
    - Automated releases in CI must use `@semantic-release-extras/verified-git-commit` to create release commits via GitHub REST API, guaranteeing GitHub's verified GPG signature badge (`B5690EEEBB952194`).
    - Each release branch maintains its own dedicated `CHANGELOG.md` matching only its channel's releases, preventing cross-channel pollution and PR merge conflicts.
+22. **High-Contrast Dynamic Theming Invariant for Web Consoles**:
+   - In web dashboards, playgrounds, and monitoring consoles, never hardcode static background or border hex colors (e.g. `bg-[#0b0e14]`) on surface cards, code editors, or interactive elements.
+   - All surface colors must use semantic CSS tokens (`bg-card`, `bg-surface1`, `bg-editor`, `bg-tier1`, `border-border`) backed by CSS variables declared in root stylesheets and toggled atomically via `data-theme` attributes and root classes on `document.documentElement`.
+   - This guarantees flawless contrast across OLED black (`#000000`) and Navy/Slate (`#0f172a`) modes without CSS specificity conflicts.
+23. **Gateway Bearer OAuth 2.1 Propagation for Multi-Tier Enclave Access**:
+   - When client gateways or playground runners proxy logic executions across asymmetric security boundaries (such as Border LIO Gateway `blg` routing into Tier 1 enclaves), they must obtain Bearer access tokens via RFC 6749 client credentials from Nexus OIDC (`/oidc/token`).
+   - Tokens must be cached in memory with a safety margin (at least 30s before `expires_in`) to prevent HTTP 401 Unauthorized errors during high-frequency analytical queries.
+24. **In-Situ Deterministic Fuel & Token Telemetry Invariant**:
+   - Any playground, demo runner, or client harness showcasing Logic-on-Origin capabilities must compute both deterministic instruction-level AST fuel (using `calculateAstInstructionFuel` with 100-unit bucket quantization to eliminate timing side-channels per NIST SP 800-53) and LLM context token consumption (via BPE tokenizer `o200k_base` in `TokenTelemetryEngine`).
+   - Telemetry must contrast empirical in-situ execution against traditional MCP context-pulling baselines (~16k–48k tokens and ~195 KB wire egress) and emit OpenTelemetry semantic metrics (`gen_ai.client.token.usage`) to demonstrate data sovereignty and context reduction.
+25. **Template-to-Capability Bidirectional Synchronization Invariant**:
+   - In interactive playgrounds and logic injection studios, template selection and capability/tool targeting must maintain bidirectional synchronization.
+   - Selecting a logic template must immediately update the selected tool to the template's designated capability, and choosing a tool from the capability browser must load that tool's corresponding canonical template. This prevents schema mismatch runtime errors and cross-domain payload rejections.
+26. **Canonical PromQL Vector Fallback Invariant (Zero Scalar Set Operators)**:
+   - In Prometheus PromQL expressions (both in alerting rules and Grafana dashboard panels), the `or` operator is strictly a set operator between instant vectors.
+   - Never write scalar fallbacks like `(sum(...) or 0)` or `(sum(...) > 0 or 1)`. Such syntax causes `parse error: set operator "or" not allowed in binary scalar expression`.
+   - Always use the canonical vector function: `(sum(...) or vector(0))` and provide vector fallbacks `or vector(100)` when computing availability percentages or error budgets.
+27. **Prometheus Scraping Target Hygiene & Role Tagging Invariant**:
+   - Scrape configurations in `prometheus.yml` must strictly target endpoints that expose native Prometheus text-format metrics (`/metrics`). Never add UI, Vite dev servers, or static HTML web servers to scrape jobs as they return `text/html` and trigger scrape failures (`DOWN`).
+   - Every enclave target must define explicit metadata labels: `node_role` (e.g. `nexus-seed`, `vault-enclave`, `bank-enclave`, `oracle-consortium`, `edge-remote`, `relay-backbone`, `blg-perimeter`) and `tier` (`tier1-enclave`, `tier2-consortium`, `tier3-backbone`) to enable native, zero-regex fleet grouping and high-density inventory tables in Grafana.
+28. **Controlled Telemetry Streaming & Enclave Route Decoupling Invariant**:
+   - Telemetry stream generators, synthetic load runners, and demonstration harnesses must strictly respect asymmetric enclave boundaries. Requests targeting Tier 1 Enclaves (`Bank`, `Vault`) must route through the Border LIO Gateway (`BLG`) using `callTool` abstractions rather than directly polling unreachable private endpoints.
+   - Continuous traffic streams must implement rate moderation (intervals >= 3.5s) to avoid socket exhaustion and prevent Docker Desktop Windows engine pipe lockups (`500 Internal Server Error`).
+29. **Mandatory Post-SDK Update Docker Tri-Tier & Observability Certification**:
+   - Whenever `@nekzus/liop` or `@nekzus/liop-studio` packages are updated and published to NPM across any release channel (`@alpha`, `@beta`, `@latest`), the agent must immediately:
+     1. Rebuild the Docker images cleanly without cache (`docker compose -f docker-compose.production-audit.yml build --no-cache`) to ensure containers install the exact freshly published package from the public registry.
+     2. Deploy the tri-tier sovereign mesh (`liop-psk-init`, `liop-nexus-prod`, `liop-blg-prod`, `liop-vault-prod`, `liop-bank-prod`, `liop-oracle-prod`, `liop-edge-prod`, `liop-relay-prod`, `liop-playground-prod`, `liop-studio-prod`).
+     3. Execute the full 12-suite production audit (`tests/vitest.audit.config.ts`) inside `liop-audit-runner` until 100% of tests pass (64/64 tests green).
+     4. Recreate/start the observability stack (`examples/observability/docker-compose.observability.yml`: `liop-prometheus` and `liop-grafana`) and verify all 7 enclaves report `UP` in Prometheus targets and all API endpoints return HTTP 200.
 
 ---
 

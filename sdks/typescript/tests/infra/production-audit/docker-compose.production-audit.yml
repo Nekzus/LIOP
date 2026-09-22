@@ -1,0 +1,364 @@
+networks:
+  liop-tier1-enclave:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.22.0.0/24
+          gateway: 172.22.0.1
+  liop-tier2-consortium:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.23.0.0/24
+          gateway: 172.23.0.1
+  liop-tier3-backbone:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/24
+          gateway: 172.21.0.1
+
+volumes:
+  audit-shared-data:
+
+x-audit-base: &audit-base
+  build:
+    context: .
+    dockerfile: Dockerfile.production
+  restart: "no"
+  cap_add:
+    - NET_ADMIN
+  volumes:
+    - audit-shared-data:/app/data
+    - ./entrypoints:/app/entrypoints
+    - ./utils:/app/utils
+
+services:
+  psk-init:
+    <<: *audit-base
+    container_name: liop-psk-init
+    command: ["tsx", "--no-warnings", "utils/generate-psk.ts"]
+    networks:
+      liop-tier1-enclave:
+        ipv4_address: 172.22.0.2
+
+  nexus-prod:
+    <<: *audit-base
+    container_name: liop-nexus-prod
+    hostname: nexus-prod
+    command: ["tsx", "--no-warnings", "entrypoints/nexus.ts"]
+    environment:
+      NODE_OPTIONS: "--max-old-space-size=2048"
+      LIOP_NODE_ROLE: nexus
+      LIOP_LOG_LEVEL: info
+      LIOP_NET_PROFILE: lan
+      LIOP_OAUTH_CLIENT_ID: ${LIOP_OAUTH_CLIENT_ID:-liop-mesh-agent}
+      LIOP_OAUTH_CLIENT_SECRET: ${LIOP_OAUTH_CLIENT_SECRET:-dev-secret-change-me}
+      LIOP_TOKEN_BANK: bank-local-test-token
+      LIOP_TOKEN_VAULT: vault-local-test-token
+      LIOP_TOKEN_ORACLE: oracle-local-test-token
+      LIOP_TOKEN_EDGE: edge-local-test-token
+      LIOP_RATE_LIMIT_MAX: 500
+      LIOP_RATE_LIMIT_GLOBAL_MAX: 2000
+      TYPESAFE_API_KEY: ${TYPESAFE_API_KEY:-}
+    networks:
+      liop-tier2-consortium:
+        ipv4_address: 172.23.0.10
+        aliases:
+          - nexus
+          - liop-nexus
+      liop-tier3-backbone:
+        ipv4_address: 172.21.0.10
+    ports:
+      - "15001:4000"    # libp2p TCP P2P
+      - "15000:3000"    # HTTP health / Gateway
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:3000/health"]
+      interval: 4s
+      timeout: 3s
+      start_period: 10s
+      retries: 5
+
+  blg-prod:
+    <<: *audit-base
+    container_name: liop-blg-prod
+    hostname: blg-prod
+    command: ["tsx", "--no-warnings", "entrypoints/blg.ts"]
+    environment:
+      NODE_OPTIONS: "--max-old-space-size=2048"
+      LIOP_NODE_ROLE: blg
+      LIOP_LOG_LEVEL: info
+      LIOP_NET_PROFILE: lan
+      LIOP_NEXUS_URL: http://nexus:3000
+      VAULT_INTERNAL_URL: http://172.22.0.11:3000
+      BANK_INTERNAL_URL: http://172.22.0.12:3000
+      LIOP_RATE_LIMIT_MAX: 500
+      LIOP_RATE_LIMIT_GLOBAL_MAX: 2000
+      TYPESAFE_API_KEY: ${TYPESAFE_API_KEY:-}
+    networks:
+      liop-tier1-enclave:
+        ipv4_address: 172.22.0.10
+        aliases:
+          - blg-enclave
+      liop-tier2-consortium:
+        ipv4_address: 172.23.0.20
+        aliases:
+          - blg
+          - liop-blg
+    ports:
+      - "15008:4000"    # libp2p TCP P2P
+      - "15018:3000"    # Health / Gateway
+      - "15051:50051"   # gRPC BLG
+    depends_on:
+      psk-init:
+        condition: service_completed_successfully
+      nexus-prod:
+        condition: service_healthy
+
+  vault-prod:
+    <<: *audit-base
+    container_name: liop-vault-prod
+    hostname: vault-prod
+    command: ["tsx", "--no-warnings", "entrypoints/vault.ts"]
+    environment:
+      NODE_OPTIONS: "--max-old-space-size=2048"
+      LIOP_NODE_ROLE: vault
+      LIOP_LOG_LEVEL: info
+      LIOP_NET_PROFILE: cross-atlantic
+      LIOP_DATASET_SCALE: ${LIOP_DATASET_SCALE:-500}
+      LIOP_BOOTSTRAP_PEER: /ip4/172.22.0.10/tcp/4000
+      LIOP_RATE_LIMIT_MAX: 500
+      LIOP_RATE_LIMIT_GLOBAL_MAX: 2000
+      LIOP_QUERY_BUDGET: 1000
+    networks:
+      liop-tier1-enclave:
+        ipv4_address: 172.22.0.11
+        aliases:
+          - vault
+    ports:
+      - "15003:4000"    # libp2p TCP P2P
+      - "15011:50051"   # gRPC Vault
+      - "15013:3000"    # Health
+    depends_on:
+      psk-init:
+        condition: service_completed_successfully
+      blg-prod:
+        condition: service_started
+
+  bank-prod:
+    <<: *audit-base
+    container_name: liop-bank-prod
+    hostname: bank-prod
+    command: ["tsx", "--no-warnings", "entrypoints/bank.ts"]
+    environment:
+      NODE_OPTIONS: "--max-old-space-size=2048"
+      LIOP_NODE_ROLE: bank
+      LIOP_LOG_LEVEL: info
+      LIOP_NET_PROFILE: cross-atlantic-london
+      LIOP_DATASET_SCALE: ${LIOP_DATASET_SCALE:-500}
+      LIOP_BOOTSTRAP_PEER: /ip4/172.22.0.10/tcp/4000
+      LIOP_RATE_LIMIT_MAX: 500
+      LIOP_RATE_LIMIT_GLOBAL_MAX: 2000
+      LIOP_QUERY_BUDGET: 1000
+    networks:
+      liop-tier1-enclave:
+        ipv4_address: 172.22.0.12
+        aliases:
+          - bank
+    ports:
+      - "15004:4000"    # libp2p TCP P2P
+      - "15021:50051"   # gRPC Bank
+      - "15014:3000"    # Health
+    depends_on:
+      psk-init:
+        condition: service_completed_successfully
+      blg-prod:
+        condition: service_started
+
+  oracle-prod:
+    <<: *audit-base
+    container_name: liop-oracle-prod
+    hostname: oracle-prod
+    command: ["tsx", "--no-warnings", "entrypoints/oracle.ts"]
+    environment:
+      NODE_OPTIONS: "--max-old-space-size=2048"
+      LIOP_NODE_ROLE: oracle
+      LIOP_LOG_LEVEL: info
+      LIOP_NET_PROFILE: cross-pacific
+      LIOP_HFT_TICK_INTERVAL_MS: 50
+      LIOP_HFT_INSTRUMENTS: 8
+      LIOP_BOOTSTRAP_PEER: /ip4/172.23.0.10/tcp/4000
+      LIOP_RATE_LIMIT_MAX: 500
+      LIOP_RATE_LIMIT_GLOBAL_MAX: 2000
+      TYPESAFE_API_KEY: ${TYPESAFE_API_KEY:-}
+    networks:
+      liop-tier2-consortium:
+        ipv4_address: 172.23.0.13
+        aliases:
+          - oracle
+    ports:
+      - "15005:4000"    # libp2p TCP P2P
+      - "15031:50051"   # gRPC Oracle
+      - "15015:3000"    # Health
+    depends_on:
+      nexus-prod:
+        condition: service_healthy
+
+  edge-prod:
+    <<: *audit-base
+    container_name: liop-edge-prod
+    hostname: edge-prod
+    command: ["tsx", "--no-warnings", "entrypoints/edge.ts"]
+    environment:
+      NODE_OPTIONS: "--max-old-space-size=2048"
+      LIOP_NODE_ROLE: edge
+      LIOP_LOG_LEVEL: info
+      LIOP_NET_PROFILE: hostile-3g
+      LIOP_BOOTSTRAP_PEER: /ip4/172.23.0.10/tcp/4000
+      LIOP_RATE_LIMIT_MAX: 500
+      LIOP_RATE_LIMIT_GLOBAL_MAX: 2000
+      TYPESAFE_API_KEY: ${TYPESAFE_API_KEY:-}
+    networks:
+      liop-tier2-consortium:
+        ipv4_address: 172.23.0.14
+        aliases:
+          - edge
+    ports:
+      - "15006:4000"    # libp2p TCP P2P
+      - "15041:50051"   # gRPC Edge
+      - "15016:3000"    # Health
+    depends_on:
+      nexus-prod:
+        condition: service_healthy
+
+  relay-prod:
+    <<: *audit-base
+    container_name: liop-relay-prod
+    hostname: relay-prod
+    command: ["tsx", "--no-warnings", "entrypoints/relay.ts"]
+    environment:
+      NODE_OPTIONS: "--max-old-space-size=2048"
+      LIOP_NODE_ROLE: relay
+      LIOP_LOG_LEVEL: info
+      LIOP_NET_PROFILE: moderate
+      LIOP_BOOTSTRAP_PEER: /ip4/172.23.0.10/tcp/4000
+    networks:
+      liop-tier2-consortium:
+        ipv4_address: 172.23.0.15
+        aliases:
+          - relay
+      liop-tier3-backbone:
+        ipv4_address: 172.21.0.15
+    ports:
+      - "15007:4000"    # libp2p TCP P2P
+      - "15017:3000"    # Health
+    depends_on:
+      nexus-prod:
+        condition: service_healthy
+
+  playground-prod:
+    <<: *audit-base
+    container_name: liop-playground-prod
+    hostname: playground-prod
+    command: ["tsx", "--no-warnings", "entrypoints/playground.ts"]
+    volumes:
+      - audit-shared-data:/app/data
+      - ./entrypoints:/app/entrypoints
+      - ./utils:/app/utils
+      - ../playground-dist:/app/playground-dist
+    environment:
+      NODE_OPTIONS: "--max-old-space-size=2048"
+      LIOP_NODE_ROLE: client
+      LIOP_LOG_LEVEL: info
+      LIOP_NET_PROFILE: cross-atlantic
+      NEXUS_P2P: "/ip4/172.23.0.10/tcp/4000"
+      LIOP_CLIENT_ID: liop-mesh-agent
+      LIOP_CLIENT_SECRET: dev-secret-change-me
+      LIOP_NEXUS_URL: http://172.23.0.10:3000
+    networks:
+      liop-tier2-consortium:
+        ipv4_address: 172.23.0.200
+        aliases:
+          - playground
+      liop-tier3-backbone:
+        ipv4_address: 172.21.0.200
+    ports:
+      - "16002:3000"    # Playground Web/API
+    depends_on:
+      nexus-prod:
+        condition: service_healthy
+
+  studio-prod:
+    <<: *audit-base
+    container_name: liop-studio-prod
+    hostname: studio-prod
+    command: ["node", "/app/node_modules/@nekzus/liop-studio/bin/liop-studio.js", "--port", "3000", "--no-open", "--http", "http://nexus:3000/mcp"]
+    environment:
+      NODE_OPTIONS: "--max-old-space-size=2048"
+      LIOP_MCP_URL: http://nexus:3000/mcp
+      LIOP_NEXUS_URL: http://nexus:3000
+      LIOP_SUPPRESS_TLS_WARNING: "true"
+    networks:
+      liop-tier2-consortium:
+        ipv4_address: 172.23.0.201
+        aliases:
+          - studio
+      liop-tier3-backbone:
+        ipv4_address: 172.21.0.201
+    ports:
+      - "16000:3000"    # LIOP Studio Web UI & API
+    depends_on:
+      nexus-prod:
+        condition: service_healthy
+
+  audit-runner:
+    <<: *audit-base
+    container_name: liop-audit-runner
+    hostname: audit-runner
+    command: ["vitest", "run", "--config", "tests/vitest.audit.config.ts"]
+    volumes:
+      - audit-shared-data:/app/data
+      - ./entrypoints:/app/entrypoints
+      - ./utils:/app/utils
+      - ./tests:/app/tests
+    environment:
+      NODE_OPTIONS: "--max-old-space-size=2048"
+      NEXUS_URL: http://nexus-prod:3000
+      BLG_URL: http://blg-prod:3000
+      VAULT_URL: http://vault-prod:3000
+      BANK_URL: http://bank-prod:3000
+      ORACLE_URL: http://oracle-prod:3000
+      EDGE_URL: http://edge-prod:3000
+      RELAY_URL: http://relay-prod:3000
+      PLAYGROUND_URL: http://playground-prod:3000
+      LIOP_CLIENT_ID: liop-mesh-agent
+      LIOP_CLIENT_SECRET: dev-secret-change-me
+      LIOP_TOKEN_BANK: bank-local-test-token
+      LIOP_TOKEN_VAULT: vault-local-test-token
+      LIOP_TOKEN_ORACLE: oracle-local-test-token
+      LIOP_TOKEN_EDGE: edge-local-test-token
+      LIOP_NET_PROFILE: lan
+    networks:
+      liop-tier1-enclave:
+        ipv4_address: 172.22.0.100
+      liop-tier2-consortium:
+        ipv4_address: 172.23.0.100
+      liop-tier3-backbone:
+        ipv4_address: 172.21.0.100
+    depends_on:
+      nexus-prod:
+        condition: service_healthy
+      blg-prod:
+        condition: service_started
+      vault-prod:
+        condition: service_started
+      bank-prod:
+        condition: service_started
+      oracle-prod:
+        condition: service_started
+      edge-prod:
+        condition: service_started
+      relay-prod:
+        condition: service_started
+      playground-prod:
+        condition: service_started

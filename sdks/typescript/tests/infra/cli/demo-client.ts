@@ -29,7 +29,7 @@ async function main() {
       }
     });
     
-    const peerId = client["meshNode"]?.getPeerId()?.toString() || "unknown";
+    const peerId = client.peerId ?? "unknown";
     process.stdout.write(`[OK] connect()       PeerID: ${peerId}\n`);
 
     // Wait for DHT sync

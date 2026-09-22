@@ -1,0 +1,233 @@
+---
+title: "Interceptores de Log y Auditoría"
+description: "Ganchos agnósticos de tecnología para flujos de logs operacionales y registros criptográficos de auditoría"
+icon: "binary"
+
+---
+
+El SDK de LIOP proporciona dos ganchos de intercepción en tiempo de ejecución diseñados para telemetría, detección de anomalías y cumplimiento normativo:
+
+- **`LogInterceptor`**: Intercepta eventos de registro operacional emitidos por `LiopLogger` (transportes, gossip peer-to-peer, enrutamiento).
+- **`AuditInterceptor`**: Intercepta entradas criptográficas de auditoría emitidas por `AuditLogger` tras el sellado de hash (cumplimiento SOC 2 Type II y HIPAA).
+
+Ambos ganchos operan fuera de banda utilizando un modelo de ejecución asíncrono *fire-and-forget*, garantizando que el análisis externo o la latencia de red nunca degraden el rendimiento del protocolo central.
+
+---
+
+## Arquitectura de Interceptores
+
+<Frame>
+  <img className="block dark:hidden" src="/images/animated-log-audit-interceptors-light.svg" alt="Arquitectura de Interceptores del Protocolo LIOP" />
+  <img className="hidden dark:block" src="/images/animated-log-audit-interceptors-dark.svg" alt="Arquitectura de Interceptores del Protocolo LIOP" />
+</Frame>
+
+---
+
+## Interceptor de Logs Operacionales (`LogInterceptor`)
+
+`LiopLogger` emite mensajes estructurados exclusivamente a `stderr` para cumplir con las restricciones de separación de flujos de stdio en MCP (reservando `stdout` estrictamente para tramas JSON-RPC). El gancho `LogInterceptor` permite a los desarrolladores reenviar, analizar o filtrar estos mensajes de manera programática.
+
+### Definición del Contrato
+
+```typescript
+import type { LogLevel } from "@nekzus/liop";
+
+export interface LogEvent {
+  timestamp: string;
+  level: LogLevel; // "silent" | "error" | "warn" | "info" | "debug"
+  message: string;
+  args: readonly unknown[];
+}
+
+export type LogInterceptor = (
+  event: Readonly<LogEvent>,
+) => void | Promise<void>;
+```
+
+### Registro y Ciclo de Vida
+
+El interceptor se registra directamente sobre la instancia singleton de `LiopLogger`:
+
+```typescript
+import { log, type LogInterceptor } from "@nekzus/liop";
+
+const operationalInterceptor: LogInterceptor = async (event) => {
+  if (event.level === "error") {
+    // Reenviar a monitoreo central o detector de anomalías semánticas
+    await notifyOpsTeam(event);
+  }
+};
+
+// Registrar gancho
+log.setInterceptor(operationalInterceptor);
+
+// Desactivar gancho (retorna a ejecución con cero sobrecarga)
+log.setInterceptor(undefined);
+```
+
+### Guardarraíl de Recursión
+
+Si la implementación de un interceptor invoca código que dispara `LiopLogger` (directamente o mediante dependencias), un bucle reentrante infinito provocaría un desbordamiento de pila (*stack overflow*). `LiopLogger` mantiene una bandera interna de reentrancia (`_isIntercepting`) que suprime el despacho recursivo del interceptor dentro del mismo marco de llamada y preserva la salida estándar a `stderr`.
+
+---
+
+## Interceptor Criptográfico de Auditoría (`AuditInterceptor`)
+
+`AuditLogger` registra trazas de ejecución inmutables para cada carga de trabajo de Logic-on-Origin. Cada `AuditEntry` está enlazada criptográficamente a su predecesora mediante encadenamiento de hashes SHA-256 (`prevEntryHash` y `entryHash`), conformando un registro inmutable.
+
+### Definición del Contrato
+
+```typescript
+import type { AuditEntry } from "@nekzus/liop";
+
+export type AuditInterceptor = (
+  entry: Readonly<AuditEntry>,
+) => void | Promise<void>;
+```
+
+### Invariante Post-Sellado
+
+El gancho `AuditInterceptor` se ejecuta **estrictamente después** de que la entrada de auditoría ha sido sellada:
+1. Se calcula y verifica el hash SHA-256 de la entrada.
+2. Se actualiza el puntero de la cadena de hash (`lastEntryHash`).
+3. Se persiste la entrada en el archivo local JSONL (si está configurado).
+4. El interceptor recibe un clon profundo inmutable creado mediante `Object.freeze(structuredClone(fullEntry))`.
+
+Cualquier mutación intentada por el interceptor arroja error en modo estricto y no puede alterar la cadena de hash almacenada ni afectar la verificación posterior.
+
+```typescript
+import { AuditLogger, type AuditInterceptor } from "@nekzus/liop";
+
+const auditLogger = new AuditLogger("/var/log/liop/audit.jsonl");
+
+const securityInterceptor: AuditInterceptor = async (entry) => {
+  if (entry.status === "BLOCKED_EGRESS") {
+    // Alertar al equipo de seguridad ante intentos bloqueados de exfiltración
+    await triggerSecurityEscalation(entry);
+  }
+};
+
+auditLogger.setInterceptor(securityInterceptor);
+```
+
+---
+
+## Ejemplos de Integración
+
+### Ejemplo 1: Detección Semántica de Amenazas con TypeSafe Jev
+
+Analiza errores operacionales en tiempo real utilizando juicios de System One de TypeSafe Jev:
+
+```typescript
+import { log, type LogInterceptor } from "@nekzus/liop";
+
+const jevThreatDetector: LogInterceptor = async (event) => {
+  if (event.level !== "error") return;
+
+  const response = await fetch("https://api.typesafe.ai/v1/systemone", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${process.env.TYPESAFE_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: "jev-latest",
+      state: {
+        source: "liop_logger",
+        level: event.level,
+        message: event.message,
+      },
+      questions: {
+        is_threat: {
+          type: "noul",
+          instructions: "Does this log message indicate an injection attack or exploit attempt?",
+        },
+        category: {
+          type: "choice",
+          instructions: "Classify the security nature of this event",
+          criteria: {
+            sql_injection: "SQL injection or database manipulation syntax",
+            xss: "Cross-site scripting or DOM injection payload",
+            benign_failure: "Standard infrastructure or network timeout",
+          },
+        },
+      },
+    }),
+  });
+
+  const judgment = await response.json();
+  if (judgment.answers.is_threat?.noul > 0.7) {
+    console.error(`[ALERTA DE SEGURIDAD] ${judgment.answers.category?.choice}: ${event.message}`);
+  }
+};
+
+log.setInterceptor(jevThreatDetector);
+```
+
+### Ejemplo 2: Transmisión de Eventos de Cumplimiento a SIEM
+
+Transmite entradas de auditoría selladas hacia un agregador SOC 2 externo:
+
+```typescript
+import { AuditLogger, type AuditInterceptor } from "@nekzus/liop";
+
+const siemForwarder: AuditInterceptor = async (entry) => {
+  await fetch("https://siem.internal.corp/api/v1/events", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      eventId: entry.id,
+      timestamp: entry.timestamp,
+      agentDid: entry.agentDid,
+      toolName: entry.toolName,
+      fuelConsumed: entry.fuelConsumed,
+      status: entry.status,
+      hash: entry.entryHash,
+    }),
+  });
+};
+
+const auditLogger = new AuditLogger();
+auditLogger.setInterceptor(siemForwarder);
+```
+
+---
+
+## Despliegue Universal Out-of-Band
+
+A diferencia de `GatewayInterceptor` (cuya ejecución está restringida estrictamente al perímetro), **`LogInterceptor` y `AuditInterceptor` pueden y deben desplegarse en TODOS los nodos a lo largo de todos los tiers**:
+
+| Rol del Nodo | `GatewayInterceptor` | `LogInterceptor` | `AuditInterceptor` | Rol en la Frontera de Red |
+|:---|:---|:---|:---|:---|
+| **Perímetro de Entrada (`Nexus`)** | ✅ **Mandatorio** | ✅ Activo (OOB) | ✅ Activo (OOB) | Filtro de admisión WAF / L7 |
+| **Pasarela Fronteriza (`BLG`)** | ❌ Omitido | ✅ Activo (OOB) | ✅ Activo (OOB) | Puente asimétrico mTLS / Swarm PSK |
+| **Enclaves de Datos (`Bank` / `Vault`)** | ❌ **Prohibido** | ✅ Activo (OOB) | ✅ Activo (OOB) | Ejecución Zero-Trust WASI / The Shield |
+
+Dado que ambos hooks se ejecutan de forma estrictamente asíncrona (*fire-and-forget* mediante `Promise.resolve().then(...)` o `fetch()` no bloqueante), la latencia de inferencia externa o la indisponibilidad de SIEMs remotos introduce exactamente **0 ms de retraso** en las respuestas RPC de los clientes o en la evaluación de los sandboxes.
+
+<Frame caption="Topología de Interceptores LIOP: Demarcación entre Admisión Perimetral y Aislamiento en Enclave">
+  <img className="block dark:hidden" src="/images/animated-interceptor-topology-light.svg" alt="Topología de Interceptores LIOP (Light)" />
+  <img className="hidden dark:block" src="/images/animated-interceptor-topology-dark.svg" alt="Topología de Interceptores LIOP (Dark)" />
+</Frame>
+
+---
+
+## Comparativa del Modelo de Seguridad
+
+LIOP define tres ganchos de intercepción complementarios. Ninguno sustituye ni compromete las 6 capas de seguridad de The Shield:
+
+| Capa de Seguridad LIOP | GatewayInterceptor | LogInterceptor | AuditInterceptor |
+|:---|:---|:---|:---|
+| **Capa 1: Guardian AST** | Evaluado post-admisión | Opera fuera del enclave | Opera fuera del enclave |
+| **Capa 2: WASI Sandbox** | Evaluación pre-sandbox | Fuera del límite del sandbox | Post-ejecución del sandbox |
+| **Capa 3: Taint Analyzer** | Filtro pre-análisis | Independiente del flujo IFC | Independiente del flujo IFC |
+| **Capa 4: Egress PII Shield** | Compuerta pre-egreso | Emite metadatos de log | Recibe hashes, nunca PII sin procesar |
+| **Capa 5: Aggregation-First** | Compuerta pre-agregación | Sin acceso a registros | Sin acceso a registros |
+| **Capa 6: ZK-Receipt** | Verificado post-ejecución | Telemetría post-ejecución | Hash del recibo sellado previo al gancho |
+
+---
+
+## Referencias Relacionadas
+
+- [Gateway Interceptor](/es/typescript-sdk/gateway-interceptor) — Gancho de admisión perimetral para `LiopHybridGateway`.
+- [Auditoría y Seguridad](/es/typescript-sdk/security) — Especificaciones de cadena de hash y controles SOC 2 Type II.

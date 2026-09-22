@@ -1,8 +1,12 @@
+// Copyright 2026 Nekzus Solutions and contributors
+// SPDX-License-Identifier: Apache-2.0
+
 import * as fs from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { Piscina } from "piscina";
+import { zkVerificationDurationMs } from "../observability/metrics.js";
 import { log } from "../utils/logger.js";
 import { deriveLogicImageDigest } from "./logic-image-id.js";
 
@@ -82,6 +86,7 @@ export class LiopVerifier {
 	): Promise<boolean> {
 		const pool = this.getZkPool();
 		if (!pool) throw new Error("Worker pool initialization failed");
+		const startTime = performance.now();
 		const result = await pool.run({
 			action: "verify_receipt",
 			logicPayload: new Uint8Array(logicPayload),
@@ -90,6 +95,16 @@ export class LiopVerifier {
 			sessionSecret: sessionSecret ? new Uint8Array(sessionSecret) : undefined,
 			expectedOutput,
 		});
+		const durationMs = performance.now() - startTime;
+
+		try {
+			zkVerificationDurationMs.observe(
+				{ status: result.verified ? "verified" : "failed" },
+				durationMs,
+			);
+		} catch {
+			// Metrics observation failure must never disrupt cryptographic verification
+		}
 
 		if (result.verified) {
 			log.info(`[LiopVerifier] ${result.message}`);

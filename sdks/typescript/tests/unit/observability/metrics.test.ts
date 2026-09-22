@@ -4,8 +4,19 @@ import {
 	Gauge,
 	Histogram,
 	MetricsRegistry,
+	operationDurationMs,
+	pqcHandshakeDurationMs,
 	protocolMetrics,
+	tokensInputTotal,
+	tokensOutputTotal,
+	tokensSavedTotal,
+	toolCallErrorsTotal,
 	toolCallsTotal,
+	zkVerificationDurationMs,
+	zkVerificationsTotal,
+	pqcHandshakesTotal,
+	wireEgressBytesTotal,
+	wireSavedBytesTotal,
 } from "../../../src/observability/metrics.js";
 
 describe("Prometheus Metrics Module (Phase Beta-3)", () => {
@@ -75,13 +86,56 @@ describe("Prometheus Metrics Module (Phase Beta-3)", () => {
 
 		const exported = registry.exportPrometheusText();
 		expect(exported).toContain("liop_process_uptime_seconds");
+		expect(exported).toContain("liop_node_health_status 1");
 		expect(exported).toContain("liop_process_memory_rss_bytes");
+		expect(exported).toContain("liop_process_memory_heap_total_bytes");
+		expect(exported).toContain("liop_process_memory_external_bytes");
 		expect(exported).toContain('req_total{route="/mcp"} 1');
 	});
 
 	it("should provide pre-configured protocol metrics singleton", () => {
-		toolCallsTotal.inc({ tool: "Analyze_HFT_Market_Data", status: "success" });
+		toolCallsTotal.inc({ tool: "Analyze_HFT_Market_Data", status: "success", role: "executor" });
+		toolCallsTotal.inc({ tool: "Analyze_HFT_Market_Data", status: "success", role: "proxy" });
+		toolCallErrorsTotal.inc({ capability: "Analyze_HFT_Market_Data", error_type: "policy_denied" });
+		pqcHandshakesTotal.inc({ algorithm: "ml-kem-768", status: "success" });
+		zkVerificationsTotal.inc({ status: "valid" });
+
 		const out = protocolMetrics.exportPrometheusText();
-		expect(out).toContain('liop_tool_calls_total{status="success",tool="Analyze_HFT_Market_Data"} 1');
+		expect(out).toContain('liop_tool_calls_total{role="executor",status="success",tool="Analyze_HFT_Market_Data"} 1');
+		expect(out).toContain('liop_tool_calls_total{role="proxy",status="success",tool="Analyze_HFT_Market_Data"} 1');
+		expect(out).toContain('liop_tool_call_errors_total{capability="Analyze_HFT_Market_Data",error_type="policy_denied"} 1');
+		expect(out).toContain('liop_pqc_handshakes_total{algorithm="ml-kem-768",status="success"} 1');
+		expect(out).toContain('liop_zk_verifications_total{status="valid"} 1');
+	});
+
+	it("should record and export token economy, duration, and PQC metrics", () => {
+		tokensInputTotal.inc({ tool: "Analyze_HFT_Market_Data" }, 250);
+		tokensOutputTotal.inc({ tool: "Analyze_HFT_Market_Data" }, 50);
+		tokensSavedTotal.inc({ tool: "Analyze_HFT_Market_Data" }, 31950);
+		operationDurationMs.observe({ tool: "Analyze_HFT_Market_Data" }, 45);
+		pqcHandshakeDurationMs.observe({ tool: "Analyze_HFT_Market_Data" }, 12);
+		zkVerificationDurationMs.observe({ status: "verified" }, 3);
+
+		const out = protocolMetrics.exportPrometheusText();
+		expect(out).toContain('liop_tokens_input_total{tool="Analyze_HFT_Market_Data"} 250');
+		expect(out).toContain('liop_tokens_output_total{tool="Analyze_HFT_Market_Data"} 50');
+		expect(out).toContain('liop_tokens_saved_total{tool="Analyze_HFT_Market_Data"} 31950');
+		expect(out).toContain('liop_operation_duration_ms_count{tool="Analyze_HFT_Market_Data"} 1');
+		expect(out).toContain('liop_pqc_handshake_duration_ms_count{tool="Analyze_HFT_Market_Data"} 1');
+		expect(out).toContain('liop_zk_verification_duration_ms_count{status="verified"} 1');
+	});
+
+	it("should track and export wire egress and wire saved metrics", () => {
+		wireEgressBytesTotal.inc({ capability: "bank_transfers" }, 1024);
+		wireSavedBytesTotal.inc({ capability: "bank_transfers" }, 45000);
+
+		const out = protocolMetrics.exportPrometheusText();
+		expect(out).toContain(
+			'liop_wire_egress_bytes_total{capability="bank_transfers"} 1024',
+		);
+		expect(out).toContain(
+			'liop_wire_saved_bytes_total{capability="bank_transfers"} 45000',
+		);
 	});
 });
+

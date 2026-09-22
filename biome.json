@@ -10,7 +10,11 @@
 			"sdks/typescript/src/**/*.cts",
 			"sdks/typescript/scripts/**/*.ts",
 			"sdks/typescript/examples/**/*.ts",
-			"sdks/typescript/tests/**/*.ts"
+			"sdks/typescript/tests/**/*.ts",
+			"tools/liop-studio/src/**/*.ts",
+			"tools/liop-studio/tests/**/*.ts",
+			"tools/liop-studio/ui/src/**/*.ts",
+			"tools/liop-studio/ui/src/**/*.tsx"
 		],
 		"ignoreUnknown": true
 	},

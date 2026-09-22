@@ -1,0 +1,86 @@
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+rule_files:
+  - "/etc/prometheus/alerting_rules.yml"
+
+scrape_configs:
+  - job_name: "liop-mesh"
+    metrics_path: "/metrics"
+    scrape_interval: 5s
+    static_configs:
+      - targets: ["host.docker.internal:15000"]
+        labels:
+          environment: "production-simulation"
+          cluster: "tri-layer-mesh"
+          node_role: "nexus-seed"
+          tier: "tier3-backbone"
+      - targets: ["host.docker.internal:15018"]
+        labels:
+          environment: "production-simulation"
+          cluster: "tri-layer-mesh"
+          node_role: "blg-perimeter"
+          tier: "tier2-perimeter"
+      - targets: ["host.docker.internal:15014"]
+        labels:
+          environment: "production-simulation"
+          cluster: "tri-layer-mesh"
+          node_role: "bank-enclave"
+          tier: "tier1-enclave"
+      - targets: ["host.docker.internal:15013"]
+        labels:
+          environment: "production-simulation"
+          cluster: "tri-layer-mesh"
+          node_role: "vault-enclave"
+          tier: "tier1-enclave"
+      - targets: ["host.docker.internal:15015"]
+        labels:
+          environment: "production-simulation"
+          cluster: "tri-layer-mesh"
+          node_role: "oracle-consortium"
+          tier: "tier2-consortium"
+      - targets: ["host.docker.internal:15016"]
+        labels:
+          environment: "production-simulation"
+          cluster: "tri-layer-mesh"
+          node_role: "edge-remote"
+          tier: "tier2-consortium"
+      - targets: ["host.docker.internal:15017"]
+        labels:
+          environment: "production-simulation"
+          cluster: "tri-layer-mesh"
+          node_role: "relay-backbone"
+          tier: "tier3-backbone"
+
+      # Demo Testnet Targets (Active only when running demo-testnet on ports 13xxx)
+      # - targets: ["host.docker.internal:13000"]
+      #   labels:
+      #     environment: "demo-testnet"
+      #     cluster: "tri-layer-mesh"
+      #     node_role: "nexus-seed"
+      #     tier: "tier3-backbone"
+      # - targets: ["host.docker.internal:13014"]
+      #   labels:
+      #     environment: "demo-testnet"
+      #     cluster: "tri-layer-mesh"
+      #     node_role: "bank-enclave"
+      #     tier: "tier1-enclave"
+      # - targets: ["host.docker.internal:13013"]
+      #   labels:
+      #     environment: "demo-testnet"
+      #     cluster: "tri-layer-mesh"
+      #     node_role: "vault-enclave"
+      #     tier: "tier1-enclave"
+      # - targets: ["host.docker.internal:13015"]
+      #   labels:
+      #     environment: "demo-testnet"
+      #     cluster: "tri-layer-mesh"
+      #     node_role: "oracle-consortium"
+      #     tier: "tier2-consortium"
+
+  - job_name: "prometheus"
+    metrics_path: "/metrics"
+    scrape_interval: 10s
+    static_configs:
+      - targets: ["localhost:9090"]

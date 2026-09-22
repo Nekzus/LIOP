@@ -1,0 +1,86 @@
+{
+  "name": "@nekzus/liop-studio",
+  "version": "1.0.0-alpha.15",
+  "description": "LIOP Sovereign Studio — Developer studio, mesh scanner, and logic-on-origin inspector for LIOP & MCP.",
+  "author": "Nekzus Solutions and contributors",
+  "license": "Apache-2.0",
+  "homepage": "https://nekzus-32.mintlify.app/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Nekzus/LIOP.git",
+    "directory": "tools/liop-studio"
+  },
+  "bugs": {
+    "url": "https://github.com/Nekzus/LIOP/issues"
+  },
+  "keywords": [
+    "liop",
+    "mcp",
+    "model-context-protocol",
+    "logic-on-origin",
+    "logic-injection",
+    "ai-agents",
+    "agentic-ai",
+    "webassembly",
+    "wasi",
+    "inspector",
+    "scanner",
+    "debugger",
+    "devtools",
+    "studio",
+    "testbed",
+    "zero-trust",
+    "grpc",
+    "p2p"
+  ],
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "liop-studio": "./bin/liop-studio.js",
+    "liop-scan": "./bin/liop-studio.js"
+  },
+  "files": [
+    "dist",
+    "bin",
+    "ui/dist",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/",
+    "provenance": true
+  },
+  "engines": {
+    "node": ">=20.0"
+  },
+  "scripts": {
+    "build": "tsup",
+    "build:ui": "pnpm --filter @nekzus/liop-studio-ui build",
+    "build:all": "pnpm --filter @nekzus/liop build && pnpm build:ui && pnpm build",
+    "start": "node bin/liop-studio.js",
+    "scan": "node bin/liop-studio.js scan",
+    "test": "vitest run",
+    "lint": "biome lint .",
+    "format": "biome format --write .",
+    "check": "biome check ."
+  },
+  "dependencies": {
+    "@hono/node-server": "2.1.1",
+    "@nekzus/liop": "workspace:*",
+    "commander": "^13.1.0",
+    "hono": "4.13.8",
+    "picocolors": "^1.1.1",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.14",
+    "@types/node": "26.4.0",
+    "tsup": "8.5.1",
+    "tsx": "4.23.13",
+    "typescript": "6.0.3",
+    "vitest": "4.1.11"
+  }
+}

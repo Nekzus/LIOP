@@ -1,9 +1,11 @@
 ---
 title: "Conceptos del Cliente"
 description: "Cómo los Nodos Agentes aprovechan la Malla LIOP para descubrimiento y ejecución"
+icon: "laptop"
+
 ---
 
-En el Logic-Injection-on-Origin Protocol, un "Cliente" es un **Nodo Agente** (Agent Node) o un orquestador de Inteligencia. Mientras el Servidor garantiza una ejecución segura, el Cliente es responsable de descubrir datos, definir intenciones y tejer la lógica que atraviesa la red.
+En el Logic-Injection-on-Origin Protocol, un "Cliente" es un **Nodo Agente** (Agent Node) o un orquestador de Inteligencia. Mientras el Servidor garantiza una ejecución segura, el Cliente es responsable de descubrir datos, definir intenciones y despachar la lógica de ejecución a través de la red.
 
 Los Nodos Agentes operan la Malla a través de tres mecanismos: **Descubrimiento (DHT)**, **Handshakes de Elicitación** e **Inyección de Lógica**.
 
@@ -18,53 +20,49 @@ A diferencia de las arquitecturas tradicionales donde el Cliente debe conocer la
 
 - **Peer IDs**: Cada nodo genera una identidad Ed25519 al iniciar.
 - **Kademlia DHT**: Los nodos forman una Tabla de Hash Distribuida.
-- **Consulta por Capacidad**: Para acceder a un recurso (ej., `SQL_Database`), el Agente pregunta al enjambre: *"¿Quién posee esta capacidad?"*.
-- **Ruta Optimizada**: El algoritmo DHT calcula la ruta más corta, resolviendo IPs dinámicas detrás de NATs y firewalls sin registros centrales.
+- **Consulta por Capacidad**: Para acceder a un recurso (ej., `SQL_Database`), el Agente pregunta a la red: *"¿Quién posee esta capacidad?"*.
+- **Ruta Optimizada**: El algoritmo DHT calcula la ruta más eficiente, resolviendo IPs dinámicas detrás de NATs y firewalls sin registros centrales.
 
 ## 2. Handshakes de Elicitación y Confianza
 
-La confianza no depende de CAs centralizadas. LIOP emplea un handshake **Zero-Trust** antes de ejecutar lógica:
+La confianza no depende de autoridades de certificación centralizadas. LIOP emplea un handshake **Zero-Trust** antes de ejecutar lógica:
 - **Noise Protocol**: Las conexiones QUIC se cifran usando claves derivadas de la identidad del Agente.
 - **PQC (Kyber)**: Las Elicitaciones encapsulan intenciones con ML-KEM-768, protegiendo la comunicación contra futuras amenazas cuánticas (*Harvest Now, Decrypt Later*).
 
-Si se requiere intervención humana, el Nodo de Datos solicita ámbitos de OAuth al Agente/Usuario de forma nativa.
+Si se requiere intervención humana o tokens de autorización, el Nodo de Datos solicita los alcances de OAuth al Agente de forma nativa.
 
 ## 3. Inyección de Lógica (El Payload)
 
-Tras establecer la confianza, el Cliente inyecta el binario de ejecución:
+Tras establecer el canal seguro, el Cliente inyecta el binario de ejecución:
 
-<Frame>
-  <img className="block dark:hidden w-full" src="/images/sdk-flow-light.svg" alt="Flujo E2E TypeScript SDK" />
-  <img className="hidden dark:block w-full" src="/images/sdk-flow-dark.svg" alt="Flujo E2E TypeScript SDK" />
-</Frame>
 
 1. **Compilación**: El SDK traduce la lógica de alto nivel (JS/Python) en un módulo binario WebAssembly.
-2. **GuardianTS**: Inspección heurística del `.wasm` para bloquear escapes del sandbox antes de la emisión.
-3. **Sellado (Crypto)**: El payload se cifra con `Kyber768` y `AES-256-GCM`.
-4. **Streaming (MeshNode)**: El binario se transmite vía `Yamux` y `Noise` a la malla destino.
-5. **Verificación ZK**: El Agente valida el **ZK-Receipt** recibido, garantizando la integridad del cómputo.
+2. **GuardianTS**: Inspección estática del `.wasm` para verificar que no incluya llamadas al sistema no autorizadas fuera del sandbox.
+3. **Sellado (Crypto)**: El payload se cifra con `ML-KEM-768` y `AES-256-GCM`.
+4. **Streaming (MeshNode)**: El binario se transmite vía `Yamux` y `Noise` a la malla de destino.
+5. **Verificación ZK**: El Agente valida el **ZK-Receipt** recibido, garantizando la integridad computacional del resultado.
 
-## 4. Modelo de Tiempo de Ejecución (Node.js Tier-0)
+## 4. Arquitectura de Ejecución en Node.js
 
-El SDK está diseñado para manejar límites de seguridad y cifrado intensivo sin bloquear el **Event Loop** principal de Node.js.
+El SDK está diseñado para gestionar límites de seguridad y cifrado intensivo sin bloquear el **Event Loop** principal de Node.js.
 
 <Frame>
   <img className="block dark:hidden w-full" src="/images/animated-sdk-flow-light.svg" alt="Flujo de Runtime Animado SDK" />
   <img className="hidden dark:block w-full" src="/images/animated-sdk-flow-dark.svg" alt="Flujo de Runtime Animado SDK" />
 </Frame>
 
-Componentes clave dentro del `@nekzus/liop`:
+Componentes clave dentro de `@nekzus/liop`:
 
 #### 1. Agent App
-El punto de origen que define el "Intento" y genera la lógica inicial que se empujará a la red.
+El punto de origen que define la intención analítica y genera la lógica que se enviará a la red.
 
 #### 2. GuardianTS
-Primer escudo de defensa. Usa la compilación de V8 como paso heurístico para detectar importaciones ilegales al sistema antes de que el payload llegue al módulo criptográfico.
+Primera línea de defensa. Analiza el binario generado mediante una compilación estática previa para verificar que no solicite importaciones fuera de `wasi_snapshot_preview1`.
 
 #### 3. Worker Pool (Piscina)
-Para evitar saturar el hilo principal con cálculos matemáticos costosos, LIOP delega el cifrado y descifrado a un pool de hilos nativos.
-- **Outbound**: Los hilos cifran el `.wasm` con Kyber y AES en paralelo.
-- **Inbound**: Los resultados y recibos ZK se verifican concurrentemente, salvando el hilo principal de Node.js.
+Para evitar saturar el hilo principal con operaciones criptográficas, LIOP delega el cifrado y descifrado a un pool de hilos de trabajo (`piscina`).
+- **Outbound**: Los hilos cifran el `.wasm` con ML-KEM-768 y AES-256-GCM en paralelo.
+- **Inbound**: Los resultados y recibos ZK se verifican de forma concurrente, evitando bloqueos en el bucle de eventos de Node.js.
 
 #### 4. MeshNode
-La interfaz hacia la red descentralizada. Gestiona la puerta de enlace `libp2p`, el túnel `Noise` y la multiplexación `Yamux`, permitiendo cientos de inyecciones simultáneas sobre una sola conexión QUIC/TLS con latencia cero.
+La interfaz hacia la red descentralizada. Gestiona la puerta de enlace `libp2p`, el túnel `Noise` y la multiplexación `Yamux`, permitiendo múltiples inyecciones simultáneas sobre una sola conexión QUIC/TLS con mínima sobrecarga de tramas.
