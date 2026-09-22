@@ -2,6 +2,13 @@
 
 All notable changes to @nekzus/liop-studio will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.0.0-alpha.17](https://github.com/Nekzus/LIOP/compare/studio-v1.0.0-alpha.16...studio-v1.0.0-alpha.17) (2026-09-22)
+
+
+### Bug Fixes
+
+* **ci:** automate Mintlify docs.json version update in semantic-release ([11b91a1](https://github.com/Nekzus/LIOP/commit/11b91a1d209aaed82279e7ba5b8ec8da55383b86))
+
 # [1.0.0-alpha.16](https://github.com/Nekzus/LIOP/compare/studio-v1.0.0-alpha.15...studio-v1.0.0-alpha.16) (2026-09-22)
 
 
