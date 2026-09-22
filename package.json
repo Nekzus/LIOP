@@ -30,6 +30,7 @@
     "format": "pnpm --filter @nekzus/liop format",
     "check": "pnpm --filter @nekzus/liop check",
     "license:check": "pnpm --filter @nekzus/liop exec tsx ../../scripts/check-licenses.ts",
+    "diagrams:check": "pnpm --filter @nekzus/liop exec tsx ../../scripts/check-diagrams.ts",
     "semantic-release": "semantic-release -e ./release.sdk.config.js",
     "commit": "cz",
     "sync-metadata": "pnpm --filter @nekzus/liop exec tsx scripts/sync-metadata.ts",

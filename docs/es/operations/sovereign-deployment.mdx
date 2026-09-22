@@ -1,0 +1,155 @@
+---
+title: "Guía de Despliegue de Malla Soberana"
+description: "Orquestación de topologías en producción, aislamiento de redes privadas (PSK) y administración de certificados mTLS"
+icon: "container"
+
+---
+
+El despliegue de LIOP en entornos de producción exige una segmentación de red estricta bajo el modelo Zero Trust. A diferencia de las arquitecturas tradicionales con pasarelas centralizadas donde todo el tráfico converge en un único punto, LIOP distribuye sus nodos en tres niveles jerárquicos de seguridad:
+
+1. **Nivel 1 (Enclaves Soberanos)**: Servidores de bases de datos aislados que procesan la lógica WASI in-situ (`Vault`, `Bank`). No exponen puertos hacia redes públicas ni hacia la WAN.
+2. **Nivel 2 (Nodos de Consorcio y Extremo)**: Servicios de validación compartida y enrutamiento regional (`Oracle`, `Edge IoT`, `Nexus OIDC`).
+3. **Nivel 3 (Pasarelas Perimetrales y Relés)**: Proxies inversos expuestos en la DMZ (`Border LIO Gateway`, `Circuit Relay v2`).
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          Nivel 3: DMZ / Perímetro                           │
+│   Ingreso WAN ──► [Border LIO Gateway (BLG: 15018)] ──► [Circuit Relay v2]   │
+└──────────────────────────────────────┬──────────────────────────────────────┘
+                                       │ mTLS + Clave de Enjambre libp2p/pnet
+                                       ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        Nivel 2: Troncal de Consorcio                        │
+│   [Nexus Auth / OIDC (15000)] ◄──► [Market Oracle] ◄──► [Edge IoT Gateway]  │
+└──────────────────────────────────────┬──────────────────────────────────────┘
+                                       │ Cortafuegos Físico / Red Aislada
+                                       ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        Nivel 1: Enclaves Soberanos                          │
+│   [Enclave Bancario Seguro (15021)]     [Enclave de Bóveda Corporativa]     │
+│   • Guardian AST Capa 1                 • Sandbox V8/WASI Capa 2            │
+│   • Escudo PII de Salida Capa 4         • Generador de Recibos ZK Capa 6    │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+<Steps>
+  <Step title="Aislamiento de Red con Claves de Enjambre (libp2p/pnet)">
+    Los nodos LIOP se comunican a través de una red privada superpuesta protegida por una clave simétrica precompartida de 256 bits (PSK). Todo nodo no autorizado que carezca de dicha clave es rechazado en la capa de transporte antes de procesar paquetes de la tabla DHT de Kademlia.
+
+    Cree una clave criptográfica de 32 bytes formateada según el estándar de `libp2p/pnet`:
+
+    ```bash
+    cat << 'EOF' > swarm.key
+    /key/swarm/psk/1.0.0/
+    /base16/
+    e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+    EOF
+    ```
+
+    Monte este archivo en los contenedores del nodo o defina la variable `LIOP_SWARM_KEY_PATH`:
+
+    ```bash
+    export LIOP_SWARM_KEY_PATH="/etc/liop/swarm.key"
+    ```
+  </Step>
+
+  <Step title="Orquestación con Docker Compose en Producción">
+    El siguiente manifiesto reproduce la topología certificada del entorno de producción (`docker-compose.production-audit.yml`):
+
+    ```yaml
+    version: "3.8"
+
+    networks:
+      liop-dmz:
+        driver: bridge
+      liop-internal:
+        internal: true # Red aislada sin salida hacia internet
+
+    services:
+      # 1. Servidor de Identidad OIDC y Descubrimiento Nexus
+      liop-nexus:
+        image: node:20-alpine
+        restart: unless-stopped
+        command: ["node", "dist/entrypoints/nexus.js"]
+        environment:
+          - NODE_ENV=production
+          - LIOP_PORT=15000
+          - LIOP_P2P_PORT=15001
+          - LIOP_SWARM_KEY_PATH=/etc/liop/swarm.key
+        networks:
+          - liop-dmz
+          - liop-internal
+        ports:
+          - "15000:15000"
+          - "15001:15001"
+
+      # 2. Border LIO Gateway (Ingreso Perimetral en DMZ)
+      liop-blg:
+        image: node:20-alpine
+        restart: unless-stopped
+        command: ["node", "dist/entrypoints/blg.js"]
+        environment:
+          - NODE_ENV=production
+          - LIOP_BLG_PORT=15018
+          - LIOP_NEXUS_URL=http://liop-nexus:15000
+          - LIOP_SWARM_KEY_PATH=/etc/liop/swarm.key
+        networks:
+          - liop-dmz
+          - liop-internal
+        ports:
+          - "15018:15018"
+        depends_on:
+          - liop-nexus
+
+      # 3. Enclave Bancario Confidencial (Almacenamiento Soberano Nivel 1)
+      liop-bank:
+        image: node:20-alpine
+        restart: unless-stopped
+        command: ["node", "dist/entrypoints/bank.js"]
+        environment:
+          - NODE_ENV=production
+          - LIOP_PORT=15021
+          - LIOP_SWARM_KEY_PATH=/etc/liop/swarm.key
+          - LIOP_TOKEN_BANK=${LIOP_BANK_PSK}
+          - LIOP_WORKER_MAX_HEAP_MB=128
+        networks:
+          - liop-internal # Red interna exclusiva; inaccesible desde el anfitrión o la WAN
+        depends_on:
+          - liop-nexus
+    ```
+  </Step>
+
+  <Step title="Autenticación Mutua TLS (mTLS) con CertManager">
+    Para cumplir con normativas corporativas (PCI-DSS Requisito 11.3 y HIPAA §164.312(e)(1)), las comunicaciones gRPC entre nodos imponen TLS mutuo:
+
+    ```typescript
+    import { CertManager } from "@nekzus/liop";
+
+    const certManager = new CertManager({
+      caCertPath: "/etc/ssl/certs/liop-root-ca.pem",
+      nodeCertPath: "/etc/ssl/certs/enclave-node.pem",
+      nodeKeyPath: "/etc/ssl/private/enclave-key.pem",
+      crlCheckIntervalMs: 60_000, // Consulta la lista de revocación cada 60 segundos
+    });
+
+    const serverTlsOptions = certManager.getServerCredentials();
+    ```
+  </Step>
+</Steps>
+
+---
+
+## 4. Matriz de Puertos y Reglas de Cortafuegos
+
+Configure los cortafuegos perimetrales y los grupos de seguridad para autorizar únicamente el tráfico legítimo:
+
+| Servicio | Puerto | Protocolo | Origen Autorizado | Justificación Técnica |
+|---|---|---|---|---|
+| **Nexus HTTP/OIDC** | `15000` | HTTP/1.1 | WAN / DMZ | Descubrimiento RFC 9728 y emisión de tokens OAuth 2.1. |
+| **Nexus P2P DHT** | `15001` | TCP / libp2p | Nodos del Enjambre | Descubrimiento de pares DHT; protegido por la clave PSK. |
+| **Border LIO Gateway** | `15018` | HTTP/JSON-RPC | Clientes / LLMs | Inspección perimetral L7; bloquea inyecciones SQL y escapes de ruta. |
+| **Circuit Relay v2** | `15007` | TCP / libp2p | Pares WAN / NAT | Atravesamiento de NATs y orquestación de conexiones directas. |
+| **Enclave Bancario** | `15021` | Tonic gRPC / H2 | Solo Red Interna | Cómputo Nivel 1; aislado sin enrutamiento a internet. |
+| **Enclave de Bóveda** | `15011` | Tonic gRPC / H2 | Solo Red Interna | Secretos Nivel 1; sin acceso público directo. |

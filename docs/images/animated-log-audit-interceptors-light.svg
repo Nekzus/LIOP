@@ -124,7 +124,7 @@
     <g transform="translate(555, 65)">
       <rect width="245" height="49" rx="6" fill="#ffffff" stroke="#cbd5e1" stroke-width="1" />
       <text x="14" y="20" class="card-title">Custom Rules &amp; Local ONNX</text>
-      <text x="14" y="36" class="card-subtitle">Regex filters, zero-latency policies</text>
+      <text x="14" y="36" class="card-subtitle">Regex filters, pre-execution policies</text>
     </g>
   </g>
 

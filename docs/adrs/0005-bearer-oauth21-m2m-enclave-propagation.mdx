@@ -1,0 +1,62 @@
+---
+title: "ADR-0005: Bearer OAuth 2.1 M2M Propagation Across Enclaves"
+description: "Architecture decision implementing RFC 6749 Client Credentials token management with preemptive renewal and promise coalescence across enclaves."
+icon: "lock"
+---
+
+# Bearer OAuth 2.1 M2M Propagation Across Enclaves
+
+- **Status:** Accepted
+- **Deciders:** Protocol Steering Committee, Enterprise Security Team
+- **Date:** 2026-09-12
+- **Technical Story:** Cross-Perimeter Authorization & Asymmetric Enclave Isolation
+
+---
+
+## Context and Problem Statement
+
+In sovereign production meshes, Tier 1 enclaves (such as financial Vaults and Core Banking ledgers) reside in private subnets with no public ingress. External clients, playgrounds, and AI agents interact exclusively through the Border LIO Gateway (`blg`).
+
+When proxying analytical executions into protected enclaves, the gateway must prove authorized machine-to-machine (M2M) identity without propagating long-lived master credentials or creating authentication bottlenecks during high-frequency query bursts.
+
+---
+
+## Decision Drivers
+
+- **Zero-Trust Least Privilege:** Every enclave must validate cryptographically signed, short-lived tokens on every call.
+- **Zero Query Degradation:** Authorization must not add round-trip latency to high-frequency trading or real-time analytics loops.
+- **Thundering Herd Protection:** Concurrent client requests arriving at the gateway must not trigger simultaneous token requests to the Identity Provider.
+- **Standards Alignment:** Conformance to OAuth 2.1 (RFC 6749) and Resource Indicators for OAuth 2.0 (RFC 8707).
+
+---
+
+## Considered Options
+
+1. **Static Pre-Shared Keys (PSK):** Simple to configure, but creates single-point-of-failure vulnerabilities, complicates rotation, and violates SOC 2 CC6.1 requirements.
+2. **Per-Request Token Negotiation:** Requesting a fresh Bearer token from Nexus OIDC on every tool invocation introduces $15\text{--}30\text{ ms}$ of network overhead and floods the identity server.
+3. **In-Memory Token Cache with Preemptive Renewal and Promise Coalescence:** The `TokenManager` caches JWT access tokens in memory, coalesces concurrent retrieval requests onto a single asynchronous promise, and triggers background renewal when fewer than 30 seconds remain before expiration:
+   $$t_{\text{renew}} \le t_{\text{expires\_in}} - 30\text{s}$$
+
+---
+
+## Decision Outcome
+
+**Chosen Option:** Option 3 — In-Memory Token Manager with Preemptive Renewal and Coalescence.
+
+### Positive Consequences
+
+- **Microsecond Token Dispatch:** Cached tokens are injected into outbound gRPC metadata in under $0.01\text{ ms}$.
+- **Stampede Immunity:** Multiple parallel tool calls awaiting authentication share the same in-flight token resolution promise.
+- **Graceful Error Recovery:** Upon encountering an unexpected HTTP 401 (e.g. key revocation), the cache is evicted immediately and the request is retried once with a fresh token.
+
+### Negative Consequences and Mitigations
+
+- **Identity Provider Dependency:** Gateways require reliable network reachability to the Nexus OIDC endpoint (`:15000/oidc/token`).  
+  *Mitigation:* Nexus runs in a high-availability clustered topology with local fallback mechanisms.
+
+---
+
+## Validation and Compliance
+
+- Implemented in `sdks/typescript/src/client/token-manager.ts`.
+- Verified in `vitest.audit.config.ts` (Suite 7: *OAuth 2.1 M2M Client Credentials & Enclave Access*).

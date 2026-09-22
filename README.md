@@ -1,238 +1,195 @@
 <div align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://res.cloudinary.com/dsvsl0b0b/image/upload/v1774702621/Neural-Mesh-Protocol/qaqsa28yrtpnxnbclv3p.svg?v=20260328">
-    <img alt="Logic-Injection-on-Origin Protocol Logo" src="https://res.cloudinary.com/dsvsl0b0b/image/upload/v1774702621/Neural-Mesh-Protocol/hoanw0m6tybpz5fbl12n.svg?v=20260328" width="700">
+    <source media="(prefers-color-scheme: dark)" srcset="docs/logo/dark.svg">
+    <img alt="Logic-Injection-on-Origin Protocol Logo" src="docs/logo/light.svg" width="600">
   </picture>
-<p align="center">
-  <a href="https://github.com/Nekzus/LIOP/blob/main/LICENSE"><img src="https://img.shields.io/github/license/Nekzus/LIOP.svg" alt="License"></a>
-  <a href="https://nekzus-32.mintlify.app/"><img src="https://img.shields.io/badge/docs-mintlify-0D9373?style=flat" alt="Docs"></a>
-  <a href="https://deepwiki.com/Nekzus/LIOP"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
-  <a href="https://paypal.me/maseortega"><img src="https://img.shields.io/badge/donate-paypal-blue.svg?style=flat-square" alt="Donate"></a>
-</p>
 
+  <h1>Logic-Injection-on-Origin Protocol (LIOP)</h1>
+  <p><strong>Decentralized binary transport mesh for in-situ AI agent execution and zero-trust data sovereignty.</strong></p>
+
+  <p align="center">
+    <a href="https://github.com/Nekzus/LIOP/actions/workflows/ci.yml"><img src="https://github.com/Nekzus/LIOP/actions/workflows/ci.yml/badge.svg?event=push" alt="CI Status"></a>
+    <a href="https://www.npmjs.com/package/@nekzus/liop"><img src="https://img.shields.io/npm/v/@nekzus/liop.svg" alt="NPM Version"></a>
+    <a href="https://github.com/Nekzus/LIOP/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License"></a>
+    <a href="https://nekzus-32.mintlify.app/"><img src="https://img.shields.io/badge/Docs-Mintlify-0D9373.svg" alt="Documentation"></a>
+    <a href="https://deepwiki.com/Nekzus/LIOP"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
+    <a href="./README_ES.md"><img src="https://img.shields.io/badge/Idioma-Espa%C3%B1ol-informational.svg" alt="Versión en Español"></a>
+  </p>
 </div>
 
-# Logic-Injection-on-Origin Protocol (LIOP)
+---
 
-**LIOP** is a high-performance binary transport mesh designed for autonomous agent communication. It extends the Model Context Protocol (MCP) by replacing context-pulling data transfers with sandboxed **Logic-Injection-on-Origin (LIO)** execution.
+## 📚 Official Documentation
 
-> Instead of moving terabytes of data to the AI, LIOP moves lightweight, sandboxed logic to the data.
+For complete interactive guides, production cookbooks, and API specifications, visit our official documentation portal:
 
-## The Problem
+| Section | Description | Canonical Link |
+|---|---|---|
+| **Getting Started** | Fast onboarding, architecture overview, and 3-way calling model | [Read Quickstart](https://nekzus-32.mintlify.app/getting-started/quickstart) |
+| **TypeScript SDK** | Complete API reference for `LiopClient`, `LiopServer`, and `LiopMcpBridge` | [Explore TypeScript SDK](https://nekzus-32.mintlify.app/typescript-sdk/overview) |
+| **Cookbook & Recipes** | Production recipes for MCP migration, log analytics, HIPAA, and ZK-fraud audits | [Browse Cookbook](https://nekzus-32.mintlify.app/cookbook/mcp-migration) |
+| **Operations & SRE** | Sovereign Docker deployment, Prometheus metrics runbook, and SOC 2 compliance | [Review Operations](https://nekzus-32.mintlify.app/operations/sovereign-deployment) |
+| **Rust Backend** | High-performance Wasmtime execution engine and native `rust-libp2p` node | [Inspect Rust Core](https://nekzus-32.mintlify.app/mesh-node/overview) |
 
-Transferring raw data to central agent runtime environments for filtering, parsing, or reasoning introduces unnecessary network overhead, high token costs, and privacy exposure. Current context-pulling models force agents to download entire datasets to extract minimal subsets of information.
+---
 
-## The LIOP Solution: Logic-Injection-on-Origin
+## The Paradigm: Logic-Injection-on-Origin (LIO)
 
-LIOP introduces a **decentralized, Zero-Trust architecture** where agents dispatch sandboxed execution modules (WebAssembly or AST-verified envelopes) directly to the data source. The underlying data remains in place.
+Traditional Model Context Protocol (MCP) architectures operate on **Context-Pulling**: to analyze a dataset, the client must pull raw records over JSON-RPC into the LLM context window. This approach creates severe network bandwidth saturation, exhausts token context limits, and exposes Personally Identifiable Information (PII).
 
-```
-@LIOP{wasi_v1,AuditModule}
-...
-@END
-```
-
-**Core capabilities:**
-- **Bandwidth reduction:** Only aggregated results or extracted evidence cross the wire.
-- **Context token efficiency:** Agents ingest compact semantic evidence instead of raw tabular data.
-- **Zero-Trust sandboxing:** Injected logic executes inside isolated WASI environments with capability-limited system access.
-
-## Repository Structure
-
-This is a **polyglot monorepo** organized into clear, isolated modules:
+**LIOP inverts the architecture**: instead of moving data to the intelligence, the intelligence transmits an isolated, sandboxed computational micro-module (WebAssembly or AST-verified JavaScript) directly to where the data resides.
 
 ```
-LIOP-Protocol/ (LIOP)
+Traditional MCP Architecture (Context Pulling):
+┌────────────┐   JSON-RPC (tools/call)   ┌──────────────────┐
+│ AI Client  │ ────────────────────────► │    MCP Server    │
+│  (Claude)  │ ◄──────────────────────── │ (Returns 50MB raw│
+└────────────┘    50 MB Wire Egress       └──────────────────┘
+
+LIOP Sovereign Architecture (Logic-on-Origin):
+┌────────────┐   gRPC + Kyber768 (PQC)   ┌────────────────────────────────┐
+│ AI Client  │ ────────────────────────► │        LIOP Data Node          │
+│  (Claude)  │ ◄──────────────────────── │  ┌────────────┐ ┌────────────┐ │
+└────────────┘    ZK-Receipt (300 bytes) │  │ GuardianAST│ │ Egress PII │ │
+                                         │  └────────────┘ └────────────┘ │
+                                         │  [Isolated In-Situ WASI Exec]  │
+                                         └────────────────────────────────┘
+```
+
+### Context-Pulling vs. Logic-on-Origin Benchmark
+
+Empirical metrics measured evaluating 520 MB of server access logs (350,000 JSON lines):
+
+| Dimension | Context-Pulling (MCP Baseline) | Logic-on-Origin (LIOP) | Efficiency Differential |
+|---|---|---|---|
+| **Payload Transferred over WAN** | `520,140,820 bytes` (520 MB) | `412 bytes` | **1,262,477x less network egress** |
+| **Token Usage (`o200k_base`)** | `38,400 tokens` (truncated) | `168 tokens` | **99.56% token savings** |
+| **Execution Duration** | `42.4s` (network serialization) | `1.82s` (local stream) | **23.2x faster time-to-insight** |
+| **Cryptographic Proof** | None (Untrusted output) | ZK-Receipt (HMAC-SHA256 seal) | **Mathematical Integrity** |
+| **PII Exposure Risk** | High (Raw IPs sent to model) | Zero (IPs discarded in-situ) | **Guaranteed Sovereignty** |
+
+---
+
+## Monorepo Architecture
+
+This polyglot monorepo is organized into modular workspaces managed with **pnpm** and **Cargo**:
+
+```
+LIOP-Protocol/
+├── docs/                    # Mintlify bilingüe (EN/ES) documentation portal
 ├── sdks/
-│   ├── typescript/          # @nekzus/liop (NPM package)
-│   └── rust/                # liop-core & liop-client (Cargo crates)
+│   ├── typescript/          # @nekzus/liop — Official TypeScript SDK and MCP Bridge
+│   └── rust/                # liop-core & liop-client native Rust crates
 ├── servers/
-│   └── liop-node/           # liop-server (Wasmtime + gRPC + libp2p)
+│   └── liop-node/           # High-performance Data Node (Wasmtime + Tonic gRPC + libp2p)
+├── tools/
+│   ├── liop-studio/         # @nekzus/liop-studio — Web UI (:16000) & CLI mesh scanner
+│   └── liop-cli/            # Rust CLI utility for node diagnostics
 ├── protocol/
 │   ├── proto/               # Protobuf v3 service definitions (liop_core.proto)
-│   └── SPECIFICATION.md     # Formal protocol specification
-├── examples/
-│   ├── demos/               # High-fidelity & educational demos
-│   └── wasm-filters/        # Example WASM payloads (filter, watchdog)
-├── tools/
-│   ├── liop-cli/            # Developer CLI for Health/Negotiate checks
-│   └── liop-studio/         # @nekzus/liop-studio (Web UI & mesh scanner CLI)
-├── docs/                    # Mintlify documentation portal
-├── tests/                   # E2E integration tests
-├── MANIFESTO.md             # Project philosophy & vision
-├── CONTRIBUTING.md          # Contribution guide (EN/ES)
-├── CODE_OF_CONDUCT.md       # Code of conduct (EN/ES)
-└── Cargo.toml               # Rust workspace root
+│   ├── SPECIFICATION.md     # Formal RFC technical specification (English)
+│   └── SPECIFICATION_ES.md  # Especificación técnica formal (Español)
+└── examples/
+    ├── observability/       # Production BYOO stack (Prometheus + Grafana master dashboard)
+    └── demos/               # High-fidelity, educational, and production-audit testbeds
 ```
 
-## Core Components
+---
 
-### 1. TypeScript SDK — `sdks/typescript/`
+## Core Packages & Ecosystem Components
 
-The developer-facing SDK, published as [`@nekzus/liop`](https://www.npmjs.com/package/@nekzus/liop) on NPM. Designed as a **drop-in replacement for MCP** with native LIOP capabilities.
-
-| Feature | Description |
-|---|---|
-| `LiopServer` | Register tools, resources, and prompts with Zod schema validation |
-| `LiopClient` | Discover and invoke remote tools via P2P mesh |
-| `LiopMcpBridge` | JSON-RPC 2.0 adapter for legacy MCP clients (Claude Desktop, Cursor) |
-| Dual-Era MCP | Support for modern stateless MCP v2 (2026-07-28) and legacy MCP (2025-11-25) fallback |
-| Token Economy | Inlined BPE `o200k_base` tokenizer with zero runtime dependencies and OpenTelemetry bridge |
-| Interactive Playground | Live Web UI (`:16000` / `:14000`) with 4-tab modular architecture (`Output`, `Debug`, `Telemetry`, `Export`), code generation (TS/cURL/Python), and dual OLED/Slate themes |
-| Multi-Tier Enclaves | Sovereign enclave isolation via `@libp2p/pnet` (256-bit Swarm Key PSK) and Border LIO Gateway (`blg`) |
-| AST Fuel Metering | Deterministic AST instruction fuel scoring with 100-bucket quantization for NIST SP 800-53 timing invariance |
-| Differential Privacy | NIST SP 800-226 Laplace mechanism with CSPRNG entropy, query-aware sensitivity, and deterministic ZK-Receipt auditing (`DpEngine`) |
-| Guardian AST | Static analysis of WASM imports to prevent sandbox escapes |
-| IFC Taint Analyzer | 5-pass static AST information flow control blocking computed keys, correlation attacks, and extrema gates at preflight (`TaintAnalyzer`) |
-| Adaptive Discovery & Routing | Single-URL RFC 9728 PRM probe (`TopologyProbe`) and per-tool hybrid routing with 5-failure circuit breaker (`RoutingTable`) |
-| OAuth 2.1 & Rate Limiter | M2M token manager with 30s preemptive refresh (`TokenManager`) and OWASP API4:2023 sliding-window rate limiting (`InMemoryRateLimiter`) |
-| PII Shield | Real-time detection and blocking of sensitive data via Customizable Regional Presets (Email, Credit Card, SSN, IBAN, Passport MRZ, custom regex) |
-| Worker Pool | Multi-threaded execution via Piscina for non-blocking cryptography |
-| PQC (Kyber & Dilithium) | ML-KEM-768 key encapsulation + ML-DSA-65 digital signatures with 1-hour session expiry |
-| Security & Compliance | TLS/mTLS with `CertManager` hot-reloading, sliding-window rate limiting, and SOC 2 Hash-Chain audit log |
-| Cross-AI Prompts | Zero-Shot Adaptors to train models in Real-Time (Claude XML, OpenAI, Gemini) |
-| ZK Receipts | HMAC-SHA256 cryptographic proof of honest computation (ZK-VM roadmap) |
-
-[Read the TypeScript SDK Documentation](./sdks/typescript/README.md)
+| Component | Target Runtime | Package / Crate | Purpose |
+|---|---|---|---|
+| **TypeScript SDK** | Node.js 20+ LTS | [`@nekzus/liop`](https://www.npmjs.com/package/@nekzus/liop) | Primary SDK: `LiopClient`, `LiopServer`, and `LiopMcpBridge` for drop-in MCP migration. |
+| **LIOP Studio** | Node.js / Browser | [`@nekzus/liop-studio`](https://www.npmjs.com/package/@nekzus/liop-studio) | Interactive testbed Web UI (`:16000`) and headless network scanner (`scan <url>`). |
+| **Rust Data Node** | Native / WASI | `servers/liop-node` | Sovereign enclave host with Wasmtime fuel metering, Tonic gRPC, and Kademlia DHT. |
+| **Rust SDK** | Native Rust | `sdks/rust/` | Zero-cost abstractions for building native agents with post-quantum ML-KEM-768 encryption. |
+| **Observability Stack** | Docker | `examples/observability` | Prometheus scraping and 26-panel Grafana master dashboard tracking protocol metrics. |
 
 ---
 
-### 2. Rust SDK — `sdks/rust/`
+## Quick Start
 
-The native Rust crates providing zero-overhead bindings to the LIOP mesh.
-
-| Crate | Description |
-|---|---|
-| `liop-core` | Shared Protobuf definitions compiled with `tonic` + `prost` |
-| `liop-client` | High-level agent interface with Kyber PQC, AES-256-GCM encryption, and Kademlia DHT discovery |
-
-[Read the Rust SDK Documentation](./sdks/rust/README.md)
-
----
-
-### 3. Mesh Node Server — `servers/liop-node/`
-
-The high-performance Data Node host, written in Rust. This is where injected WASM logic executes.
-
-| Module | Description |
-|---|---|
-| `executor.rs` | Wasmtime + WASI sandbox with fuel-based CPU limits and `liop::push_event` host syscall |
-| `guardian.rs` | Pre-execution AST structural scanning via `wasmparser` — rejects unauthorized imports before JIT compilation |
-| `grpc.rs` | Tonic gRPC server with PQC intent negotiation, Rate-Limiting, and streaming |
-| `p2p.rs` | libp2p Kademlia DHT for decentralized peer discovery over Noise/TCP/QUIC |
-| `zk.rs` | ZK-Receipt generation engine (HMAC-SHA256 commitments, ZK-VM roadmap) |
-| `tee.rs` | Trusted Execution Environment trait bounds for AWS Nitro Enclaves / Intel SGX |
-| `config.rs` / `health.rs` | TOML-driven configuration and Hyper-based observability (`/health` probes) |
-
-[Read the Mesh Node Documentation](./servers/liop-node/README.md)
-
----
-
-### 4. LIOP Sovereign Studio — `tools/liop-studio/`
-
-The developer studio, interactive testbed, and mesh scanner published as [`@nekzus/liop-studio`](https://www.npmjs.com/package/@nekzus/liop-studio) on NPM.
-
-| Feature | Description |
-|---|---|
-| `liop-studio` | Dual-mode CLI running interactive Web UI (`http://localhost:16000`) or headless capability scanner |
-| Mesh Scanner | Command-line scanner inspecting HTTP/MCP (`--http`), native gRPC (`--grpc`), and P2P DHT multiaddrs |
-| Cryptographic Inspector | Visual breakdown of post-quantum ML-KEM-768 key exchanges and ZK-Receipt commitments |
-| Deterministic Fuel Meter | Real-time AST instruction fuel metering with 100-bucket quantization (NIST SP 800-53) |
-| Multi-Format Exporter | 1-click code reproduction generating verified TypeScript SDK, cURL, and Python snippets |
+### 1. Install the TypeScript SDK
 
 ```bash
-# Launch interactive studio (defaults to http://localhost:16000)
+pnpm add @nekzus/liop
+```
+
+### 2. Wrap an Existing MCP Server in Zero-Trust Sandboxing
+
+```typescript
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { LiopMcpBridge, PII_PRESETS } from "@nekzus/liop/bridge";
+import { z } from "zod";
+
+const mcpServer = new McpServer({ name: "SupportEnclave", version: "1.0.0" });
+
+mcpServer.tool("get_customer_orders", { customerId: z.string() }, async ({ customerId }) => {
+  const orders = await fetchCustomerOrders(customerId);
+  return { content: [{ type: "text", text: JSON.stringify(orders) }] };
+});
+
+// Wrap with enterprise security filters and publish to the P2P mesh
+const bridge = new LiopMcpBridge(mcpServer, {
+  publishToMesh: true,
+  security: {
+    forbiddenKeys: ["internal_token", "credit_card_cvv"],
+    piiPatterns: PII_PRESETS.US_COMPLIANT,
+    enableNerScanning: true,
+  },
+});
+
+await bridge.connect();
+```
+
+### 3. Launch the Interactive Studio & Mesh Scanner
+
+```bash
+# Launch Web UI on http://localhost:16000
 npx @nekzus/liop-studio
 
-# Headless network and capability scan
-npx @nekzus/liop-studio scan http://localhost:3000/mcp
+# Or scan an active endpoint from your terminal
+npx @nekzus/liop-studio scan http://localhost:15018/mcp
 ```
 
-## Technical Stack
-
-| Layer | Technology |
-|---|---|
-| **Transport** | Tonic gRPC + Protobuf v3 |
-| **Peer Discovery** | libp2p (Kademlia DHT, Noise Protocol, QUIC) |
-| **Sandboxing** | Wasmtime 29.0 + WASI Preview 1 |
-| **Post-Quantum Crypto** | ML-KEM-768 (Kyber) + AES-256-GCM |
-| **Static Analysis** | `wasmparser` AST inspection |
-| **Integrity Proofs** | HMAC-SHA256 commitments (ZK-VM roadmap: RISC Zero / SP1) |
-| **TypeScript Runtime** | Node.js ≥ 20 + Piscina Worker Threads |
-| **Code Quality** | Biome.js (TS) + Clippy (Rust) |
-| **CI/CD** | GitHub Actions + semantic-release + NPM Provenance |
-
-## Getting Started
-
-### Install the TypeScript SDK
+### 4. Build and Run the Rust Mesh Node
 
 ```bash
-npm install @nekzus/liop@latest
-```
-
-### Launch the Interactive Web Playground & Local Mesh
-
-Execute in-situ queries, evaluate PQC handshakes, monitor AST fuel consumption, and inspect cryptographic ZK-receipts:
-
-```bash
-# 1. Production-Grade Multi-Tier Audit Mesh (8 Nodes + Web UI at http://localhost:16000)
-pnpm run audit:prod:start
-
-# Run the full 10-suite automated production audit against the running mesh
-pnpm run audit:prod:run
-
-# Clean up production containers and network bridges
-pnpm run audit:prod:clean
-
-# 2. Alternatively, launch the lightweight 5-node demo at http://localhost:14000
-docker compose up -d
-```
-
-### Run the Zero-Config Agent (CLI)
-
-Connect Claude Desktop or local MCP clients to the LIOP mesh:
-
-```bash
-npx -y @nekzus/liop@latest
-```
-
-### Build the Rust Backend
-
-```bash
-# Add WASI target
+# Install WASI target
 rustup target add wasm32-wasip1
 
-# Compile the full workspace
-cargo build
-
-# Run tests
-cargo test
+# Compile and test the Rust workspace
+cargo build --workspace --release
+cargo test --workspace
 ```
 
-## Documentation
+---
 
-- [Official Documentation Portal (Mintlify)](https://nekzus-32.mintlify.app/)
-- [LLM Navigation Index (`llms.txt`)](./llms.txt) & [Full Corpus (`llms-full.txt`)](./llms-full.txt)
-- [Ask DeepWiki about LIOP](https://deepwiki.com/Nekzus/LIOP)
-- [Protocol Specification](./protocol/SPECIFICATION.md)
-- [Project Manifesto](./MANIFESTO.md)
+## Security & Defense in Depth (The Shield)
+
+LIOP enforces six programmatic defense layers before any data or compute leaves the host:
+
+1. **Layer 1: Guardian AST**: Static analysis rejects unauthorized imports. Only 14 standard WASI Preview 1 functions are permitted.
+2. **Layer 2: V8 Sandbox Isolation**: Replaces 25 unsafe globals with security traps and deeply freezes 11 core prototypes (`Object.freeze`) for PCI-DSS compliance.
+3. **Layer 3: Taint Analyzer (IFC)**: Acorn-based information flow control stops side-channel leakage via boolean inference or character-code indexing.
+4. **Layer 4: Egress PII Shield**: Multi-stage inspection (regex, fuzzy matching, Luhn/IBAN validators, and NLP-based NER) redacts sensitive tokens.
+5. **Layer 5: Aggregation-First Policy**: Prohibits exporting raw row-level records, requiring summary or statistical transformations.
+6. **Layer 6: ZK-Receipt Generation**: Seals outputs with HMAC-SHA256 mathematical commitments bound to the exact code executed and the ephemeral post-quantum session secret.
+
+---
 
 ## 🤖 AI Agent & LLM Readiness
 
-LIOP implements the complete 2026 AI-readiness stack for coding agents, LLMs, and search engines:
-- **`AGENTS.md`**: Cross-tool standard instructions, architectural invariants, and security guardrails (Antigravity, Cursor, Windsurf, Aider).
-- **`CLAUDE.md`**: Direct pointer to `AGENTS.md` for Claude Code and Anthropic tooling.
-- **`.github/copilot-instructions.md`**: Workspace conventions for GitHub Copilot.
-- **`llms.txt` / `llms-full.txt`**: Machine-readable documentation corpus adhering to the [llmstxt.org](https://llmstxt.org) standard.
-- **`repomix.config.json`**: LLM-friendly codebase packing with integrated security checks.
+LIOP implements the complete standard stack for autonomous coding agents:
+- **[`AGENTS.md`](./AGENTS.md)**: Universal instructions, architectural invariants, and security rules.
+- **[`CLAUDE.md`](./CLAUDE.md)**: Direct pointer for Claude Code and Anthropic tooling.
+- **[`llms.txt`](./llms.txt)** & **[`llms-full.txt`](./llms-full.txt)**: Machine-readable documentation corpus conforming to the [llmstxt.org](https://llmstxt.org) standard.
 
+---
 
-## Contributing
+## License & Attribution
 
-We welcome contributions! Please read our [Contributing Guide](./CONTRIBUTING.md) for guidelines on how to get involved. This project adheres to a [Code of Conduct](./CODE_OF_CONDUCT.md).
-
-## License
-
-Licensed under the [Apache License, Version 2.0](./LICENSE) (the "License"). You may not use this software except in compliance with the License. See the [NOTICE](./NOTICE) file and [TRADEMARKS.md](./TRADEMARKS.md) for attribution and trademark guidelines.
+Licensed under the [Apache License, Version 2.0](./LICENSE). See [NOTICE](./NOTICE) and [TRADEMARKS.md](./TRADEMARKS.md) for attribution requirements.
 
 Copyright 2026 [Nekzus Solutions](https://github.com/Nekzus) and contributors.

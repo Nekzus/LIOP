@@ -1,6 +1,8 @@
 ---
 title: "Conceptos del Cliente"
 description: "Cómo los Nodos Agentes aprovechan la Malla LIOP para descubrimiento y ejecución"
+icon: "laptop"
+
 ---
 
 En el Logic-Injection-on-Origin Protocol, un "Cliente" es un **Nodo Agente** (Agent Node) o un orquestador de Inteligencia. Mientras el Servidor garantiza una ejecución segura, el Cliente es responsable de descubrir datos, definir intenciones y despachar la lógica de ejecución a través de la red.
@@ -33,10 +35,6 @@ Si se requiere intervención humana o tokens de autorización, el Nodo de Datos 
 
 Tras establecer el canal seguro, el Cliente inyecta el binario de ejecución:
 
-<Frame>
-  <img className="block dark:hidden w-full" src="/images/sdk-flow-light.svg" alt="Flujo E2E TypeScript SDK" />
-  <img className="hidden dark:block w-full" src="/images/sdk-flow-dark.svg" alt="Flujo E2E TypeScript SDK" />
-</Frame>
 
 1. **Compilación**: El SDK traduce la lógica de alto nivel (JS/Python) en un módulo binario WebAssembly.
 2. **GuardianTS**: Inspección estática del `.wasm` para verificar que no incluya llamadas al sistema no autorizadas fuera del sandbox.

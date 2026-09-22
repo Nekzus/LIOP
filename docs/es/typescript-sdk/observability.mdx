@@ -1,6 +1,8 @@
 ---
 title: "Observabilidad Enterprise"
 description: "Métricas nativas Prometheus, despliegue agnóstico en producción, stack IaC de Grafana y alertas operativas para nodos de la malla LIOP"
+icon: "chart-line"
+
 ---
 
 Cada instancia del servidor `@nekzus/liop` expone un endpoint nativo con **formato texto de Prometheus** en `GET /metrics`. No requiere sidecar, agente externo ni dependencia adicional — el registro de métricas está integrado en el core del SDK y actualiza los gauges de proceso de forma síncrona en cada petición de scrape.

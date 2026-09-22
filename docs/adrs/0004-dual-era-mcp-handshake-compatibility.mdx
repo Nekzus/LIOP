@@ -1,0 +1,63 @@
+---
+title: "ADR-0004: Dual-Era MCP Handshake Negotiation (2026/2025)"
+description: "Architecture decision implementing automatic dual-era protocol adaptation for MCP 2026-07-28 and 2025-11-25 clients."
+icon: "cable"
+---
+
+# Dual-Era MCP Handshake Negotiation (2026/2025)
+
+- **Status:** Accepted
+- **Deciders:** Protocol Steering Committee, Ecosystem Interoperability Team
+- **Date:** 2026-09-05
+- **Technical Story:** MCP Ecosystem Bridge & Cross-Generation Client Compatibility
+
+---
+
+## Context and Problem Statement
+
+The Model Context Protocol (MCP) ecosystem has evolved across two divergent specifications:
+
+1. **Legacy Specification (2025-11-25):** Employs strict request-response JSON-RPC schemas without real-time streaming notifications. Strict clients crash or reject responses containing unrecognized top-level fields.
+2. **Modern Specification (2026-07-28):** Introduces bidirectional streaming, `subscriptions/listen` notifications, dynamic capability negotiation, and parameterized resource templates (`resources/templates/list`).
+
+Enforcing modern 2026 schemas breaks compatibility with established agent deployments. Conversely, restricting the gateway to 2025 schemas forces modern clients to fall back on resource-intensive polling loops.
+
+---
+
+## Decision Drivers
+
+- **Zero-Friction Interoperability:** Work out-of-the-box with both vintage (2025) and state-of-the-art (2026) MCP clients without requiring manual environment toggles.
+- **Event-Driven Efficiency:** Enable real-time push notifications for clients supporting `subscriptions/listen`.
+- **Lossless Transcoding:** Maintain seamless two-way translation between JSON-RPC 2.0 payloads and native LIOP Protobuf binary streams.
+
+---
+
+## Considered Options
+
+1. **Enforce 2026-07-28 Only:** Reject legacy clients; forces users to upgrade host software and disrupts existing workflows.
+2. **Dual-Port Deployment:** Run two separate gateway daemons on distinct ports (e.g. `:15018` for 2026, `:15019` for 2025); doubles resource footprint and complicates container orchestration.
+3. **Adaptive In-Situ Negotiation with Synchronous Stripping:** A single gateway inspects `params.protocolVersion` during the `initialize` handshake, tracks the client era in session memory, and applies `adaptResponseForLegacyClient()` to filter modern fields on legacy connections.
+
+---
+
+## Decision Outcome
+
+**Chosen Option:** Option 3 — Unified adaptive gateway with dynamic legacy response stripping.
+
+### Positive Consequences
+
+- **Broad Ecosystem Compatibility:** Seamlessly connects legacy Claude Desktop builds, modern subagent orchestrators, and enterprise automation runners.
+- **Polling Elimination:** 2026 clients subscribe directly to mesh events via `subscriptions/listen`, avoiding polling overhead.
+- **Elastic Parameter Resolution:** The transcoder dynamically resolves both structured (`params.arguments`) and flat (`params.payload`) payloads, preventing argument loss across non-standard client implementations.
+
+### Negative Consequences and Mitigations
+
+- **Adapter Complexity:** The response serializer must maintain schema filtering logic.  
+  *Mitigation:* Handled cleanly through isolated functional transformers (`adaptResponseForLegacyClient`) tested against both official specification test suites.
+
+---
+
+## Validation and Compliance
+
+- Implemented in `sdks/typescript/src/gateway/mcp-bridge.ts`.
+- Verified in `vitest.audit.config.ts` (Suite 5: *Dual-Era MCP Handshake Compliance & Transcoding*).

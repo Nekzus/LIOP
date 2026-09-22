@@ -1,73 +1,44 @@
-# React + TypeScript + Vite
+# LIOP Web Playground
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+The **LIOP Web Playground** is an interactive, browser-based testing console for the Logic-Injection-on-Origin Protocol (LIOP). It provides real-time visualization of logic injection pipelines, deterministic AST fuel telemetry, token economy comparison against traditional MCP context-pulling, and cryptographic proof inspection.
 
-Currently, two official plugins are available:
+## Architecture
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Built with React 19, TypeScript, Tailwind CSS, Radix UI primitives, and Framer Motion:
 
-## React Compiler
+* **In-Situ Execution Console**: Allows writing and testing WebAssembly/JavaScript logic payloads against connected enclaves.
+* **4-Tab Inspector**:
+  * **Output**: Formatted result payload, cryptographic ZK-Receipt HMAC-SHA256 attestation, and data sovereignty metrics.
+  * **Debug**: Step-by-step pipeline timings (Route Discovery, ML-KEM-768 Handshake, AES-256-GCM Sealing, WASI Sandbox, ZK-Receipt Verification), raw JSON-RPC envelopes, and PII Shield verdicts.
+  * **Telemetry**: Side-by-side token economy comparison (BPE `o200k_base`) vs traditional MCP context-pulling (~16k–48k tokens), deterministic AST instruction fuel metering with 100-unit bucket quantization (NIST SP 800-53), and wire traffic reduction percentages.
+  * **System**: Node connection state, active era detection (MCP 2026-07-28 vs legacy 2025-11-25), and routing table status.
+* **Dual High-Contrast Themes**: OLED Obsidian and Midnight Slate modes toggled atomically via CSS custom properties.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Development & Build
 
-## Expanding the ESLint configuration
+```bash
+# Run local dev server with Hot Module Replacement (HMR)
+pnpm run dev
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+# Compile TypeScript and bundle for production
+pnpm run build
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+# Preview production build locally
+pnpm run preview
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Running within the Mesh
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+The playground is typically launched through the root workspace scripts:
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+# Launch local standalone gateway + playground on port 14000
+pnpm demo:playground
+
+# Or run within the full 10-node sovereign Docker harness on port 16002
+pnpm audit:prod:start
 ```
+
+## Configuration
+
+The playground automatically connects to the local LIOP Gateway at `http://localhost:3000/mcp` or the URL configured via the connection input in the top navigation bar.

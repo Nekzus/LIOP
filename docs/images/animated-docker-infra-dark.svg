@@ -240,9 +240,9 @@
 
       <rect x="12" y="38" width="286" height="18" rx="3" fill="#090f1d" />
       <text x="18" y="50.5" class="node-mono" fill="#c084fc">172.21.0.10:4000</text>
-      <text x="200" y="50.5" class="node-port">Host: :15000</text>
+      <text x="200" y="50.5" class="node-port">Host: :15001</text>
 
-      <text x="12" y="73" class="node-port">Protocol: /liop/kad/1.0.0 Content Routing</text>
+      <text x="12" y="73" class="node-port">Protocol: /ipfs/kad/1.0.0 Content Routing</text>
       <text x="12" y="88" class="node-port">DHT Providers &amp; Multiaddr Resolution</text>
       <rect x="12" y="98" width="286" height="2" rx="1" fill="#8b5cf6" />
     </g>
@@ -256,7 +256,7 @@
 
       <rect x="12" y="38" width="286" height="18" rx="3" fill="#090f1d" />
       <text x="18" y="50.5" class="node-mono" fill="#c084fc">172.21.0.15:4000</text>
-      <text x="200" y="50.5" class="node-port">Host: :15017</text>
+      <text x="200" y="50.5" class="node-port">Host: :15007</text>
 
       <text x="12" y="73" class="node-port">Hole-Punching &amp; Stateful NAT Keepalive</text>
       <text x="12" y="88" class="node-port">Global P2P Mesh Connectivity Bridge</text>
@@ -352,7 +352,7 @@
       <text x="18" y="50.5" class="node-mono" fill="#fbbf24">172.23.0.13:3000</text>
       <text x="140" y="50.5" class="node-port">Host: :15015</text>
 
-      <text x="12" y="80" class="node-port">Tool: Analyze_HFT_Market</text>
+      <text x="12" y="80" class="node-port">Tool: Analyze_HFT_Market_Data</text>
       <text x="12" y="98" class="node-port">Session: ML-KEM-768 PQC</text>
       <text x="12" y="116" class="node-port">Role: High-Frequency Market Feeds</text>
       <text x="12" y="134" class="node-port">Protocol: gRPC Fast Transport</text>
@@ -370,7 +370,7 @@
       <text x="18" y="50.5" class="node-mono" fill="#f472b6">172.23.0.14:3000</text>
       <text x="126" y="50.5" class="node-port">Host: :15016</text>
 
-      <text x="12" y="80" class="node-port">Tool: Analyze_IoT_Sensor</text>
+      <text x="12" y="80" class="node-port">Tool: Analyze_IoT_Sensor_Data</text>
       <text x="12" y="98" class="node-port">Resilience: High-Latency Profile</text>
       <text x="12" y="116" class="node-port">Role: Remote Edge Data Ingestion</text>
       <text x="12" y="134" class="node-port">Protocol: gRPC Stream Recovery</text>

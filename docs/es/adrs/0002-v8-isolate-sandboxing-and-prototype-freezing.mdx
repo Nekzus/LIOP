@@ -1,0 +1,65 @@
+---
+title: "ADR-0002: Sandbox Zero-Trust Híbrido: Congelamiento de Prototipos V8"
+description: "Decisión arquitectónica que aplica el envenenamiento de 25 globales y el congelamiento de 11 prototipos nativos en V8 para satisfacer límites PCI-DSS."
+icon: "box"
+---
+
+# Sandbox Zero-Trust Híbrido: Congelamiento de Prototipos V8
+
+- **Estado:** Aceptada
+- **Responsables:** Comité de Arquitectura del Protocolo, Equipo de Seguridad
+- **Fecha:** 2026-08-22
+- **Referencia Técnica:** Contención en Capa 2 y Cumplimiento PCI-DSS v4.0 Requisito 6
+
+---
+
+## Contexto y Definición del Problema
+
+Cuando un agente inyecta lógica en un servidor remoto de LIOP, dicho código se ejecuta directamente en el nodo de origen junto a datos confidenciales. En entornos de ejecución Node.js (enclaves de SDK, pasarelas Edge y nodos multi-inquilino), la ejecución de código sin aislamiento presenta tres amenazas críticas:
+
+1. **Contaminación de Prototipos (Prototype Pollution):** Manipulación de `Object.prototype` que altera el comportamiento de hilos concurrentes en el pool de trabajadores.
+2. **Fuga de Autoridad Ambiental:** Acceso a recursos del sistema operativo mediante `process.env`, `fs`, `fetch` o `child_process`.
+3. **Evasión de Sandbox (Sandbox Escape):** Explotación de constructores reflejados (`(function(){}).constructor("return process")()`).
+
+Crear procesos independientes del sistema operativo introduce una sobrecarga temporal de $50\text{--}100\text{ ms}$, penalización inaceptable para los objetivos de latencia de LIOP.
+
+---
+
+## Factores Determinantes
+
+- **Ejecución Sub-milisegundo:** El tiempo de arranque del entorno aislado debe situarse por debajo de $0.5\text{ ms}$.
+- **Cero Autoridad Ambiental:** El contexto de ejecución no debe heredar primitivas de E/S del anfitrión.
+- **Inmutabilidad de Prototipos:** Los prototipos nativos del motor JavaScript deben blindarse contra cualquier mutación.
+- **Alineación Regulatoria:** Cumplimiento con PCI-DSS v4.0 (Requisito 6.4.3) y SOC 2 (Criterio CC6.1).
+
+---
+
+## Opciones Evaluadas
+
+1. **Aislamiento por Procesos Hijos (`child_process.fork`):** Frontera robusta a nivel de sistema operativo, pero genera alta latencia de inicialización ($>50\text{ ms}$) y consumo elevado de memoria.
+2. **Librerías de Sandbox de Terceros (`vm2`):** Historial recurrente de vulnerabilidades de escape y descontinuadas en el ecosistema empresarial.
+3. **Aislamiento con V8 Isolate, Congelamiento de Prototipos y Envenenamiento de Globales:** Contextos nativos de `node:vm` con congelamiento previo de 11 prototipos raíz y 25 globales envenenados, administrados dentro de un pool de workers Piscina.
+
+---
+
+## Decisión Adoptada
+
+**Opción Seleccionada:** Opción 3 — Contextos V8 blindados con congelamiento preventivo de prototipos.
+
+### Consecuencias Positivas
+
+- **Inicialización Inmediata:** Los contextos aislados se crean y ejecutan en menos de $0.08\text{ ms}$.
+- **Inmunidad ante Prototype Pollution:** Los 11 prototipos fundamentales (`Object`, `Array`, `Function`, `String`, `Number`, `Boolean`, `Promise`, `RegExp`, `Error`, `Map`, `Set`) quedan sellados mediante `Object.freeze()` antes de cualquier ejecución.
+- **Aislamiento Estricto:** 25 identificadores globales peligrosos (`process`, `require`, `eval`, `Function`, `fetch`, `WebAssembly`, `importScripts`, entre otros) se sustituyen por proxies que emiten excepciones inmediatas.
+
+### Consecuencias Negativas y Mitigaciones
+
+- **Restricciones de Código Dinámico:** Los scripts inyectados no pueden aplicar técnicas de monkey-patching ni cargar módulos nativos de Node.js.  
+  *Mitigación:* Se trata de un comportamiento intencional por diseño; la lógica inyectada en LIOP debe consistir en micro-módulos analíticos deterministas y puros.
+
+---
+
+## Verificación y Cumplimiento
+
+- Implementado en `sdks/typescript/src/security/wasi-sandbox.ts`.
+- Certificado en la suite `vitest.audit.config.ts` (Suite 2: *Sandbox Escapes, Prototype Pollution & Resource Denial*).

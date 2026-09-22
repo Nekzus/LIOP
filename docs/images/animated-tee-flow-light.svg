@@ -1,5 +1,11 @@
 <svg width="950" height="380" viewBox="0 0 950 380" xmlns="http://www.w3.org/2000/svg">
     <rect width="950" height="380" fill="#ffffff" rx="16" />
+    <defs>
+        <marker id="arrow-return-l" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6"
+            orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#d97706" />
+        </marker>
+    </defs>
     <style>
         .text-main-l {
             font-family: 'Inter', system-ui, sans-serif;
@@ -158,8 +164,8 @@
         @keyframes flowReturnL {
             0% { transform: translate(0px, 0px); opacity: 0; }
             2% { opacity: 1; }
-            12% { transform: translate(0px, -100px); }
-            88% { transform: translate(-760px, -100px); }
+            13% { transform: translate(0px, -130px); }
+            87% { transform: translate(-760px, -130px); }
             98% { opacity: 1; }
             100% { transform: translate(-760px, 0px); opacity: 0; }
         }
@@ -234,12 +240,13 @@
     <path d="M 740 230 L 790 230" class="conn-line-l" />
 
     <!-- Return Path: ZK -> Origin -->
-    <path d="M 850 160 L 850 60 L 90 60 L 90 160" class="conn-line-rx-l" />
+    <path d="M 850 190 L 850 60 L 90 60 L 90 190" class="conn-line-rx-l" marker-end="url(#arrow-return-l)" />
+    <circle cx="850" cy="190" r="3.5" fill="#d97706" />
     <text x="470" y="50" class="text-sub-l" fill="#d97706" text-anchor="middle">ZK-Receipt + Verified Result
         Return</text>
 
     <!-- Return Particles (ZK Receipt) -->
-    <g transform="translate(850, 160)">
+    <g transform="translate(850, 190)">
         <circle cx="0" cy="0" r="5" fill="#f59e0b" class="anim-rx-1-l" />
         <circle cx="0" cy="0" r="5" fill="#f59e0b" class="anim-rx-2-l" />
     </g>
@@ -282,9 +289,8 @@
 
     <!-- 3. TEE ENCLAVE -->
     <rect x="590" y="130" width="350" height="200" class="box-enclave-l pulse-enclave-l" />
-    <text x="765" y="155" class="text-main-l" fill="#4338ca" text-anchor="middle">Hardware Isolated Enclave (TEE)</text>
-    <text x="765" y="170" class="text-sub-l" fill="#4f46e5" text-anchor="middle">Encrypted RAM / Blind
-        Computation</text>
+    <text x="610" y="155" class="text-main-l" fill="#4338ca">Hardware Isolated Enclave (TEE)</text>
+    <text x="610" y="170" class="text-sub-l" fill="#4f46e5">Encrypted RAM / Blind Computation</text>
 
     <!-- 3a. Wasmtime Engine -->
     <rect x="620" y="190" width="120" height="100" class="box-highlight-l" />

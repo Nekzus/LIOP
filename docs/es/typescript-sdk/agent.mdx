@@ -1,6 +1,8 @@
 ---
 title: "LIOP Agent (CLI)"
 description: "Pasarela de seguridad Zero-Config para aplicaciones de IA de escritorio"
+icon: "bot"
+
 ---
 
 El **LIOP Agent** es una utilidad de línea de comandos lista para producción incluida en el paquete `@nekzus/liop`. Actúa como un puente entre las interfaces de IA estándar (como **Claude Desktop** o **Cursor**) y el protocolo descentralizado **Logic-Injection-on-Origin Protocol**.
@@ -129,8 +131,56 @@ El LIOP Agent satisface de forma nativa los protocolos de clientes MCP modernos 
   - Purga metadatos de la versión v2 mediante `adaptResponseForLegacyClient()` para evitar fallos de deserialización en clientes de escritorio tradicionales.
 
 <Warning>
-  `LIOP_BOOTSTRAP_FILE` está **deprecada** desde v2.0.0-alpha. Usa `LIOP_NEXUS_URL` en su lugar. El agente emitirá un warning si detecta esta variable.
+  `LIOP_BOOTSTRAP_FILE` se considera **obsoleta** desde v2.0.0-alpha. Usa `LIOP_NEXUS_URL` en su lugar. El agente emite una advertencia si detecta esta variable.
 </Warning>
 
+---
+
+## Integración Programática de la Malla (`MeshNode`)
+
+Los desarrolladores que integran LIOP en servicios backend personalizados pueden instanciar y gestionar `MeshNode` directamente sin invocar el ejecutable CLI:
+
+```typescript
+import { MeshNode } from "@nekzus/liop";
+
+const mesh = new MeshNode({
+  listenAddresses: ["/ip4/0.0.0.0/tcp/4001"],
+  bootstrapNodes: [
+    "/ip4/127.0.0.1/tcp/15001/p2p/12D3KooW..."
+  ],
+  enableWAN: false,
+  enableAutoNAT: true,
+  enableRelay: true,
+});
+
+await mesh.start();
+console.log("Peer ID local:", mesh.getPeerId());
+
+// Descubrir enclaves remotos que anuncian una capacidad de herramienta específica
+const providers = await mesh.findProviders("tool:execute_anomaly_audit");
+
+// Consultar el manifiesto firmado de un nodo remoto sobre /liop/manifest/1.0.0
+for (const peerId of providers) {
+  const manifest = await mesh.queryManifest(peerId);
+  console.log(`Herramientas descubiertas en ${peerId}: ${manifest?.tools.length}`);
+}
+
+// Cierre ordenado
+await mesh.stop();
+```
+
+### Métodos Públicos Principales
+
+| Método | Tipo de Retorno | Descripción |
+|:---|:---|:---|
+| `start()` | `Promise<void>` | Inicializa los transportes libp2p, criptografía Noise y la tabla de enrutamiento Kademlia |
+| `stop()` | `Promise<void>` | Cierra todas las conexiones del enjambre y limpia el estado de enrutamiento de la DHT |
+| `getPeerId()` | `string` | Retorna el identificador Peer ID Ed25519 del nodo local |
+| `getMultiaddrs()` | `string[]` | Retorna las direcciones multiaddr enlazadas en los transportes activos (TCP/WS) |
+| `findProviders(capability)` | `Promise<string[]>` | Consulta la DHT Kademlia para encontrar Peer IDs que anuncien una capacidad |
+| `queryManifest(target)` | `Promise<LiopManifest \| null>` | Obtiene directamente el manifiesto JSON firmado desde un par remoto |
+| `announceManifest(manifest)` | `Promise<void>` | Publica las capacidades locales en la DHT y registra el manejador del protocolo de manifiesto |
+
 Si encuentras problemas de conexión, busca el icono 🛡️ en la consola o pídele al LLM que ejecute `LiopMeshStatus`.
+
 

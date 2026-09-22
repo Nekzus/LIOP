@@ -1,6 +1,8 @@
 ---
 title: "Interceptor de Gateway"
 description: "Gancho perimetral agnóstico para filtrado semántico de peticiones en LiopHybridGateway"
+icon: "filter"
+
 ---
 
 El `GatewayInterceptor` es un gancho de admisión perimetral ejecutado por `LiopHybridGateway` inmediatamente después de la autenticación de transporte y del límite de tasa por ventana deslizante, previo al despacho de la petición JSON-RPC.
@@ -102,7 +104,7 @@ type GatewayInterceptor = (
 
 Un clon profundo congelado (`Object.freeze(structuredClone(request))`) de la petición JSON-RPC entrante. 
 
-Cualquier mutación efectuada dentro del interceptor opera sobre una instancia aislada, neutralizando ataques de contaminación de prototipos contra el contexto del gateway.
+Cualquier mutación efectuada dentro del interceptor opera sobre una instancia aislada, lo que neutraliza ataques de contaminación de prototipos contra el contexto del gateway.
 
 #### `context: GatewayInterceptorContext`
 

@@ -1,0 +1,65 @@
+---
+title: "ADR-0002: Hybrid Zero-Trust Sandbox: V8 Prototype Freezing"
+description: "Architecture decision enforcing 25 poisoned globals and 11 frozen native prototypes in V8 execution contexts to satisfy PCI-DSS limits."
+icon: "box"
+---
+
+# Hybrid Zero-Trust Sandbox: V8 Prototype Freezing
+
+- **Status:** Accepted
+- **Deciders:** Protocol Steering Committee, Security Architecture Team
+- **Date:** 2026-08-22
+- **Technical Story:** Layer 2 Contention & PCI-DSS v4.0 Requirement 6 Hardening
+
+---
+
+## Context and Problem Statement
+
+When an agent injects logic into a remote LIOP server, that code executes directly on the origin node adjacent to confidential data. In Node.js runtimes (SDK enclaves, Edge gateways, and multi-tenant nodes), untrusted JavaScript execution poses severe security risks:
+
+1. **Prototype Pollution:** Manipulating `Object.prototype` to alter behavior across concurrent worker threads.
+2. **Ambient Authority Leakage:** Accessing system resources via `process.env`, `fs`, `fetch`, or `child_process`.
+3. **Sandbox Escape:** Exploiting constructor reflection (`(function(){}).constructor("return process")()`).
+
+Spawning separate OS child processes incurs high startup overhead ($50\text{--}100\text{ ms}$), violating LIOP's latency targets.
+
+---
+
+## Decision Drivers
+
+- **Sub-millisecond Execution:** Spin-up latency must remain below $0.5\text{ ms}$.
+- **Zero Ambient Authority:** The execution context must not inherit any host I/O primitives.
+- **Prototype Immutability:** Fundamental JavaScript prototypes must be protected from mutation.
+- **Regulatory Compliance:** Satisfaction of PCI-DSS v4.0 Requirement 6.4.3 and SOC 2 CC6.1.
+
+---
+
+## Considered Options
+
+1. **Child Process Isolation (`child_process.fork`):** Strong OS-level boundary, but introduces massive startup overhead ($>50\text{ ms}$) and high memory usage.
+2. **Third-Party Sandbox Libraries (`vm2`):** Historically prone to sandbox escapes; deprecated across the enterprise ecosystem.
+3. **Hardened V8 Isolates with Prototype Freezing & Global Poisoning:** Native Node.js `node:vm` contexts with pre-execution freezing of 11 root prototypes, poisoning 25 ambient globals, executed inside a Piscina worker pool.
+
+---
+
+## Decision Outcome
+
+**Chosen Option:** Option 3 — Hardened V8 Contexts with Pre-Execution Prototype Freezing.
+
+### Positive Consequences
+
+- **Microsecond Spin-up:** Isolates initialize and execute in under $0.08\text{ ms}$.
+- **Prototype Pollution Immunity:** The 11 core prototypes (`Object`, `Array`, `Function`, `String`, `Number`, `Boolean`, `Promise`, `RegExp`, `Error`, `Map`, `Set`) are frozen with `Object.freeze()` prior to untrusted execution.
+- **Strict Isolation:** 25 dangerous globals (`process`, `require`, `eval`, `Function`, `fetch`, `WebAssembly`, `importScripts`, etc.) are replaced with throwing proxies.
+
+### Negative Consequences and Mitigations
+
+- **Library Restrictions:** Injected scripts cannot employ runtime monkey-patching or access Node.js native modules.  
+  *Mitigation:* By design. LIOP injected micro-modules must be pure, deterministic analytical functions.
+
+---
+
+## Validation and Compliance
+
+- Enforced in `sdks/typescript/src/security/wasi-sandbox.ts`.
+- Verified in `vitest.audit.config.ts` (Suite 2: *Sandbox Escapes, Prototype Pollution & Resource Denial*).

@@ -1,0 +1,68 @@
+---
+title: "Enterprise Compliance & Regulatory Matrix"
+description: "Cross-framework mapping for SOC 2 Type II, HIPAA Security Rule, PCI-DSS v4.0, NIST SP 800-207, and OWASP Top 10 for LLMs"
+icon: "scale"
+
+---
+
+Enterprise adoption of AI agents requires proving strict compliance with global cybersecurity, data protection, and financial integrity frameworks. Traditional context-pulling architectures struggle to satisfy these audits because raw confidential records regularly cross administrative and network perimeters.
+
+LIOP's Logic-Injection-on-Origin paradigm provides deterministic, mathematically verifiable compliance controls by moving the compute to the data source rather than exporting datasets.
+
+---
+
+## 1. SOC 2 Type II Trust Services Criteria
+
+| Criteria ID | Trust Service Category | Requirement Summary | LIOP Protocol Implementation |
+|---|---|---|---|
+| **CC6.1** | Logical Access Controls | Access to confidential data assets is restricted to authorized entities. | M2M OAuth 2.1 with RFC 8707 Resource Indicators and granular clearance tiers (`clearanceTier: 1` through `5`). |
+| **CC6.6** | Boundary Protection | Perimeter defenses protect networks against unauthorized access and exfiltration. | `GatewayInterceptor` provides L7 perimeter inspection (blocking SQLi/traversal); `EgressPIIShield` enforces deterministic egress redaction. |
+| **CC6.7** | Data Transmission Transmission | Data is encrypted in transit across untrusted networks. | Symmetric AES-256-GCM combined with quantum-resistant ML-KEM-768 key encapsulation and mutual TLS (mTLS). |
+| **CC7.2** | Threat Monitoring | Automated monitoring detects and alerts on unauthorized security events. | Universal out-of-band `AuditInterceptor` and Prometheus metrics (`liop_ast_rejections_total`, `liop_egress_pii_violations_total`). |
+
+---
+
+## 2. HIPAA Security Rule (§164.312)
+
+| Section | Safeguard Type | Regulatory Standard | LIOP Technical Control |
+|---|---|---|---|
+| **§164.312(a)(1)** | Technical | **Access Control**: Unique user identification and emergency access procedures. | Granular client credentials issued by Nexus OIDC; clearance tier verification prior to tool dispatch. |
+| **§164.312(b)** | Technical | **Audit Controls**: Mechanisms to record and examine system activity containing EPHI. | Non-blocking `AuditInterceptor` logs caller identity, tool name, and cryptographic execution digest to SIEM endpoints. |
+| **§164.312(c)(1)** | Technical | **Integrity Controls**: Policies to protect EPHI from unauthorized alteration or destruction. | ZK-Receipts (HMAC-SHA256) bind the output cryptographically to the exact hash of the executed WASI module. |
+| **§164.312(d)** | Technical | **Entity Authentication**: Verification that a person or entity seeking access is authorized. | Mutual TLS with root CA pinning combined with asymmetric post-quantum session handshakes. |
+| **§164.312(e)(1)** | Technical | **Transmission Security**: Guard against unauthorized access to EPHI transmitted over networks. | **Zero PHI Egress**: Datasets are analyzed in-situ. Only mathematically perturbed statistics (Differential Privacy) cross the wire. |
+
+---
+
+## 3. PCI-DSS v4.0 Payment Card Industry Standard
+
+| Requirement | Standard Mandate | Protocol Security Layer |
+|---|---|---|
+| **Req 3.4** | Protect Primary Account Numbers (PAN) across all environments. | Layer 4 Egress Shield strips card numbers and CVVs via `forbiddenKeys` and regular expressions before output serialization. |
+| **Req 6.4** | Prevent injection flaws (SQLi, prototype pollution, memory corruption). | Layer 1 Guardian AST pre-execution scanning blocks non-allowlisted imports; Layer 2 V8 sandbox poisons 25 sensitive globals and freezes 11 native prototypes (`Object.freeze`). |
+| **Req 10.2** | Automated audit trails for all administrative and data access events. | Built-in out-of-band interceptors emit structured audit telemetry without altering host execution performance. |
+| **Req 11.3** | Protect network traffic from eavesdropping and man-in-the-middle tampering. | Hybrid gRPC transport enforces quantum-resistant ML-KEM-768 key exchange combined with mTLS channel encryption. |
+
+---
+
+## 4. NIST SP 800-207 (Zero Trust Architecture)
+
+NIST SP 800-207 defines seven core tenets of Zero Trust Architecture. LIOP satisfies these tenets through end-to-end cryptographic and runtime verification:
+
+1. **Tenet 1 (All data sources are resources)**: Every database, file archive, or stream is treated as an isolated LIOP Data Node.
+2. **Tenet 2 (All communication is secured regardless of network location)**: Private libp2p networks use Pre-Shared Keys (`libp2p/pnet`), while gRPC channels enforce mTLS.
+3. **Tenet 3 (Access to resources is granted on a per-session basis)**: OAuth 2.1 Bearer tokens are validated per invocation with proactive 30-second refresh buffers.
+4. **Tenet 4 (Access is determined by dynamic policy)**: Routing and clearance tiers enforce caller permissions prior to code execution.
+5. **Tenet 5 (Enterprise monitors and measures integrity of assets)**: Mathematical ZK-Receipts confirm that returned outputs were computed honestly without host memory tampering.
+6. **Tenet 6 (Resource authentication is dynamic and strictly enforced)**: Stale tokens are reactively invalidated upon receiving HTTP 401 challenge headers.
+7. **Tenet 7 (Continuous telemetry collection)**: Instantaneous Prometheus metrics report node health, AST rejections, and latency distributions.
+
+---
+
+## 5. OWASP Top 10 for Large Language Model Applications
+
+| OWASP Vulnerability | Threat Profile | LIOP Protocol Defense |
+|---|---|---|
+| **LLM01: Prompt Injection** | Malicious inputs manipulate the AI model into unauthorized actions. | **WASI Sandboxing**: Injected code cannot invoke shell commands, spawn subprocesses, or access filesystem roots outside the sandbox. |
+| **LLM02: Sensitive Information Disclosure** | The model inadvertently reveals confidential data in its responses. | **In-Situ Execution + Egress Shield**: Raw records are never sent to the model context. Outgoing data passes through regex and NER PII filters. |
+| **LLM06: Excessive Agency** | An AI agent performs unintended destructive actions on the host. | **Read-Only Capabilities + Zod Typing**: Schemas strictly limit permitted parameters. Data nodes execute under least-privilege host permissions. |

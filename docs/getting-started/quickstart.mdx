@@ -1,6 +1,8 @@
 ---
 title: "Quickstart"
 description: "Start building with LIOP in under 5 minutes using the official TypeScript SDK"
+icon: "rocket"
+
 ---
 
 The Logic-Injection-on-Origin Protocol (LIOP) provides the `@nekzus/liop` package, offering an API surface familiar to MCP developers. If you have previously built servers for MCP, transitioning to LIOP follows the same architectural conventions.
@@ -11,128 +13,152 @@ In this guide, we'll build a basic LIOP Server that exposes a tool, and a Client
   Under the hood, LIOP compiles logic into sandboxed execution envelopes and dispatches it across the mesh. The SDK abstracts the underlying gRPC and P2P transport, exposing standard tool registration and execution methods.
 </Note>
 
-## 1. Installation
+<Steps>
+  <Step title="Install the SDK">
+    Install the official SDK in your Node.js or TypeScript project:
 
-Install the official SDK in your Node.js or TypeScript project.
+    <CodeGroup>
+    ```bash npm
+    npm install @nekzus/liop@latest zod
+    ```
+    ```bash pnpm
+    pnpm add @nekzus/liop@latest zod
+    ```
+    ```bash yarn
+    yarn add @nekzus/liop@latest zod
+    ```
+    </CodeGroup>
+  </Step>
 
-<CodeGroup>
-```bash npm
-npm install @nekzus/liop@latest zod
-```
-```bash pnpm
-pnpm add @nekzus/liop@latest zod
-```
-```bash yarn
-yarn add @nekzus/liop@latest zod
-```
-</CodeGroup>
+  <Step title="Create a LIOP Server (Data Node)">
+    A LIOP Server acts as a Data Node. It connects to the mesh and listens for incoming injected logic from remote agents, exposing secure tools and resources.
 
-## 2. Create a LIOP Server (Data Node)
+    Create a file named `server.ts`:
 
-A LIOP Server acts as a Data Node. It connects to the mesh and listens for incoming injected logic from remote agents. It exposes secure tools and resources.
+    ```typescript server.ts
+    import { LiopServer } from '@nekzus/liop';
+    import { z } from 'zod';
 
-Create a file named `server.ts`:
-
-```typescript server.ts
-import { LiopServer } from '@nekzus/liop';
-import { z } from 'zod';
-
-// Initialize the Server with identity
-const server = new LiopServer({
-  name: "MyLocalDataNode",
-  version: "1.0.0"
-});
-
-// Expose a tool. 
-// Note: In LIOP, the async logic provided here is dynamically converted 
-// into an isolated Capability for incoming WASM Agents.
-server.tool(
-  "query_database",
-  "Analyzes giant tables exactly at the origin. Pass a SQL-like string.",
-  { query: z.string() },
-  async ({ query }) => {
-    console.log(`[Server] Executing Logic-Injection-on-Origin for query: ${query}`);
-    
-    // Imagine processing 5GB of local data here.
-    // Only the final result leaves the server.
-    return {
-      content: [{ type: "text", text: `Processed query results for: ${query}` }]
-    };
-  }
-);
-
-// Start the server and announce it to the Kademlia DHT Mesh
-async function main() {
-  await server.connect();
-  console.log("LIOP Server is listening on the Mesh...");
-}
-
-main().catch(console.error);
-```
-
-## 3. Create a LIOP Client (Agent Node)
-
-A LIOP Client acts as the Intelligence. It discovers servers on the mesh and injects compiled logic into them.
-
-Create a file named `client.ts`:
-
-```typescript client.ts
-import { LiopClient } from '@nekzus/liop';
-
-async function main() {
-  // Initialize the Client (TLS options are optional for local development)
-  const client = new LiopClient();
-
-  // Connect to the mesh
-  await client.connect();
-  console.log("Joined LIOP Protocol...");
-
-  // Discover the server's tools and invoke logic
-  try {
-    // Invoke the tool using a CallToolRequest
-    const result = await client.callTool({
-      name: "query_database",
-      arguments: {
-        query: "SELECT * FROM massive_table WHERE anomaly = true"
-      }
+    // Initialize the Server with identity
+    const server = new LiopServer({
+      name: "MyLocalDataNode",
+      version: "1.0.0"
     });
 
-    console.log("Received verified result:");
-    console.log(result.content[0].text);
-  } catch (err) {
-    console.error("Agent execution failed:", err);
-  }
-}
+    // Expose a tool. 
+    // In LIOP, the async logic provided here is dynamically converted 
+    // into an isolated Capability for incoming WASM Agents.
+    server.tool(
+      "query_database",
+      "Analyzes database tables directly at the origin. Pass a SQL-like query string.",
+      { query: z.string() },
+      async ({ query }) => {
+        console.log(`[Server] Executing Logic-Injection-on-Origin for query: ${query}`);
+        
+        // Processing happens directly at the origin.
+        // Only the aggregated final result leaves the server.
+        return {
+          content: [{ type: "text", text: `Processed query results for: ${query}` }]
+        };
+      }
+    );
 
-main().catch(console.error);
-```
+    // Start the server and announce it to the Kademlia DHT Mesh
+    async function main() {
+      await server.connect();
+      console.log("LIOP Server is listening on the Mesh...");
+    }
 
-## 4. Run your Mesh
+    main().catch(console.error);
+    ```
+  </Step>
 
-First, start your isolated Server:
-```bash
-npx tsx server.ts
-# Output: LIOP Server is listening on the Mesh...
-```
+  <Step title="Create a LIOP Client (Agent Node)">
+    A LIOP Client acts as the Intelligence. It discovers servers on the mesh and injects compiled logic into them.
 
-In a separate terminal, run the agent client:
-```bash
-npx tsx client.ts
-# Output: Joined LIOP Protocol...
-# Output: Received mathematically-verified result:
-# Output: Processed query results for: SELECT * FROM massive_table WHERE anomaly = true
-```
+    Create a file named `client.ts`:
 
-## 5. Explore with the Interactive Playground Web UI
+    ```typescript client.ts
+    import { LiopClient } from '@nekzus/liop';
 
-For visual debugging, testing in-situ WASM/JS logic, and inspecting cryptographic proofs in real-time, launch the **LIOP Web Playground**:
+    async function main() {
+      // Initialize the Client (TLS options are optional for local development)
+      const client = new LiopClient();
 
-```bash
-# Start the full local mesh + interactive playground in Docker
-pnpm run demo:start
-```
+      // Connect to the mesh
+      await client.connect();
+      console.log("Joined LIOP Protocol...");
 
-Once running, navigate to **`http://localhost:14000`** in your browser:
+      // Discover the server's tools and invoke logic
+      try {
+        // Invoke the tool using a CallToolRequest
+        const result = await client.callTool({
+          name: "query_database",
+          arguments: {
+            query: "SELECT * FROM massive_table WHERE anomaly = true"
+          }
+        });
+
+        console.log("Received verified result:");
+        console.log(result.content[0].text);
+      } catch (err) {
+        console.error("Agent execution failed:", err);
+      }
+    }
+
+    main().catch(console.error);
+    ```
+  </Step>
+
+  <Step title="Run your Mesh">
+    First, start your isolated Server:
+    ```bash
+    npx tsx server.ts
+    # Output: LIOP Server is listening on the Mesh...
+    ```
+
+    In a separate terminal, run the agent client:
+    ```bash
+    npx tsx client.ts
+    # Output: Joined LIOP Protocol...
+    # Output: Received verified result:
+    # Output: Processed query results for: SELECT * FROM massive_table WHERE anomaly = true
+    ```
+  </Step>
+</Steps>
+
+## Explore with LIOP Studio & Interactive Playground
+
+For visual debugging, testing in-situ WASM/JS logic, and inspecting cryptographic proofs in real-time, choose the environment matching your setup:
+
+<Tabs>
+  <Tab title="Standalone (NPM / npx)">
+    If you installed `@nekzus/liop` in your own project, launch **LIOP Studio** directly:
+
+    ```bash
+    # Run the web studio targeting your local server or MCP endpoint (:16000)
+    npx @nekzus/liop-studio --http "http://localhost:3000/mcp"
+
+    # Or perform a headless capability scan
+    npx @nekzus/liop-studio scan http://localhost:3000/mcp
+    ```
+
+    Open **`http://localhost:16000`** in your browser to inspect the mesh.
+  </Tab>
+
+  <Tab title="From the Monorepo">
+    If you cloned the LIOP repository, start the full local mesh and development playground:
+
+    ```bash
+    # Start local mesh nodes and dev playground UI (:14000)
+    pnpm run demo:start
+    ```
+
+    Open **`http://localhost:14000`** in your browser.
+  </Tab>
+</Tabs>
+
+Key inspection capabilities in both interfaces:
 
 * **Live Streaming Timeline:** Real-time Server-Sent Events (SSE) tracking 7 execution phases (*Bootstrap*, *Discovery*, *PQC ML-KEM-768 Handshake*, *AES-256-GCM Sealing*, *WASI Sandbox Execution*, *ZK-Receipt Verification*, and *Aggregated Output*).
 * **Code Editor with Presets:** Test ready-made micro-modules for High-Frequency Trading (HFT), Banking anomaly detection, Medical Records analysis, or PII exfiltration defense.
@@ -140,6 +166,18 @@ Once running, navigate to **`http://localhost:14000`** in your browser:
 * **Dual Dark Themes:** Toggle between OLED Obsidian and Slate Midnight UI themes.
 
 ## What just happened?
+
+<CardGroup cols={3}>
+  <Card title="1. Peer Discovery" icon="magnifying-glass">
+    Client locates the target enclave via Kademlia DHT or Nexus directory without centralized middlemen.
+  </Card>
+  <Card title="2. Quantum-Safe Tunnel" icon="key">
+    ML-KEM-768 key encapsulation establishes an AES-256-GCM encrypted tunnel resistant to harvest-now-decrypt-later attacks.
+  </Card>
+  <Card title="3. In-Situ Execution" icon="shield-check">
+    Injected code executes inside an isolated WASI sandbox. Only aggregated output and ZK-Receipts egress the enclave.
+  </Card>
+</CardGroup>
 
 Unlike legacy REST APIs or MCP string parsing:
 1. Your Client discovered the Server instantly via a **P2P Kademlia Routing Table**.

@@ -1,6 +1,6 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
+  "theme": "almond",
   "name": "LIOP Protocol",
   "description": "LIOP (Logic-Injection-on-Origin Protocol) is a high-performance, Zero-Trust binary mesh for AI agent communication. Instead of moving data to the AI, LIOP moves sandboxed WebAssembly logic to the data source, reducing token consumption by orders of magnitude while guaranteeing computational integrity via ZK-Receipts.",
   "seo": {
@@ -44,23 +44,42 @@
             "tab": "Documentation",
             "groups": [
               {
-                "group": "Get started",
+                "group": "Getting Started (Tutorials)",
                 "pages": [
                   "getting-started/intro",
                   "getting-started/quickstart"
                 ]
               },
               {
-                "group": "Core Concepts",
+                "group": "Core Architecture (Explanation)",
                 "pages": [
                   "concepts/manifesto",
-                  "concepts/specification",
                   "concepts/logic-on-origin",
                   "concepts/architecture",
+                  "concepts/zero-trust",
+                  "concepts/wasi-sandboxing"
+                ]
+              },
+              {
+                "group": "Architecture Decisions (ADRs)",
+                "tag": "NEW",
+                "pages": [
+                  "adrs/index",
+                  "adrs/0001-post-quantum-cryptography-ml-kem-768",
+                  "adrs/0002-v8-isolate-sandboxing-and-prototype-freezing",
+                  "adrs/0003-ast-instruction-fuel-quantization",
+                  "adrs/0004-dual-era-mcp-handshake-compatibility",
+                  "adrs/0005-bearer-oauth21-m2m-enclave-propagation",
+                  "adrs/0006-single-gateway-invariant-claude-desktop"
+                ]
+              },
+              {
+                "group": "Protocol Wire Specification (Reference)",
+                "tag": "RFC",
+                "pages": [
+                  "concepts/specification",
                   "concepts/server-concepts",
-                  "concepts/client-concepts",
-                  "concepts/wasi-sandboxing",
-                  "concepts/zero-trust"
+                  "concepts/client-concepts"
                 ]
               }
             ]
@@ -69,21 +88,74 @@
             "tab": "TypeScript SDK",
             "groups": [
               {
-                "group": "TypeScript SDK",
+                "group": "Getting Started",
                 "pages": [
                   "typescript-sdk/overview",
-                  "typescript-sdk/agent",
+                  "typescript-sdk/playground"
+                ]
+              },
+              {
+                "group": "Core Components",
+                "pages": [
                   "typescript-sdk/client",
                   "typescript-sdk/server",
-                  "typescript-sdk/gateway",
+                  "typescript-sdk/agent"
+                ]
+              },
+              {
+                "group": "Bridges & Gateways",
+                "pages": [
+                  "typescript-sdk/bridge",
+                  "typescript-sdk/gateway"
+                ]
+              },
+              {
+                "group": "L7 Interceptors",
+                "pages": [
                   "typescript-sdk/gateway-interceptor",
-                  "typescript-sdk/log-audit-interceptors",
+                  "typescript-sdk/log-audit-interceptors"
+                ]
+              },
+              {
+                "group": "Security & RBAC",
+                "pages": [
+                  "typescript-sdk/security"
+                ]
+              },
+              {
+                "group": "Runtime & Telemetry",
+                "pages": [
                   "typescript-sdk/runtime",
                   "typescript-sdk/economy",
-                  "typescript-sdk/security",
-                  "typescript-sdk/playground",
                   "typescript-sdk/production-audit",
                   "typescript-sdk/observability"
+                ]
+              }
+            ]
+          },
+          {
+            "tab": "Cookbook & Recipes",
+            "groups": [
+              {
+                "group": "Production How-To Recipes",
+                "pages": [
+                  "cookbook/mcp-migration",
+                  "cookbook/in-situ-data-processing",
+                  "cookbook/healthcare-hipaa",
+                  "cookbook/financial-fraud-zk"
+                ]
+              }
+            ]
+          },
+          {
+            "tab": "Operations & Production",
+            "groups": [
+              {
+                "group": "Enterprise Operations",
+                "pages": [
+                  "operations/sovereign-deployment",
+                  "operations/observability-runbook",
+                  "operations/compliance-matrix"
                 ]
               }
             ]
@@ -117,46 +189,118 @@
             "tab": "Documentación",
             "groups": [
               {
-                "group": "Comenzando",
+                "group": "Primeros Pasos (Tutoriales)",
                 "pages": [
                   "es/getting-started/intro",
                   "es/getting-started/quickstart"
                 ]
               },
               {
-                "group": "Conceptos Fundamentales",
+                "group": "Arquitectura y Fundamentos (Explicación)",
                 "pages": [
                   "es/concepts/manifesto",
-                  "es/concepts/specification",
                   "es/concepts/logic-on-origin",
                   "es/concepts/architecture",
+                  "es/concepts/zero-trust",
+                  "es/concepts/wasi-sandboxing"
+                ]
+              },
+              {
+                "group": "Decisiones de Arquitectura (ADRs)",
+                "tag": "NUEVO",
+                "pages": [
+                  "es/adrs/index",
+                  "es/adrs/0001-post-quantum-cryptography-ml-kem-768",
+                  "es/adrs/0002-v8-isolate-sandboxing-and-prototype-freezing",
+                  "es/adrs/0003-ast-instruction-fuel-quantization",
+                  "es/adrs/0004-dual-era-mcp-handshake-compatibility",
+                  "es/adrs/0005-bearer-oauth21-m2m-enclave-propagation",
+                  "es/adrs/0006-single-gateway-invariant-claude-desktop"
+                ]
+              },
+              {
+                "group": "Especificación del Protocolo (Referencia)",
+                "tag": "RFC",
+                "pages": [
+                  "es/concepts/specification",
                   "es/concepts/server-concepts",
-                  "es/concepts/client-concepts",
-                  "es/concepts/wasi-sandboxing",
-                  "es/concepts/zero-trust"
+                  "es/concepts/client-concepts"
                 ]
               }
             ]
           },
           {
-            "tab": "TypeScript SDK",
+            "tab": "SDK de TypeScript",
             "groups": [
               {
-                "group": "TypeScript SDK",
+                "group": "Primeros Pasos",
                 "pages": [
                   "es/typescript-sdk/overview",
-                  "es/typescript-sdk/agent",
+                  "es/typescript-sdk/playground"
+                ]
+              },
+              {
+                "group": "Componentes Core",
+                "pages": [
                   "es/typescript-sdk/client",
                   "es/typescript-sdk/server",
-                  "es/typescript-sdk/gateway",
+                  "es/typescript-sdk/agent"
+                ]
+              },
+              {
+                "group": "Pasarelas y Adaptadores",
+                "pages": [
+                  "es/typescript-sdk/bridge",
+                  "es/typescript-sdk/gateway"
+                ]
+              },
+              {
+                "group": "Interceptores L7",
+                "pages": [
                   "es/typescript-sdk/gateway-interceptor",
-                  "es/typescript-sdk/log-audit-interceptors",
+                  "es/typescript-sdk/log-audit-interceptors"
+                ]
+              },
+              {
+                "group": "Seguridad y Autorización",
+                "pages": [
+                  "es/typescript-sdk/security"
+                ]
+              },
+              {
+                "group": "Runtime y Telemetría",
+                "pages": [
                   "es/typescript-sdk/runtime",
                   "es/typescript-sdk/economy",
-                  "es/typescript-sdk/security",
-                  "es/typescript-sdk/playground",
                   "es/typescript-sdk/production-audit",
                   "es/typescript-sdk/observability"
+                ]
+              }
+            ]
+          },
+          {
+            "tab": "Cookbook y Recetas",
+            "groups": [
+              {
+                "group": "Guías Prácticas de Producción (How-To)",
+                "pages": [
+                  "es/cookbook/mcp-migration",
+                  "es/cookbook/in-situ-data-processing",
+                  "es/cookbook/healthcare-hipaa",
+                  "es/cookbook/financial-fraud-zk"
+                ]
+              }
+            ]
+          },
+          {
+            "tab": "Operaciones y Producción",
+            "groups": [
+              {
+                "group": "Operaciones Corporativas",
+                "pages": [
+                  "es/operations/sovereign-deployment",
+                  "es/operations/observability-runbook",
+                  "es/operations/compliance-matrix"
                 ]
               }
             ]

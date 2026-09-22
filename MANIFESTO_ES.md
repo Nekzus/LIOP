@@ -130,18 +130,18 @@ Estas garantías no son claims de marketing. Cada una se mapea directamente a un
 
 Este manifiesto constituye la base constitucional inmutable del Logic-Injection-on-Origin Protocol. El Postulado LIO y los Principios de Diseño (Sección 3) representan invariantes no negociables establecidas en el génesis del protocolo.
 
-La implementación técnica, las primitivas criptográficas y las capacidades de transporte evolucionan mediante el proceso de **Propuestas de Mejora de LIOP (LEP)** que rige la [Especificación del Protocolo](./protocol/SPECIFICATION.md):
+La implementación técnica, las primitivas criptográficas y las capacidades de transporte evolucionan mediante el proceso de **Propuestas de Mejora de LIOP (LEP)** que rige la [Especificación del Protocolo](./protocol/SPECIFICATION_ES.md):
 
 1. **Presentación de LEP** — Los contribuidores presentan mejoras arquitectónicas o criptográficas mediante Pull Request al directorio `protocol/`.
 2. **Alineación Constitucional** — Toda propuesta debe demostrar adhesión estricta a los 7 Principios de Diseño. Aquellas que vulneren la soberanía de datos o las garantías de agregación son rechazadas por diseño.
 3. **Revisión por Pares y Verificación** — Periodo mínimo de 14 días de auditoría técnica con vectores de prueba empíricos en el SDK de referencia.
-4. **Ratificación en la Especificación** — Las LEPs aprobadas se incorporan a la siguiente versión fechada de la [Especificación del Protocolo](./protocol/SPECIFICATION.md).
+4. **Ratificación en la Especificación** — Las LEPs aprobadas se incorporan a la siguiente versión fechada de la [Especificación del Protocolo](./protocol/SPECIFICATION_ES.md).
 
 ---
 
 ## 9. Próximos Pasos
 
-Consulta la [Especificación del Protocolo](./protocol/SPECIFICATION.md), evalúa el [Playground Interactivo](http://localhost:16000), o despliega un nodo enclave mediante el SDK TypeScript ejecutando `npm install @nekzus/liop`.
+Consulta la [Especificación del Protocolo](./protocol/SPECIFICATION_ES.md), evalúa el [Playground Interactivo y Studio](https://nekzus-32.mintlify.app/es/typescript-sdk/playground), o despliega un nodo enclave mediante el SDK TypeScript ejecutando `pnpm add @nekzus/liop`.
 
 ---
 

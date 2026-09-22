@@ -1,6 +1,8 @@
 ---
 title: "Architecture"
 description: "Components, execution layers, and P2P routing in the Logic-Injection-on-Origin Protocol"
+icon: "network"
+
 ---
 
 <img className="block dark:hidden" src="/images/architecture-light.svg" alt="LIOP Architecture Diagram" />
@@ -80,6 +82,25 @@ In enterprise production deployments, the mesh topology is partitioned across th
 * **Edge Industrial Nodes (`Edge IoT`)**: Deployed directly on edge industrial hardware under hostile WAN profiles (simulated 250ms ± 50ms latency with 2% packet loss). Computes anomaly detection in-situ, transmitting only critical aggregated telemetry.
 * **P2P Circuit Relays (`Relay`)**: High-throughput public relays implementing AutoNAT and Circuit Relay v2 for traversal of corporate firewalls.
 * **Client SDK, Web Playground & Studio**: Interactive execution consoles operating over intercontinental WAN links (`:16000` Studio / `:16002` Playground).
+
+### Canonical Network Ports
+
+The LIOP multi-tier topology standardizes specific network ports across services and development harnesses:
+
+| Service | Port | Protocol / Transport | Purpose |
+|:---|:---|:---|:---|
+| **Nexus Discovery / OIDC** | `:15000` (HTTP) / `:15001` (P2P) | HTTP/2, libp2p Kademlia | Seed node, manifest indexing, and RFC 6749 OAuth 2.1 token issuance |
+| **Border LIO Gateway (BLG)** | `:15018` | HTTP/2, mTLS | Perimeter gateway bridging WAN queries into PSK enclaves |
+| **The Vault Enclave (Tier 1)** | `:15013` (Internal) | gRPC / PSK Swarm | Medical records data repository (zero public ingress) |
+| **The Bank Enclave (Tier 1)** | `:15014` (Internal) | gRPC / PSK Swarm | Financial transaction ledger (zero public ingress) |
+| **The Oracle (Tier 2)** | `:15015` | gRPC / libp2p | High-Frequency Trading market simulation engine |
+| **Edge IoT (Tier 3)** | `:15016` | gRPC / WAN | Simulated remote industrial telemetry node |
+| **Circuit Relay v2** | `:15007` (P2P) / `:15017` (HTTP) | libp2p Relay | NAT traversal and public peer discovery backbone |
+| **Local Dev Playground** | `:14000` | HTTP / SSE | Standalone interactive development console (`demo:start`) |
+| **LIOP Studio Web UI** | `:16000` | HTTP / SSE | Official NPM package console (`npx @nekzus/liop-studio`) |
+| **Harness Web Playground** | `:16002` | HTTP / SSE | Embedded web testing console within Docker production harness |
+| **Prometheus Scraper** | `:9090` | HTTP | Telemetry aggregation and alerting metrics |
+| **Grafana Dashboard** | `:3000` | HTTP | Production monitoring dashboard (26 panels) |
 
 ### Interceptor Demarcation & Defense-in-Depth
 

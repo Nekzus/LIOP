@@ -1,6 +1,8 @@
 ---
 title: "Seguridad Zero-Trust"
 description: "Arquitectura de defensa multicapa que protege la red LIOP"
+icon: "shield-check"
+
 ---
 
 En un ecosistema donde agentes de IA inyectan y ejecutan lógica en nodos de datos de forma autónoma, la seguridad perimetral tradicional (VPNs, firewalls, contraseñas) es insuficiente. 
@@ -13,7 +15,7 @@ LIOP utiliza el **Noise Protocol Framework** para el establecimiento de conexion
 
 - **Identidades Ed25519**: Cada Agente y Nodo de Datos genera un par de claves. Tu Clave Pública *es* tu identidad (Peer ID) en la red.
 - **Autenticación Mutua**: Las conexiones se autentican de forma bilateral instantánea. Ambos extremos saben exactamente con quién están transaccionando mediante pruebas de posesión de clave.
-- **Acuerdo de Clave Post-Cuántica (ML-KEM-768)**: LIOP emplea **Kyber768 (ML-KEM-768)** para el intercambio de claves y **AES-256-GCM** para el cifrado del payload, protegiendo contra ataques cuánticos ("Harvest Now, Decrypt Later").
+- **Acuerdo de Clave Post-Cuántica (ML-KEM-768)**: LIOP emplea **Kyber768 (ML-KEM-768)** para el intercambio de claves y **AES-256-GCM** para el cifrado del payload, lo que protege contra ataques cuánticos ("Harvest Now, Decrypt Later").
 - **Firmas Digitales Post-Cuánticas (ML-DSA-65)**: Manifiestos, capacidades y recibos de revocación se firman mediante Dilithium65 (ML-DSA-65).
 - **Límite Estricto de Sesión de 1 Hora**: Las claves simétricas derivadas vencen automáticamente a los 3600 segundos para minimizar ventanas de exposición y mitigar repeticiones.
 - **TLS Mutuo con CertManager**: Permite autenticación corporativa X.509 de clientes con recarga de certificados en caliente sin interrupciones.
@@ -35,7 +37,7 @@ Para scripts interpretados (como payloads en JavaScript), el **Taint Analyzer** 
 Para prevenir intentos de bypass que utilicen generadores o iteradores (`function*` / `yield`) para extraer registros evadiendo los escaneos estándar de propiedades, el Taint Analyzer realiza un análisis estático profundo de los ámbitos de función:
 - **Rastreo de `YieldExpression`**: El motor evalúa recursivamente los argumentos de `yield`, garantizando que los valores derivados de PII sean marcados incluso si se encapsulan en yields de generadores.
 - **Contaminación (Tainting) del Scope de Funciones**: Las funciones locales (`FunctionDeclaration`, `FunctionExpression`, `ArrowFunctionExpression`) que retornan o hacen `yield` de campos con taint son marcadas permanentemente como *tainted*.
-- **Cadenas de Métodos de Iteración**: Al invocar una función contaminada (`gen()`), el iterador resultante y sus llamadas subsiguientes (como `.next().value`) heredan el taint, propagando la restricción a través del árbol de expresiones y neutralizando la exfiltración por generadores.
+- **Cadenas de Métodos de Iteración**: Al invocar una función contaminada (`gen()`), el iterador resultante y sus llamadas subsiguientes (como `.next().value`) heredan el taint, lo que propaga la restricción a través del árbol de expresiones y neutraliza la exfiltración por generadores.
 
 Esto neutraliza patrones evasivos e importaciones no autorizadas de forma estática antes de iniciar la ejecución.
 
@@ -94,7 +96,7 @@ Todo el ruido se genera mediante `crypto.randomBytes()` del módulo `crypto` de 
 
 ### Modo de Auditoría Determinista (DDP)
 
-Para escenarios de auditoría SOX/PCI-DSS que requieran Recibos ZK reproducibles, el motor soporta **Privacidad Diferencial Determinista (DDP)**. Cuando se activa, el generador de ruido Laplace inicializa un PRNG basado en SHA-256 con semilla `dataset_hash + image_id`, produciendo ruido idéntico para consultas idénticas sobre datasets inmutables. Esto restaura la verificabilidad completa del Recibo ZK sin violar la garantía matemática de privacidad — la semilla permanece criptográficamente impredecible para observadores externos que no tengan acceso tanto al dataset como a la lógica inyectada.
+Para escenarios de auditoría SOX/PCI-DSS que requieran Recibos ZK reproducibles, el motor soporta **Privacidad Diferencial Determinista (DDP)**. Cuando se activa, el generador de ruido Laplace inicializa un PRNG basado en SHA-256 con semilla `dataset_hash + image_id`, lo que produce ruido idéntico para consultas idénticas sobre datasets inmutables. Esto restaura la verificabilidad completa del Recibo ZK sin violar la garantía matemática de privacidad — la semilla permanece criptográficamente impredecible para observadores externos que no tengan acceso tanto al dataset como a la lógica inyectada.
 
 ### Sensibilidad Query-Aware
 
@@ -129,7 +131,7 @@ Para evitar esta reconstrucción diferencial, LIOP implementa un **Motor de Pres
 
 - **Aislamiento y Persistencia de Sesión (Anti-Bypass)**: Los presupuestos se rastrean *por cliente* utilizando la identidad criptográfica (`agentDid` derivado de su PeerID Ed25519 persistente, o `clientId` de los tokens JWT autorizados por el servidor Nexus OAuth 2.1) verificada durante el handshake PQC (`negotiateIntent`). Bajo el capó, estos presupuestos se pueden escribir en el disco a través de un archivo JSON compartido (`budgetStorePath`). Esto evita que los límites se omitan mediante reconexiones, el inicio de un nuevo intent gRPC o el reinicio del servidor, ya que el presupuesto se ancla a la identidad criptográfica persistente del cliente en lugar de a tokens de transporte efímeros (como el `session_token` de gRPC).
 - **Concurrencia y Bloqueo de Archivos**: Para evitar ataques de diferenciación estadística en los que se envían múltiples solicitudes paralelas simultáneamente para evadir los presupuestos, el motor sincroniza el acceso utilizando bloqueos a nivel de archivo (archivos `.lock`). Las actualizaciones son atómicas, lo que garantiza que ninguna solicitud pueda eludir las comprobaciones de validación en entornos multiproceso o distribuidos.
-- **Validación en Pre-Vuelo (Preflight)**: El `TaintAnalyzer` decodifica y escanea el AST de la lógica inyectada *antes* de instanciar el sandbox. Extrae todos los campos consultados, incluyendo aquellos dentro de bucles de generadores o indexaciones directas. Si el conteo acumulado de consultas de un campo (cargado dinámicamente desde el archivo de presupuestos) supera el límite de su tier, la petición se aborta inmediatamente en el preflight, devolviendo un error limpio a la IA.
+- **Validación en Pre-Vuelo (Preflight)**: El `TaintAnalyzer` decodifica y escanea el AST de la lógica inyectada *antes* de instanciar el sandbox. Extrae todos los campos consultados, incluyendo aquellos dentro de bucles de generadores o indexaciones directas. Si el conteo acumulado de consultas de un campo (cargado dinámicamente desde el archivo de presupuestos) supera el límite de su tier, la petición se aborta inmediatamente en el preflight y devuelve un error limpio a la IA.
 - **Tolerancia a Fallos (Fallback)**: Si las restricciones de permisos o deadlocks impiden el bloqueo o escritura en el sistema de archivos, el motor emite una advertencia en los logs y hace un fallback dinámico a un rastreo en memoria, manteniendo la seguridad de los datos activa en todo momento.
 
 ### Tiers de Sensibilidad

@@ -1,0 +1,42 @@
+---
+title: "Architectural Decision Records"
+description: "Formal record of high-impact architectural decisions, trade-offs, and design justifications governing the LIOP protocol."
+icon: "list-ordered"
+---
+
+Architectural Decision Records (ADRs) document significant architectural and engineering decisions made throughout the lifecycle of the Logic-Injection-on-Origin Protocol (LIOP). Each record captures the problem context, decision drivers, evaluated alternatives, and downstream consequences following the [MADR v3.0](https://adr.github.io/madr/) specification.
+
+---
+
+## Decision Status Lifecycle
+
+Every ADR in this repository transitions through formal states:
+
+| Status | Definition |
+|---|---|
+| **Proposed** | Under active peer review and security evaluation by the protocol steering committee. |
+| **Accepted** | Formally ratified and enforced across all active language SDKs, runtimes, and CI pipelines. |
+| **Superseded** | Replaced by a newer architectural decision (linked directly to the successor record). |
+| **Deprecated** | Ceased to apply due to fundamental protocol evolution or transport retirement. |
+
+---
+
+## Architectural Decision Registry
+
+| ADR | Title | Status | Ratified Date | Affected Components |
+|---|---|---|---|---|
+| [**ADR-0001**](/adrs/0001-post-quantum-cryptography-ml-kem-768) | Adoption of Post-Quantum Cryptography (ML-KEM-768) | `Accepted` | 2026-08-15 | Network Transport, gRPC Channel, Session Handshake |
+| [**ADR-0002**](/adrs/0002-v8-isolate-sandboxing-and-prototype-freezing) | Hybrid Zero-Trust Sandbox: V8 Prototype Freezing | `Accepted` | 2026-08-22 | SDK Execution Engine, Worker Pools, PCI-DSS Bounds |
+| [**ADR-0003**](/adrs/0003-ast-instruction-fuel-quantization) | AST Fuel Quantization in 100-Unit Buckets | `Accepted` | 2026-08-29 | Fuel Metering, Timing Defense, NIST SP 800-53 |
+| [**ADR-0004**](/adrs/0004-dual-era-mcp-handshake-compatibility) | Dual-Era MCP Handshake Negotiation (2026/2025) | `Accepted` | 2026-09-05 | Gateway Bridge, Protocol Adapters, MCP Transcoding |
+| [**ADR-0005**](/adrs/0005-bearer-oauth21-m2m-enclave-propagation) | Bearer OAuth 2.1 M2M Propagation Across Enclaves | `Accepted` | 2026-09-12 | BLG Perimeter, Nexus OIDC, Asymmetric Enclave Access |
+| [**ADR-0006**](/adrs/0006-single-gateway-invariant-claude-desktop) | Single-Gateway Invariant for Claude Desktop Clients | `Accepted` | 2026-09-18 | Claude Desktop Integration, Yamux Multiplexing |
+
+---
+
+## Creating a New ADR
+
+To propose a new architectural decision:
+1. Copy the template from `docs/adrs/template.mdx` (or refer to MADR v3.0 guidelines).
+2. Number the decision sequentially using a four-digit zero-padded index (`0007-...`).
+3. Detail quantitative benchmarks, trade-offs, and security impact before opening a Pull Request against the `alpha` branch.

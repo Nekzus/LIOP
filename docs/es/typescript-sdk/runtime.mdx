@@ -1,133 +1,182 @@
 ---
-title: "Runtime y Descubrimiento de Malla"
-description: "Autodescubrimiento adaptativo de topología, enrutamiento híbrido por herramienta y ciclo de vida de tokens OAuth 2.1"
----
-
-La capa de runtime de `@nekzus/liop` coordina la detección de topología de red, el enrutamiento dinámico a través de transportes heterogéneos y el ciclo de vida de la autenticación máquina a máquina (M2M).
-
-Garantiza que, independientemente de si un agente se ejecuta en un entorno de desarrollo local, un proxy perimetral o una malla distribuida de alta seguridad, las peticiones se enruten a través del canal más eficiente y seguro disponible.
+title: "Runtime y Descubrimiento de Red"
+description: "Detección adaptativa de topología, enrutamiento híbrido por herramienta, pools de workers con Piscina y ciclo de vida de tokens OAuth 2.1"
+icon: "activity"
 
 ---
 
-## Visión General de la Arquitectura
+La capa de runtime de `@nekzus/liop` coordina la detección de la topología de red, el enrutamiento dinámico a través de transportes heterogéneos, los pools de cómputo fuera del hilo principal y el ciclo de vida de autenticación de máquina a máquina (M2M).
+
+Garantiza que, independientemente de si un agente opera en un entorno de desarrollo local, en un proxy perimetral inverso o en una malla distribuida de alta seguridad, las peticiones transiten por el canal más rápido y seguro disponible.
 
 ```
-                        ┌────────────────────────┐
-                        │   Cliente CLI / Agente │
-                        └───────────┬────────────┘
-                                    │
-                                    ▼
-                         ┌────────────────────┐
-                         │   TopologyProbe    │ (Autodescubrimiento RFC 9728)
-                         └──────────┬─────────┘
-                                    │
-                  ┌─────────────────┼─────────────────┐
-                  ▼                 ▼                 ▼
-          [Modo Gateway]      [Modo Híbrido]      [Modo Mesh]
-          HTTP-MCP Directo    Ruta por Herramienta P2P gRPC Puro
-                  │                 │                 │
-                  └────────► ┌──────┴──────┐ ◄────────┘
-                             │RoutingTable │ (Circuit Breaker)
-                             └──────┬──────┘
-                                    │
-                     ┌──────────────┴──────────────┐
-                     ▼                             ▼
-              [TokenManager]              [Ejecución Transporte]
-         OAuth 2.1 Preventivo         p2p-grpc | http-gateway | local
+                         ┌────────────────────────┐
+                         │   CLI / Agente Cliente │
+                         └───────────┬────────────┘
+                                     │
+                                     ▼
+                          ┌────────────────────┐
+                          │   TopologyProbe    │ (Autodescubrimiento RFC 9728)
+                          └──────────┬─────────┘
+                                     │
+                   ┌─────────────────┼─────────────────┐
+                   ▼                 ▼                 ▼
+          [Modo Pasarela]     [Modo Híbrido]      [Modo Malla]
+          HTTP-MCP Directo    Ruta por Función    gRPC P2P Puro
+                   │                 │                 │
+                   └────────► ┌──────┴──────┐ ◄────────┘
+                              │RoutingTable │ (Circuit Breaker)
+                              └──────┬──────┘
+                                     │
+                      ┌──────────────┴──────────────┐
+                      ▼                             ▼
+               [TokenManager]              [Pool de Piscina]
+           OAuth 2.1 Preemptivo       ML-KEM / AST Fuera de Hilo
 ```
 
 ---
 
 ## Descubrimiento Adaptativo de Red (`TopologyProbe`)
 
-En lugar de requerir que los operadores configuren manualmente endpoints, multiaddrs y URLs de descubrimiento OIDC, `TopologyProbe` implementa autodescubrimiento mediante una única URL en conformidad con **RFC 9728 (OAuth 2.0 Protected Resource Metadata)**, **RFC 8414** y **NIST SP 800-207 (Arquitectura Zero Trust)**.
+En lugar de requerir que los operadores configuren manualmente direcciones de red, multiaddrs y URLs de proveedores OIDC, `TopologyProbe` implementa autodescubrimiento mediante una única URL conforme a **RFC 9728 (Metadatos de Recursos Protegidos OAuth 2.0)**, **RFC 8414** y las directrices de arquitectura Zero Trust de **NIST SP 800-207**.
 
 ```typescript
 import { probeTopology, type TopologyProbeOptions } from "@nekzus/liop";
 
 const options: TopologyProbeOptions = {
-  blgUrl: "http://127.0.0.1:15018",      // URL explícita del Border LIO Gateway
-  nexusUrl: "http://127.0.0.1:15000",    // Proveedor OIDC Nexus
+  blgUrl: "http://127.0.0.1:15018",      // Endpoint perimetral de Border LIO Gateway
+  nexusUrl: "http://127.0.0.1:15000",    // Servidor de autorización Nexus OIDC
   clientId: "mesh-diagnostic-agent",
   clientSecret: process.env.LIOP_CLIENT_SECRET,
-  bootstrapNodes: [                      // Multiaddrs opcionales de la DHT P2P
-    "/ip4/127.0.0.1/tcp/15001/p2p/12D3KooW..."
-  ]
+  bootstrapNodes: [                      // Multiaddrs DHT P2P para enrutamiento soberano
+    "/ip4/127.0.0.1/tcp/15001/p2p/12D3KooWDpJ7As7BWAwRMfu1VU2WCqNjvq387JEYKDBj4kx6nXTN"
+  ],
+  timeoutMs: 5_000,
 };
 
 const topology = await probeTopology(options);
-console.log(`Modo Determinado: ${topology.mode}`); // "gateway" | "mesh" | "hybrid"
+console.log(`Modo Resuelto: ${topology.mode}`); // "gateway" | "mesh" | "hybrid"
+console.log(`Herramientas Anunciadas:`, topology.advertisedTools);
 ```
 
-### Flujo de Descubrimiento
+### Opciones de Inspección de Topología
 
-1. **Sonda de Recurso Protegido RFC 9728**: Consulta `/.well-known/oauth-protected-resource` y `/health` en las URLs candidatas.
-2. **Encadenamiento de Metadatos**: Extrae automáticamente el `issuer` del servidor de autorización, el `token_endpoint`, los `scopes` soportados y las herramientas (`tools`) publicadas.
-3. **Normalización del Puente de Red**: En entornos de desarrollo híbridos Docker-to-Host, los nombres de host internos de contenedores (`nexus-prod`, `172.20.0.x`) se traducen de forma segura a los puertos publicados del host (`127.0.0.1:15000`).
-4. **Resolución del Modo de Ejecución**:
-   - **`gateway`**: Detectado cuando un Border LIO Gateway saludable responde y no se configuran nodos bootstrap P2P. Minimiza el consumo de recursos operando exclusivamente sobre HTTP/JSON-RPC sin levantar hilos de red libp2p.
-   - **`mesh`**: Activado cuando solo se proporcionan nodos bootstrap P2P DHT. Opera de forma soberana sobre gRPC con cifrado Noise y post-cuántico Kyber768.
-   - **`hybrid`**: Activado cuando se detectan tanto endpoints de gateway como nodos bootstrap de malla. Enruta herramientas perimétricas a través del gateway mientras ejecuta cómputo en enclaves directamente sobre pares de la malla.
+<ParamField path="options" type="TopologyProbeOptions" required>
+  Descriptores de endpoints y credenciales para el análisis de red.
+
+  <Expandable title="Propiedades de TopologyProbeOptions">
+    <ResponseField name="blgUrl" type="string" optional>
+      URL base HTTP de Border LIO Gateway. Se sondea mediante `/.well-known/oauth-protected-resource` y `/health`.
+    </ResponseField>
+    <ResponseField name="nexusUrl" type="string" optional>
+      URL base HTTP del servidor de autorización central Nexus OIDC.
+    </ResponseField>
+    <ResponseField name="clientId" type="string" optional>
+      Identificador de cliente OAuth 2.1 para acceso M2M a los recursos.
+    </ResponseField>
+    <ResponseField name="clientSecret" type="string" optional>
+      Secreto de cliente correspondiente al `clientId`.
+    </ResponseField>
+    <ResponseField name="bootstrapNodes" type="string[]" optional>
+      Lista de multiaddrs de `libp2p` que designan nodos bootstrap activos en Kademlia DHT.
+    </ResponseField>
+    <ResponseField name="timeoutMs" type="number" optional>
+      Tiempo máximo de espera en milisegundos para los sondeos de descubrimiento (por defecto: `5000`).
+    </ResponseField>
+  </Expandable>
+</ParamField>
+
+### Matriz de Resolución de Modalidad
+
+| Modo Resuelto | Condición de Red | Comportamiento |
+|---|---|---|
+| `gateway` | Border LIO Gateway accesible, sin nodos bootstrap P2P configurados. | Emplea transporte HTTP/JSON-RPC ligero sin instanciar hilos secundarios de libp2p. |
+| `mesh` | Pasarela no accesible, nodos bootstrap P2P operativos. | Inicializa el nodo libp2p completo, establece canales gRPC y cifra con Noise + Kyber768. |
+| `hybrid` | Tanto la pasarela como los nodos bootstrap P2P responden con éxito. | Dirige las herramientas perimetrales a través de la pasarela y procesa las consultas confidenciales en los enclaves. |
 
 ---
 
 ## Enrutamiento Híbrido por Herramienta (`RoutingTable`)
 
-En despliegues empresariales distribuidos, distintas capacidades demandan diferentes protocolos de transporte. Por ejemplo, las sondas de diagnóstico se ejecutan localmente, las herramientas de indexación pública se enrutan mediante gateways perimétricos y las consultas a libros contables confidenciales exigen canales soberanos gRPC directos.
-
-`RoutingTable` gestiona la resolución de rutas por herramienta, la telemetría de latencia y la tolerancia a fallos automática.
+En infraestructuras empresariales, distintas capacidades presentan requisitos dispares de latencia y cumplimiento normativo. `RoutingTable` administra la asignación de transporte para cada herramienta, registra la telemetría de latencia y aplica aislamiento automático mediante disyuntores (*circuit breakers*).
 
 ```typescript
 import { RoutingTable, type ToolDefinition } from "@nekzus/liop";
 
 const table = new RoutingTable();
 
-// 1. Registrar herramientas expuestas por un HTTP Gateway
+// 1. Registrar herramientas expuestas por una pasarela HTTP
 table.registerGatewayTools(
-  [{ name: "SearchIndex", description: "Consulta a índice vectorial público" }],
+  [{ name: "Search_Public_Docs", description: "Consulta el índice de documentación" }],
   "http://127.0.0.1:15018/mcp",
-  true // authRequired
+  true, // Requiere autenticación con token Bearer
 );
 
-// 2. Registrar herramientas descubiertas sobre la malla P2P
+// 2. Registrar herramientas descubiertas en la malla P2P
 table.registerMeshTools(
-  [{ name: "BankAnalytics", description: "Agregación de saldos en enclave" }],
-  "127.0.0.1:15021", // Destino gRPC
-  false // autenticación interna de malla
+  [{ name: "Analyze_Bank_Ledger", description: "Consolidación financiera in-situ" }],
+  "127.0.0.1:15021", // Destino gRPC directo
+  false, // Autenticación interna de malla
 );
 
-// 3. Registrar herramientas de diagnóstico en proceso
+// 3. Registrar herramientas locales ejecutadas en el mismo proceso
 table.registerLocalTool({
   name: "LiopMeshStatus",
-  description: "Telemetría instantánea del nodo"
+  description: "Telemetría instantánea del nodo",
 });
 
-// Resolver ruta óptima
-const route = table.resolve("BankAnalytics");
-console.log(`Proveedor de ruta: ${route?.provider}`); // "p2p-grpc"
+// 4. Resolver la ruta para una invocación entrante
+const route = table.resolve("Analyze_Bank_Ledger");
+console.log(`Proveedor de transporte: ${route?.provider}`); // "p2p-grpc"
 ```
 
-### Proveedores de Transporte
+### Invariantes del Disyuntor (Circuit Breaker)
 
-| Proveedor | Protocolo de Transporte | Caso de Uso Típico |
-|---|---|---|
-| `http-gateway` | HTTP/1.1 o gRPC-Web vía MCP JSON-RPC | APIs perimétricas, proxies inversos y microservicios de borde |
-| `p2p-grpc` | libp2p directo + HTTP/2 gRPC con PQC Kyber768 | Enclaves soberanos Tier 1 (`Bank`, `Vault`) que requieren ZK-Receipts |
-| `local` | Manejador sincrónico en proceso | Herramientas de diagnóstico, reporte de estado y health checks |
+Para evitar caídas en cascada a través de la malla, `RoutingTable` monitoriza la salud operativa de cada ruta registrada:
 
-### Disyuntor (Circuit Breaker) y Resiliencia
+- **`recordSuccess(toolName, latencyMs)`**: Restablece el contador de fallos consecutivos a `0` y actualiza las medias móviles de latencia.
+- **`recordFailure(toolName)`**: Incrementa el contador de fallos consecutivos.
+- **Condición de Disparo (`MAX_FAILURES = 5`)**: Cuando una ruta acumula 5 fallos consecutivos, el disyuntor se abre. El runtime emite una advertencia y notifica al despachador para probar rutas de respaldo o retornar un error `ErrorCode.CIRCUIT_BREAKER_OPEN`.
+- **`getAllToolDefinitions()`**: Retorna la lista de herramientas activas ordenadas alfabéticamente, cumpliendo con la especificación `tools/list` del protocolo MCP.
 
-`RoutingTable` monitoriza la fiabilidad de ejecución por herramienta:
+---
 
-- **`recordSuccess(toolName, latencyMs)`**: Restablece los contadores de fallos consecutivos y almacena la latencia instantánea para optimizaciones de reparto de carga.
-- **`recordFailure(toolName)`**: Incrementa el contador de fallos. Cuando una ruta alcanza **5 fallos consecutivos** (`MAX_FAILURES = 5`), el disyuntor se activa (*tripped*), emitiendo una advertencia y permitiendo que los despachadores alternativos omitan endpoints degradados.
-- **`getAllToolDefinitions()`**: Exporta la lista de todas las herramientas activas ordenadas alfabéticamente para cumplir con el requisito del protocolo MCP en `tools/list`.
+## Concurrencia Fuera del Hilo Principal (Pool de Workers con `Piscina`)
+
+Las operaciones criptográficas (intercambio de claves ML-KEM-768, descifrado AES-256-GCM) y el análisis de sintaxis AST mediante Acorn exigen un uso intensivo de CPU. Su ejecución directa en el hilo principal de Node.js provocaría retrasos en el Event Loop y pérdida de paquetes de red en tiempo real.
+
+LIOP incorpora un pool de workers optimizado con [Piscina](https://github.com/piscinajs/piscina) que aísla este cómputo intensivo fuera del ciclo de eventos:
+
+```typescript
+import { LiopServer } from "@nekzus/liop";
+
+const server = new LiopServer(
+  { name: "HighThroughputNode", version: "1.0.0" },
+  {
+    workerPool: {
+      enabled: true,          // Inicializa subprocesos worker dedicados
+      maxThreads: 8,          // Total de hilos dedicados
+      maxHeapMb: 128,         // Límite de memoria por hilo (defensa contra Heap Bombs)
+      idleTimeout: 30_000,    // Intervalo de liberación de memoria por inactividad (ms)
+    },
+  },
+);
+```
+
+### Propiedades del Pool de Workers
+
+| Propiedad | Tipo | Valor por Defecto | Justificación Técnica |
+|---|---|---|---|
+| `enabled` | `boolean` | `true` | Si es `false`, procesa de forma síncrona en el hilo principal (recomendado solo para pruebas unitarias). |
+| `maxThreads` | `number` | `os.cpus().length` | Crea subprocesos dedicados para aprovechar todos los núcleos físicos sin contención de hilos. |
+| `maxHeapMb` | `number` | `64` | Límite estricto de memoria heap en V8 por worker. Termina subprocesos con asignación desmedida para frenar ataques DoS. Ajustable vía `LIOP_WORKER_MAX_HEAP_MB`. |
+| `idleTimeout` | `number` | `30000` | Libera hilos inactivos tras 30 segundos sin carga para recuperar memoria RAM del anfitrión. |
 
 ---
 
 ## Ciclo de Vida de Tokens M2M (`TokenManager`)
 
-La clase `TokenManager` administra el ciclo de vida de tokens Bearer máquina a máquina (M2M) bajo **OAuth 2.1 (RFC 6749, RFC 8707 Resource Indicators, RFC 9068 Perfil JWT)**.
+La clase `TokenManager` administra el ciclo de vida de los tokens Bearer para comunicación entre máquinas conforme a los estándares **OAuth 2.1 (RFC 6749, Indicadores de Recursos RFC 8707 y Perfil JWT RFC 9068)**.
 
 ```typescript
 import { TokenManager } from "@nekzus/liop";
@@ -137,31 +186,30 @@ const tokenManager = new TokenManager({
   clientId: "border-gateway-client",
   clientSecret: process.env.LIOP_CLIENT_SECRET!,
   audience: "urn:liop:mesh:api",
-  scopes: ["liop:tools:call", "liop:mesh:query"]
+  scopes: "liop:tools:call liop:mesh:query",
 });
 
-// Obtiene el token en caché o solicita uno nuevo
+// Obtiene el token activo de la memoria caché o ejecuta la solicitud Client Credentials
 const token = await tokenManager.getToken();
 ```
 
-### Refresco Preventivo y Desduplicación de Concurrencia
+### Renovación Preemptiva y Deduplicación Concurrente
 
-Para soportar cargas analíticas masivas y de alta frecuencia sin sufrir fallos transitorios de autenticación, `TokenManager` implementa dos patrones fundamentales:
+Para tolerar ráfagas de peticiones sin experimentar errores transitorios de autorización (HTTP 401), `TokenManager` implementa dos mecanismos principales:
 
-1. **Margen Preventivo de Refresco (`REFRESH_BUFFER_MS = 30_000`)**: Si a un token de acceso le quedan menos de 30 segundos de vida útil, `TokenManager` dispara automáticamente su renovación *antes* de despachar la petición. Esto elimina condiciones de carrera HTTP 401 Unauthorized durante la ejecución de scripts WASI prolongados.
-2. **Desduplicación de Peticiones en Vuelo**: Cuando múltiples llamadas asíncronas a herramientas solicitan un token simultáneamente con la caché vacía, `TokenManager` las unifica en una única petición HTTP POST en vuelo (`pendingPromise`). Todos los llamadores concurrentes resuelven contra la misma respuesta de red, impidiendo la saturación de cuotas en el servidor OIDC.
+1. **Margen de Renovación Preemptiva (`REFRESH_BUFFER_MS = 30_000`)**: Si a un token de acceso le quedan menos de 30 segundos de vigencia, `TokenManager` solicita uno nuevo *antes* de despachar la petición de red. Esto evita condiciones de carrera durante ejecuciones extensas de módulos WASI.
+2. **Coalescencia de Solicitudes en Vuelo**: Cuando múltiples llamadas concurrentes solicitan `getToken()` con la caché vacía o expirada, `TokenManager` agrupa todas las peticiones en una única promesa HTTP POST (`pendingPromise`). Todos los invocadores resuelven con la misma respuesta de red para prevenir la saturación de cuota del servidor OIDC.
 
 ### Invalidación Reactiva
 
-Si un enclave superior revoca una clave de acceso o rota certificados de firma, el gateway cliente invalida el token obsoleto de inmediato:
+Cuando los enclaves superiores renuevan certificados o invalidan credenciales activas, las pasarelas purgan los tokens desactualizados de forma inmediata:
 
 ```typescript
 try {
   await dispatchRpc(route, payload, await tokenManager.getToken());
 } catch (error) {
   if (isHttp401(error)) {
-    // Purga el token en caché para que el siguiente intento adquiera uno nuevo
-    tokenManager.invalidate();
+    tokenManager.invalidate(); // Elimina el token desactualizado de la caché en memoria
     return await dispatchRpc(route, payload, await tokenManager.getToken());
   }
   throw error;

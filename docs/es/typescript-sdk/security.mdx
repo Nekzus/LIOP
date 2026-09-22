@@ -1,6 +1,8 @@
 ---
 title: "Arquitectura de Seguridad"
 description: "Capas de defensa en profundidad, pipelines criptográficos y mecanismos de protección de datos en el SDK TypeScript de LIOP"
+icon: "lock"
+
 ---
 
 El SDK TypeScript de LIOP aplica un modelo de seguridad basado en **defensa en profundidad**, compuesto por seis capas independientes. Cada capa aborda una superficie de amenaza distinta (desde el análisis estático de código hasta el filtrado de datos post-ejecución), garantizando que ningún punto único de fallo pueda comprometer el sistema.
@@ -31,7 +33,7 @@ El SDK TypeScript de LIOP aplica un modelo de seguridad basado en **defensa en p
 
 ## Capa 1: Guardian AST
 
-El módulo Guardian AST realiza una inspección estática de latencia cero sobre los módulos WebAssembly **antes** de su compilación. Utiliza `WebAssembly.Module.imports()` para enumerar todas las solicitudes de importación dirigidas al host y validarlas contra una lista blanca estricta.
+El módulo Guardian AST realiza una inspección estática síncrona sobre los módulos WebAssembly **antes** de su compilación. Utiliza `WebAssembly.Module.imports()` para enumerar todas las solicitudes de importación dirigidas al host y validarlas contra una lista blanca estricta.
 
 ### Lista Blanca de Funciones WASI
 
@@ -106,7 +108,7 @@ Object.freeze(Error.prototype);
 
 Debido a que `Function` y otros espacios de nombres globales están explícitamente envenenados (establecidos como `undefined`) en el ámbito global para eliminar vías de escape de ejecución, no es posible congelar `Function.prototype` directamente. El SDK lo resuelve dinámicamente mediante `Object.getPrototypeOf(function(){})` para aplicar el congelamiento.
 
-Toda la ejecución del huésped se envuelve en un bloque que contiene `"use strict";`. Por consiguiente, cualquier intento por parte del código inyectado de escribir o asignar propiedades a estos prototipos congelados (ej., `Object.prototype.polluted = "leak"`) arrojará inmediatamente un error duro `TypeError`, deteniendo la ejecución y previniendo vulnerabilidades de contaminación de prototipos.
+Toda la ejecución del huésped se envuelve en un bloque que contiene `"use strict";`. Por consiguiente, cualquier intento por parte del código inyectado de escribir o asignar propiedades a estos prototipos congelados (ej., `Object.prototype.polluted = "leak"`) arrojará inmediatamente un error duro `TypeError`, lo que detiene la ejecución y previene vulnerabilidades de contaminación de prototipos.
 
 ### Límites de Consumo de CPU
 
@@ -295,7 +297,7 @@ Para mantener los invariantes de seguridad Zero-Trust a través de reinicios o f
 - **Configuración de Persistencia**: Los operadores pueden proporcionar la propiedad `budgetStorePath` de forma global en las opciones del constructor de `LiopServer` o localmente dentro de una política `LogicExecutionPolicy` a nivel de herramienta.
 - **Anclaje de Identidad del Cliente (Anti-Bypass)**: Los límites de presupuesto están estrictamente vinculados a la identidad criptográfica del cliente (`agentDid` derivado de su PeerID Ed25519 persistente, o `clientId` de los tokens JWT autorizados por el servidor Nexus OAuth 2.1). Al auditar la identidad real del cliente en lugar de tokens de transporte efímeros (como el `session_token` de gRPC), el SDK evita que los adversarios restablezcan sus presupuestos de consultas al iniciar nuevos handshakes o reconectarse.
 - **Bloqueo Atómico de Archivos**: Bajo el capó, el SDK impone la sincronización entre procesos y actualizaciones atómicas en el archivo JSON del presupuesto mediante bloqueos del sistema de archivos (archivos `.lock`). Esto evita condiciones de carrera donde múltiples peticiones paralelas de un LLM se ejecutan simultáneamente en diferentes hilos o instancias de workers para exceder los límites de presupuesto.
-- **Tolerancia a Fallos en Memoria**: Si fallan los permisos de escritura en el sistema de archivos, si el directorio de almacenamiento es de solo lectura, o si ocurre un deadlock de bloqueo, el SDK reporta automáticamente el error a los logs del sistema y realiza un fallback al rastreo de presupuesto en memoria aislado por sesión, asegurando la continuidad del servicio del nodo sin comprometer las políticas de seguridad.
+- **Tolerancia a Fallos en Memoria**: Si fallan los permisos de escritura en el sistema de archivos, si el directorio de almacenamiento es de solo lectura, o si ocurre un deadlock de bloqueo, el SDK reporta automáticamente el error a los logs del sistema y realiza un fallback al rastreo de presupuesto en memoria aislado por sesión, lo que asegura la continuidad del servicio del nodo sin comprometer las políticas de seguridad.
 
 ### Mecanismo de Laplace y Sensibilidad por Campo
 
@@ -362,7 +364,7 @@ Si bien la capa PQC de LIOP cifra todos los payloads a nivel de aplicación de e
 
 Para evitar fallos silenciosos en producción, el SDK implementa una verificación estricta a prueba de fallos:
 - En entornos de desarrollo/pruebas, la falta o mala configuración de los archivos de certificado genera una advertencia y realiza un fallback elegante a canales gRPC inseguros.
-- En producción (`process.env.NODE_ENV === 'production'`), cualquier fallo al resolver o cargar los certificados TLS configurados (`rootCert`, `certChain` o `privateKey`) lanza un error fatal, forzando al proceso a detenerse inmediatamente en lugar de degradarse silenciosamente a un canal no cifrado.
+- En producción (`process.env.NODE_ENV === 'production'`), cualquier fallo al resolver o cargar los certificados TLS configurados (`rootCert`, `certChain` o `privateKey`) lanza un error fatal, lo que fuerza al proceso a detenerse inmediatamente en lugar de degradarse silenciosamente a un canal no cifrado.
 
 ### Autenticación Zero-Trust del Bridge
 
@@ -372,6 +374,102 @@ El `LiopStreamBridge` aplica autenticación obligatoria mediante token Bearer en
 - Cada solicitud a `/mcp` requiere un header válido `Authorization: Bearer <token>`
 - Limitación de tasa por IP en la creación de sesiones (por defecto: 10 sesiones concurrentes)
 - Expulsión automática de sesiones inactivas (TTL: 30 minutos)
+
+---
+
+## Autorización OAuth 2.1 y Control de Acceso Basado en Alcances (RBAC)
+
+LIOP integra una pila completa de autorización Máquina a Máquina (M2M) bajo OAuth 2.1 / OIDC en conformidad con **RFC 6749**, **RFC 8707 (Indicadores de Recursos)**, **RFC 9068 (Perfil JWT)** y **RFC 9728 (Metadatos de Recursos Protegidos)**.
+
+### 1. Servidor de Autorización Integrado (`createOAuthServer`)
+
+Para los nodos coordinadores Nexus, el SDK proporciona un servidor de autorización embebido basado en `panva/node-oidc-provider`:
+
+```typescript
+import { createOAuthServer } from "@nekzus/liop";
+
+const { provider, jwks } = createOAuthServer({
+  issuer: "http://127.0.0.1:15000/oidc",
+  clients: [
+    {
+      client_id: "agent-alpha",
+      client_secret: process.env.AGENT_SECRET!,
+      grant_types: ["client_credentials"],
+      scope: "liop:tools:list liop:tools:call liop:resources:read",
+    },
+  ],
+});
+```
+
+Propiedades técnicas de seguridad:
+- **Flujo Exclusivo Client Credentials M2M**: Los flujos interactivos y con código de autorización quedan bloqueados en el núcleo del motor para eliminar vectores de secuestro de sesión.
+- **Firma de Tokens con Ed25519 (EdDSA)**: Los pares de claves asimétricas Ed25519 se generan y firman de forma síncrona sin dependencias de red externas.
+- **Tokens de Acceso JWT RFC 9068**: Los tokens contienen declaraciones verificadas `client_id`, `scope` y `aud`, lo que permite su validación sin estado en nodos distribuidos.
+
+### 2. Alcances del Protocolo (`LIOP_SCOPES`)
+
+LIOP define cinco alcances granulares de mínimo privilegio asignados a operaciones de MCP y del protocolo:
+
+| Alcance | Operaciones Cubiertas | Estándar |
+|:---|:---|:---|
+| `liop:tools:list` | Listar herramientas anunciadas vía `tools/list` | NIST SP 800-207 §4.3 |
+| `liop:tools:call` | Ejecución de lógica WASM/JS in-situ vía `tools/call` | OWASP LLM06 |
+| `liop:resources:read` | Lectura de recursos estáticos vía `resources/list`, `resources/read`, `resources/templates/list` | Mínimo Privilegio |
+| `liop:schema:read` | Lectura de plantillas de prompts y esquemas vía `prompts/list`, `prompts/get` | Minimización de Datos |
+| `liop:mesh:query` | Consulta de manifiestos DHT entre nodos y resolución de rutas | Gobernanza de Malla |
+
+```typescript
+import { LIOP_SCOPES, type LiopScope } from "@nekzus/liop";
+```
+
+### 3. Autorización de Peticiones en Pasarela (`authorizeRequest`)
+
+Las peticiones JSON-RPC entrantes se validan contra los alcances requeridos antes de ser entregadas a los despachadores del enrutador:
+
+```typescript
+import { authorizeRequest } from "@nekzus/liop";
+
+const result = authorizeRequest("tools/call", authInfo);
+if (!result.allowed) {
+  // Retorna HTTP 403 / error JSON-RPC con motivo detallado del rechazo
+  console.error("Acceso denegado:", result.reason);
+}
+```
+
+* Los métodos públicos del ciclo de vida (`initialize`, `ping`, `server/discover`) se ejecutan sin autenticación según la especificación MCP.
+* Las llamadas no autenticadas o métodos no reconocidos que requieran alcances protegidos fallan de inmediato de forma cerrada (fail-closed).
+
+### 4. Metadatos de Recursos Protegidos (`buildProtectedResourceMetadata`)
+
+Permite a los clientes MCP descubrir los endpoints de autorización conforme a **RFC 9728**:
+
+```typescript
+import { buildProtectedResourceMetadata } from "@nekzus/liop";
+
+const metadata = buildProtectedResourceMetadata(
+  "http://127.0.0.1:15000/oidc",
+  "urn:liop:enclave:vault"
+);
+// Expuesto en /.well-known/oauth-protected-resource
+```
+
+### 5. Validación de JWT (`JwtValidator`)
+
+Los nodos de datos validan tokens portadores sin estado mediante resolución dual de JWKS:
+
+```typescript
+import { JwtValidator } from "@nekzus/liop";
+
+// Resolución remota de JWKS con caché de 10 minutos
+const validator = new JwtValidator(
+  "http://127.0.0.1:15000/oidc",
+  "urn:liop:mesh",
+  new URL("http://127.0.0.1:15000/oidc/jwks")
+);
+
+const authInfo = await validator.validate(token);
+// Retorna: { token, clientId, scopes: string[], expiresAt }
+```
 
 ---
 
@@ -409,7 +507,7 @@ Configuración por defecto: 2–8 threads (producción), 0–1 threads (test), p
 
 ### Defensa contra Heap Bomb
 
-Cada thread worker está restringido mediante `resourceLimits.maxOldGenerationSizeMb` de V8 (por defecto: **64 MB**, configurable vía `workerPool.maxHeapMb` o la variable de entorno `LIOP_WORKER_MAX_HEAP_MB`). Si la lógica inyectada intenta alojar memoria más allá de este límite, el worker se termina inmediatamente con un `WorkerPoolError`, previniendo ataques de denegación de servicio que buscan agotar el heap de Node.js.
+Cada thread worker está restringido mediante `resourceLimits.maxOldGenerationSizeMb` de V8 (por defecto: **64 MB**, configurable vía `workerPool.maxHeapMb` o la variable de entorno `LIOP_WORKER_MAX_HEAP_MB`). Si la lógica inyectada intenta alojar memoria más allá de este límite, el worker se termina inmediatamente con un `WorkerPoolError`, lo que previene ataques de denegación de servicio que buscan agotar el heap de Node.js.
 
 ### Precalentamiento Asíncrono del Pool de Workers
 

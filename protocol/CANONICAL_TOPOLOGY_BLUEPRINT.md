@@ -342,10 +342,10 @@ server.tool(
 
 // Connect strictly to the internal enclave network (No external WAN)
 await server.connectToMesh({
-  port: 50051,
+  port: 15021,
   meshConfig: {
-    listenAddresses: ["/ip4/10.0.1.50/tcp/50051"],
-    bootstrapNodes: ["/ip4/10.0.1.10/tcp/4000/p2p/12D3KooWInternalGateway..."],
+    listenAddresses: ["/ip4/10.0.1.50/tcp/15021"],
+    bootstrapNodes: ["/ip4/10.0.1.10/tcp/15001/p2p/12D3KooWInternalGateway..."],
     enableWAN: false,
     enableMdns: false, // Prevent broadcast leaks across shared switches
   },
@@ -364,12 +364,12 @@ const edgeServer = new LiopServer({
 // Initialize multi-homed MeshNode connecting to Consortium or Public Backbone
 const mesh = new MeshNode({
   listenAddresses: [
-    "/ip4/0.0.0.0/tcp/14001",
-    "/ip4/0.0.0.0/tcp/14002/ws"
+    "/ip4/0.0.0.0/tcp/15001",
+    "/ip4/0.0.0.0/tcp/15002/ws"
   ],
   bootstrapNodes: [
-    "/dns4/consortium-seed-1.health-mesh.org/tcp/14001/p2p/12D3KooWConsortiumSeed1...",
-    "/dns4/consortium-seed-2.health-mesh.org/tcp/14001/p2p/12D3KooWConsortiumSeed2..."
+    "/dns4/consortium-seed-1.health-mesh.org/tcp/15001/p2p/12D3KooWConsortiumSeed1...",
+    "/dns4/consortium-seed-2.health-mesh.org/tcp/15001/p2p/12D3KooWConsortiumSeed2..."
   ],
   enableWAN: true,
   enableRelay: true,
@@ -383,9 +383,9 @@ await mesh.start();
 await mesh.announceCapability("Analyze_Genomic_Variance");
 
 // Instantiate Hybrid Gateway exposing standard MCP (JSON-RPC) & gRPC-Web
-const gateway = new LiopHybridGateway(edgeServer, mesh, 50051);
-await gateway.listen(443, "0.0.0.0");
-console.log("Border LIO Gateway active on port 443 with Post-Quantum protection.");
+const gateway = new LiopHybridGateway(edgeServer, mesh, 15021);
+await gateway.listen(15018, "0.0.0.0");
+console.log("Border LIO Gateway active on port 15018 with Post-Quantum protection.");
 ```
 
 ---

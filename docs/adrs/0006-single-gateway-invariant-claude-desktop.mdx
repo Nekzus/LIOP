@@ -1,0 +1,61 @@
+---
+title: "ADR-0006: Single-Gateway Invariant for Claude Desktop Clients"
+description: "Architecture decision enforcing a single unified gateway connection in Claude Desktop configurations to prevent tool index corruption."
+icon: "laptop"
+---
+
+# Single-Gateway Invariant for Claude Desktop Clients
+
+- **Status:** Accepted
+- **Deciders:** Protocol Steering Committee, Desktop Integrations Team
+- **Date:** 2026-09-18
+- **Technical Story:** Desktop Client Stability & Local Index Invariant Hardening
+
+---
+
+## Context and Problem Statement
+
+On Windows platforms, Claude Desktop operates within a sandboxed MSIX package container with its configuration located at:
+`%LOCALAPPDATA%\Packages\Claude_pzs8sxrjxfjjc\LocalCache\Roaming\Claude\claude_desktop_config.json`.
+
+In distributed mesh deployments, a cluster comprises multiple enclaves (Nexus, BLG, Vault, Bank, Oracle, Edge). If developers configure separate direct server entries for each enclave within `claude_desktop_config.json`, Claude spawns multiple concurrent STDIO background processes. These concurrent daemons compete for local network sockets and register duplicate tool schemas, resulting in tool index corruption and desktop application crashes.
+
+---
+
+## Decision Drivers
+
+- **Client Process Stability:** Prevention of application deadlocks, memory bloat, and local schema corruption.
+- **Unified Capability Namespace:** Clean dynamic aggregation of tools across heterogeneous enclaves.
+- **Minimal Local Overhead:** Claude Desktop should manage exactly one lightweight bridge subprocess.
+
+---
+
+## Considered Options
+
+1. **Multi-Server Configuration:** Registering each individual mesh node separately in `claude_desktop_config.json`. Leads to process bloat, port conflicts, and schema collision.
+2. **Direct P2P Client Subprocess:** Running a full rust-libp2p node inside the Claude STDIO wrapper. Incurs high memory overhead ($>150\text{ MB}$) and fails in locked-down Windows sandbox policies.
+3. **Strict Single-Gateway Invariant:** Configuring exactly one unified gateway instance (`@nekzus/liop gateway` or `blg`) in `claude_desktop_config.json`. The single gateway multiplexes all remote enclave routing internally over Yamux and gRPC streams.
+
+---
+
+## Decision Outcome
+
+**Chosen Option:** Option 3 — Strict Single-Gateway Invariant.
+
+### Positive Consequences
+
+- **Rock-Solid Stability:** Claude Desktop spawns exactly one STDIO process, consuming less than $35\text{ MB}$ of resident memory.
+- **Dynamic Tool Federation:** The unified gateway aggregates capabilities from all upstream enclaves and exposes a de-duplicated, namespace-safe tool manifest to the LLM.
+- **Cross-Platform Parity:** Behaves identically across Windows MSIX, macOS Homebrew, and Linux native packages.
+
+### Negative Consequences and Mitigations
+
+- **Single Local Point of Indirection:** All LLM tool invocations traverse the single local gateway process.  
+  *Mitigation:* The local gateway operates purely as an in-memory multiplexer/transcoder with sub-millisecond dispatch latency.
+
+---
+
+## Validation and Compliance
+
+- Formulated as an architectural invariant in `AGENTS.md` (Rule 8).
+- Verified in `vitest.audit.config.ts` (Suite 1: *Mesh Topology Invariants & Gateway Routing*).

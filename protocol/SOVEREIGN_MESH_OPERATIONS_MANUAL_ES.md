@@ -667,7 +667,7 @@ $$\text{EntryHash}_i = \text{SHA256}\left(\text{Entry}_i \parallel \text{EntryHa
 }
 ```
 
-Si un atacante modifica un registro histórico, la cadena hash se rompe y el método `verifyIntegrity()` señala el índice exacto comprometido, garantizando no repudio en auditorías forenses.
+Si un atacante modifica un registro histórico, la cadena hash se rompe y el método `verifyIntegrity()` señala el índice exacto comprometido; esto garantiza el no repudio en auditorías forenses.
 
 ---
 
@@ -735,7 +735,7 @@ Para garantizar la máxima transparencia técnica, se documentan formalmente los
 
 2. **Credenciales Verificables W3C (VC) para Gobernanza de Consorcio (Nivel 2):**
    - *Estado Actual:* La pertenencia al consorcio se valida mediante mTLS X.509 y Manifiestos Génesis firmados.
-   - *Mejora en Roadmap:* Convertir las acreditaciones del consorcio en Presentaciones Verificables W3C con pruebas de conocimiento cero, permitiendo verificar membresías sin revelar la identidad institucional a repetidores de red.
+   - *Mejora en Roadmap:* Convertir las acreditaciones del consorcio en Presentaciones Verificables W3C con pruebas de conocimiento cero para verificar membresías sin revelar la identidad institucional a repetidores de red.
 
 3. **Atestación Remota de Enclaves Seguros de Hardware (TEE en Nivel 2):**
    - *Estado Actual:* El sandboxing opera por aislamiento de software (Isolates V8 / Wasmtime con globales envenenados).
@@ -743,7 +743,7 @@ Para garantizar la máxima transparencia técnica, se documentan formalmente los
 
 4. **Resolución Planetaria DNS-over-HTTPS (DoH) para Supernodos (Nivel 3):**
    - *Estado Actual:* La resolución de semillas utiliza multiaddrs estándar y registros DNSLink.
-   - *Mejora en Roadmap:* Incorporar resolutores de respaldo DNS-over-HTTPS (RFC 8484) directamente en `MeshNode`, garantizando conectividad con los supernodos incluso en redes corporativas restrictivas que bloquean el puerto UDP 53.
+   - *Mejora en Roadmap:* Incorporar resolutores de respaldo DNS-over-HTTPS (RFC 8484) directamente en `MeshNode` para asegurar conectividad con los supernodos incluso en redes corporativas restrictivas que bloquean el puerto UDP 53.
 
 ---
 

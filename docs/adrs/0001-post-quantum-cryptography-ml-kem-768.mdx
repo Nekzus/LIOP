@@ -1,0 +1,61 @@
+---
+title: "ADR-0001: Adoption of Post-Quantum Cryptography (ML-KEM-768)"
+description: "Architecture decision adopting NIST FIPS 203 ML-KEM-768 key encapsulation for session transport and ZK-Receipt sealing."
+icon: "shield-check"
+---
+
+# Adoption of Post-Quantum Cryptography (ML-KEM-768)
+
+- **Status:** Accepted
+- **Deciders:** Protocol Steering Committee, Core Architecture Team
+- **Date:** 2026-08-15
+- **Technical Story:** Architecture Hardening Milestone & NIST FIPS 203 Alignment
+
+---
+
+## Context and Problem Statement
+
+Distributed agent mesh nodes in LIOP exchange analytical queries and WebAssembly logic across untrusted network boundaries. Adversaries can record encrypted transport traffic today with the objective of decrypting it once Cryptanalytically Relevant Quantum Computers (CRQCs) become viable—a vector known as "Harvest Now, Decrypt Later" (HNDL). 
+
+Classical asymmetric algorithms such as RSA-2048 and Elliptic Curve Diffie-Hellman (X25519) will be compromised by Shor's algorithm. LIOP requires a key encapsulation mechanism that provides long-term data confidentiality without compromising sub-millisecond transaction latency.
+
+---
+
+## Decision Drivers
+
+- **Quantum Resistance:** Protection against quantum cryptanalysis conforming to NIST Post-Quantum Standards.
+- **Microsecond Latency:** Handshake execution budget must remain under 2 milliseconds on commodity hardware.
+- **Symmetric Channel Integration:** Seamless derivation of 256-bit symmetric session secrets for AES-256-GCM wire encryption.
+- **Multi-Language Availability:** Verified implementations across Rust (`pqcrypto-kyber`) and Node.js/TypeScript.
+
+---
+
+## Considered Options
+
+1. **Classical ECDH (X25519) + AES-256-GCM:** Well-established, small public keys (32 bytes), but completely vulnerable to future quantum cryptanalysis.
+2. **Hybrid X25519 + ML-KEM-768:** Combines classical and post-quantum algorithms; adds computational overhead from dual handshakes.
+3. **Pure ML-KEM-768 (Kyber-768) + AES-256-GCM:** Native NIST FIPS 203 Module-Lattice-Based Key-Encapsulation Mechanism providing Category 3 security (equivalent to AES-192).
+
+---
+
+## Decision Outcome
+
+**Chosen Option:** Option 3 — Pure ML-KEM-768 with AES-256-GCM.
+
+### Positive Consequences
+
+- **Formal Security Guarantees:** Conforms to NIST FIPS 203 Category 3 standards, rendering recorded traffic permanently immune to quantum cryptanalysis.
+- **High Computational Efficiency:** Microbenchmarks demonstrate keypair generation in $0.21\text{ ms}$, encapsulation in $0.28\text{ ms}$, and decapsulation in $0.24\text{ ms}$.
+- **ZK-Receipt Binding:** The derived session secret directly seals the Layer 6 ZK-Receipt (`HMAC-SHA256`), cryptographically binding the output to the session keypair.
+
+### Negative Consequences and Mitigations
+
+- **Key Size Overhead:** Public keys occupy 1,184 bytes and ciphertexts 1,088 bytes (compared to 32 bytes for X25519).  
+  *Mitigation:* Handshakes occur once per persistent gRPC connection. Subsequent logical invocations utilize Yamux multiplexed channels over the established symmetric session.
+
+---
+
+## Validation and Compliance
+
+- Verified in CI suite `vitest.audit.config.ts` (Suite 3: *Cryptographic Integrity & Quantum Handshakes*).
+- Certified in Rust backend via `cargo test --package liop-core --test pqc_handshake`.

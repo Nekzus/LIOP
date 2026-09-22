@@ -1,213 +1,283 @@
 ---
 title: "LiopServer"
-description: "Building autonomous Data Nodes and migrating legacy MCP tools"
+description: "High-security Data Node orchestration, sandboxed logic execution, and zero-trust capability hosting"
+icon: "hard-drive"
+
 ---
 
-The `LiopServer` class is the heart of the Data Node. It represents the host infrastructure that securely orchestrates incoming Logic-Injection-on-Origin intent from remote Agents.
+The `LiopServer` class represents the host-side infrastructure of the Logic-Injection-on-Origin Protocol. It hosts sensitive datasets, enforces cryptographic boundaries, validates incoming WebAssembly or JavaScript logic modules via Guardian AST, and executes them inside isolated V8 sandboxes under strict CPU fuel and memory constraints.
 
-Instead of writing custom execution environments to manage WebAssembly, isolation, and networking, you define straightforward JavaScript/TypeScript functions. The SDK abstracts the complex sandboxing automatically.
+Rather than exposing high-risk REST or SQL query endpoints to remote AI agents, a `LiopServer` exposes typed **Capabilities** (Tools). Agents submit compiled computation payloads to execute in-situ, ensuring raw rows never traverse the network.
 
-## Initialization and Configuration
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                 LiopServer                                  │
+├───────────────────────────────┬─────────────────────────────────────────────┤
+│         Ingress Layer         │               Security Shield               │
+│  Tonic gRPC H2 / TLS / mTLS   │  Layer 1: Guardian AST (14-import allowlist)│
+│  OAuth 2.1 RFC 8707 Validator │  Layer 2: V8 Sandbox (25 poisoned globals)  │
+│  ML-KEM-768 Post-Quantum Key  │  Layer 3: Taint Analyzer (IFC)              │
+│  Piscina Worker Pool (Crypto) │  Layer 4: Egress PII Shield (Regex/NER)     │
+│                               │  Layer 5: Aggregation-First Policy          │
+│                               │  Layer 6: ZK-Receipt (HMAC-SHA256 Seal)     │
+└───────────────────────────────┴─────────────────────────────────────────────┘
+```
 
-You create a Data Node by telling the Mesh who you are and providing configuration properties, such as data security controls.
+---
+
+## Server Instantiation & Configuration
+
+Initialize a Data Node by defining its identity and node characteristics:
 
 ```typescript
 import { LiopServer, PII_PRESETS } from "@nekzus/liop";
 
 const server = new LiopServer(
   {
-    name: "EnterpriseDatabaseNode",
-    version: "3.2.0",
+    name: "ConfidentialBankEnclave",
+    version: "2.4.0",
   },
   {
-    // Canonical slug for deterministic token resolution
     tokenSlug: "BANK",
-    // Scales decryption & WASI sandboxing across all CPU cores instantly
-    workerPool: { enabled: true, maxThreads: 16, maxHeapMb: 128 },
-    // Strict security configuration and data leak prevention using flexible regional presets
+    port: 15021,
+    workerPool: {
+      enabled: true,
+      maxThreads: 8,
+      maxHeapMb: 128,
+      idleTimeout: 30_000,
+    },
     security: {
+      forbiddenKeys: ["password", "secret", "privateKey", "cvv", "raw_balance"],
       piiPatterns: [
         ...PII_PRESETS.US_COMPLIANT,
-        /[A-Z]{3}-\d{5}/ // Custom internal regex tracking number
+        /[A-Z]{2}\d{6}[A-Z]/, // Internal clearance badge pattern
       ],
-      forbiddenKeys: ["password", "clinical_record", "secret_token"],
       enableNerScanning: true,
-      rateLimit: { maxPerWindow: 30, windowMs: 60_000 }
+      rateLimit: {
+        maxPerWindow: 60,
+        windowMs: 60_000,
+      },
     },
-    // Data domain classification for Mesh taxonomy
     taxonomy: {
-      domain: "healthcare",
-      clearanceTier: 3,
-      executionTypes: ["aggregation", "analytics"]
-    }
-  }
+      domain: "financial-ledger",
+      clearanceTier: 4,
+      executionTypes: ["aggregation", "statistical-audit"],
+    },
+  },
 );
 ```
 
-### Configuration Options
+### Server Configuration Options
 
-When instantiating a `LiopServer`, the second parameter allows you to define advanced characteristics of the node:
+<ParamField path="serverInfo" type="object" required>
+  Canonical identity announced during protocol handshakes.
+  
+  <Expandable title="serverInfo Properties">
+    <ResponseField name="name" type="string" required>
+      Identifier of the data node (e.g. `"EnterpriseVault"`).
+    </ResponseField>
+    <ResponseField name="version" type="string" required>
+      SemVer version string of the host deployment.
+    </ResponseField>
+  </Expandable>
+</ParamField>
 
-*   **`tokenSlug` (Deterministic Token Resolution):** A canonical string (e.g. `"BANK"`) that allows remote agents to securely resolve the PQC access token from their host environment (`LIOP_TOKEN_<tokenSlug>`). Must match the regex `/^[A-Z][A-Z0-9_]*$/`.
-*   **`workerPool.maxHeapMb` (Heap Defense):** Maximum V8 heap size in megabytes per worker thread (default: `64`). Can also be set via the `LIOP_WORKER_MAX_HEAP_MB` environment variable. Prevents Heap Bomb DoS attacks by terminating workers that exceed the memory limit.
-*   **`security.forbiddenKeys` (Egress Filter):** An array of strings. If the model attempts to return a JSON containing any of these keys (e.g., `"clinical_history"`), the Egress Filter will destroy the response before it leaves the server mapping through objects recursively. Defaults to blocking `"password"`, `"token"`, `"secret"`, and `"privateKey"`.
-*   **`security.piiPatterns` (Sanitization):** Arrays of `PiiRule` objects. You can use our out-of-the-box templates (`PII_PRESETS.GLOBAL_STRICT`, `EU_GDPR`, `US_COMPLIANT`) and merge them with custom raw strings or regexes. The engine will intercept any outgoing text that matches combinations of IBAN logic, credit card numbers, or internal tracking IDs. Defaults to `GLOBAL_STRICT` if omitted.
-*   **`security.enableNerScanning` (NLP Detection):** When set to `true`, activates Named Entity Recognition scanning via the `compromise` NLP library to detect person names, locations, and organizations in output values. Adds ~10ms latency for typical output sizes. Default: `false`.
-*   **`security.rateLimit` (Sliding Window):** Configures the per-tool rate limiter to prevent micro-query exfiltration attacks. `maxPerWindow` (default: `30`) and `windowMs` (default: `60000`) define the sliding window parameters.
-*   **`taxonomy` (Domain Classification):** Optional metadata that classifies the server's data domain (`domain`), security clearance tier as a `number` (`clearanceTier`), and supported execution types (`executionTypes`). This metadata is announced on the DHT and used for intelligent routing.
-*   **Dynamic Return Structure (Auto-i18n) [PLANNED]:** This feature is on the roadmap. When implemented, the `LiopServer` will automatically inject *Dynamic Return Structure* directives into payloads, forcing the AI to respect and return JSON keys exactly in the same native language the client used when making the request, eliminating the need for internationalization (i18n) libraries on your frontend.
+<ParamField path="options" type="ServerOptions" optional>
+  Comprehensive security, thread scheduling, and taxonomy configurations.
 
-## Creating Capabilities (Tools)
+  <Expandable title="ServerOptions Properties">
+    <ResponseField name="port" type="number" optional>
+      TCP port on which the gRPC transport binds (default: `50051`).
+    </ResponseField>
+    <ResponseField name="tokenSlug" type="string" optional>
+      Canonical uppercase identifier (e.g. `"BANK"`) used by clients to resolve authentication credentials dynamically (`LIOP_TOKEN_<tokenSlug>`). Must match `/^[A-Z][A-Z0-9_]*$/`.
+    </ResponseField>
+    <ResponseField name="workerPool.enabled" type="boolean" optional>
+      When `true`, offloads cryptographic handshakes (ML-KEM-768) and AST parsing to a background `Piscina` worker pool (default: `true`).
+    </ResponseField>
+    <ResponseField name="workerPool.maxThreads" type="number" optional>
+      Maximum number of background worker threads spawned (default: available CPU cores).
+    </ResponseField>
+    <ResponseField name="workerPool.maxHeapMb" type="number" optional>
+      Hard heap limit per worker in megabytes to prevent memory exhaustion attacks (default: `64`). Configurable via `LIOP_WORKER_MAX_HEAP_MB`.
+    </ResponseField>
+    <ResponseField name="security.forbiddenKeys" type="string[]" optional>
+      JSON keys stripped or rejected if detected anywhere within the output object graph (default: `["password", "token", "secret", "privateKey"]`).
+    </ResponseField>
+    <ResponseField name="security.piiPatterns" type="PiiRule[]" optional>
+      Array of regex patterns or presets (`GLOBAL_STRICT`, `EU_GDPR`, `US_COMPLIANT`) scanned across all outgoing strings.
+    </ResponseField>
+    <ResponseField name="security.enableNerScanning" type="boolean" optional>
+      Enables Named Entity Recognition scanning on egress text using natural language processing to identify names, locations, and organizations (default: `false`).
+    </ResponseField>
+    <ResponseField name="security.rateLimit" type="object" optional>
+      Sliding window rate limiter per client peer (`maxPerWindow`, `windowMs`).
+    </ResponseField>
+    <ResponseField name="taxonomy.domain" type="string" optional>
+      Operational domain (e.g. `"healthcare"`, `"financial"`). Announced on the DHT for automatic routing.
+    </ResponseField>
+    <ResponseField name="taxonomy.clearanceTier" type="number" optional>
+      Required caller security clearance tier (`1` to `5`). Requests with insufficient clearance are rejected with HTTP 403.
+    </ResponseField>
+    <ResponseField name="taxonomy.executionTypes" type="string[]" optional>
+      Allowed compute types (`"aggregation"`, `"differential-privacy"`, `"analytics"`).
+    </ResponseField>
+  </Expandable>
+</ParamField>
 
-In MCP, these are called Tools. In LIOP, we refer to them as **Capabilities**. 
+---
 
-To the developer, defining a Capability in LIOP looks virtually identical to defining an MCP Tool. You provide a name, a description, a Zod schema for type-safety, and an execution handler.
+## Defining Capabilities (`tool`)
+
+Capabilities represent executable analytical tools exposed to the mesh. Define them with typed schemas using [Zod](https://zod.dev):
 
 ```typescript
 import { z } from "zod";
 
 server.tool(
-  "analyze_employee_data",
-  "Analyzes sensitive payroll information inside the Sandbox.",
-  { department: z.string() },
-  async ({ department }) => {
-    // The Agent's injected logic stops here.
-    // The Data Node executes the local request under its own permissions.
-    const result = await database.query(department);
+  "Analyze_Account_Risk",
+  "Computes statistical risk metrics for bank accounts without exporting raw ledger rows.",
+  {
+    accountId: z.string().regex(/^ACC-\d{5}$/, "Invalid account identifier"),
+    timeframe: z.enum(["7d", "30d", "90d"]),
+    thresholdAmount: z.number().positive(),
+  },
+  async ({ accountId, timeframe, thresholdAmount }) => {
+    // 1. Fetch internal ledger from database
+    const transactions = await db.fetchLedger(accountId, timeframe);
 
+    // 2. Perform analytical calculation at the origin
+    const highValueTxCount = transactions.filter(tx => tx.amount >= thresholdAmount).length;
+    const avgVelocity = transactions.reduce((sum, tx) => sum + tx.amount, 0) / transactions.length;
+
+    // 3. Return strictly aggregated results
     return {
-      content: [{ type: "text", text: `Payroll evaluated: ${result.summary}` }]
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify({
+            accountId,
+            highValueAlerts: highValueTxCount,
+            meanTransactionVelocity: avgVelocity,
+            riskScore: highValueTxCount > 5 ? "ELEVATED" : "NORMAL",
+          }),
+        },
+      ],
     };
-  }
+  },
 );
 ```
 
-### How this differs from MCP
+### In-Situ Logic Execution Pipeline
 
-If the code looks exactly the same, what makes it LIOP?
+When an agent passes dynamic logic bytecode (`.wasm` or JavaScript envelopes), the execution lifecycle enforces six distinct layers of defense:
 
-1. **No Polling:** The Data Node announces the `analyze_employee_data` schema cryptographically over the Kademlia DHT. The Agent instantly knows the schema exists without wasting a network request asking for `listTools()`.
-2. **Binary Transport:** When the Agent invokes this Tool, the parameters (e.g., `department: "HR"`) are compressed into pure Protobuf bytes, skipping JSON entirely.
+1. **Layer 1 (Guardian AST)**: Parses and inspects the abstract syntax tree before execution. Only 14 standard functions from `wasi_snapshot_preview1` are permitted. Any attempt to reference unauthorized host symbols aborts immediately.
+2. **Layer 2 (V8 Sandbox Isolation)**: Executes code inside an isolated V8 context where 25 potentially unsafe globals (`process`, `require`, `eval`, `Function`, `setTimeout`, `fetch`, `WebSocket`) are replaced with poisoned proxies that immediately trigger memory traps upon access. Eleven native prototypes (`Object`, `Array`, `Promise`, etc.) are frozen using `Object.freeze` to satisfy PCI-DSS limits.
+3. **Layer 3 (Taint Analyzer)**: Acorn-based information flow control tracks variable assignments to prevent side-channel derivation of confidential inputs via boolean inference or character-code indexing.
+4. **Layer 4 (Egress PII Shield)**: Scans outbound data against fuzzy matches, credit card patterns, IBAN formulas, and NER entity detection.
+5. **Layer 5 (Aggregation-First Policy)**: Enforces that query outputs return summary statistics. Returning raw entity arrays triggers automatic policy rejection.
+6. **Layer 6 (ZK-Receipt Generation)**: Computes an HMAC-SHA256 digest binding the returned output to the exact SHA-256 hash of the injected logic module, sealed using the ephemeral post-quantum session key.
 
-## Exposing Data Schemas (Resources)
+---
 
-LIOP Servers can also expose **Resources** (static data, schemas, or descriptions) that Agents can discover to understand the shape of the data they will analyze *before* they inject their logic. This enables true Zero-Shot autonomy.
+## Exposing Data Resources & Prompts
+
+In addition to executable capabilities, `LiopServer` exposes schemas, static references, and templated guidance to instruct AI agents.
+
+### Publishing Resources
 
 ```typescript
 server.resource(
-  "Employee Records Schema",
-  "liop://schema/employee_records",
-  "The exact JSON schema representing the employee databases.",
+  "Ledger Table Schema",
+  "liop://schemas/financial/ledger.v1",
+  "JSON schema describing fields and types in the internal ledger table.",
   "application/json",
-  JSON.stringify(EmployeeSchema)
+  JSON.stringify({
+    type: "object",
+    properties: {
+      tx_id: { type: "string" },
+      timestamp: { type: "string", format: "date-time" },
+      amount: { type: "number" },
+      currency: { type: "string" },
+    },
+  }),
 );
 ```
 
-These resources are flawlessly bridged to LLMs via standard MCP `resources/list` and `resources/read` methods.
-
-## Advanced AI Planning (Prompts & Autonomy)
-
-Just like MCP, LIOP natively supports **Prompts**—templated conversational instructions that help Agents structure their tasks before executing Logic-Injection-on-Origin.
+### Registering Prompts
 
 ```typescript
 server.prompt(
-  "analyze_codebase",
-  "Instructs the agent on how to traverse the codebase securely.",
+  "audit_ledger_risk",
+  "Instructs the agent on structuring in-situ WASM modules for ledger audits.",
   [
-    { name: "language", description: "Target language (e.g., rust, ts)", required: true }
+    { name: "accountId", description: "Target account identifier", required: true },
+    { name: "strictness", description: "Audit tolerance level", required: false },
   ],
   (request) => ({
-    description: "Codebase Analysis Prompts",
+    description: "Ledger Risk Audit Template",
     messages: [
-      { role: "user", content: { type: "text", text: `Analyze the ${request.arguments?.language} codebase securely.`} }
-    ]
-  })
+      {
+        role: "user",
+        content: {
+          type: "text",
+          text: `Evaluate account ${request.arguments?.accountId} with strictness ${request.arguments?.strictness ?? "standard"}. Output only aggregated statistics.`,
+        },
+      },
+    ],
+  }),
 );
 ```
 
-### Zero-Shot Autonomy (The Blind Analyst)
-LIOP ships with an industrial Master System Prompt designed to instruct standard LLMs (like Claude or GPT-4) on how to generate `.wasm` or JavaScript logic dynamically without hallucinating or breaking the Data Node Sandbox. 
+### Autonomous Prompt Injection (`enableZeroShotAutonomy`)
 
-You can activate this structural instruction explicitly:
+Activating autonomous mode injects the `liop_blind_analyst` system prompt and binds the host Data Dictionary dynamically:
+
 ```typescript
 server.enableZeroShotAutonomy();
 ```
-This automatically registers the `liop_blind_analyst` intelligent prompt into the Mesh, dynamically injecting your Data Dictionary into it as well.
 
-## Security & Memory Management
+---
 
-When a Data Node receives a `.wasm` or `.js` payload, the **`GuardianTS`** module performs a pre-execution heuristic inspection on its Abstract Syntax Tree (AST) to verify security constraints.
-
-Before any WebAssembly module is instantiated or executed, `GuardianTS` scans all imports. It rejects payloads attempting to bind to unauthorized host APIs. Only standard WASI APIs (`wasi_snapshot_preview1`) and native `LIOP` sandboxed functions are permitted, preventing sandbox escapes.
-
-AST evaluation results are cached in memory `O(1)` to optimize subsequent executions of the same payload.
-
-If you are deploying security updates on the host or need to invalidate the execution memory, you can purge the AST cache manually:
+## Server Lifecycle & Network Binding
 
 ```typescript
-server.clearAstCache();
-```
+// Start server on default or configured gRPC port
+await server.connect();
+console.log(`LiopServer listening on port ${server.getBoundPort()}`);
 
-## Bridging Legacy MCP Servers
-
-LIOP's primary goal is rapid industry adoption. If you have spent months building a standard Model Context Protocol (MCP) server, you do not need to rewrite it to join the Mesh.
-
-The `@nekzus/liop` ships with the `LiopMcpBridge`.
-
-This powerful adapter intercepts incoming LIOP binary mesh requests, translates them into standard JSON-RPC 2.0 locally, forwards them to your unmodified MCP Server via stdio or SSE, and repackages the standard MCP response back into the ultra-fast P2P network.
-
-```typescript
-import { LiopMcpBridge } from "@nekzus/liop/bridge";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-
-// Your standard legacy MCP implementation
-const mcpServer = new McpServer({ name: "LegacyWeatherApp", version: "1.0" });
-
-// Wrap it in the LIOP Bridge with full options
-const bridge = new LiopMcpBridge(mcpServer, {
-  publishToMesh: true,             // Announce this server on the P2P DHT
-  meshIdentity: "WeatherNode_01",  // Unique node identifier
-  serverInfo: { name: "WeatherBridge", version: "2.0" },  // Override server identity
-  security: {                      // Optional PII/egress protection
-    forbiddenKeys: ["api_key", "internal_token"],
-    piiPatterns: [...] 
-  }
-});
-
-// Start the bridge
-await bridge.connect();
-```
-
-Your legacy application is now fully accessible to Web3, decentralized, Post-Quantum AI agents around the globe without changing a single line of your original MCP logic.
-
-## Runtime and Lifecycle API
-
-In addition to `connect()`, `LiopServer` exposes low-level lifecycle and mesh inspection methods:
-
-```typescript
-// Explicit mesh bootstrap (same behavior as connect alias)
+// Start server with explicit P2P Kademlia mesh bootstrap
 await server.connectToMesh({
-  port: 50051,
+  port: 15021,
   meshConfig: {
-    bootstrapNodes: ["/ip4/1.2.3.4/tcp/4001/p2p/PEER_ID"],
-    listenAddresses: ["/ip4/0.0.0.0/tcp/0"],
-    identityPath: "~/.liop/identity.json"
-  }
+    bootstrapNodes: ["/ip4/198.51.100.10/tcp/15001/p2p/12D3KooW..."],
+    listenAddresses: ["/ip4/0.0.0.0/tcp/15002"],
+    identityPath: "/etc/liop/enclave-identity.json",
+  },
 });
 
-const info = server.getServerInfo();
-const meshNode = server.getMeshNode();
-const grpcPort = server.getBoundPort();
+// Invalidate in-memory AST cache when policies change
+server.clearAstCache();
 
-// Graceful shutdown for tests and production process teardown
+// Graceful termination
 await server.close();
 ```
 
-## Starting the Server
+---
 
-Once your tools, watchdogs, and bridges are configured, you launch the Data Node by binding it to the network:
+## Public Methods Reference
 
-```typescript
-await server.connect();
-console.log(`Logic Node online. Listening for incoming Wasms...`);
-```
+| Method | Parameters | Return Type | Description |
+|---|---|---|---|
+| `connect(port?)` | `port?: number` | `Promise<void>` | Binds gRPC server to port and begins accepting incoming intent handshakes. |
+| `connectToMesh(options)` | `options: MeshConnectOptions` | `Promise<void>` | Boots both local gRPC service and full P2P `libp2p` DHT participant. |
+| `tool(name, desc, schema, handler)` | `string, string, ZodRawShape, Handler` | `this` | Registers a typed capability with automatic input validation. |
+| `resource(name, uri, desc, mime, content)` | `string, string, string, string, string` | `this` | Publishes a discoverable schema or static reference artifact. |
+| `prompt(name, desc, args, handler)` | `string, string, PromptArg[], Handler` | `this` | Registers a structured prompt template for agent orchestration. |
+| `enableZeroShotAutonomy()` | None | `this` | Injects the Blind Analyst prompt and internal data dictionary into the mesh. |
+| `clearAstCache()` | None | `void` | Flushes parsed Guardian AST evaluation results from memory. |
+| `getServerInfo()` | None | `{ name: string; version: string }` | Returns registered host identity metadata. |
+| `getMeshNode()` | None | `MeshNode \| null` | Returns the active `libp2p` node instance when mesh mode is enabled. |
+| `getBoundPort()` | None | `number` | Returns the assigned local TCP port of the running gRPC server. |
+| `close()` | None | `Promise<void>` | Shuts down gRPC server, drains Piscina worker pool, and closes DHT sockets. |

@@ -1,0 +1,62 @@
+---
+title: "ADR-0005: Propagación Bearer OAuth 2.1 M2M entre Enclaves"
+description: "Decisión arquitectónica que implementa la gestión de tokens RFC 6749 Client Credentials con renovación preventiva y coalescencia de promesas entre enclaves."
+icon: "lock"
+---
+
+# Propagación Bearer OAuth 2.1 M2M entre Enclaves
+
+- **Estado:** Aceptada
+- **Responsables:** Comité de Arquitectura del Protocolo, Equipo de Seguridad Empresarial
+- **Fecha:** 2026-09-12
+- **Referencia Técnica:** Autorización entre Perímetros y Aislamiento de Enclaves Asimétricos
+
+---
+
+## Contexto y Definición del Problema
+
+En las topologías de producción soberanas de LIOP, los enclaves de Tier 1 (como bóvedas de secretos y libros mayores bancarios) operan en subredes privadas sin puntos de entrada públicos. Los clientes externos, consolas de desarrollo y agentes interactúan exclusivamente a través de la pasarela de borde Border LIO Gateway (`blg`).
+
+Al canalizar ejecuciones analíticas hacia los enclaves protegidos, la pasarela debe acreditar una identidad máquina a máquina (M2M) autorizada sin transmitir claves maestras de larga duración ni crear cuellos de botella en ráfagas de alta frecuencia.
+
+---
+
+## Factores Determinantes
+
+- **Mínimo Privilegio Zero-Trust:** Cada enclave debe validar tokens de corta duración firmados criptográficamente en cada invocación.
+- **Cero Penalización en Latencia:** La autorización no debe añadir tiempo de ida y vuelta a los bucles de ejecución en tiempo real.
+- **Protección contra Avalanchas (Thundering Herd):** Peticiones concurrentes en la pasarela no deben saturar al servidor de identidad con solicitudes simultáneas de tokens.
+- **Alineación con Estándares:** Conformidad estricta con OAuth 2.1 (RFC 6749) y Resource Indicators (RFC 8707).
+
+---
+
+## Opciones Evaluadas
+
+1. **Claves Estáticas Precompartidas (PSK):** Configuración sencilla, pero introduce un punto único de falla, dificulta la rotación periódica y vulnera los requisitos SOC 2 CC6.1.
+2. **Negociación de Token por Cada Petición:** Solicitar un token Bearer nuevo a Nexus OIDC en cada llamada a herramienta agrega entre $15\text{ y }30\text{ ms}$ de penalización de red e inunda el servidor de identidad.
+3. **Caché en Memoria con Renovación Preventiva y Coalescencia de Promesas:** El componente `TokenManager` almacena los tokens de acceso JWT en memoria, une las solicitudes concurrentes bajo una única promesa asíncrona en vuelo y renueva el token cuando faltan menos de 30 segundos para su expiración:
+   $$t_{\text{renovación}} \le t_{\text{expiración}} - 30\text{s}$$
+
+---
+
+## Decisión Adoptada
+
+**Opción Seleccionada:** Opción 3 — Gestor de tokens en memoria con renovación preventiva y coalescencia de promesas.
+
+### Consecuencias Positivas
+
+- **Resolución Inmediata de Tokens:** La inserción del token en los metadatos gRPC salientes requiere menos de $0.01\text{ ms}$ desde la caché en memoria.
+- **Inmunidad ante Avalanchas:** Múltiples llamadas concurrentes que esperan autorización comparten la misma promesa de obtención en curso.
+- **Recuperación Resiliente ante Errores:** Si un enclave devuelve un código HTTP 401 inesperado (por ejemplo, ante la revocación anticipada de una clave), la pasarela purga la caché y reintenta la operación una única vez con un token nuevo.
+
+### Consecuencias Negativas y Mitigaciones
+
+- **Dependencia de Conectividad con el IdP:** Las pasarelas de borde requieren acceso de red estable al endpoint de Nexus OIDC (`:15000/oidc/token`).  
+  *Mitigación:* Nexus se despliega en topologías de alta disponibilidad con mecanismos de redundancia local.
+
+---
+
+## Verificación y Cumplimiento
+
+- Implementado en `sdks/typescript/src/client/token-manager.ts`.
+- Certificado en la suite `vitest.audit.config.ts` (Suite 7: *OAuth 2.1 M2M Client Credentials & Enclave Access*).

@@ -1,6 +1,8 @@
 ---
 title: "Security Architecture"
 description: "Defense-in-depth layers, cryptographic pipelines, and data protection mechanisms in the LIOP TypeScript SDK"
+icon: "lock"
+
 ---
 
 The LIOP TypeScript SDK enforces a **defense-in-depth** security model composed of six independent layers. Each layer addresses a distinct threat surface (from static code analysis to post-execution data filtering), ensuring that no single point of failure can compromise the system.
@@ -31,7 +33,7 @@ The LIOP TypeScript SDK enforces a **defense-in-depth** security model composed 
 
 ## Layer 1: Guardian AST
 
-The Guardian AST module performs a zero-latency static inspection of WebAssembly modules **before** compilation. It leverages `WebAssembly.Module.imports()` to enumerate all host-bound import requests and validate them against a strict allowlist.
+The Guardian AST module performs a synchronous static inspection of WebAssembly modules **before** compilation. It leverages `WebAssembly.Module.imports()` to enumerate all host-bound import requests and validate them against a strict allowlist.
 
 ### WASI Function Allowlist
 
@@ -372,6 +374,102 @@ The `LiopStreamBridge` enforces mandatory Bearer token authentication on all HTT
 - Every request to `/mcp` requires a valid `Authorization: Bearer <token>` header
 - Per-IP rate limiting on session creation (default: 10 concurrent sessions)
 - Automatic eviction of idle sessions (TTL: 30 minutes)
+
+---
+
+## OAuth 2.1 Authorization & Scope-Based Access Control (RBAC)
+
+LIOP embeds a complete OAuth 2.1 / OIDC Machine-to-Machine (M2M) authorization stack conforming to **RFC 6749**, **RFC 8707 (Resource Indicators)**, **RFC 9068 (JWT Profile)**, and **RFC 9728 (Protected Resource Metadata)**.
+
+### 1. Embedded Authorization Server (`createOAuthServer`)
+
+For Nexus coordinator nodes, the SDK provides an embedded authorization server backed by `panva/node-oidc-provider`:
+
+```typescript
+import { createOAuthServer } from "@nekzus/liop";
+
+const { provider, jwks } = createOAuthServer({
+  issuer: "http://127.0.0.1:15000/oidc",
+  clients: [
+    {
+      client_id: "agent-alpha",
+      client_secret: process.env.AGENT_SECRET!,
+      grant_types: ["client_credentials"],
+      scope: "liop:tools:list liop:tools:call liop:resources:read",
+    },
+  ],
+});
+```
+
+Key security properties:
+- **M2M Client Credentials Grant Only**: Interactive and authorization code flows are locked out at the engine level to eliminate user-hijack vectors.
+- **Ed25519 (EdDSA) Token Signing**: Asymmetric Ed25519 keypairs are generated and signed with zero external network dependencies.
+- **RFC 9068 JWT Access Tokens**: Tokens carry verified `client_id`, `scope`, and `aud` claims, allowing stateless verification across distributed nodes.
+
+### 2. Protocol Scopes (`LIOP_SCOPES`)
+
+LIOP defines five granular, least-privilege scopes mapped to MCP and protocol operations:
+
+| Scope | Operations Covered | Standard |
+|:---|:---|:---|
+| `liop:tools:list` | Listing advertised tools via `tools/list` | NIST SP 800-207 §4.3 |
+| `liop:tools:call` | In-situ WASM/JS logic execution via `tools/call` | OWASP LLM06 |
+| `liop:resources:read` | Reading static resources via `resources/list`, `resources/read`, `resources/templates/list` | Least Privilege |
+| `liop:schema:read` | Reading prompt templates and schemas via `prompts/list`, `prompts/get` | Data Minimization |
+| `liop:mesh:query` | Inter-node DHT manifest query and routing resolution | Mesh Governance |
+
+```typescript
+import { LIOP_SCOPES, type LiopScope } from "@nekzus/liop";
+```
+
+### 3. Gateway Request Authorization (`authorizeRequest`)
+
+Incoming JSON-RPC requests are validated against required scopes before reaching router dispatchers:
+
+```typescript
+import { authorizeRequest } from "@nekzus/liop";
+
+const result = authorizeRequest("tools/call", authInfo);
+if (!result.allowed) {
+  // Returns HTTP 403 / JSON-RPC error with detailed rejection reason
+  console.error("Access denied:", result.reason);
+}
+```
+
+* Public lifecycle methods (`initialize`, `ping`, `server/discover`) execute without authentication per MCP specifications.
+* Unrecognized methods or unauthenticated calls requesting protected scopes fail closed immediately.
+
+### 4. Protected Resource Metadata (`buildProtectedResourceMetadata`)
+
+Enables MCP clients to discover authorization endpoints per **RFC 9728**:
+
+```typescript
+import { buildProtectedResourceMetadata } from "@nekzus/liop";
+
+const metadata = buildProtectedResourceMetadata(
+  "http://127.0.0.1:15000/oidc",
+  "urn:liop:enclave:vault"
+);
+// Served at /.well-known/oauth-protected-resource
+```
+
+### 5. JWT Validation (`JwtValidator`)
+
+Worker nodes validate bearer tokens statelessly via dual-mode JWKS resolution:
+
+```typescript
+import { JwtValidator } from "@nekzus/liop";
+
+// Remote JWKS resolution with 10-minute cache
+const validator = new JwtValidator(
+  "http://127.0.0.1:15000/oidc",
+  "urn:liop:mesh",
+  new URL("http://127.0.0.1:15000/oidc/jwks")
+);
+
+const authInfo = await validator.validate(token);
+// Returns: { token, clientId, scopes: string[], expiresAt }
+```
 
 ---
 

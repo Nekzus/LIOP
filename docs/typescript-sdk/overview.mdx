@@ -1,11 +1,13 @@
 ---
 title: "TypeScript SDK Overview"
 description: "TypeScript implementation and runtime architecture for LIOP nodes"
+icon: "cube"
+
 ---
 
 The official `@nekzus/liop` provides a complete, strongly-typed toolkit for building LIOP Clients (Agent Nodes) and LIOP Servers (Data Nodes) in TypeScript and JavaScript.
 
-If you are migrating from the Model Context Protocol (MCP), you will find the API surface remarkably familiar. LIOP was designed to provide a **Drop-in Replacement** Developer Experience (DX), abstracting away the immense complexity of Protobuf, WebAssembly, and Kademlia DHT under simple TypeScript classes.
+If you are migrating from the Model Context Protocol (MCP), you will find the API surface remarkably familiar. LIOP was designed to provide a **Drop-in Replacement** Developer Experience (DX), abstracting the complexity of Protobuf, WebAssembly, and Kademlia DHT under straightforward TypeScript classes.
 
 ## Package Architecture
 
@@ -27,11 +29,11 @@ yarn add @nekzus/liop@latest zod
   We strongly recommend installing `zod` alongside the SDK. Just like the official MCP specification, LIOP relies on Zod parsing to guarantee that Execution Arguments passed by the AI Agent perfectly match the Server's capability manifest.
 </Note>
 
-## Zero-Bloat Architecture (Opt-Out Installations)
+## Minimal-Dependency Architecture (Opt-Out Installations)
 
 By default, `@nekzus/liop` provides backward compatibility with the Model Context Protocol (MCP) via the `LiopMcpBridge` module. To simplify this integration, the package lists `@modelcontextprotocol/sdk` as an optional and peer dependency, meaning standard installations (`npm install @nekzus/liop`) will automatically resolve and install it.
 
-However, for constrained production environments (such as Docker edge containers, AWS Lambda, or IoT deployments) where every megabyte counts, you can perform a **pure, zero-bloat LIOP installation** by opting out of the optional dependencies:
+However, for constrained production environments (such as Docker edge containers, AWS Lambda, or IoT deployments) where deployment footprint matters, you can perform a **minimal LIOP installation** by opting out of the optional dependencies:
 
 <CodeGroup>
 ```bash npm

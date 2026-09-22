@@ -141,7 +141,7 @@ The technical implementation, cryptographic primitives, and transport features e
 
 ## 9. Next Steps
 
-Review the [Protocol Specification](./protocol/SPECIFICATION.md), run the [Interactive Playground](http://localhost:16000), or instantiate an enclave node using the TypeScript SDK via `npm install @nekzus/liop`.
+Review the [Protocol Specification](./protocol/SPECIFICATION.md), explore the [Interactive Playground & Studio](https://nekzus-32.mintlify.app/typescript-sdk/playground), or instantiate an enclave node using the TypeScript SDK via `pnpm add @nekzus/liop`.
 
 ---
 

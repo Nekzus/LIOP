@@ -1,6 +1,8 @@
 ---
 title: "LIOP Agent (CLI)"
 description: "Zero-Config security gateway for desktop AI applications"
+icon: "bot"
+
 ---
 
 The **LIOP Agent** is a pre-compiled, production-ready CLI utility included with the `@nekzus/liop` package. It acts as a bridge between standard AI interfaces (like **Claude Desktop** or **Cursor**) and the decentralized **Logic-Injection-on-Origin Protocol**.
@@ -132,5 +134,53 @@ The LIOP Agent natively satisfies both modern and legacy MCP client protocols:
   `LIOP_BOOTSTRAP_FILE` is **deprecated** since v2.0.0-alpha. Use `LIOP_NEXUS_URL` instead. The agent will log a warning if this variable is detected.
 </Warning>
 
+---
+
+## Programmatic Mesh Integration (`MeshNode`)
+
+Developers integrating LIOP into custom backend services can instantiate and manage `MeshNode` directly rather than invoking the CLI binary:
+
+```typescript
+import { MeshNode } from "@nekzus/liop";
+
+const mesh = new MeshNode({
+  listenAddresses: ["/ip4/0.0.0.0/tcp/4001"],
+  bootstrapNodes: [
+    "/ip4/127.0.0.1/tcp/15001/p2p/12D3KooW..."
+  ],
+  enableWAN: false,
+  enableAutoNAT: true,
+  enableRelay: true,
+});
+
+await mesh.start();
+console.log("Local Peer ID:", mesh.getPeerId());
+
+// Discover remote enclaves announcing a specific tool capability
+const providers = await mesh.findProviders("tool:execute_anomaly_audit");
+
+// Query a remote node's capability manifest over /liop/manifest/1.0.0
+for (const peerId of providers) {
+  const manifest = await mesh.queryManifest(peerId);
+  console.log(`Discovered ${manifest?.tools.length} tools on ${peerId}`);
+}
+
+// Graceful shutdown
+await mesh.stop();
+```
+
+### Key Public Methods
+
+| Method | Return Type | Description |
+|:---|:---|:---|
+| `start()` | `Promise<void>` | Initializes libp2p transports, Noise crypto, and Kademlia routing |
+| `stop()` | `Promise<void>` | Closes all active swarm sockets and flushes DHT routing state |
+| `getPeerId()` | `string` | Returns the local node's Ed25519 Peer ID string |
+| `getMultiaddrs()` | `string[]` | Returns all bound transport multiaddrs (TCP/WS) |
+| `findProviders(capability)` | `Promise<string[]>` | Queries Kademlia DHT for peer IDs advertising a capability |
+| `queryManifest(target)` | `Promise<LiopManifest \| null>` | Directly fetches signed JSON manifest from a remote peer |
+| `announceManifest(manifest)` | `Promise<void>` | Publishes local capabilities to the DHT and registers manifest stream handler |
+
 If you encounter connection issues, check for the 🛡️ icon in the console or ask the LLM to call `LiopMeshStatus`.
+
 

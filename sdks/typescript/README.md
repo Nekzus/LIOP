@@ -1,24 +1,37 @@
 <div align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://res.cloudinary.com/dsvsl0b0b/image/upload/v1774702621/Neural-Mesh-Protocol/qaqsa28yrtpnxnbclv3p.svg?v=20260328">
-    <img alt="Logic-Injection-on-Origin Protocol Logo" src="https://res.cloudinary.com/dsvsl0b0b/image/upload/v1774702621/Neural-Mesh-Protocol/hoanw0m6tybpz5fbl12n.svg?v=20260328" width="700">
+    <source media="(prefers-color-scheme: dark)" srcset="../../docs/logo/dark.svg">
+    <img alt="Logic-Injection-on-Origin Protocol Logo" src="../../docs/logo/light.svg" width="700">
   </picture>
 
-<h1>Logic-Injection-on-Origin Protocol (LIOP) — TypeScript SDK</h1>
-<p align="center">
-  <a href="https://github.com/Nekzus/LIOP/actions/workflows/ci.yml"><img src="https://github.com/Nekzus/LIOP/actions/workflows/ci.yml/badge.svg?event=push" alt="Github Workflow"></a>
-  <a href="https://www.npmjs.com/package/@nekzus/liop"><img src="https://img.shields.io/npm/v/@nekzus/liop.svg" alt="npm version"></a>
-  <a href="https://www.npmjs.com/package/@nekzus/liop"><img src="https://img.shields.io/npm/dm/@nekzus/liop.svg" alt="npm-month"></a>
-  <a href="https://www.npmjs.com/package/@nekzus/liop"><img src="https://img.shields.io/npm/dt/@nekzus/liop.svg?style=flat" alt="npm-total"></a>
-  <a href="https://github.com/Nekzus/LIOP/blob/main/LICENSE"><img src="https://img.shields.io/github/license/Nekzus/LIOP.svg" alt="License"></a>
-  <a href="https://nekzus-32.mintlify.app/"><img src="https://img.shields.io/badge/docs-mintlify-0D9373?style=flat" alt="Docs"></a>
-  <a href="https://deepwiki.com/Nekzus/LIOP"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
-  <a href="https://paypal.me/maseortega"><img src="https://img.shields.io/badge/donate-paypal-blue.svg?style=flat-square" alt="Donate"></a>
-</p>
+  <h1>Logic-Injection-on-Origin Protocol (LIOP) — TypeScript SDK</h1>
+  <p><strong>The official TypeScript SDK and MCP Bridge for the Logic-Injection-on-Origin Protocol.</strong></p>
 
-<p><strong>The official TypeScript SDK for the Logic-Injection-on-Origin Protocol.</strong></p>
-  <p>Deploy Logic-on-Origin with WebAssembly sandboxing, gRPC-speed execution, and full MCP backward compatibility.</p>
+  <p align="center">
+    <a href="https://github.com/Nekzus/LIOP/actions/workflows/ci.yml"><img src="https://github.com/Nekzus/LIOP/actions/workflows/ci.yml/badge.svg?event=push" alt="Github Workflow"></a>
+    <a href="https://www.npmjs.com/package/@nekzus/liop"><img src="https://img.shields.io/npm/v/@nekzus/liop.svg" alt="npm version"></a>
+    <a href="https://www.npmjs.com/package/@nekzus/liop"><img src="https://img.shields.io/npm/dm/@nekzus/liop.svg" alt="npm downloads"></a>
+    <a href="https://github.com/Nekzus/LIOP/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License"></a>
+    <a href="https://nekzus-32.mintlify.app/typescript-sdk/overview"><img src="https://img.shields.io/badge/docs-mintlify-0D9373?style=flat" alt="Docs"></a>
+    <a href="https://deepwiki.com/Nekzus/LIOP"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
+  </p>
 </div>
+
+---
+
+## 📚 Official Documentation
+
+Comprehensive interactive guides, architectural deep dives, and API specifications are hosted on our official portal:
+
+| Documentation Section | Focus Area | Canonical Guide |
+|---|---|---|
+| **Overview & Setup** | Package architecture, core exports, and installation modes | [SDK Overview](https://nekzus-32.mintlify.app/typescript-sdk/overview) |
+| **LiopClient API** | Discovery, intent negotiation, gRPC channels, and error catalog | [LiopClient Reference](https://nekzus-32.mintlify.app/typescript-sdk/client) |
+| **LiopServer API** | Capability hosting, Zod schemas, and V8 sandboxing boundaries | [LiopServer Reference](https://nekzus-32.mintlify.app/typescript-sdk/server) |
+| **LiopMcpBridge** | Zero-trust wrapping of `@modelcontextprotocol/sdk` servers | [Bridge Documentation](https://nekzus-32.mintlify.app/typescript-sdk/bridge) |
+| **Runtime & Discovery** | `TopologyProbe`, `RoutingTable` circuit breaker, and `TokenManager` | [Runtime Architecture](https://nekzus-32.mintlify.app/typescript-sdk/runtime) |
+| **Security Architecture** | 6-Layer defense-in-depth, AST Guardian, and Egress PII Shield | [Security Guide](https://nekzus-32.mintlify.app/typescript-sdk/security) |
+| **Observability & SRE** | Prometheus metrics catalog and 26-panel Grafana master dashboard | [Observability Runbook](https://nekzus-32.mintlify.app/operations/observability-runbook) |
 
 ---
 
@@ -119,7 +132,7 @@ To integrate LIOP into Claude Desktop, update your `claude_desktop_config.json` 
       "command": "npx",
       "args": ["-y", "@nekzus/liop@latest"],
       "env": {
-        "LIOP_NEXUS_URL": "http://your-nexus-host:3000",
+        "LIOP_NEXUS_URL": "http://your-nexus-host:15000",
         "LIOP_LOG_LEVEL": "info",
         "LIOP_TOKEN_BANK": "your-secure-bank-token",
         "LIOP_TOKEN_VAULT": "your-secure-vault-token",
@@ -541,10 +554,10 @@ await server.connectToMesh();
 The SDK includes a real-time developer interface to test Logic-Injection-on-Origin, trace post-quantum handshakes, evaluate AST fuel consumption, and inspect cryptographic proofs:
 
 ```bash
-# 1. Launch the full 8-node production audit mesh with traffic shaping (http://localhost:16000)
+# 1. Launch the full 10-node production audit mesh with traffic shaping (http://localhost:16000)
 pnpm run audit:prod:start
 
-# Run the 10-suite automated production audit against the mesh
+# Run the 12-suite automated production audit against the mesh (64 tests)
 pnpm run audit:prod:run
 
 # Teardown and cleanup production containers

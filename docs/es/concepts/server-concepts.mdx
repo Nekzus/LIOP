@@ -1,6 +1,8 @@
 ---
 title: "Conceptos del Servidor"
 description: "Arquitectura de protección de recursos y ejecución de lógica en Nodos de Datos LIOP"
+icon: "server"
+
 ---
 
 En el Logic-Injection-on-Origin Protocol, un "Servidor" es técnicamente denominado un **Nodo de Datos** (Data Node). A diferencia de un servidor web tradicional que responde pasivamente con JSON, un Servidor LIOP es un Motor de Ejecución activo. Su deber principal es recibir lógica foránea inyectada, aislarla estrictamente y permitirle operar sobre datos locales.
@@ -279,10 +281,13 @@ El motor deriva automáticamente la **sensibilidad por campo** basándose en el 
 
 Consulte [Seguridad Zero-Trust — Motor de Privacidad Diferencial](/es/concepts/zero-trust#7-motor-de-privacidad-diferencial-mecanismo-de-laplace) para la especificación técnica detallada.
 
-### Estructura Dinámica de Retorno (Localización de Datos en Origen) [PLANIFICADO]
-LIOP introduce un patrón arquitectónico donde la traducción y localización de datos ocurre directamente en el momento de la ejecución. Esta funcionalidad está en la hoja de ruta.
+### Estructura Dinámica de Retorno (Localización de Datos en Origen)
+
+<Note>
+**Especificación en Hoja de Ruta** — La Estructura Dinámica de Retorno está programada para una versión futura del protocolo y aún no está disponible en el runtime activo del SDK.
+</Note>
 
 Cuando un Nodo de Datos registra sus capacidades, incrusta una directiva estructural dentro del payload (`DYNAMIC RETURN STRUCTURE`). Esto instruye al agente ejecutor a generar esquemas JSON con claves mapeadas al **idioma detectado en la consulta inicial del usuario.**
 
-*   Si el usuario consulta *"¿Cuántos pacientes tienen hipertensión?"*, el Nodo devuelve una respuesta con claves en español (como `{"cantidad": 25, "edad_promedio": 45}`).
-*   Esto elimina la necesidad de capas cliente de internacionalización (i18n), resolviendo la taxonomía de los datos en el Origen sin requerir re-traducción de prompts.
+* Si el usuario consulta *"¿Cuántos pacientes tienen hipertensión?"*, el Nodo devuelve una respuesta con claves en español (como `{"cantidad": 25, "edad_promedio": 45}`).
+* Esto elimina la necesidad de capas cliente de internacionalización (i18n), resolviendo la taxonomía de los datos en el Origen sin requerir re-traducción de prompts.

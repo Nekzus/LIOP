@@ -1,6 +1,8 @@
 ---
 title: "Log & Audit Interceptors"
 description: "Technology-agnostic hooks for operational log streams and cryptographic audit chain ledgers"
+icon: "binary"
+
 ---
 
 The LIOP SDK provides two runtime interceptor hooks designed for telemetry, anomaly detection, and regulatory compliance:
@@ -14,10 +16,10 @@ Both hooks operate out-of-band using an asynchronous fire-and-forget execution m
 
 ## Interceptor Architecture
 
-<picture>
-  <source srcset="/images/animated-log-audit-interceptors-dark.svg" media="(prefers-color-scheme: dark)" />
-  <img src="/images/animated-log-audit-interceptors-light.svg" alt="LIOP Protocol Interceptor Architecture" />
-</picture>
+<Frame>
+  <img className="block dark:hidden" src="/images/animated-log-audit-interceptors-light.svg" alt="LIOP Protocol Interceptor Architecture" />
+  <img className="hidden dark:block" src="/images/animated-log-audit-interceptors-dark.svg" alt="LIOP Protocol Interceptor Architecture" />
+</Frame>
 
 ---
 

@@ -1,6 +1,8 @@
 ---
 title: "Interceptores de Log y Auditoría"
 description: "Ganchos agnósticos de tecnología para flujos de logs operacionales y registros criptográficos de auditoría"
+icon: "binary"
+
 ---
 
 El SDK de LIOP proporciona dos ganchos de intercepción en tiempo de ejecución diseñados para telemetría, detección de anomalías y cumplimiento normativo:
@@ -14,10 +16,10 @@ Ambos ganchos operan fuera de banda utilizando un modelo de ejecución asíncron
 
 ## Arquitectura de Interceptores
 
-<picture>
-  <source srcset="/images/animated-log-audit-interceptors-dark.svg" media="(prefers-color-scheme: dark)" />
-  <img src="/images/animated-log-audit-interceptors-light.svg" alt="Arquitectura de Interceptores del Protocolo LIOP" />
-</picture>
+<Frame>
+  <img className="block dark:hidden" src="/images/animated-log-audit-interceptors-light.svg" alt="Arquitectura de Interceptores del Protocolo LIOP" />
+  <img className="hidden dark:block" src="/images/animated-log-audit-interceptors-dark.svg" alt="Arquitectura de Interceptores del Protocolo LIOP" />
+</Frame>
 
 ---
 
@@ -65,7 +67,7 @@ log.setInterceptor(undefined);
 
 ### Guardarraíl de Recursión
 
-Si la implementación de un interceptor invoca código que dispara `LiopLogger` (directamente o mediante dependencias), un bucle reentrante infinito provocaría un desbordamiento de pila (*stack overflow*). `LiopLogger` mantiene una bandera interna de reentrancia (`_isIntercepting`) que suprime el despacho recursivo del interceptor dentro del mismo marco de llamada, preservando la salida estándar a `stderr`.
+Si la implementación de un interceptor invoca código que dispara `LiopLogger` (directamente o mediante dependencias), un bucle reentrante infinito provocaría un desbordamiento de pila (*stack overflow*). `LiopLogger` mantiene una bandera interna de reentrancia (`_isIntercepting`) que suprime el despacho recursivo del interceptor dentro del mismo marco de llamada y preserva la salida estándar a `stderr`.
 
 ---
 

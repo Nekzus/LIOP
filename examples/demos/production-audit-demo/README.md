@@ -1,16 +1,22 @@
 # LIOP Production Audit Demo
 
-## Objective
-A **Production-Grade Demo** showcasing the clean and direct usage of the Logic-Injection-on-Origin Protocol (LIOP) SDK. This version focuses on real-world "Logic-Injection-on-Origin" implementation without external simulations.
+A focused demonstration illustrating direct usage of the `@nekzus/liop` SDK to process protected datasets without raw data egress.
 
-## Features
-- **Native SDK**: Built exclusively using `@nekzus/liop`.
-- **Zero Simulation**: All cryptography (PQC, AES) and transport (P2P Mesh) are managed internally by the core protocol.
-- **Minimalist Architecture**: Designed to demonstrate developer-friendly implementation patterns.
+---
 
-## Requirements
-- Node.js LTS
-- Built LIOP SDK (`pnpm run build` in `sdks/typescript` root).
+## 📚 Official Documentation
+
+For comprehensive guides, API references, and production deployment patterns, visit the [official LIOP documentation](https://nekzus-32.mintlify.app/).
+
+---
+
+## Architectural Features
+
+- **Native SDK Integration**: Built exclusively with `@nekzus/liop` using strict Zod schemas and runtime policies.
+- **Hardware & Protocol Cryptography**: ML-KEM-768 key encapsulation and AES-256-GCM symmetric encryption.
+- **In-Situ Execution**: Processes protected medical records (`medical_records.json`) locally. The audit logic executes at the server, returning only aggregated metrics.
+
+---
 
 ## How to Run
 
@@ -24,5 +30,8 @@ pnpm run start:server
 pnpm run start:client
 ```
 
-## Implementation Notes
-This example processes a protected medical database (`medical_records.json`). The audit logic is dispatched from the client and processed on the server without sensitive data ever leaving the origin node.
+---
+
+## License
+
+Licensed under the [Apache License, Version 2.0](../../../LICENSE). Copyright 2026 [Nekzus Solutions](https://github.com/Nekzus) and contributors.

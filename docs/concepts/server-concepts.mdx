@@ -1,6 +1,8 @@
 ---
 title: "Server Concepts"
 description: "Understanding how an LIOP Data Node protects resources and executes logic"
+icon: "server"
+
 ---
 
 In the Logic-Injection-on-Origin Protocol (LIOP), a "Server" is historically termed a **Data Node**. Unlike a traditional web server that passively serves JSON responses upon request, an LIOP Server is an active Execution Engine. Its primary duty is to receive foreign logic, strictly isolate it, and allow it to operate on local data.
@@ -45,7 +47,7 @@ The WASM module can read the nginx logs directly within its assigned memory boun
 
 One of LIOP's most powerful features is **Watchdogs**, superseding the concept of simple prompts or manual polling.
 
-AI applications often need to monitor a server (e.g., "Tell me when memory usage exceeds 90%"). In HTTP/REST or JSON-RPC, the AI must constantly send manual requests every 5 seconds, wasting massive network bandwidth and LLM tokens.
+AI applications often need to monitor a server (e.g., "Tell me when memory usage exceeds 90%"). In HTTP/REST or JSON-RPC, the AI must constantly send manual requests every few seconds, consuming significant network bandwidth and LLM tokens.
 
 **LIOP push architecture solves this:**
 *   The Agent sends a Watchdog WASM Module to the Data Node.
@@ -283,10 +285,13 @@ The engine automatically derives **per-field sensitivity** based on the output k
 
 See [Zero-Trust Security — Differential Privacy](/concepts/zero-trust#7-differential-privacy-engine-laplace-mechanism) for the detailed technical specification.
 
-### Dynamic Return Structure (Native Auto-i18n) [PLANNED]
-LIOP introduces an architectural pattern where cross-border data translation occurs at execution time. This feature is on the roadmap.
+### Dynamic Return Structure (Native Auto-i18n)
+
+<Note>
+**Roadmap Specification** — Dynamic Return Structure is scheduled for a future protocol release and is not yet available in the active SDK runtime.
+</Note>
 
 When a Data Node registers its capabilities, it embeds a structural directive into the payload definition (`DYNAMIC RETURN STRUCTURE`). This instructs the executing agent to output JSON schemas using keys mapped to the **language detected in the user's initial prompt.**
 
-*   If the user queries *"¿Cuántos pacientes tienen hipertensión?"*, the Node returns a response matching Spanish keys (such as `{"cantidad": 25, "edad_promedio": 45}`).
-*   This removes the need for client-side internationalization (i18n) layers, localizing schema taxonomy directly at Origin without requiring prompt re-translation.
+* If the user queries *"¿Cuántos pacientes tienen hipertensión?"*, the Node returns a response matching Spanish keys (such as `{"cantidad": 25, "edad_promedio": 45}`).
+* This removes the need for client-side internationalization (i18n) layers, localizing schema taxonomy directly at Origin without requiring prompt re-translation.

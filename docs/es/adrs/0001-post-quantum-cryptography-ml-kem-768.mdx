@@ -1,0 +1,61 @@
+---
+title: "ADR-0001: Adopción de Criptografía Poscuántica (ML-KEM-768)"
+description: "Decisión arquitectónica que adopta la encapsulación de claves NIST FIPS 203 ML-KEM-768 para el transporte de malla y el sellado de recibos ZK."
+icon: "shield-check"
+---
+
+# Adopción de Criptografía Poscuántica (ML-KEM-768)
+
+- **Estado:** Aceptada
+- **Responsables:** Comité de Arquitectura del Protocolo, Equipo Core Nekzus
+- **Fecha:** 2026-08-15
+- **Referencia Técnica:** Hito de Blindaje Criptográfico y Alineación NIST FIPS 203
+
+---
+
+## Contexto y Definición del Problema
+
+Los nodos de la malla descentralizada en LIOP intercambian consultas analíticas y micro-módulos WebAssembly a través de perímetros de red no confiables. Cualquier adversario con capacidad de intercepción puede almacenar el tráfico cifrado con el objetivo de descifrarlo cuando existan computadoras cuánticas criptográficamente relevantes (CRQC), vector conocido como "Harvest Now, Decrypt Later" (HNDL).
+
+Los esquemas asimétricos clásicos como RSA-2048 y curvas elípticas (X25519) sucumbirán ante el algoritmo de Shor. LIOP requiere un mecanismo de encapsulación de claves que proporcione confidencialidad a largo plazo sin degradar la latencia sub-milisegundo del protocolo.
+
+---
+
+## Factores Determinantes
+
+- **Inmunidad Cuántica:** Protección demostrada frente a criptoanálisis cuántico bajo los estándares formales del NIST.
+- **Latencia Sub-milisegundo:** El presupuesto temporal del handshake debe permanecer por debajo de 2 milisegundos en hardware estándar.
+- **Integración con Canales Simétricos:** Derivación directa de secretos de 256 bits para el cifrado de transporte con AES-256-GCM.
+- **Soporte Multi-lenguaje:** Disponibilidad de implementaciones auditadas en Rust (`pqcrypto-kyber`) y TypeScript/Node.js.
+
+---
+
+## Opciones Evaluadas
+
+1. **ECDH Clásico (X25519) + AES-256-GCM:** Tecnología madura con claves públicas de 32 bytes, pero vulnerable ante futuros ataques cuánticos.
+2. **Esquema Híbrido X25519 + ML-KEM-768:** Combina criptografía clásica y poscuántica, con una sobrecarga adicional por doble negociación de claves.
+3. **ML-KEM-768 Puro (Kyber-768) + AES-256-GCM:** Estándar nativo NIST FIPS 203 de retículos modulares que ofrece nivel de seguridad Categoría 3 (equivalente a AES-192).
+
+---
+
+## Decisión Adoptada
+
+**Opción Seleccionada:** Opción 3 — ML-KEM-768 puro con transporte simétrico AES-256-GCM.
+
+### Consecuencias Positivas
+
+- **Garantías Formales de Seguridad:** Cumple con la Categoría 3 de NIST FIPS 203 y neutraliza ataques de captura retrospectiva (HNDL).
+- **Eficiencia de Cómputo:** Las pruebas de rendimiento registran la generación de pares de claves en $0.21\text{ ms}$, la encapsulación en $0.28\text{ ms}$ y la desencapsulación en $0.24\text{ ms}$.
+- **Sellado Criptográfico ZK:** El secreto de sesión derivado sella directamente el Recibo ZK de la Capa 6 (`HMAC-SHA256`) y asocia el resultado computacional a la identidad efímera de la sesión.
+
+### Consecuencias Negativas y Mitigaciones
+
+- **Mayor Tamaño de Clave en Red:** Las claves públicas ocupan 1,184 bytes y los textos cifrados 1,088 bytes (frente a 32 bytes en X25519).  
+  *Mitigación:* El handshake se ejecuta una única vez por canal persistente gRPC. Las invocaciones posteriores reutilizan los streams multiplexados con Yamux sobre la sesión simétrica establecida.
+
+---
+
+## Verificación y Cumplimiento
+
+- Validado en la suite de integración `vitest.audit.config.ts` (Suite 3: *Cryptographic Integrity & Quantum Handshakes*).
+- Certificado en el backend de Rust mediante `cargo test --package liop-core --test pqc_handshake`.

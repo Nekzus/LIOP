@@ -1,6 +1,8 @@
 ---
 title: "Arquitectura"
 description: "Componentes, capas de ejecución y enrutamiento P2P en el Logic-Injection-on-Origin Protocol"
+icon: "network"
+
 ---
 
 LIOP opera bajo un paradigma fundamentalmente distinto a las APIs REST tradicionales o al Model Context Protocol (MCP). Abandona el modelo cliente-servidor JSON-RPC en favor de un **modelo descentralizado de inyección binaria (push model)** sobre una red P2P.
@@ -82,6 +84,25 @@ En despliegues de producción empresarial, la topología de la malla está divid
 * **Nodos Industriales en el Borde (`Edge IoT`)**: Desplegados en hardware industrial bajo perfiles de red WAN degradados (latencia de 250ms ± 50ms y 2% de paquetes perdidos). Procesa anomalías in-situ y transmite solo telemetría agregada crítica.
 * **Relays de Circuito P2P (`Relay`)**: Servidores públicos de alta capacidad que implementan AutoNAT y Circuit Relay v2 para superar firewalls corporativos.
 * **Cliente SDK, Web Playground y Studio**: Consolas de ejecución interactivas que operan sobre enlaces transatlánticos simulados (`:16000` Studio / `:16002` Playground).
+
+### Puertos Canónicos de Red
+
+La topología multicapa de LIOP estandariza puertos de red específicos a través de sus servicios y entornos de desarrollo:
+
+| Servicio | Puerto | Protocolo / Transporte | Propósito |
+|:---|:---|:---|:---|
+| **Nexus Discovery / OIDC** | `:15000` (HTTP) / `:15001` (P2P) | HTTP/2, libp2p Kademlia | Nodo semilla, indexación de manifiestos y emisión de tokens OAuth 2.1 RFC 6749 |
+| **Border LIO Gateway (BLG)** | `:15018` | HTTP/2, mTLS | Pasarela perimétrica que conecta consultas WAN hacia los enclaves PSK |
+| **Enclave The Vault (Tier 1)** | `:15013` (Interno) | gRPC / PSK Swarm | Repositorio de historias clínicas (sin ingreso público directo) |
+| **Enclave The Bank (Tier 1)** | `:15014` (Interno) | gRPC / PSK Swarm | Libro contable de transacciones financieras (sin ingreso público directo) |
+| **The Oracle (Tier 2)** | `:15015` | gRPC / libp2p | Motor de simulación de mercado y matching HFT |
+| **Edge IoT (Tier 3)** | `:15016` | gRPC / WAN | Nodo industrial remoto simulado con telemetría in-situ |
+| **Circuit Relay v2** | `:15007` (P2P) / `:15017` (HTTP) | libp2p Relay | Superación de NAT y red pública de descubrimiento P2P |
+| **Playground de Desarrollo Local** | `:14000` | HTTP / SSE | Consola interactiva de desarrollo local independiente (`demo:start`) |
+| **Web UI de LIOP Studio** | `:16000` | HTTP / SSE | Consola oficial del paquete NPM (`npx @nekzus/liop-studio`) |
+| **Playground Web en Arnés** | `:16002` | HTTP / SSE | Consola de pruebas web embebida en el arnés Docker de producción |
+| **Recolector Prometheus** | `:9090` | HTTP | Agregación de telemetría y reglas de alerta |
+| **Tablero Grafana** | `:3000` | HTTP | Panel de observabilidad de producción (26 paneles) |
 
 ### Demarcación de Interceptores y Defensa en Profundidad
 

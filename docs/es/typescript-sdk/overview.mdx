@@ -1,6 +1,8 @@
 ---
 title: "Visión General del SDK TypeScript"
 description: "Implementación y arquitectura de ejecución de LIOP para Node.js y TypeScript"
+icon: "cube"
+
 ---
 
 El SDK oficial `@nekzus/liop` proporciona un conjunto de herramientas completo y fuertemente tipado para construir Clientes LIOP (Agent Nodes) y Servidores LIOP (Data Nodes) en TypeScript y JavaScript.
@@ -27,7 +29,7 @@ yarn add @nekzus/liop@latest zod
   Recomendamos instalar `zod` junto al SDK. Al igual que en la especificación MCP, LIOP utiliza Zod para garantizar que los argumentos de ejecución coincidan con el manifiesto de capacidades del servidor.
 </Note>
 
-## Arquitectura Zero-Bloat (Instalaciones Opt-Out)
+## Arquitectura de Mínimas Dependencias (Instalaciones Opt-Out)
 
 Por defecto, `@nekzus/liop` proporciona compatibilidad retroactiva directa con el Model Context Protocol (MCP) a través del módulo `LiopMcpBridge`. Para facilitar esta integración, el paquete declara `@modelcontextprotocol/sdk` como dependencia opcional y peer, por lo que las instalaciones estándar (`npm install @nekzus/liop`) la resuelven de forma automática.
 

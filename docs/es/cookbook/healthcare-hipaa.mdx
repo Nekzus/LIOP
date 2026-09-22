@@ -1,0 +1,167 @@
+---
+title: "Analítica Clínica EHR y Cumplimiento HIPAA"
+description: "Estudios epidemiológicos de cohortes sobre registros médicos FHIR aplicando Privacidad Diferencial (Mecanismo Laplace) y filtrado estricto de PII"
+icon: "heart-pulse"
+
+---
+
+Las bases de datos de historias clínicas electrónicas (EHR) que contienen Información Médica Protegida (PHI) están reguladas por marcos normativos estrictos como la **Norma de Seguridad de HIPAA (§164.312)** y el **Artículo 9 del RGPD**. La transferencia de expedientes médicos individuales a través de redes públicas o hacia modelos de inteligencia artificial de terceros expone a las instituciones de salud a sanciones legales severas y a la obligación de notificar brechas de seguridad.
+
+El protocolo Logic-Injection-on-Origin responde a los requisitos de cumplimiento sanitario integrando:
+1. **Privacidad Diferencial In-Situ**: Perturbación matemática del resultado mediante el Mecanismo de Laplace para impedir ataques de reidentificación sin degradar la utilidad epidemiológica de la muestra.
+2. **Escudo PII de Salida en Múltiples Etapas**: Detección y censura automática de nombres de pacientes, números de seguridad social (SSN), historiales clínicos (MRN) y teléfonos antes de emitir la respuesta.
+3. **Integridad Probatoria mediante Recibos ZK**: Certificación matemática de que el cómputo perturbado procede del servidor hospitalario legítimo y no experimentó alteraciones en tránsito.
+
+```
+Enclave Hospitalario (VPC Privada de Salud):
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  LiopServer (Nivel de Autorización: 5)                                      │
+│  Base de Datos de Pacientes FHIR (HL7 v4.0.1)                              │
+│                                                                             │
+│  Consulta Inyectada: "Incidencia de Diabetes Tipo 2 en cohorte de 45-65 años"│
+│                                                                             │
+│  Paso 1: Conteo Real ────────────────► total = 1.482                        │
+│  Paso 2: Ruido de Laplace (ε = 0.5) ─► totalPerturbado = 1.482 + Lap(1/0.5)│
+│                                                        = 1.484              │
+│  Paso 3: Escudo PII de Salida ───────► Cero datos nominales detectados     │
+│  Paso 4: Sello Criptográfico ZK ─────► Salida firmada con clave ML-KEM      │
+└──────────────────────────────────────┬──────────────────────────────────────┘
+                                       │ Red WAN: 195 bytes (Cero PHI)
+                                       ▼
+                       Agente de IA Clínica Externo
+```
+
+---
+
+## Paso 1: Implementación del Enclave Hospitalario
+
+Configure un `LiopServer` con nivel de seguridad `clearanceTier: 5` y las directivas de `PII_PRESETS.US_COMPLIANT`:
+
+```typescript
+import { LiopServer, PII_PRESETS } from "@nekzus/liop";
+import { z } from "zod";
+
+/**
+ * Mecanismo de Laplace para Privacidad Diferencial
+ * Aplica perturbación aleatoria calibrada según la sensibilidad global / épsilon
+ */
+function addLaplaceNoise(value: number, epsilon: number, sensitivity = 1): number {
+  const scale = sensitivity / epsilon;
+  const u = Math.random() - 0.5;
+  const noise = -scale * Math.sign(u) * Math.log(1 - 2 * Math.abs(u));
+  return Math.round(value + noise);
+}
+
+const hospitalServer = new LiopServer(
+  { name: "Hospital_Clinical_Enclave", version: "1.0.0" },
+  {
+    tokenSlug: "HEALTH",
+    port: 15028,
+    security: {
+      forbiddenKeys: [
+        "ssn", "patient_id", "mrn", "birthDate", "telecom", "address"
+      ],
+      piiPatterns: [
+        ...PII_PRESETS.US_COMPLIANT,
+        /MRN-\d{7}/, // Formato interno de historial clínico hospitalario
+      ],
+      enableNerScanning: true, // Detección de nombres de facultativos y pacientes
+    },
+    taxonomy: {
+      domain: "healthcare",
+      clearanceTier: 5,
+      executionTypes: ["differential-privacy", "cohort-analysis"],
+    },
+  },
+);
+
+hospitalServer.tool(
+  "Analyze_Diabetes_Cohort",
+  "Evalúa la prevalencia de diabetes en una cohorte demográfica mediante privacidad diferencial ε.",
+  {
+    conditionCode: z.string().default("E11.9"), // Código CIE-10 para Diabetes Tipo 2
+    minAge: z.number().int().min(18).max(120),
+    maxAge: z.number().int().min(18).max(120),
+    privacyBudgetEpsilon: z.number().positive().max(1.0).default(0.5),
+  },
+  async ({ conditionCode, minAge, maxAge, privacyBudgetEpsilon }) => {
+    // 1. Consultar base de datos interna FHIR (inaccesible desde el exterior)
+    const cohort = await fhirDatabase.patients.find({
+      "condition.code": conditionCode,
+      age: { $gte: minAge, $lte: maxAge },
+    });
+
+    // 2. Perturbar el valor exacto usando el Mecanismo de Laplace
+    const trueCount = cohort.length;
+    const differentiallyPrivateCount = addLaplaceNoise(trueCount, privacyBudgetEpsilon);
+
+    // 3. Devolver la métrica agregada y protegida
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify({
+            conditionCode,
+            ageCohort: `${minAge}-${maxAge}`,
+            privacyPreservedPatientCount: Math.max(0, differentiallyPrivateCount),
+            differentialPrivacyParameters: {
+              mechanism: "Laplace",
+              sensitivity: 1,
+              epsilon: privacyBudgetEpsilon,
+            },
+            complianceStandard: "HIPAA Safe Harbor & Expert Determination",
+          }),
+        },
+      ],
+    };
+  },
+);
+
+await hospitalServer.connect();
+```
+
+---
+
+## Paso 2: Consulta Epidemiológica desde el Agente de Investigación
+
+El investigador clínico realiza la petición analítica sin extraer registros nominales de pacientes:
+
+```typescript
+import { LiopClient } from "@nekzus/liop";
+
+const client = new LiopClient();
+await client.connect("127.0.0.1:15028", {
+  auth: {
+    clientId: "university-clinical-researcher",
+    clientSecret: process.env.RESEARCH_CLIENT_SECRET,
+    nexusUrl: "http://127.0.0.1:15000",
+    audience: "urn:liop:healthcare:enclave",
+    scope: "liop:tools:call",
+  },
+});
+
+const response = await client.callTool({
+  name: "Analyze_Diabetes_Cohort",
+  arguments: {
+    conditionCode: "E11.9",
+    minAge: 45,
+    maxAge: 65,
+    privacyBudgetEpsilon: 0.5,
+  },
+});
+
+console.log("Resultado Epidemiológico:", response.content[0].text);
+await client.close();
+```
+
+---
+
+## Mapeo de Salvaguardas Técnicas de HIPAA Security Rule
+
+| Sección de HIPAA | Requisito Legal | Implementación en Protocolo LIOP |
+|---|---|---|
+| **§164.312(a)(1)** | **Control de Acceso** | Autenticación M2M OAuth 2.1 con Indicadores de Recursos RFC 8707 y rangos de autorización obligatorios (`clearanceTier: 5`). |
+| **§164.312(b)** | **Controles de Auditoría** | Registro fuera de banda síncrono mediante `AuditInterceptor` con trazabilidad de identidad, método y marca de tiempo. |
+| **§164.312(c)(1)** | **Controles de Integridad** | Recibos ZK (HMAC-SHA256) que vinculan matemáticamente el resultado analítico al hash del código inyectado. |
+| **§164.312(d)** | **Autenticación de Entidades** | TLS Mutuo (mTLS) con anclaje de certificados CA y acuerdos de claves post-cuánticos ML-KEM-768. |
+| **§164.312(e)(1)** | **Seguridad en Transmisión** | Supresión radical del movimiento de datos nominales de pacientes. Solo transitan agregaciones estadísticas perturbadas. |
