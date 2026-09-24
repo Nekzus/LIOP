@@ -25,6 +25,7 @@ import { Kyber768Wrapper } from "../rpc/crypto/kyber.js";
 import type { LiopTlsOptions } from "../rpc/tls.js";
 import type { LogicRequest, LogicResponse } from "../rpc/types.js";
 import { TokenManager } from "../runtime/token-manager.js";
+import { ProofType, type ZkPolicy } from "../security/zk.js";
 import {
 	type CallToolRequest,
 	type CallToolResult,
@@ -379,6 +380,7 @@ export class LiopClient {
 	public async callTool(
 		request: CallToolRequest,
 		_wasmPayload?: Buffer,
+		options?: { zkPolicy?: ZkPolicy; circuitName?: string },
 	): Promise<CallToolResult> {
 		if (!this.meshNode) {
 			throw new Error("Client must be connected before calling tools.");
@@ -621,13 +623,23 @@ export class LiopClient {
 					// Only verify ZK-Receipt if the remote execution succeeded.
 					// If the remote execution failed due to a policy error (e.g. Egress Shield),
 					// the ZK proof is empty and we should bypass validation to propagate the original error.
+					let isV2 = false;
 					if (!response.is_error) {
+						const receiptBuf = Buffer.from(response.zk_receipt);
+						isV2 = receiptBuf.length > 0 && receiptBuf[0] === 0x02;
+
+						const zkPolicy = options?.zkPolicy ?? (isV2 ? "required" : "none");
+
 						const isValid = await this.verifier.verifyZkReceipt(
 							_safePayload,
 							Buffer.from(response.cryptographic_proof).toString("hex"),
-							Buffer.from(response.zk_receipt),
-							Buffer.from(sharedSecret),
-							response.semantic_evidence,
+							receiptBuf,
+							{
+								sessionSecret: Buffer.from(sharedSecret),
+								expectedOutput: response.semantic_evidence,
+								circuitName: options?.circuitName,
+								zkPolicy,
+							},
 						);
 
 						try {
@@ -699,6 +711,8 @@ export class LiopClient {
 							},
 						],
 						isError: response.is_error,
+						zkVerified: !response.is_error,
+						zkProofType: isV2 ? ProofType.GROTH16 : ProofType.HMAC_LEGACY,
 					});
 				} catch (err) {
 					try {

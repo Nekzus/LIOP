@@ -1863,12 +1863,18 @@ export class LiopMcpRouter {
 									const proofHex = Buffer.from(
 										lastResponse.cryptographic_proof,
 									).toString("hex");
+									const receiptBuf = Buffer.from(lastResponse.zk_receipt);
+									const isV2 = receiptBuf.length > 0 && receiptBuf[0] === 0x02;
+
 									const isValid = await this.verifier.verifyZkReceipt(
 										Buffer.from(proxyLogic),
 										proofHex,
-										Buffer.from(lastResponse.zk_receipt),
-										Buffer.from(sharedSecret),
-										resultBody,
+										receiptBuf,
+										{
+											sessionSecret: Buffer.from(sharedSecret),
+											expectedOutput: resultBody,
+											zkPolicy: isV2 ? "required" : "none",
+										},
 									);
 
 									try {

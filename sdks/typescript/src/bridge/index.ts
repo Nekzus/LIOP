@@ -306,21 +306,29 @@ export class LiopMcpBridge {
 						const { LiopVerifier } = await import("../crypto/verifier.js");
 						const verifier = new LiopVerifier();
 
-						// 2. Delegate the heavy mathematical check (ZK Journal + Seal)
+						const receiptBuf = Buffer.from(data.zk_receipt || "", "base64");
+						const isV2 = receiptBuf.length > 0 && receiptBuf[0] === 0x02;
+
+						// 2. Delegate the heavy mathematical check (ZK Journal + Seal or Groth16)
 						const isAuthentic = await verifier.verifyZkReceipt(
 							Buffer.from(payload, "utf-8"),
-							data.image_id,
-							Buffer.from(data.zk_receipt || "", "base64"),
-							undefined,
-							data.computation_result,
+							data.image_id || "",
+							receiptBuf,
+							{
+								guestImageIdHex: data.guest_image_id,
+								circuitName: data.circuit_name,
+								expectedOutput: data.computation_result,
+								zkPolicy: isV2 ? "required" : "none",
+							},
 						);
 
 						if (!isAuthentic) {
 							return false;
 						}
 
-						data.audit_status =
-							"VERIFIED: ZK-Receipt & ImageID Mathematically Verified by LiopMcpBridge";
+						data.audit_status = isV2
+							? "VERIFIED: Groth16 Zero-Knowledge Proof Certified by LiopMcpBridge"
+							: "VERIFIED: ZK-Receipt & ImageID Mathematically Verified by LiopMcpBridge";
 						result.content[0].text = JSON.stringify(data);
 					}
 				} catch {

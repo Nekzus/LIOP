@@ -114,6 +114,8 @@ export interface CallToolResult {
 		};
 	}>;
 	isError?: boolean;
+	zkVerified?: boolean;
+	zkProofType?: import("./security/zk.js").ProofType;
 }
 
 export interface GetPromptRequest {
@@ -195,3 +197,17 @@ export type {
  * Compatible with MCP TypeScript SDK AuthInfo interface shape.
  */
 export type { AuthInfo } from "./security/jwt-validator.js";
+export type {
+	ZkJournalV2,
+	ZkPolicy,
+	ZkReceipt,
+} from "./security/zk.js";
+/**
+ * Re-export Zero-Knowledge Proof & Verification types for consumer convenience.
+ */
+export {
+	ProofType,
+	RECEIPT_VERSION_V1,
+	RECEIPT_VERSION_V2,
+	ZK_JOURNAL_V2_SIZE,
+} from "./security/zk.js";

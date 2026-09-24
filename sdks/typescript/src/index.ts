@@ -3,6 +3,7 @@
 
 export * from "./bridge/index.js";
 export * from "./client/index.js";
+export * from "./crypto/groth16-verifier.js";
 export * from "./economy/index.js";
 export * from "./errors.js";
 export * from "./gateway/grpc-web.js";
@@ -40,6 +41,7 @@ export {
 	LIOP_SCOPES,
 	type LiopScope,
 } from "./security/rbac.js";
+export * from "./security/zk.js";
 export * from "./server/index.js";
 export * from "./types.js";
 export * from "./utils/logger.js";

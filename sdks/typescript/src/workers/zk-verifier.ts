@@ -1,9 +1,19 @@
-// Copyright 2026 Nekzus Solutions and contributors
-// SPDX-License-Identifier: Apache-2.0
-
 import crypto from "node:crypto";
 import { parentPort } from "node:worker_threads";
+import {
+	deserializeGrothProof,
+	deserializeVKey,
+	verifyGroth16Proof,
+} from "../crypto/groth16-verifier.js";
 import { deriveLogicImageDigest } from "../crypto/logic-image-id.js";
+import {
+	decodeJournalV2,
+	ProofType,
+	RECEIPT_VERSION_V1,
+	RECEIPT_VERSION_V2,
+	receiptCodec,
+	type ZkPolicy,
+} from "../security/zk.js";
 
 // Ensure this worker is used via Piscina pool
 if (!parentPort) {
@@ -20,12 +30,18 @@ export interface ZkVerificationPayload {
 	logicPayload?: Uint8Array;
 	/** Expected ImageID (SHA-256) of the execution state */
 	remoteImageIdHex?: string;
+	/** Expected Guest ImageID (SHA-256) of the zkVM interpreter */
+	guestImageIdHex?: string;
 	/** Cbor-encoded or raw buffer containing the execution Receipt (Journal + Seal) */
 	zkReceipt?: Uint8Array;
 	/** Kyber-derived session secret to verify HMAC signature */
 	sessionSecret?: Uint8Array;
+	/** Serialized VerificationKey buffer for Groth16 mathematical verification */
+	vkeyRaw?: Uint8Array;
 	/** The expected output value of the computation for anti-replay/tampering verification */
 	expectedOutput?: unknown;
+	/** Enforcement policy for clearance tiers */
+	zkPolicy?: ZkPolicy;
 }
 
 function deriveImageId(logicPayload: Uint8Array): Buffer {
@@ -119,13 +135,16 @@ function tryExtractProxyOutput(logicPayload: Uint8Array): unknown | null {
  */
 async function verifyZkReceipt(
 	payload: ZkVerificationPayload,
-): Promise<{ verified: boolean; message: string }> {
+): Promise<{ verified: boolean; message: string; proofType?: string }> {
 	const {
 		logicPayload,
 		remoteImageIdHex,
+		guestImageIdHex,
 		zkReceipt,
 		sessionSecret,
+		vkeyRaw,
 		expectedOutput,
+		zkPolicy,
 	} = payload;
 
 	if (!logicPayload || !remoteImageIdHex || !zkReceipt) {
@@ -135,101 +154,193 @@ async function verifyZkReceipt(
 		};
 	}
 
-	// 1. Calculate local ImageID (Integrity Check)
-	const localImageId = deriveImageId(logicPayload);
-	const localImageIdHex = localImageId.toString("hex");
-
-	if (localImageIdHex !== remoteImageIdHex) {
-		return {
-			verified: false,
-			message: `Integrity Violation: Local (${localImageIdHex.slice(0, 8)}) != Remote (${remoteImageIdHex.slice(0, 8)})`,
-		};
-	}
-
-	// 2. Structural Verification: Deserialize Binary Receipt
-	const receiptBuf = Buffer.from(zkReceipt);
-	if (receiptBuf.length < 35) {
-		// 1 version + 2 len + 32 seal minimum
-		return {
-			verified: false,
-			message: "Receipt too short for binary format.",
-		};
-	}
-
-	const version = receiptBuf[0];
-	if (version !== 0x01) {
-		return {
-			verified: false,
-			message: `Unknown receipt version: ${version}`,
-		};
-	}
-
-	const journalLen = receiptBuf.readUInt16BE(1);
-	const journal = receiptBuf.subarray(3, 3 + journalLen);
-	const seal = receiptBuf.subarray(3 + journalLen);
-
-	if (seal.length !== 32) {
-		return {
-			verified: false,
-			message: "Invalid seal length (expected 32 bytes HMAC-SHA256).",
-		};
-	}
-
-	// 3. Parse journal and verify imageId
-	let journalData: ZkJournal;
+	let decodedReceipt: ReturnType<typeof receiptCodec.decode>;
 	try {
-		journalData = JSON.parse(journal.toString()) as ZkJournal;
-		if (journalData.image_id !== localImageIdHex) {
-			return {
-				verified: false,
-				message: `Journal ImageID mismatch: ${journalData.image_id.slice(0, 8)} != ${localImageIdHex.slice(0, 8)}`,
-			};
-		}
-	} catch (_e) {
-		return { verified: false, message: "Failed to parse journal data." };
+		decodedReceipt = receiptCodec.decode(Buffer.from(zkReceipt));
+	} catch (err) {
+		return {
+			verified: false,
+			message: `Receipt Decode Failed: ${(err as Error).message}`,
+		};
 	}
 
-	// 4. Mathematical Verification (HMAC-SHA256)
-	if (sessionSecret && sessionSecret.length > 0) {
-		const expectedSeal = crypto
-			.createHmac("sha256", sessionSecret)
-			.update(journal)
-			.digest();
-		if (!crypto.timingSafeEqual(seal, expectedSeal)) {
+	// 1. Version 1 (HMAC Legacy Receipt)
+	if (decodedReceipt.version === RECEIPT_VERSION_V1) {
+		if (zkPolicy === "required") {
 			return {
 				verified: false,
-				message: "Invalid seal: HMAC verification failed.",
+				message:
+					"Policy Violation: Clearance Tier requires ZK proof (Groth16), but received legacy HMAC.",
 			};
 		}
+
+		// Calculate local ImageID (Integrity Check)
+		const localImageId = deriveImageId(logicPayload);
+		const localImageIdHex = localImageId.toString("hex");
+
+		if (localImageIdHex !== remoteImageIdHex) {
+			return {
+				verified: false,
+				message: `Integrity Violation: Local (${localImageIdHex.slice(0, 8)}) != Remote (${remoteImageIdHex.slice(0, 8)})`,
+			};
+		}
+
+		// Parse journal and verify imageId
+		let journalData: ZkJournal;
+		try {
+			journalData = JSON.parse(decodedReceipt.journal.toString()) as ZkJournal;
+			if (journalData.image_id !== localImageIdHex) {
+				return {
+					verified: false,
+					message: `Journal ImageID mismatch: ${journalData.image_id.slice(0, 8)} != ${localImageIdHex.slice(0, 8)}`,
+				};
+			}
+		} catch (_e) {
+			return { verified: false, message: "Failed to parse journal data." };
+		}
+
+		// Mathematical Verification (HMAC-SHA256)
+		if (sessionSecret && sessionSecret.length > 0) {
+			const expectedSeal = crypto
+				.createHmac("sha256", sessionSecret)
+				.update(decodedReceipt.journal)
+				.digest();
+			if (!crypto.timingSafeEqual(decodedReceipt.proof, expectedSeal)) {
+				return {
+					verified: false,
+					message: "Invalid seal: HMAC verification failed.",
+				};
+			}
+		}
+
+		// Output Hash Verification (Anti-Replay / Anti-Tampering)
+		if (expectedOutput !== undefined) {
+			const proxyOutput = tryExtractProxyOutput(logicPayload);
+			const actualExpected =
+				proxyOutput !== null ? proxyOutput : expectedOutput;
+
+			const expectedOutputStr =
+				typeof actualExpected === "string"
+					? actualExpected
+					: actualExpected === undefined
+						? "undefined"
+						: JSON.stringify(actualExpected);
+			const expectedOutputHash = crypto
+				.createHash("sha256")
+				.update(expectedOutputStr)
+				.digest("hex");
+
+			if (journalData.output_hash !== expectedOutputHash) {
+				return {
+					verified: false,
+					message: `Output Hash Mismatch (Replay/Tamper attempt): Journal output_hash (${journalData.output_hash.slice(0, 8)}) != Calculated output_hash (${expectedOutputHash.slice(0, 8)})`,
+				};
+			}
+		}
+
+		return {
+			verified: true,
+			message: "HMAC Commitment Verified: Integrity intact.",
+			proofType: "hmac",
+		};
 	}
 
-	// 5. Output Hash Verification (Anti-Replay / Anti-Tampering)
-	if (expectedOutput !== undefined) {
-		const proxyOutput = tryExtractProxyOutput(logicPayload);
-		const actualExpected = proxyOutput !== null ? proxyOutput : expectedOutput;
-
-		const expectedOutputStr =
-			typeof actualExpected === "string"
-				? actualExpected
-				: actualExpected === undefined
-					? "undefined"
-					: JSON.stringify(actualExpected);
-		const expectedOutputHash = crypto
-			.createHash("sha256")
-			.update(expectedOutputStr)
-			.digest("hex");
-
-		if (journalData.output_hash !== expectedOutputHash) {
+	// 2. Version 2 (Groth16 / ZK Binary Receipt)
+	if (decodedReceipt.version === RECEIPT_VERSION_V2) {
+		if (decodedReceipt.proofType !== ProofType.GROTH16) {
 			return {
 				verified: false,
-				message: `Output Hash Mismatch (Replay/Tamper attempt): Journal output_hash (${journalData.output_hash.slice(0, 8)}) != Calculated output_hash (${expectedOutputHash.slice(0, 8)})`,
+				message: `Unsupported ZK proof type in v2 receipt: ${decodedReceipt.proofType}`,
 			};
 		}
+
+		let journalV2: ReturnType<typeof decodeJournalV2>;
+		try {
+			journalV2 = decodeJournalV2(decodedReceipt.journal);
+		} catch (err) {
+			return {
+				verified: false,
+				message: `Failed to decode ZkJournalV2: ${(err as Error).message}`,
+			};
+		}
+
+		// Verify Guest Image ID if expected
+		if (guestImageIdHex) {
+			const actualGuestId = journalV2.guestImageId.toString("hex");
+			if (actualGuestId !== guestImageIdHex) {
+				return {
+					verified: false,
+					message: `Guest ImageID Mismatch: Injected guest environment tampered (${actualGuestId.slice(0, 8)} != ${guestImageIdHex.slice(0, 8)}).`,
+				};
+			}
+		}
+
+		// Verify Logic Digest (Ensures remote executed the exact user logic dispatched)
+		const expectedLogicDigest = deriveImageId(logicPayload);
+		if (!journalV2.logicDigest.equals(expectedLogicDigest)) {
+			return {
+				verified: false,
+				message: `Logic Digest Mismatch: Remote origin executed unexpected logic (${journalV2.logicDigest.toString("hex").slice(0, 8)} != ${expectedLogicDigest.toString("hex").slice(0, 8)})`,
+			};
+		}
+
+		// Mathematical Verification via Groth16 pairing check
+		if (vkeyRaw && vkeyRaw.length > 0) {
+			try {
+				const vkey = deserializeVKey(Buffer.from(vkeyRaw));
+				const proofWithSignals = deserializeGrothProof(decodedReceipt.proof);
+				const isMathValid = verifyGroth16Proof(vkey, proofWithSignals);
+
+				if (!isMathValid) {
+					return {
+						verified: false,
+						message:
+							"Groth16 mathematical pairing verification failed: invalid proof.",
+					};
+				}
+			} catch (err) {
+				return {
+					verified: false,
+					message: `Groth16 verification failed to execute: ${(err as Error).message}`,
+				};
+			}
+		}
+
+		// Output Digest Verification (Anti-Replay / Anti-Tampering)
+		if (expectedOutput !== undefined) {
+			const proxyOutput = tryExtractProxyOutput(logicPayload);
+			const actualExpected =
+				proxyOutput !== null ? proxyOutput : expectedOutput;
+
+			const expectedOutputStr =
+				typeof actualExpected === "string"
+					? actualExpected
+					: actualExpected === undefined
+						? "undefined"
+						: JSON.stringify(actualExpected);
+			const expectedOutputDigest = crypto
+				.createHash("sha256")
+				.update(expectedOutputStr)
+				.digest();
+
+			if (!journalV2.outputDigest.equals(expectedOutputDigest)) {
+				return {
+					verified: false,
+					message: `Output Digest Mismatch (Replay/Tamper attempt): Journal (${journalV2.outputDigest.toString("hex").slice(0, 8)}) != Calculated (${expectedOutputDigest.toString("hex").slice(0, 8)})`,
+				};
+			}
+		}
+
+		return {
+			verified: true,
+			message: "Groth16 Zero-Knowledge Proof Mathematically Certified.",
+			proofType: "groth16",
+		};
 	}
 
 	return {
-		verified: true,
-		message: "HMAC Commitment Verified: Integrity intact.",
+		verified: false,
+		message: `Unsupported receipt version: ${decodedReceipt.version}`,
 	};
 }
 
@@ -238,7 +349,7 @@ async function verifyZkReceipt(
  */
 export default async function workerHandler(
 	task: ZkVerificationPayload,
-): Promise<{ verified: boolean; message: string }> {
+): Promise<{ verified: boolean; message: string; proofType?: string }> {
 	try {
 		if (task.action === "warmup") {
 			return {

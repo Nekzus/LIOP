@@ -6,23 +6,55 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { Piscina } from "piscina";
-import { zkVerificationDurationMs } from "../observability/metrics.js";
+import {
+	zkProofsByTypeTotal,
+	zkVerificationDurationMs,
+	zkVkeyCacheSize,
+} from "../observability/metrics.js";
 import { log } from "../utils/logger.js";
 import { deriveLogicImageDigest } from "./logic-image-id.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+export interface VerifyZkOptions {
+	sessionSecret?: Buffer;
+	expectedOutput?: unknown;
+	guestImageIdHex?: string;
+	vkeyRaw?: Buffer;
+	zkPolicy?: import("../security/zk.js").ZkPolicy;
+	circuitName?: string;
+}
+
 /**
  * LIOP Tier-0 Industrial Verifier
  *
  * This engine is responsible for the trustless verification of remote logic execution.
  * It validates both the integrity of the code (ZkImageID) and the mathematical proof
- * of its execution (ZkSeal), as well as hardware-level attestation (TEE).
+ * of its execution (ZkSeal/Groth16), as well as hardware-level attestation (TEE).
  */
 export class LiopVerifier {
 	// Singleton Worker Pool for heavy ZK verification
 	private static zkWorkerPool: Piscina | null = null;
+	// Static registry of embedded verification keys for canonical circuits
+	private static vkeyRegistry = new Map<string, Buffer>();
+
+	/**
+	 * Registers a verification key for a canonical analytical circuit.
+	 */
+	public static registerVKey(circuitName: string, vkeyRaw: Buffer): void {
+		LiopVerifier.vkeyRegistry.set(circuitName, vkeyRaw);
+		try {
+			zkVkeyCacheSize.set(LiopVerifier.vkeyRegistry.size);
+		} catch {}
+	}
+
+	/**
+	 * Retrieves a registered verification key by circuit name.
+	 */
+	public static getRegisteredVKey(circuitName: string): Buffer | undefined {
+		return LiopVerifier.vkeyRegistry.get(circuitName);
+	}
 
 	private getZkPool() {
 		if (!LiopVerifier.zkWorkerPool) {
@@ -72,36 +104,76 @@ export class LiopVerifier {
 
 	/**
 	 * Verifies a Zero-Knowledge Receipt from a remote LIOP node via Worker Pool.
+	 * Supports both legacy positional arguments and structured options.
 	 *
 	 * @param logicPayload The raw WASM or JS logic that was sent to the provider.
 	 * @param remoteImageIdHex The ImageID reported by the provider (must match our local calculation).
-	 * @param zkReceipt The mathematical proof (Seal + Journal) from the zkVM.
+	 * @param zkReceipt The mathematical proof (Seal + Journal) from the zkVM or Groth16.
+	 * @param sessionSecretOrOptions Shared secret (Buffer) or structured VerifyZkOptions.
+	 * @param expectedOutput Optional expected output value for anti-replay verification.
 	 */
 	public async verifyZkReceipt(
 		logicPayload: Buffer,
 		remoteImageIdHex: string,
 		zkReceipt: Buffer,
-		sessionSecret?: Buffer,
+		sessionSecretOrOptions?: Buffer | VerifyZkOptions,
 		expectedOutput?: unknown,
 	): Promise<boolean> {
 		const pool = this.getZkPool();
 		if (!pool) throw new Error("Worker pool initialization failed");
+
+		let sessionSecret: Buffer | undefined;
+		let actualExpectedOutput: unknown = expectedOutput;
+		let guestImageIdHex: string | undefined;
+		let vkeyRaw: Buffer | undefined;
+		let zkPolicy: import("../security/zk.js").ZkPolicy | undefined;
+
+		if (Buffer.isBuffer(sessionSecretOrOptions)) {
+			sessionSecret = sessionSecretOrOptions;
+		} else if (
+			sessionSecretOrOptions &&
+			typeof sessionSecretOrOptions === "object"
+		) {
+			sessionSecret = sessionSecretOrOptions.sessionSecret;
+			if (sessionSecretOrOptions.expectedOutput !== undefined) {
+				actualExpectedOutput = sessionSecretOrOptions.expectedOutput;
+			}
+			guestImageIdHex = sessionSecretOrOptions.guestImageIdHex;
+			vkeyRaw = sessionSecretOrOptions.vkeyRaw;
+			zkPolicy = sessionSecretOrOptions.zkPolicy;
+
+			if (!vkeyRaw && sessionSecretOrOptions.circuitName) {
+				vkeyRaw = LiopVerifier.getRegisteredVKey(
+					sessionSecretOrOptions.circuitName,
+				);
+			}
+		}
+
 		const startTime = performance.now();
 		const result = await pool.run({
 			action: "verify_receipt",
 			logicPayload: new Uint8Array(logicPayload),
 			remoteImageIdHex,
+			guestImageIdHex,
 			zkReceipt: new Uint8Array(zkReceipt),
 			sessionSecret: sessionSecret ? new Uint8Array(sessionSecret) : undefined,
-			expectedOutput,
+			vkeyRaw: vkeyRaw ? new Uint8Array(vkeyRaw) : undefined,
+			expectedOutput: actualExpectedOutput,
+			zkPolicy,
 		});
 		const durationMs = performance.now() - startTime;
 
 		try {
 			zkVerificationDurationMs.observe(
-				{ status: result.verified ? "verified" : "failed" },
+				{
+					status: result.verified ? "verified" : "failed",
+					proof_type: result.proofType || "unknown",
+				},
 				durationMs,
 			);
+			if (result.verified && result.proofType) {
+				zkProofsByTypeTotal.inc({ proof_type: result.proofType });
+			}
 		} catch {
 			// Metrics observation failure must never disrupt cryptographic verification
 		}

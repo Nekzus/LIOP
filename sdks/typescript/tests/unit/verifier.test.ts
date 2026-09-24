@@ -79,4 +79,71 @@ describe("LiopVerifier (Industrial Tier-0)", () => {
 		expect(journal.dataset_hash).toBe(datasetHash);
 		expect(journal.dataset_hash).toMatch(/^[a-f0-9]{64}$/);
 	});
+
+	it("should verify Groth16 v2 receipt with structured VerifyZkOptions and VKey", async () => {
+		const { bn254 } = await import("micro-zk-proofs");
+		const { ProofType, encodeJournalV2, receiptCodec } = await import("../../src/security/zk.js");
+		const { serializeGrothProof, serializeVKey } = await import("../../src/crypto/groth16-verifier.js");
+
+		const testCircuit = {
+			nVars: 3,
+			nPubInputs: 1,
+			nOutputs: 0,
+			constraints: [[{ 1: 1n }, { 0: 1n }, { 1: 1n }]],
+		};
+		const setup = bn254.groth.setup(testCircuit);
+		const proofWithSignals = await bn254.groth.createProof(setup.pkey, [1n, 9n, 9n]);
+
+		const logicDigest = verifier.deriveImageId(mockPayload);
+		const guestImageId = crypto.randomBytes(32);
+		const outputVal = { result: 100 };
+		const outputDigest = crypto.createHash("sha256").update(JSON.stringify(outputVal)).digest();
+
+		const journalBuf = encodeJournalV2({
+			guestImageId,
+			logicDigest,
+			datasetDigest: crypto.randomBytes(32),
+			outputDigest,
+			fuelConsumed: 25000n,
+			executionTimestamp: BigInt(Date.now()),
+		});
+
+		const proofBuf = serializeGrothProof(proofWithSignals);
+		const vkeyBuf = serializeVKey(setup.vkey);
+		const receiptV2 = receiptCodec.encodeV2(ProofType.GROTH16, journalBuf, proofBuf);
+
+		LiopVerifier.registerVKey("test-multiplier", vkeyBuf);
+
+		const isValid = await verifier.verifyZkReceipt(
+			mockPayload,
+			logicDigest.toString("hex"),
+			receiptV2,
+			{
+				circuitName: "test-multiplier",
+				guestImageIdHex: guestImageId.toString("hex"),
+				expectedOutput: outputVal,
+				zkPolicy: "required",
+			},
+		);
+
+		expect(isValid).toBe(true);
+	});
+
+	it("should reject legacy v1 receipt when zkPolicy is required", async () => {
+		const imageId = verifier.deriveImageId(mockPayload).toString("hex");
+		const receipt = mockZK(imageId, dummySecret);
+
+		const isValid = await verifier.verifyZkReceipt(
+			mockPayload,
+			imageId,
+			receipt,
+			{
+				sessionSecret: dummySecret,
+				zkPolicy: "required",
+			},
+		);
+
+		expect(isValid).toBe(false);
+	});
 });
+
