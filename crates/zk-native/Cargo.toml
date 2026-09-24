@@ -1,0 +1,36 @@
+[package]
+name = "liop-zk-native"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+authors = ["Nekzus Solutions"]
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+napi = { version = "2", default-features = false, features = ["async", "tokio_rt", "napi4"] }
+napi-derive = "2"
+async-rayon = "0.1.0"
+rayon = "1.10"
+
+# Arkworks BN254 Groth16 ecosystem
+ark-ff = "0.4.0"
+ark-ec = "0.4.0"
+ark-bn254 = "0.4.0"
+ark-groth16 = { version = "0.4.0", features = ["parallel"] }
+ark-relations = "0.4.0"
+ark-snark = "0.4.0"
+ark-std = { version = "0.4.0", features = ["parallel", "std"] }
+ark-serialize = "0.4.0"
+rand = "0.8"
+
+# Hashing & serialization
+sha2 = "0.10"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+anyhow = "1"
+hex = "0.4"
+
+[build-dependencies]
+napi-build = "2"

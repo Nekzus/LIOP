@@ -5,6 +5,7 @@ members = [
     "servers/liop-node",
     "examples/wasm-filters/wasm-filter",
     "examples/wasm-filters/wasm-watchdog",
-    "tools/liop-cli"
+    "tools/liop-cli",
+    "crates/zk-native"
 ]
 resolver = "2"
