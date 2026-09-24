@@ -2,6 +2,21 @@
 
 All notable changes to @nekzus/liop-studio will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.0.0-alpha.18](https://github.com/Nekzus/LIOP/compare/studio-v1.0.0-alpha.17...studio-v1.0.0-alpha.18) (2026-09-24)
+
+
+### Bug Fixes
+
+* **types:** declare ambient module for optional @nekzus/liop-zk-native ([8359dd6](https://github.com/Nekzus/LIOP/commit/8359dd63bd63e125b3d039349b20ea290ccecbb4))
+
+
+### Features
+
+* **proto:** evolve liop_core.proto with ProofMode and ProofType enums ([9c01468](https://github.com/Nekzus/LIOP/commit/9c01468895088122b152cf8156324679168bc1c3))
+* **server:** enforce ZK_BLOCKING policy and DHT manifest attestation ([6665d39](https://github.com/Nekzus/LIOP/commit/6665d3953d535e4ec85d8837cf5734243db1cd4a))
+* **zk-native:** scaffold NAPI crate with R1CS analytical circuits and universal zkVM fallback ([3499bc4](https://github.com/Nekzus/LIOP/commit/3499bc4b1c98f06180ff1c4bb88e245c01f29db3))
+* **zk:** complete Phase 1 ZK-VM TypeScript SDK verification engine ([7123f25](https://github.com/Nekzus/LIOP/commit/7123f2539b6dc136f35e114f792f3526c361274b))
+
 # [1.0.0-alpha.17](https://github.com/Nekzus/LIOP/compare/studio-v1.0.0-alpha.16...studio-v1.0.0-alpha.17) (2026-09-22)
 
 
