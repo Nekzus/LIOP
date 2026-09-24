@@ -89,6 +89,8 @@ pub fn execute_sandboxed_logic(
                 cryptographic_proof: vec![],
                 zk_receipt: vec![],
                 is_error: false,
+                proof_type: liop_core::v1::ProofType::HmacLegacy as i32,
+                guest_image_id: vec![],
             };
             let _ = caller.data().tx.blocking_send(Ok(res));
             Ok(())
@@ -117,6 +119,8 @@ pub fn execute_sandboxed_logic(
                     cryptographic_proof: vec![],
                     zk_receipt: vec![],
                     is_error: true,
+                    proof_type: liop_core::v1::ProofType::HmacLegacy as i32,
+                    guest_image_id: vec![],
                 };
                 let _ = store.data().tx.blocking_send(Ok(res));
                 Ok(())

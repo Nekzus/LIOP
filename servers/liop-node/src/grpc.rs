@@ -238,6 +238,8 @@ impl LogicMesh for LiopService {
                         cryptographic_proof: vec![0, 1, 2, 3],
                         zk_receipt: zk_receipt_bytes,
                         is_error: false,
+                        proof_type: liop_core::v1::ProofType::Groth16 as i32,
+                        guest_image_id: vec![],
                     };
                     let _ = tx.blocking_send(Ok(res));
                 }
@@ -248,6 +250,8 @@ impl LogicMesh for LiopService {
                         cryptographic_proof: vec![],
                         zk_receipt: vec![],
                         is_error: true,
+                        proof_type: liop_core::v1::ProofType::HmacLegacy as i32,
+                        guest_image_id: vec![],
                     };
                     let _ = tx.blocking_send(Ok(res));
                 }
