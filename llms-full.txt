@@ -544,7 +544,7 @@ The *Logic-Injection-on-Origin* paradigm inverts traditional distributed compute
     __html: JSON.stringify({
       "@context": "https://schema.org",
       "@type": "SoftwareSourceCode",
-      "name": "LIOP — Logic-Injection-on-Origin Protocol",
+      "name": "LIOP, Logic-Injection-on-Origin Protocol",
       "description": "High-performance, Zero-Trust binary transport mesh for AI Agent communication using WebAssembly Logic-on-Origin execution.",
       "codeRepository": "https://github.com/Nekzus/LIOP",
       "programmingLanguage": ["TypeScript", "Rust"],
@@ -778,7 +778,7 @@ icon: "scroll"
 
 ## Abstract
 
-A decentralized binary transport mesh that inverts the dominant AI integration paradigm: instead of pulling sensitive data to a remote model, LIOP pushes sandboxed WebAssembly logic to the data's origin. The data never leaves its physical boundary. Injected modules execute inside strict WASI sandboxes, undergo static taint analysis, and operate under Post-Quantum cryptographic sealing (ML-KEM-768). Only mathematically aggregated results — bound to cryptographic integrity proofs (ZK-Receipts) — cross the network. This architecture eliminates the privacy, bandwidth, and compliance failures inherent to Context-Pulling protocols. LIOP is designed for Machine-to-Machine communication at scale: healthcare analytics, financial telemetry, IoT edge processing, and any domain where data sovereignty is non-negotiable.
+A decentralized binary transport mesh that inverts the dominant AI integration paradigm: instead of pulling sensitive data to a remote model, LIOP pushes sandboxed WebAssembly logic to the data's origin. The data never leaves its physical boundary. Injected modules execute inside strict WASI sandboxes, undergo static taint analysis, and operate under Post-Quantum cryptographic sealing (ML-KEM-768). Only mathematically aggregated results, bound to cryptographic integrity proofs (ZK-Receipts), cross the network. This architecture eliminates the privacy, bandwidth, and compliance failures inherent to Context-Pulling protocols. LIOP is designed for Machine-to-Machine communication at scale: healthcare analytics, financial telemetry, IoT edge processing, and any domain where data sovereignty is non-negotiable.
 
 ## 1. The Context-Pulling Crisis
 
@@ -786,13 +786,13 @@ A decentralized binary transport mesh that inverts the dominant AI integration p
 **Definition 1 (Context-Pulling).** An architectural pattern in which an AI agent extracts raw, unprocessed data from its origin node across a network boundary into a remote execution environment for analysis. This pattern requires the data owner to relinquish physical custody of the data before any computation occurs.
 </Note>
 
-The current generation of AI integration protocols — including the Model Context Protocol (MCP) — standardizes this extraction. While highly effective for local agent tool ergonomics, IDE extensions, and desktop developer tooling, applying Context-Pulling to distributed enterprise data transfers megabytes or gigabytes of sensitive records across the internet so a centralized model can parse, reason, and summarize on a remote server.
+The current generation of AI integration protocols, including the Model Context Protocol (MCP), standardizes this extraction. While highly effective for local agent tool ergonomics, IDE extensions, and desktop developer tooling, applying Context-Pulling to distributed enterprise data transfers megabytes or gigabytes of sensitive records across the internet so a centralized model can parse, reason, and summarize on a remote server.
 
 This approach fails in three measurable ways:
 
-1. **The Privacy Paradox.** You cannot ask an AI to find a statistical correlation across a hospital's database of 10,000 patients without first extracting those 10,000 patient records — including their PII — out of the hospital's secure perimeter and into a third-party cloud. The computation requires the data to leave. Compliance (HIPAA, GDPR, CCPA) demands the data to stay. The architecture makes both impossible simultaneously.
+1. **The Privacy Paradox.** You cannot ask an AI to find a statistical correlation across a hospital's database of 10,000 patients without first extracting those 10,000 patient records, including their PII, out of the hospital's secure perimeter and into a third-party cloud. The computation requires the data to leave. Compliance (HIPAA, GDPR, CCPA) demands the data to stay. The architecture makes both impossible simultaneously.
 
-2. **The Bandwidth and Economic Collapse.** Telemetry streams, IoT sensor logs, and high-frequency trading ledgers generate gigabytes of data per second. Streaming this volume over HTTP into an LLM context window is not slow — it is architecturally wasteful. In Context-Pulling, network transfer and tokenization costs scale linearly with dataset size $O(N)$. In Logic-Injection, transferring logic to origin scales at constant network cost $O(1)$. The useful output is often a single percentage or a ranked list; pulling raw data wastes compute, energy, and bandwidth.
+2. **The Bandwidth and Economic Collapse.** Telemetry streams, IoT sensor logs, and high-frequency trading ledgers generate gigabytes of data per second. Streaming this volume over HTTP into an LLM context window is not merely slow, but architecturally wasteful. In Context-Pulling, network transfer and tokenization costs scale linearly with dataset size $O(N)$. In Logic-Injection, transferring logic to origin scales at constant network cost $O(1)$. The useful output is often a single percentage or a ranked list; pulling raw data wastes compute, energy, and bandwidth.
 
 3. **The Zero-Trust Illusion.** When you pull data, you lose physical custody. You must trust the remote provider's data retention policies, their internal access controls, and their regulatory posture. For defense, healthcare, and financial institutions, this trust requirement creates adoption barriers that no API key or encryption-in-transit can resolve. The data left the building.
 
@@ -806,24 +806,24 @@ The Logic-Injection-on-Origin Protocol is born from this postulate:
 
 ***We must stop moving the data to the math. We must move the math to the data.***
 
-An LIOP Agent does not request records from a server. It pushes executable logic — in the form of WebAssembly micro-modules or dynamically transpiled algorithms — to the server. The server executes this logic inside a sandboxed environment against its local data and returns only the aggregated result, sealed with a cryptographic proof that binds the output to the exact logic that produced it.
+An LIOP Agent does not request records from a server. It pushes executable logic, in the form of WebAssembly micro-modules or dynamically transpiled algorithms, to the server. The server executes this logic inside a sandboxed environment against its local data and returns only the aggregated result, sealed with a cryptographic proof that binds the output to the exact logic that produced it.
 
 Instead of an Agent asking: *"Give me all your database records so I can filter them,"*
 an LIOP Agent says: *"Here is my logic. Run it locally. Return only the computed result."*
 
 ## 3. Design Principles
 
-These seven principles govern every architectural decision in the protocol. They are not aspirational — they are constraints. A contribution that violates any of them is rejected.
+These seven principles govern every architectural decision in the protocol. They are not aspirational, but binding constraints. A contribution that violates any of them is rejected.
 
-1. **Data Sovereignty** — Data never leaves its origin unless the output satisfies aggregation or cryptographic attestation constraints. No exception.
-2. **Zero-Trust by Default** — Every injected module is untrusted. Capabilities must be explicitly granted through a static allowlist, never inherited from the host environment.
-3. **Aggregation-First** — Raw row-level data export is architecturally forbidden. Only mathematically reduced outputs cross the network boundary.
-4. **Cryptographic Verifiability** — Every computation produces a ZK-Receipt that binds the output hash to the exact logic executed and the session secret. Third parties can audit results without re-executing the logic.
-5. **Quantum Resilience** — All key exchanges and session seals use post-quantum algorithms (ML-KEM-768) from day one. This is not a future upgrade path — it is a launch requirement, designed against harvest-now-decrypt-later strategies.
-6. **Minimal Footprint** — The protocol must operate on resource-constrained edge devices. Efficiency is a hard constraint, not an optimization target. CPU fuel limits are deterministic and AST-derived.
-7. **Ecosystem Coexistence & Backward Compatibility** — LIOP operates at the sovereign compute and distributed mesh layer while coexisting with application-level agent protocols. Through a dual-era gateway adapter, legacy MCP clients consume LIOP services without requiring client-side modifications or creating ecosystem fragmentation.
+1. **Data Sovereignty**. Data never leaves its origin unless the output satisfies aggregation or cryptographic attestation constraints. No exception.
+2. **Zero-Trust by Default**. Every injected module is untrusted. Capabilities must be explicitly granted through a static allowlist, never inherited from the host environment.
+3. **Aggregation-First**. Raw row-level data export is architecturally forbidden. Only mathematically reduced outputs cross the network boundary.
+4. **Cryptographic Verifiability**. Every computation produces a ZK-Receipt that binds the output hash to the exact logic executed and the session secret. Third parties can audit results without re-executing the logic.
+5. **Quantum Resilience**. All key exchanges and session seals use post-quantum algorithms (ML-KEM-768) from day one. This is not a future upgrade path, but a launch requirement designed against harvest-now-decrypt-later strategies.
+6. **Minimal Footprint**. The protocol must operate on resource-constrained edge devices. Efficiency is a hard constraint, not an optimization target. CPU fuel limits are deterministic and AST-derived.
+7. **Ecosystem Coexistence & Backward Compatibility**. LIOP operates at the sovereign compute and distributed mesh layer while coexisting with application-level agent protocols. Through a dual-era gateway adapter, legacy MCP clients consume LIOP services without requiring client-side modifications or creating ecosystem fragmentation.
 
-## 4. The Six Shields — Threat Model & Defense Layers
+## 4. The Six Shields (Threat Model & Defense Layers)
 
 LIOP implements six layered defenses. Each layer addresses a specific attack class. Together, they form a defense-in-depth architecture where compromising a single layer does not compromise the system.
 
@@ -845,23 +845,23 @@ LIOP implements six layered defenses. Each layer addresses a specific attack cla
 These guarantees are not marketing claims. Each one maps directly to an implemented mechanism in the SDK. If LIOP cannot deliver a guarantee, it is not listed here.
 
 <Info>
-**G1 — Data Residency.** No byte of raw, unaggregated user data crosses the origin node's network boundary during a standard LIOP execution cycle.
+**G1. Data Residency.** No byte of raw, unaggregated user data crosses the origin node's network boundary during a standard LIOP execution cycle.
 </Info>
 
 <Info>
-**G2 — Computational Integrity.** Every execution produces a ZK-Receipt containing the output hash, the logic image digest, and the PQC session seal. Any modification to the output, the logic, or the session invalidates the receipt.
+**G2. Computational Integrity.** Every execution produces a ZK-Receipt containing the output hash, the logic image digest, and the PQC session seal. Any modification to the output, the logic, or the session invalidates the receipt.
 </Info>
 
 <Info>
-**G3 — Sandbox Isolation.** Injected modules cannot access the host filesystem, network stack, or environment variables beyond the WASI strict allowlist. Violations are caught at AST inspection time (pre-execution) or terminated at runtime via fuel exhaustion.
+**G3. Sandbox Isolation.** Injected modules cannot access the host filesystem, network stack, or environment variables beyond the WASI strict allowlist. Violations are caught at AST inspection time (pre-execution) or terminated at runtime via fuel exhaustion.
 </Info>
 
 <Info>
-**G4 — Quantum-Safe Sessions.** All session keys are negotiated via ML-KEM-768. Intercepted ciphertexts provide zero computational advantage to adversaries with access to quantum hardware.
+**G4. Quantum-Safe Sessions.** All session keys are negotiated via ML-KEM-768. Intercepted ciphertexts provide zero computational advantage to adversaries with access to quantum hardware.
 </Info>
 
 <Info>
-**G5 — Autonomous Self-Correction.** An agent that violates the LIO paradigm (e.g., attempts to request raw data) receives a structured cognitive correction prompt and can self-correct without human intervention.
+**G5. Autonomous Self-Correction.** An agent that violates the LIO paradigm (e.g., attempts to request raw data) receives a structured cognitive correction prompt and can self-correct without human intervention.
 </Info>
 
 ## 6. Application Horizons
@@ -871,7 +871,7 @@ These guarantees are not marketing claims. Each one maps directly to an implemen
     A pharmaceutical researcher injects a correlation-detection module into a hospital's patient database node. The module executes locally, returns only aggregated statistical correlations with Differential Privacy noise applied, and the hospital's patient records never leave the premises. HIPAA compliance is architectural, not contractual.
   </Card>
   <Card title="Financial Telemetry" icon="chart-line">
-    A quantitative trading firm pushes a volatility-scanning algorithm into an exchange's order book node. The algorithm processes tick data locally at microsecond granularity and returns only computed risk metrics — spread, implied volatility, Greeks. Zero raw trade data crosses the wire.
+    A quantitative trading firm pushes a volatility-scanning algorithm into an exchange's order book node. The algorithm processes tick data locally at microsecond granularity and returns only computed risk metrics (spread, implied volatility, and Greeks). Zero raw trade data crosses the wire.
   </Card>
   <Card title="IoT Edge Processing" icon="microchip">
     A fleet management system injects anomaly-detection logic into 50,000 vehicle telemetry nodes. Each node processes its own sensor data locally and reports only aggregated health scores. Bandwidth consumption drops by orders of magnitude compared to centralized ingestion.
@@ -894,10 +894,10 @@ This manifesto serves as the immutable constitutional foundation of the Logic-In
 
 The technical implementation, cryptographic primitives, and transport features evolve through the **LIOP Enhancement Proposal (LEP)** process governing the [Protocol Specification](/concepts/specification):
 
-1. **LEP Submission** — Contributors submit architectural or cryptographic enhancements via Pull Request to the `protocol/` directory.
-2. **Constitutional Alignment** — Every proposal must demonstrate strict adherence to the 7 Design Principles. Proposals violating data sovereignty or aggregation guarantees are rejected by design.
-3. **Peer Review & Verification** — A minimum 14-day technical review period, including empirical test vectors in the reference SDK.
-4. **Specification Ratification** — Approved LEPs are incorporated into the next dated release of the [Protocol Specification](/concepts/specification).
+1. **LEP Submission**. Contributors submit architectural or cryptographic enhancements via Pull Request to the `protocol/` directory.
+2. **Constitutional Alignment**. Every proposal must demonstrate strict adherence to the 7 Design Principles. Proposals violating data sovereignty or aggregation guarantees are rejected by design.
+3. **Peer Review & Verification**. A minimum 14-day technical review period, including empirical test vectors in the reference SDK.
+4. **Specification Ratification**. Approved LEPs are incorporated into the next dated release of the [Protocol Specification](/concepts/specification).
 
 ## 9. Next Steps
 
@@ -905,7 +905,7 @@ Review the [Protocol Specification](/concepts/specification), explore the [Web P
 
 ---
 
-**First Published:** March 1, 2026 | **Version:** 1.0 (Ratified: August 31, 2026) | **Author:** Mauricio Ortega (Nekzus) — Nekzus Solutions | **License:** [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
+**First Published:** March 1, 2026 | **Version:** 1.0 (Ratified: August 31, 2026) | **Author:** Mauricio Ortega (Nekzus), Nekzus Solutions | **License:** [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
 
 
 ---
@@ -1499,14 +1499,14 @@ The engine automatically derives **per-field sensitivity** based on the output k
 |:---|:---|:---|
 | Healthcare (HIPAA) | `2.0` | Apple Health Data |
 | Finance (SOX/PCI) | `2.0` | DOJ PET Guidelines |
-| Public Data | `4.0–8.0` | US Census, Google RAPPOR |
+| Public Data | `4.0-8.0` | US Census, Google RAPPOR |
 
-See [Zero-Trust Security — Differential Privacy](/concepts/zero-trust#7-differential-privacy-engine-laplace-mechanism) for the detailed technical specification.
+See [Zero-Trust Security (Differential Privacy)](/concepts/zero-trust#7-differential-privacy-engine-laplace-mechanism) for the detailed technical specification.
 
 ### Dynamic Return Structure (Native Auto-i18n)
 
 <Note>
-**Roadmap Specification** — Dynamic Return Structure is scheduled for a future protocol release and is not yet available in the active SDK runtime.
+**Roadmap Specification**. Dynamic Return Structure is scheduled for a future protocol release and is not yet available in the active SDK runtime.
 </Note>
 
 When a Data Node registers its capabilities, it embeds a structural directive into the payload definition (`DYNAMIC RETURN STRUCTURE`). This instructs the executing agent to output JSON schemas using keys mapped to the **language detected in the user's initial prompt.**
@@ -1751,7 +1751,7 @@ In scenarios where an Agent must trust a remote Server (e.g., "Did the Server ac
 
 The current implementation uses **HMAC-SHA256 commitments**: each execution generates a SHA-256 `ImageID` (hash of the injected logic) and an HMAC-SHA256 `Seal` derived from the Post-Quantum session secret. This binds the output to the exact logic executed, making forgery computationally infeasible. Migration to a native ZK-VM engine (RISC Zero / SP1) for full zero-knowledge proofs is planned for future releases.
 
-**Dataset Integrity Anchor**: Each ZK-Receipt includes a `dataset_hash` — a SHA-256 digest of the underlying dataset at execution time. This cryptographic anchor allows clients to verify that the dataset was identical across consecutive queries, definitively separating legitimate Differential Privacy noise from unauthorized data mutation.
+**Dataset Integrity Anchor**: Each ZK-Receipt includes a `dataset_hash` (a SHA-256 digest of the underlying dataset at execution time). This cryptographic anchor allows clients to verify that the dataset was identical across consecutive queries, definitively separating legitimate Differential Privacy noise from unauthorized data mutation.
 
 **The ZK Shield Proxy**: This cryptographic validation (`verifyZkReceipt`) is performed natively by both the SDK's `LiopClient` (via `client.verifier`) and the `LiopMcpRouter`. These components act as a Zero-Trust Shield, automatically isolating compromised environments and blocking the delivery of adulterated execution payloads back to the calling LLM framework.
 
@@ -1772,7 +1772,7 @@ All noise is generated using `crypto.randomBytes()` from the Node.js `crypto` mo
 
 ### Deterministic Audit Mode (DDP)
 
-For SOX/PCI-DSS audit scenarios requiring reproducible ZK-Receipts, the engine supports **Deterministic Differential Privacy (DDP)**. When activated, the Laplace noise generator initializes a SHA-256-based PRNG seeded with `dataset_hash + image_id`, producing identical noise for identical queries on immutable datasets. This restores full ZK-Receipt verifiability without violating the mathematical privacy guarantee — the seed remains cryptographically unpredictable to external observers who lack access to both the dataset and the exact injected logic.
+For SOX/PCI-DSS audit scenarios requiring reproducible ZK-Receipts, the engine supports **Deterministic Differential Privacy (DDP)**. When activated, the Laplace noise generator initializes a SHA-256-based PRNG seeded with `dataset_hash + image_id`, producing identical noise for identical queries on immutable datasets. This restores full ZK-Receipt verifiability without violating the mathematical privacy guarantee, because the seed remains cryptographically unpredictable to external observers who lack access to both the dataset and the exact injected logic.
 
 ### Query-Aware Sensitivity
 
@@ -1784,7 +1784,7 @@ Instead of applying a single global sensitivity to all output fields, the engine
 | **AVERAGE** | `avg`, `mean`, `average` | `globalSensitivity / n` | Bounded contribution per record |
 | **SUM** | Any other numeric key | `globalSensitivity` | Operator-configured max plausible value |
 
-This mirrors Google's Differential Privacy library architecture, which uses separate `CountParams`, `SumParams`, and `MeanParams` — each with independent sensitivity calibration.
+This mirrors Google's Differential Privacy library architecture, which uses separate `CountParams`, `SumParams`, and `MeanParams`, each with independent sensitivity calibration.
 
 ### Epsilon Floor
 
@@ -1979,7 +1979,7 @@ npm install -g @nekzus/liop@latest
 liop
 ```
 
-## 🤖 Claude Desktop Integration
+## Claude Desktop Integration
 
 LIOP is designed to be a drop-in replacement for MCP servers. To add LIOP tools to your Claude Desktop experience, update your configuration file:
 
@@ -2020,7 +2020,7 @@ LIOP is designed to be a drop-in replacement for MCP servers. To add LIOP tools 
 ```
 </CodeGroup>
 
-Once configured, restart Claude Desktop. You will see the 🛡️ **LIOP Guard** status in your logs.
+Once configured, restart Claude Desktop. You will see the **LIOP Guard** status in your logs.
 
 ## Core Features
 
@@ -2136,7 +2136,7 @@ await mesh.stop();
 | `queryManifest(target)` | `Promise<LiopManifest \| null>` | Directly fetches signed JSON manifest from a remote peer |
 | `announceManifest(manifest)` | `Promise<void>` | Publishes local capabilities to the DHT and registers manifest stream handler |
 
-If you encounter connection issues, check for the 🛡️ icon in the console or ask the LLM to call `LiopMeshStatus`.
+If you encounter connection issues, check for the LIOP Guard banner in the console or ask the LLM to call `LiopMeshStatus`.
 
 
 ---
@@ -3041,8 +3041,8 @@ Traditional MCP requires pulling entire raw datasets across the network into the
 | Metric | Traditional MCP (Context-Pulling) | LIOP (Logic-on-Origin) | Net Savings |
 |:---|:---|:---|:---|
 | **Paradigm** | Raw Data Extraction to Agent | Sandboxed WASI Execution in Origin | **Zero Data Egress** |
-| **Input Context Tokens** | ~16,000 – 48,000 tokens | ~320 – 650 tokens | **98.9% – 99.3% reduction** |
-| **Output Context Tokens** | ~1,200 – 4,500 tokens | ~80 – 180 tokens | **93.3% – 96.0% reduction** |
+| **Input Context Tokens** | ~16,000 to 48,000 tokens | ~320 to 650 tokens | **98.9% to 99.3% reduction** |
+| **Output Context Tokens** | ~1,200 to 4,500 tokens | ~80 to 180 tokens | **93.3% to 96.0% reduction** |
 | **Network Wire Transfer** | ~195 KB (raw JSON payload) | ~801 B (gRPC envelope + receipt) | **99.6% reduction** |
 | **LLM Context Saturation** | High (triggers truncation / sliding window) | Minimal (preserves reasoning capacity) | **Zero Context Bloat** |
 | **PII / Exfiltration Risk** | Severe (raw records leave perimeter) | Zero (blocked by 6-layer shield) | **Cryptographically Sealed** |
@@ -3302,7 +3302,7 @@ The PII Scanner intercepts all sandbox output **before** results are returned to
 | **3. Pattern Validators** | Regex + algorithmic checks | Detects PII values regardless of key naming (emails, credit cards, IBANs) |
 | **4. NER Content Scan** | `compromise` NLP engine | Identifies person names, places, and organizations in free text |
 
-### Stage 1–2: Key Analysis
+### Stages 1 and 2: Key Analysis
 
 **Exact match** uses a `Set<string>` for O(1) constant-time lookup against a configurable list of forbidden keys.
 
@@ -3319,8 +3319,8 @@ A **safelist** of common English words and LIOP protocol internal keys prevents 
 |:--------|:----------|:-----------|
 | **EMAIL** | Regex | Excludes `@example.com`, `@test.com` |
 | **CREDIT_CARD** | **Luhn checksum** | Digit sum mod 10 === 0 |
-| **IP_ADDRESS** | Regex + range check | Excludes `127.x.x.x`, validates octets 0–255 |
-| **PHONE** | Regex + repetition check | 7–15 digits, rejects `1111111` patterns |
+| **IP_ADDRESS** | Regex + range check | Excludes `127.x.x.x`, validates octets 0 to 255 |
+| **PHONE** | Regex + repetition check | 7 to 15 digits, rejects `1111111` patterns |
 | **SSN** | Structural validation | Blocks area=0/666/≥900, group=0, serial=0 |
 | **IBAN** | **ISO 7064 Mod-97 via BigInt** | `BigInt(numericString) % 97n === 1n` |
 | **PASSPORT_MRZ** | Regex | TD3 44-character Machine Readable Zone |
@@ -3405,29 +3405,58 @@ The engine automatically calibrates the sensitivity ($\Delta s$) based on field 
 
 ## Layer 4: ZK-Receipts
 
-Every sandbox execution produces a **cryptographic receipt** that binds the output to the exact logic that generated it, providing tamper-evident proof of honest computation.
+Every sandbox execution produces a cryptographic receipt that binds the output to the exact logic that generated it, providing tamper-evident proof of honest computation. The protocol supports dual-era receipt formats: legacy HMAC session commitments (version 1) and sovereign Groth16 Zero-Knowledge proofs (version 2).
 
-### Receipt Structure (Binary v1)
+### Receipt Structure (Binary v2: Groth16 BN254)
+
+Version 2 receipts provide true cryptographic Zero-Knowledge verification with zero external SaaS dependencies, packing a canonical 144-byte binary journal:
+
+| Field | Size | Type | Description |
+|:------|:-----|:-----|:------------|
+| **Version** | 1 byte | `0x02` | Protocol version identifier |
+| **Proof Type** | 1 byte | `0x02` | Proof discriminator (`0x00` = HMAC Legacy, `0x02` = Groth16) |
+| **Journal** | 144 bytes | Fixed Binary | Packed execution journal |
+| ↳ `guest_image_id` | 32 bytes | Binary hash | Enclave guest binary or runtime image identifier |
+| ↳ `logic_digest` | 32 bytes | Binary hash | SHA-256 fingerprint of injected JavaScript/WASM logic |
+| ↳ `dataset_digest` | 32 bytes | Binary hash | SHA-256 fingerprint of the enclave dataset at execution |
+| ↳ `output_digest` | 32 bytes | Binary hash | SHA-256 fingerprint of post-DP sanitized output |
+| ↳ `fuel_consumed` | 8 bytes | Big-Endian `UInt64` | Instruction-level fuel consumed by the sandbox |
+| ↳ `execution_timestamp`| 8 bytes | Big-Endian `UInt64` | Epoch timestamp in milliseconds |
+| **Proof Length** | 4 bytes | Big-Endian `UInt32` | Byte length of the Groth16 proof payload |
+| **Proof** | Variable | Binary | Compressed Groth16 curve points ($A \in G_1, B \in G_2, C \in G_1$) |
+| **Checksum** | 32 bytes | SHA-256 | Integrity digest over Version + ProofType + Journal + Proof |
+
+### Receipt Structure (Binary v1: Legacy HMAC)
+
+Maintained for backwards compatibility with legacy nodes:
 
 | Field | Size | Type | Description |
 |:------|:-----|:-----|:------------|
 | **Version** | 1 byte | `0x01` | Protocol version identifier |
 | **Journal Length** | 2 bytes | Big-Endian `UInt16` | Length of the JSON payload |
 | **Journal** | Variable | JSON string | Contains `image_id`, `dataset_hash`, `output_hash`, `fuel`, and `ts` |
-| **Seal** | 32 bytes | HMAC-SHA256 | Cryptographic commitment over the journal |
+| **Seal** | 32 bytes | HMAC-SHA256 | Cryptographic commitment derived from ML-KEM-768 session key |
+
+### Enclave ZK Execution Policies
+
+Tool capabilities configure their Zero-Knowledge attestation level via `LogicExecutionPolicy.zkMode`:
+
+- **`"none"`**: Default standard mode using HMAC-SHA256 session commitment.
+- **`"optimistic"`**: Attempts Groth16 v2 receipt generation via `@nekzus/liop-zk-native` or fast-path R1CS circuits. If the native prover is unavailable, falls back gracefully to HMAC commitment without disrupting analytical query workflows.
+- **`"required"` (`ZK_BLOCKING`)**: Mandatory for Tier 1 Sovereign Enclaves (banking, defense, sensitive healthcare). Strictly enforces valid Groth16 zero-knowledge proof generation. If the native prover is absent or proof verification fails, the enclave rejects the request with an explicit error response: `"[LIOP-ZK] Clearance Tier 1 enclave policy violation: Valid Groth16 zero-knowledge proof required but unavailable."`
 
 ### Cryptographic Pipeline
 
-1. **ImageID Generation**: A `SHA-256` hash of the original logic payload fingerprints the exact code that was executed
-2. **Dataset Hash**: A `SHA-256` hash of the serialized dataset anchors the data state at execution time (SOX audit trail compliance)
-3. **Differential Privacy**: Laplace noise is applied to numeric outputs *before* commitment, ensuring the ZK-Receipt matches the noisy data the client receives. Supports **DDP mode** (seeded PRNG via `dataset_hash + image_id`) for audit reproducibility.
-4. **Journal Assembly**: A JSON object containing `image_id`, `dataset_hash`, `output_hash` (SHA-256 of the post-DP result), `fuel` consumed, and `ts` (timestamp)
-5. **HMAC Seal**: `crypto.createHmac("sha256", sessionSecret).update(journal).digest()` — the session secret is derived from the **ML-KEM-768 (Kyber) key exchange**
-6. **Verification & Replay Mitigation**: The verifier validates the HMAC seal in constant-time (`crypto.timingSafeEqual`). In addition, to prevent **Man-in-the-Middle (MITM) reply manipulation and replay attacks**, the verifier computes a local SHA-256 hash of the received result (`expectedOutput`) and strictly asserts that it is identical to `Journal.output_hash` (via `verifyZkReceipt`).
-7. **Balanced-Brace Proxy Extractor**: If the tool call was delegated via proxy (`__liop_proxy_tool`), the verifier utilizes an in-process balanced-brace state machine to isolate and extract raw proxy arguments from the response before hashing, avoiding validation false positives when host layers append metadata.
+1. **ImageID Generation**: A `SHA-256` hash of the original logic payload fingerprints the exact code that was executed.
+2. **Dataset Hash**: A `SHA-256` hash of the serialized dataset anchors the data state at execution time for regulatory audit compliance.
+3. **Differential Privacy**: Laplace noise is applied to numeric outputs before commitment, ensuring the ZK-Receipt matches the noisy data the client receives. Supports **DDP mode** (seeded PRNG via `dataset_hash + image_id`) for audit reproducibility.
+4. **Binary Journal Encoding**: A fixed 144-byte memory buffer packing `guest_image_id`, `logic_digest`, `dataset_digest`, `output_digest`, `fuel_consumed`, and `execution_timestamp`.
+5. **Native Groth16 Proving**: Rayon-parallelized R1CS circuit execution via `@nekzus/liop-zk-native` generating curve points over the BN254 pairing-friendly elliptic curve in sub-second CPU time.
+6. **Verification & Replay Mitigation**: The client verifier validates the proof via constant-time pairing checks or Worker Pool execution. To prevent reply manipulation and replay attacks, the verifier computes a local SHA-256 hash of the received result and strictly asserts identity against `journal.outputDigest`.
+7. **Balanced-Brace Proxy Extractor**: If the tool call was delegated via proxy (`__liop_proxy_tool`), the verifier utilizes an in-process balanced-brace state machine to isolate raw proxy arguments before hashing, avoiding false positives when host layers append metadata.
 
 <Tip>
-  The `sessionSecret` used for HMAC signing is the shared key negotiated via Post-Quantum Cryptography (ML-KEM-768). This ensures that ZK-Receipt integrity remains quantum-resistant.
+  The `sessionSecret` used in legacy v1 mode is the shared key negotiated via Post-Quantum Cryptography (ML-KEM-768), ensuring legacy compatibility remains quantum-resistant.
 </Tip>
 
 ---
@@ -3596,7 +3625,7 @@ Computationally intensive cryptographic operations are dispatched to OS-level th
 | `logic-execution` | Sandbox instantiation, AES decryption, AST inspection |
 | `zk-verifier` | Receipt deserialization, HMAC verification |
 
-Default configuration: 2–8 threads (production), 0–1 threads (test), `FixedQueue` scheduling, 5s idle timeout.
+Default configuration: 2 to 8 threads (production), 0 to 1 threads (test), `FixedQueue` scheduling, 5s idle timeout.
 
 ### Heap Bomb Defense
 
@@ -3774,7 +3803,7 @@ $$f(x) = \frac{1}{2\lambda} \exp\left(-\frac{|x|}{\lambda}\right)$$
 
 #### Security Decisions (Industrial Recalibration)
 
-1. **CSPRNG Source (`crypto.randomBytes`)**: Unlike generic implementations that rely on `Math.random()` (Xorshift128+), `DpEngine` generates entropy using `crypto.randomBytes(4)` mapped into $[-0.5, 0.5)$. This prevents state-reconstruction attacks where an adversary observing 3–5 outputs could predict future pseudo-random states and subtract the noise.
+1. **CSPRNG Source (`crypto.randomBytes`)**: Unlike generic implementations that rely on `Math.random()` (Xorshift128+), `DpEngine` generates entropy using `crypto.randomBytes(4)` mapped into $[-0.5, 0.5)$. This prevents state-reconstruction attacks where an adversary observing 3 to 5 outputs could predict future pseudo-random states and subtract the noise.
 2. **Query-Aware Sensitivity**: Sensitivity ($\Delta f$) is derived automatically according to key semantics:
    - **`COUNT` Queries**: Sensitivity is fixed at $\Delta f = 1$ (axiom: adding/removing one individual alters count by at most 1).
    - **`AVG` / `VARIANCE` Queries**: Sensitivity is scaled dynamically by cohort size: $\Delta f = \frac{\text{sensitivity}}{n}$.
@@ -3800,13 +3829,13 @@ The following capabilities are architecturally defined and planned for future re
 
 | Feature | Status | Description |
 |:--------|:-------|:------------|
-| **TEE Attestation** | 🔴 Planned | Hardware enclave support (AWS Nitro / Intel SGX) |
-| **Native ZK-VM** | 🔴 Planned | RISC Zero or SP1 bindings for true zero-knowledge proofs |
-| **Rust Core ZK** | 🔴 Planned | Native cryptographic proof generation in the Rust core |
+| **Native ZK-VM** | Active | Groth16 BN254 zero-knowledge proofs via `@nekzus/liop-zk-native` |
+| **Rust Core ZK** | Active | Rayon multi-threaded arkworks R1CS circuits for analytical queries |
+| **TEE Attestation** | In Progress | Hardware enclave support (AWS Nitro / Intel SGX) |
 
-<Warning>
-  The current SDK uses **HMAC-SHA256 commitments** as ZK-Receipt seals. While cryptographically sound for integrity verification, these are not true zero-knowledge proofs. Migration to a native ZK-VM is planned for a future release.
-</Warning>
+<Tip>
+  Sovereign Zero-Knowledge Proofs are available through version 2 binary receipts. Enclaves equipped with `@nekzus/liop-zk-native` generate mathematical Groth16 proofs over the BN254 curve, whereas lightweight TypeScript SDK clients and MCP bridges verify proofs without native compilation dependencies.
+</Tip>
 
 
 ---
@@ -4014,13 +4043,13 @@ wasmtime run --dir /local/physical/path::/logs filter.wasm "CRITICAL"
 
 # SECTION: ROADMAP GLOBAL MESH (ROADMAP_GLOBAL_MESH.md)
 
-# 🌐 LIOP Global Distributed Mesh Deployment Roadmap
+# LIOP Global Distributed Mesh Deployment Roadmap
 
 This document serves as the permanent, authoritative blueprint for transitioning the Logic-Injection-on-Origin Protocol (LIOP) from a local Docker testnet into an autonomous, globally distributed zero-trust mesh protocol operating across corporate networks, firewalls, and diverse geographic regions.
 
 ---
 
-## 🗺️ Evolution Roadmap Overview
+## Evolution Roadmap Overview
 
 ```mermaid
 gantt
@@ -4068,7 +4097,7 @@ gantt
 
 ---
 
-## ✅ 1. Completed Phases (Verified & Production-Tested)
+## 1. Completed Phases (Verified & Production-Tested)
 
 ### 1.1 Phase Alpha (Core Architecture & Zero-Trust Sandbox)
 * **Status**: Complete & Verified.
@@ -4153,9 +4182,9 @@ gantt
 
 ---
 
-## ⏳ 2. Upcoming Phases (Detailed Specifications)
+## 2. Upcoming Phases (Detailed Specifications)
 
-### 🔵 Phase RC: Production Resilience, Hardware TEE & Rust Core Parity
+### Phase RC: Production Resilience, Hardware TEE & Rust Core Parity
 * **Target Window**: Q4 2026 - Q1 2027
 * **Key Components**:
   1. **Rust Core Protocol Parity (`servers/liop-node`)**:
@@ -4175,7 +4204,7 @@ gantt
 
 ---
 
-### 🟣 Phase GA: Massive Global Availability & High-Performance WAN
+### Phase GA: Massive Global Availability & High-Performance WAN
 * **Target Window**: Q3 2027
 * **Key Components**:
   1. **Dedicated Global Bootstrap Supernodes**:
@@ -4198,7 +4227,7 @@ gantt
 
 ---
 
-## 📦 Dependency Matrix by Phase
+## Dependency Matrix by Phase
 
 | Phase | Package Installation Command | Architectural Purpose |
 |---|---|---|
