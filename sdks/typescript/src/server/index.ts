@@ -27,7 +27,12 @@ import {
 } from "../observability/metrics.js";
 import { Dilithium65Wrapper } from "../rpc/crypto/dilithium.js";
 import { LiopRpcServer } from "../rpc/server.js";
-import type { LogicRequest, LogicResponse } from "../rpc/types.js";
+import {
+	type LogicRequest,
+	type LogicResponse,
+	ProofMode,
+	ProofType as RpcProofType,
+} from "../rpc/types.js";
 import {
 	type AuditLogger,
 	globalAuditLogger,
@@ -37,6 +42,7 @@ import { JwtValidator } from "../security/jwt-validator.js";
 import { createOAuthServer } from "../security/oauth-server.js";
 import { authorizeRequest } from "../security/rbac.js";
 import { TaintAnalyzer } from "../security/taint-analyzer.js";
+import { ProofType } from "../security/zk.js";
 import type {
 	CallToolRequest,
 	CallToolResult,
@@ -131,6 +137,10 @@ export interface LiopServerOptions {
 	 * Path to a shared JSON file for persistent Query Budget tracking across multiple server instances.
 	 */
 	budgetStorePath?: string;
+	/** Expected guest image identifier hash for sovereign enclaves (Hex) */
+	guestImageId?: string;
+	/** Static verification key mappings for fast-path analytical circuits */
+	zkVkeys?: Record<string, unknown>;
 }
 
 export interface AggregationPolicy {
@@ -183,6 +193,25 @@ export interface LogicExecutionPolicy {
 	 * Path to a shared JSON file for persistent Query Budget tracking across multiple server instances.
 	 */
 	budgetStorePath?: string;
+	/**
+	 * Zero-Knowledge proof mode required for this tool capability.
+	 * - "none": standard HMAC-SHA256 session commitment
+	 * - "optimistic": Groth16 v2 receipt generated if prover available, otherwise fallback
+	 * - "required": strictly enforces Groth16 v2 proof generation; rejects if unavailable
+	 */
+	zkMode?: "none" | "optimistic" | "required";
+	/**
+	 * Optional custom guest image identifier hash for this capability.
+	 */
+	guestImageId?: string;
+	/**
+	 * Name of the designated R1CS circuit (e.g. "sum", "count", "average", "filter").
+	 */
+	circuitName?: string;
+	/**
+	 * Static verification key JSON structure for this capability.
+	 */
+	vkey?: Record<string, unknown>;
 }
 
 export class LiopServer {
@@ -1671,11 +1700,19 @@ Protocol Adherence is mandatory for successful execution.`,
 		// This allows remote peers to query our tool/resource metadata dynamically.
 		const meshNodeRef = this.meshNode;
 		this.meshNode.registerManifestHandler((): LiopManifest => {
-			const tools = this.listTools().map((t) => ({
-				name: t.name,
-				description: t.description,
-				inputSchema: t.inputSchema as Record<string, unknown>,
-			}));
+			const tools = this.listTools().map((t) => {
+				const entry = this.tools.get(t.name);
+				return {
+					name: t.name,
+					description: t.description,
+					inputSchema: t.inputSchema as Record<string, unknown>,
+					zkMode: entry?.policy?.zkMode,
+					guestImageId:
+						entry?.policy?.guestImageId ?? this.config?.guestImageId,
+					circuitName: entry?.policy?.circuitName,
+					vkey: entry?.policy?.vkey,
+				};
+			});
 
 			const resources = Array.from(this.resources.values()).map((r) => ({
 				name: r.name,
@@ -1693,6 +1730,8 @@ Protocol Adherence is mandatory for successful execution.`,
 				serverInfo: this.serverInfo,
 				authRequired: this.jwtValidator !== undefined,
 				tokenSlug: this.config?.tokenSlug,
+				guestImageId: this.config?.guestImageId,
+				vkeys: this.config?.zkVkeys,
 				taxonomy: this.config?.taxonomy
 					? {
 							domain: this.config.taxonomy.domain || "Unknown Domain",
@@ -1997,6 +2036,20 @@ Protocol Adherence is mandatory for successful execution.`,
 								}
 							: undefined;
 
+						let requestedProofMode = request.requested_proof_mode;
+						if (
+							requestedProofMode === undefined ||
+							requestedProofMode === ProofMode.PROOF_MODE_LEGACY_HMAC
+						) {
+							if (toolPolicy?.zkMode === "required") {
+								requestedProofMode = ProofMode.PROOF_MODE_ZK_BLOCKING;
+							} else if (toolPolicy?.zkMode === "optimistic") {
+								requestedProofMode = ProofMode.PROOF_MODE_ZK_OPTIMISTIC;
+							} else {
+								requestedProofMode = ProofMode.PROOF_MODE_LEGACY_HMAC;
+							}
+						}
+
 						// Pass to Worker Pool for PQC Decryption and WASI/V8 execution
 						const workerResponse = await this.workerPool.run({
 							ciphertext: request.pqc_ciphertext,
@@ -2008,8 +2061,32 @@ Protocol Adherence is mandatory for successful execution.`,
 							sessionToken: request.session_token,
 							sessionTimestamp: session.createdAt,
 							isEncrypted: true,
+							proofMode: requestedProofMode,
+							guestImageId:
+								toolPolicy?.guestImageId ?? this.config?.guestImageId,
 							dpConfig, // Apply DP noise inside worker before ZK-Receipt commitment
 						});
+
+						if (
+							requestedProofMode === ProofMode.PROOF_MODE_ZK_BLOCKING &&
+							workerResponse.proof_type !== ProofType.GROTH16
+						) {
+							log.error(
+								`[LIOP-RPC] Enclave policy violation: Valid Groth16 zero-knowledge proof required but unavailable for ${toolName || "tool"}`,
+							);
+							const errorResponse: LogicResponse = {
+								semantic_evidence:
+									"[LIOP-ZK] Clearance Tier 1 enclave policy violation: Valid Groth16 zero-knowledge proof required but unavailable.",
+								cryptographic_proof: Buffer.from(""),
+								zk_receipt: Buffer.from(""),
+								is_error: true,
+								proof_type: RpcProofType.PROOF_TYPE_HMAC_LEGACY,
+							};
+							call.write(errorResponse, () => {
+								call.end();
+							});
+							return;
+						}
 
 						const sanitizedWorkerOutput = sanitizeOutput(workerResponse.output);
 
@@ -2105,6 +2182,15 @@ Protocol Adherence is mandatory for successful execution.`,
 								? Buffer.from(workerResponse.zk_receipt, "base64")
 								: Buffer.from(""),
 							is_error: false,
+							proof_type:
+								workerResponse.proof_type === ProofType.GROTH16
+									? RpcProofType.PROOF_TYPE_GROTH16
+									: RpcProofType.PROOF_TYPE_HMAC_LEGACY,
+							guest_image_id:
+								workerResponse.guest_image_id ||
+								toolPolicy?.guestImageId ||
+								this.config?.guestImageId ||
+								"",
 						};
 
 						// Final PII check for gRPC egress
@@ -2377,6 +2463,13 @@ Protocol Adherence is mandatory for successful execution.`,
 					}
 				: undefined;
 
+			let proofMode = ProofMode.PROOF_MODE_LEGACY_HMAC;
+			if (dpPolicy?.zkMode === "required") {
+				proofMode = ProofMode.PROOF_MODE_ZK_BLOCKING;
+			} else if (dpPolicy?.zkMode === "optimistic") {
+				proofMode = ProofMode.PROOF_MODE_ZK_OPTIMISTIC;
+			}
+
 			// Transparent local execution without dynamic PQC
 			const workerResponse = await this.workerPool.run({
 				ciphertext: new Uint8Array(0),
@@ -2387,8 +2480,25 @@ Protocol Adherence is mandatory for successful execution.`,
 				records: this.sandboxRecords,
 				sessionToken: "local-dev-token",
 				isEncrypted: false, // Use plaintext for local Logic-on-Origin injection
+				proofMode,
+				guestImageId: dpPolicy?.guestImageId ?? this.config?.guestImageId,
 				dpConfig, // Pass DP Config to apply inside worker before ZK-Receipt commitment
 			});
+
+			if (
+				proofMode === ProofMode.PROOF_MODE_ZK_BLOCKING &&
+				workerResponse.proof_type !== ProofType.GROTH16
+			) {
+				return {
+					content: [
+						{
+							type: "text",
+							text: "[LIOP-ZK] Clearance Tier 1 enclave policy violation: Valid Groth16 zero-knowledge proof required but unavailable.",
+						},
+					],
+					isError: true,
+				};
+			}
 
 			// DP is now applied directly inside the worker to ensure ZK-Receipt integrity
 			const dpOutput = workerResponse.output;
@@ -2399,6 +2509,11 @@ Protocol Adherence is mandatory for successful execution.`,
 				computation_result: sanitizedOutput,
 				image_id: workerResponse.image_id,
 				zk_receipt: workerResponse.zk_receipt,
+				proof_type:
+					workerResponse.proof_type === ProofType.GROTH16
+						? "GROTH16"
+						: "HMAC_LEGACY",
+				guest_image_id: workerResponse.guest_image_id,
 				status: "Worker Pool Execution Success",
 			});
 

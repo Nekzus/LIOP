@@ -5,6 +5,7 @@ packages:
   - "examples/**"
   - "tools/liop-studio"
   - "tools/liop-studio/ui"
+  - "crates/zk-native"
 
 verifyDepsBeforeRun: false
 

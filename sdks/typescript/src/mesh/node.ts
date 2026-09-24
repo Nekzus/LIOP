@@ -38,6 +38,10 @@ export interface LiopManifest {
 		name: string;
 		description?: string;
 		inputSchema?: Record<string, unknown>;
+		zkMode?: "none" | "optimistic" | "required";
+		guestImageId?: string;
+		circuitName?: string;
+		vkey?: Record<string, unknown>;
 	}>;
 	resources: Array<{
 		name: string;
@@ -55,6 +59,10 @@ export interface LiopManifest {
 	authRequired?: boolean;
 	/** Canonical slug for deterministic token resolution. Agents resolve LIOP_TOKEN_<tokenSlug>. Must match /^[A-Z][A-Z0-9_]*$/. */
 	tokenSlug?: string;
+	/** Expected guest image identifier hash for sovereign enclaves (Hex) */
+	guestImageId?: string;
+	/** Static verification key mappings for fast-path analytical circuits */
+	vkeys?: Record<string, unknown>;
 	/** ML-DSA-65 (FIPS 204) Post-Quantum Digital Signature for Manifest Attestation (Base64) */
 	pqcSignature?: string;
 	/** ML-DSA-65 (FIPS 204) Post-Quantum Public Key (Base64) */
