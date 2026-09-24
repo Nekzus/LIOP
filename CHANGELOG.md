@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.4.0-alpha.24](https://github.com/Nekzus/LIOP/compare/v2.4.0-alpha.23...v2.4.0-alpha.24) (2026-09-24)
+
+
+### Features
+
+* **gateway:** add canonical tool aliasing and elastic parameter normalization ([b8cadef](https://github.com/Nekzus/LIOP/commit/b8cadef064a43e5e4a68e9f23ef836161903b836))
+
 # [2.4.0-alpha.23](https://github.com/Nekzus/LIOP/compare/v2.4.0-alpha.22...v2.4.0-alpha.23) (2026-09-24)
 
 
