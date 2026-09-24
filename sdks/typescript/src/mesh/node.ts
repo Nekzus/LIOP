@@ -507,38 +507,37 @@ export class MeshNode {
 			log.info(`[LIOP-Mesh] Listening on: ${addr.toString()}`);
 		});
 
-		// Force explicit dialing of Bootstrap nodes with bounded backoff
+		// Force explicit dialing of Bootstrap nodes with bounded backoff in parallel
 		if (bootNodes.length > 0) {
 			log.info(
 				`[LIOP-Mesh] Forcing direct P2P dial to ${bootNodes.length} bootstrap nodes...`,
 			);
 
-			const maxRetries = 5;
-			for (const addr of bootNodes) {
-				let success = false;
-				let attempt = 1;
+			const activeNode = this.node;
+			if (!activeNode) return;
 
-				while (attempt <= maxRetries && !success) {
-					try {
-						await this.node.dial(multiaddr(addr));
-						log.info(`[LIOP-Mesh] ✅ Successfully dialed ${addr}`);
-						success = true;
-					} catch (_e) {
-						const delay = Math.min(1000 * 2 ** (attempt - 1), 3000);
-						log.warn(
-							`[LIOP-Mesh] ⚠️ Dial attempt ${attempt}/${maxRetries} to ${addr} failed. Retrying in ${delay / 1000}s...`,
-						);
-						if (attempt < maxRetries) {
-							await new Promise((resolve) => setTimeout(resolve, delay));
-						} else {
-							log.error(
-								`[LIOP-Mesh] ❌ Could not connect to bootstrap ${addr} after ${maxRetries} attempts. Continuing...`,
-							);
+			const maxRetries = 2;
+			await Promise.allSettled(
+				bootNodes.map(async (addr) => {
+					for (let attempt = 1; attempt <= maxRetries; attempt++) {
+						try {
+							await activeNode.dial(multiaddr(addr), {
+								signal: AbortSignal.timeout(2500),
+							});
+							log.info(`[LIOP-Mesh] ✅ Successfully dialed ${addr}`);
+							return;
+						} catch (_e) {
+							if (attempt === maxRetries) {
+								log.warn(
+									`[LIOP-Mesh] ⚠️ Could not connect to bootstrap ${addr} after ${maxRetries} attempts. Continuing...`,
+								);
+							} else {
+								await new Promise((resolve) => setTimeout(resolve, 500));
+							}
 						}
-						attempt++;
 					}
-				}
-			}
+				}),
+			);
 		}
 	}
 

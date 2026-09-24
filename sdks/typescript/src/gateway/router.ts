@@ -40,6 +40,8 @@ import {
 	isLegacyRequest,
 	MCP_LEGACY_SUPPORT_ENABLED,
 	MCP_PROTOCOL_VERSION_LEGACY,
+	normalizeToolArguments,
+	TOOL_ALIASES,
 } from "./mcp-compat.js";
 
 /**
@@ -1132,13 +1134,17 @@ export class LiopMcpRouter {
 	private resolveManifestTarget(
 		toolName: string,
 	): { peerId: string; originalToolName: string } | null {
-		// 1. Try exact match
+		const targetCanonical = TOOL_ALIASES[toolName] || toolName;
+
+		// 1. Try exact match (raw or canonical alias)
 		for (const [peerId, { manifest }] of this.manifestCache.entries()) {
-			const tool = manifest.tools.find((t) => t.name === toolName);
+			const tool = manifest.tools.find(
+				(t) => t.name === toolName || t.name === targetCanonical,
+			);
 			if (tool) {
 				return {
 					peerId,
-					originalToolName: toolName,
+					originalToolName: tool.name,
 				};
 			}
 		}
@@ -1148,13 +1154,16 @@ export class LiopMcpRouter {
 		if (parts.length > 1) {
 			const suffix = parts.pop();
 			const baseName = parts.join("_");
+			const canonicalBase = TOOL_ALIASES[baseName] || baseName;
 			for (const [peerId, { manifest }] of this.manifestCache.entries()) {
 				if (peerId.endsWith(suffix || "")) {
-					const tool = manifest.tools.find((t) => t.name === baseName);
+					const tool = manifest.tools.find(
+						(t) => t.name === baseName || t.name === canonicalBase,
+					);
 					if (tool) {
 						return {
 							peerId,
-							originalToolName: baseName,
+							originalToolName: tool.name,
 						};
 					}
 				}
@@ -1181,6 +1190,9 @@ export class LiopMcpRouter {
 		params: { name: string; arguments?: Record<string, unknown> },
 		token?: string,
 	): Promise<McpResponse | null> {
+		if (params?.arguments) {
+			params.arguments = normalizeToolArguments(params.arguments);
+		}
 		const toolName = params.name;
 
 		// Intercept the static diagnostic tool
