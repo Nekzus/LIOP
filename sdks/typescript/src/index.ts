@@ -4,6 +4,7 @@
 export * from "./bridge/index.js";
 export * from "./client/index.js";
 export * from "./crypto/groth16-verifier.js";
+export * from "./crypto/verifier.js";
 export * from "./economy/index.js";
 export * from "./errors.js";
 export * from "./gateway/grpc-web.js";
