@@ -61,7 +61,7 @@ This addresses the data privacy, bandwidth, and latency bottlenecks of distribut
 | **OAuth 2.1 M2M Lifecycle**   | Concurrency in-flight de-duplication, 30-second preemptive refresh buffer, and reactive invalidation (`TokenManager`).            |
 | **Sliding-Window Rate Limiter**| In-memory OWASP API4:2023 rate limiting with background cleanup unreferenced intervals (`InMemoryRateLimiter`).                    |
 | **PII Shield**                | Multi-layer egress filter with Regional Presets, custom keys, and recursive floats sanitization (`sanitizeOutput`). |
-| **ZK-Receipts**               | Cryptographic proof with `output_hash` cross-verification (Replay Mitigation) and balanced-brace proxy extraction. |
+| **ZK-Receipts**               | Sovereign Zero-Knowledge Proofs: Groth16 BN254 with 144-byte binary journal (v2) and legacy HMAC-SHA256 (v1). Enforces `ZK_BLOCKING` on Tier 1 Enclaves. |
 | **Worker Pool**               | Heavy computation (crypto, sandboxing) dispatched to OS threads via `piscina` with background async warmup. |
 | **Post-Quantum Ready**        | ML-KEM-768 (Kyber) + ML-DSA-65 (Dilithium) with 1-hour session lifetime and AES-256-GCM encryption.                                        |
 | **Enterprise Observability**  | Immutable SOC 2 Hash-Chain audit log (`AuditLogger`), physical wire egress tracking, Prometheus metrics (`/metrics`), and K8s probes.      |
@@ -362,8 +362,9 @@ await bridge.connect();
 │  Blocks raw row export • maxOutputRows (default: 10) •    │
 │  Conditional error: detailed (dev) vs opaque (production) │
 ├───────────────────────────────────────────────────────────┤
-│  Layer 6: ZK-Receipt (Integrity & Replay Mitigation)       │
-│  SHA-256 ImageID + HMAC-SHA256 Seal (Kyber768-derived) •  │
+│  Layer 6: ZK-Receipt (Groth16 BN254 & Replay Mitigation)   │
+│  Version 2: 144-byte binary journal + Groth16 curve points │
+│  Version 1: HMAC-SHA256 session commitment (Kyber768)      │
 │  output_hash cross-verification • Balanced-brace extractor │
 └───────────────────────────────────────────────────────────┘
 ```
@@ -450,11 +451,46 @@ To block arbitrary command execution (e.g., Shellshock) and prevent exposure of 
 - **Unix/Linux Allowlist**: `HOME`, `LOGNAME`, `PATH`, `SHELL`, `TERM`, `USER`.
 Variables starting with shell functions `()` are dropped.
 
-### 🔒 ZK-Receipt Replay & Tampering Mitigation
+### 🔒 Sovereign ZK-Receipts & Groth16 Attestation
 
-LIOP ZK-Receipts provide cryptographic evidence that a computation was executed honestly under zero-trust bounds. To defeat **Man-in-the-Middle (MITM) reply tampering and replay attacks** (re-using old signatures on new query data):
-- The verification pipeline computes the SHA-256 hash of the received business output (`expectedOutput`) and strictly asserts its equivalence with `Journal.output_hash` signed inside the ZK-Receipt (via `verifyZkReceipt`).
-- **Balanced-Brace Proxy Extractor**: If the tool call was delegated to a proxied tool (`__liop_proxy_tool`), the verifier invokes an in-process balanced-brace state machine to safely isolate proxy arguments from the response metadata, preventing false validation failures.
+LIOP ZK-Receipts provide cryptographic evidence that a computation was executed honestly under zero-trust bounds. Version 2 receipts introduce true Zero-Knowledge Groth16 proofs over the BN254 pairing-friendly elliptic curve, packing a 144-byte binary journal:
+
+- **144-Byte Binary Journal Layout**:
+  - `guest_image_id` (32 bytes): Sovereign enclave guest runtime image identifier
+  - `logic_digest` (32 bytes): SHA-256 fingerprint of the executed JavaScript/WASM logic
+  - `dataset_digest` (32 bytes): SHA-256 fingerprint of the origin dataset at execution time
+  - `output_digest` (32 bytes): SHA-256 fingerprint of the sanitized computation result
+  - `fuel_consumed` (8 bytes uint64 BE): AST fuel metering units consumed
+  - `execution_timestamp` (8 bytes uint64 BE): Epoch timestamp in milliseconds
+- **Tampering & Replay Mitigation**: The client computes the local SHA-256 hash of the received output and asserts strict equality with `journal.outputDigest`. Any modified bit in either the journal or curve proof causes immediate rejection.
+- **Enclave Policy Invariant (`ZK_BLOCKING`)**: Tier 1 Sovereign Enclaves configure `zkMode: "required"`, rejecting queries if a valid Groth16 proof cannot be synthesized.
+
+```typescript
+import { LiopServer } from "@nekzus/liop/server";
+import { LiopVerifier } from "@nekzus/liop";
+
+// 1. Enclave configuration with ZK_BLOCKING policy
+const server = new LiopServer({ name: "bank-enclave", version: "1.0.0" });
+server.tool(
+  "calculate_payroll_aggregate",
+  "Aggregates payroll without egressing employee identities",
+  { payload: z.string() },
+  async () => ({ content: [{ type: "text", text: "ok" }] }),
+  {
+    zkMode: "required", // Enforces Groth16 proof generation (ZK_BLOCKING)
+    circuitName: "sum",
+  }
+);
+
+// 2. Client verification via LiopVerifier
+const verifier = new LiopVerifier();
+const isValid = await verifier.verifyZkReceipt(
+  Buffer.from(logicPayload),
+  remoteImageIdHex,
+  rawReceiptBuffer,
+  { zkPolicy: "required" }
+);
+```
 
 ---
 

@@ -1,7 +1,7 @@
 // Copyright 2026 Nekzus Solutions and contributors
 // SPDX-License-Identifier: Apache-2.0
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use sha2::{Digest, Sha256};
 
 /// Execution tier for zero-knowledge proving

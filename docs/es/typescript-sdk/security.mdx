@@ -312,29 +312,58 @@ El motor calibra la sensibilidad ($\Delta s$) automáticamente basándose en la 
 
 ## Capa 4: ZK-Receipts
 
-Cada ejecución del sandbox produce un **recibo criptográfico** que vincula la salida con la lógica exacta que la generó, proporcionando una prueba de computación honesta a prueba de manipulaciones.
+Cada ejecución en el sandbox produce un recibo criptográfico que vincula el resultado computado con la lógica exacta que lo generó, garantizando computación honesta a prueba de alteraciones. El protocolo soporta dos eras de recibos: compromisos de sesión HMAC-SHA256 heredados (versión 1) y pruebas soberanas de Conocimiento Cero Groth16 (versión 2).
 
-### Estructura del Recibo (Binario v1)
+### Estructura del Recibo (Binario v2: Groth16 BN254)
+
+Los recibos versión 2 proporcionan verificación matemática de conocimiento cero sin dependencias de servicios externos en la nube, empaquetando un journal binario canónico de 144 bytes:
+
+| Campo | Tamaño | Tipo | Descripción |
+|:------|:-------|:-----|:------------|
+| **Version** | 1 byte | `0x02` | Identificador de versión del protocolo |
+| **Proof Type** | 1 byte | `0x02` | Discriminador de prueba (`0x00` = HMAC Legacy, `0x02` = Groth16) |
+| **Journal** | 144 bytes | Binario Fijo | Diario binario de ejecución empaquetado |
+| ↳ `guest_image_id` | 32 bytes | Hash binario | Identificador de la imagen del runtime o huésped enclave |
+| ↳ `logic_digest` | 32 bytes | Hash binario | Huella SHA-256 de la lógica JavaScript o WASM inyectada |
+| ↳ `dataset_digest` | 32 bytes | Hash binario | Huella SHA-256 del dataset al momento de la ejecución |
+| ↳ `output_digest` | 32 bytes | Hash binario | Huella SHA-256 de la salida sanitizada post-DP |
+| ↳ `fuel_consumed` | 8 bytes | Big-Endian `UInt64` | Unidades de fuel de cómputo consumidas por el sandbox |
+| ↳ `execution_timestamp`| 8 bytes | Big-Endian `UInt64` | Marca temporal en milisegundos |
+| **Proof Length** | 4 bytes | Big-Endian `UInt32` | Longitud en bytes de la prueba Groth16 |
+| **Proof** | Variable | Binario | Puntos de curva elíptica Groth16 comprimidos ($A \in G_1, B \in G_2, C \in G_1$) |
+| **Checksum** | 32 bytes | SHA-256 | Digest de integridad sobre Version + ProofType + Journal + Proof |
+
+### Estructura del Recibo (Binario v1: HMAC Heredado)
+
+Mantenido para compatibilidad estricta con nodos legados:
 
 | Campo | Tamaño | Tipo | Descripción |
 |:------|:-------|:-----|:------------|
 | **Version** | 1 byte | `0x01` | Identificador de versión del protocolo |
 | **Journal Length** | 2 bytes | Big-Endian `UInt16` | Longitud del payload JSON |
 | **Journal** | Variable | Cadena JSON | Contiene `image_id`, `dataset_hash`, `output_hash`, `fuel` y `ts` |
-| **Seal** | 32 bytes | HMAC-SHA256 | Compromiso criptográfico sobre el diario |
+| **Seal** | 32 bytes | HMAC-SHA256 | Compromiso criptográfico derivado de la clave ML-KEM-768 |
+
+### Políticas de Ejecución ZK en Enclaves
+
+Las herramientas configuran su nivel de atestación mediante la directiva `LogicExecutionPolicy.zkMode`:
+
+- **`"none"`**: Modo estándar predeterminado con compromiso de sesión HMAC-SHA256.
+- **`"optimistic"`**: Intenta generar un recibo Groth16 v2 mediante `@nekzus/liop-zk-native` o circuitos R1CS optimizados. Si el probador nativo no está disponible, degrada de forma segura a HMAC sin interrumpir la entrega del resultado.
+- **`"required"` (`ZK_BLOCKING`)**: Obligatorio para enclaves soberanos de Nivel 1 (banca, defensa, registros médicos protegidos). Exige estrictamente una prueba Groth16 válida. Si el probador nativo falta o la verificación falla, el enclave rechaza la petición con una respuesta formal de error: `"[LIOP-ZK] Clearance Tier 1 enclave policy violation: Valid Groth16 zero-knowledge proof required but unavailable."`
 
 ### Pipeline Criptográfico
 
-1. **Generación de ImageID**: Un hash `SHA-256` del payload de lógica original identifica de forma única el código exacto ejecutado
-2. **Hash del Dataset**: Un hash `SHA-256` del dataset serializado ancla el estado de los datos al momento de la ejecución (cumplimiento de auditoría SOX)
-3. **Privacidad Diferencial**: El ruido Laplace se aplica a las salidas numéricas *antes* del compromiso, garantizando que el ZK-Receipt coincida con los datos ruidosos que el cliente recibe. Soporta **modo DDP** (PRNG con semilla via `dataset_hash + image_id`) para reproducibilidad en auditorías.
-4. **Ensamblaje del Journal**: Un objeto JSON que contiene `image_id`, `dataset_hash`, `output_hash` (SHA-256 del resultado post-DP), `fuel` consumido y `ts` (timestamp)
-5. **Sello HMAC**: `crypto.createHmac("sha256", sessionSecret).update(journal).digest()` — el secreto de sesión se deriva del **intercambio de claves ML-KEM-768 (Kyber)**
-6. **Verificación y Mitigación de Replay**: El verificador valida el sello HMAC en tiempo constante (`crypto.timingSafeEqual`). Adicionalmente, para prevenir **ataques de replay e intercambio de respuestas Man-in-the-Middle (MITM)**, el verificador calcula un hash SHA-256 local del resultado recibido (`expectedOutput`) y comprueba rigurosamente que coincida con `Journal.output_hash` (mediante `verifyZkReceipt`).
-7. **Extractor de Proxy por Llaves Balanceadas**: Si la llamada a la herramienta se delegó mediante proxy (`__liop_proxy_tool`), el verificador ejecuta una máquina de estados de llaves balanceadas en proceso para aislar y extraer los argumentos crudos del proxy a partir de la respuesta antes de calcular el hash, eludiendo falsos positivos de validación cuando el host inyecta metadatos.
+1. **Generación de ImageID**: Un hash `SHA-256` del payload de lógica original identifica de forma única el código exacto ejecutado.
+2. **Hash del Dataset**: Un hash `SHA-256` del dataset serializado ancla el estado de los datos al momento de la ejecución para auditorías regulatorias.
+3. **Privacidad Diferencial**: El ruido Laplace se aplica a las salidas numéricas antes del compromiso, garantizando que el ZK-Receipt coincida con los datos que el cliente recibe. Soporta **modo DDP** (PRNG determinista con semilla via `dataset_hash + image_id`) para reproducibilidad en auditorías.
+4. **Codificación Binaria del Journal**: Un buffer de 144 bytes que empaqueta `guest_image_id`, `logic_digest`, `dataset_digest`, `output_digest`, `fuel_consumed` y `execution_timestamp`.
+5. **Generación Nativa Groth16**: Ejecución R1CS paralelizada con Rayon mediante `@nekzus/liop-zk-native` generando puntos sobre la curva BN254 en fracciones de segundo en CPU local.
+6. **Verificación y Mitigación de Replay**: El cliente valida la prueba en tiempo constante mediante emparejamientos bilineales o en el Worker Pool. Para impedir ataques de replay o manipulación de respuestas, el verificador calcula un hash SHA-256 local del resultado recibido y comprueba identidad estricta contra `journal.outputDigest`.
+7. **Extractor de Proxy por Llaves Balanceadas**: Si la llamada se delegó mediante proxy (`__liop_proxy_tool`), el verificador ejecuta una máquina de estados para aislar los argumentos originales antes del hashing, evitando falsos positivos cuando capas intermedias agregan metadatos.
 
 <Tip>
-  El `sessionSecret` utilizado para la firma HMAC es la clave compartida negociada mediante Criptografía Post-Cuántica (ML-KEM-768). Esto garantiza que la integridad del ZK-Receipt sea resistente a ataques cuánticos.
+  El `sessionSecret` utilizado en modo v1 heredado es la clave compartida negociada mediante Criptografía Post-Cuántica (ML-KEM-768), garantizando resistencia cuántica en todo momento.
 </Tip>
 
 ---
@@ -707,10 +736,10 @@ Las siguientes capacidades están definidas arquitectónicamente y planificadas 
 
 | Característica | Estado | Descripción |
 |:---------------|:-------|:------------|
-| **TEE Attestation** | 🔴 Planificado | Soporte para enclaves de hardware (AWS Nitro / Intel SGX) |
-| **ZK-VM Nativo** | 🔴 Planificado | Bindings RISC Zero o SP1 para pruebas de conocimiento cero reales |
-| **ZK Core Rust** | 🔴 Planificado | Generación nativa de pruebas criptográficas en el core Rust |
+| **ZK-VM Nativo** | 🟢 Activo | Pruebas de conocimiento cero Groth16 BN254 via `@nekzus/liop-zk-native` |
+| **ZK Core Rust** | 🟢 Activo | Circuitos R1CS multi-hilo con Rayon y arkworks para analítica |
+| **TEE Attestation** | 🟡 En Progreso | Soporte para enclaves de hardware (AWS Nitro / Intel SGX) |
 
-<Warning>
-  El SDK actual utiliza **compromisos HMAC-SHA256** como sellos de ZK-Receipt. Si bien son criptográficamente sólidos para la verificación de integridad, no constituyen pruebas de conocimiento cero verdaderas. La migración a un ZK-VM nativo está planificada para una versión futura.
-</Warning>
+<Tip>
+  Las pruebas soberanas de Conocimiento Cero están operativas mediante recibos binarios versión 2. Los nodos provistos con `@nekzus/liop-zk-native` sintetizan pruebas Groth16 sobre la curva BN254, mientras que los clientes ligeros del SDK TypeScript y puentes MCP verifican las atestaciones sin requerir dependencias de compilación nativa en el host cliente.
+</Tip>
