@@ -209,7 +209,7 @@ The PII Scanner intercepts all sandbox output **before** results are returned to
 | **3. Pattern Validators** | Regex + algorithmic checks | Detects PII values regardless of key naming (emails, credit cards, IBANs) |
 | **4. NER Content Scan** | `compromise` NLP engine | Identifies person names, places, and organizations in free text |
 
-### Stage 1–2: Key Analysis
+### Stages 1 and 2: Key Analysis
 
 **Exact match** uses a `Set<string>` for O(1) constant-time lookup against a configurable list of forbidden keys.
 
@@ -226,8 +226,8 @@ A **safelist** of common English words and LIOP protocol internal keys prevents 
 |:--------|:----------|:-----------|
 | **EMAIL** | Regex | Excludes `@example.com`, `@test.com` |
 | **CREDIT_CARD** | **Luhn checksum** | Digit sum mod 10 === 0 |
-| **IP_ADDRESS** | Regex + range check | Excludes `127.x.x.x`, validates octets 0–255 |
-| **PHONE** | Regex + repetition check | 7–15 digits, rejects `1111111` patterns |
+| **IP_ADDRESS** | Regex + range check | Excludes `127.x.x.x`, validates octets 0 to 255 |
+| **PHONE** | Regex + repetition check | 7 to 15 digits, rejects `1111111` patterns |
 | **SSN** | Structural validation | Blocks area=0/666/≥900, group=0, serial=0 |
 | **IBAN** | **ISO 7064 Mod-97 via BigInt** | `BigInt(numericString) % 97n === 1n` |
 | **PASSPORT_MRZ** | Regex | TD3 44-character Machine Readable Zone |
@@ -532,7 +532,7 @@ Computationally intensive cryptographic operations are dispatched to OS-level th
 | `logic-execution` | Sandbox instantiation, AES decryption, AST inspection |
 | `zk-verifier` | Receipt deserialization, HMAC verification |
 
-Default configuration: 2–8 threads (production), 0–1 threads (test), `FixedQueue` scheduling, 5s idle timeout.
+Default configuration: 2 to 8 threads (production), 0 to 1 threads (test), `FixedQueue` scheduling, 5s idle timeout.
 
 ### Heap Bomb Defense
 
@@ -710,7 +710,7 @@ $$f(x) = \frac{1}{2\lambda} \exp\left(-\frac{|x|}{\lambda}\right)$$
 
 #### Security Decisions (Industrial Recalibration)
 
-1. **CSPRNG Source (`crypto.randomBytes`)**: Unlike generic implementations that rely on `Math.random()` (Xorshift128+), `DpEngine` generates entropy using `crypto.randomBytes(4)` mapped into $[-0.5, 0.5)$. This prevents state-reconstruction attacks where an adversary observing 3–5 outputs could predict future pseudo-random states and subtract the noise.
+1. **CSPRNG Source (`crypto.randomBytes`)**: Unlike generic implementations that rely on `Math.random()` (Xorshift128+), `DpEngine` generates entropy using `crypto.randomBytes(4)` mapped into $[-0.5, 0.5)$. This prevents state-reconstruction attacks where an adversary observing 3 to 5 outputs could predict future pseudo-random states and subtract the noise.
 2. **Query-Aware Sensitivity**: Sensitivity ($\Delta f$) is derived automatically according to key semantics:
    - **`COUNT` Queries**: Sensitivity is fixed at $\Delta f = 1$ (axiom: adding/removing one individual alters count by at most 1).
    - **`AVG` / `VARIANCE` Queries**: Sensitivity is scaled dynamically by cohort size: $\Delta f = \frac{\text{sensitivity}}{n}$.
@@ -736,9 +736,9 @@ The following capabilities are architecturally defined and planned for future re
 
 | Feature | Status | Description |
 |:--------|:-------|:------------|
-| **Native ZK-VM** | 🟢 Active | Groth16 BN254 zero-knowledge proofs via `@nekzus/liop-zk-native` |
-| **Rust Core ZK** | 🟢 Active | Rayon multi-threaded arkworks R1CS circuits for analytical queries |
-| **TEE Attestation** | 🟡 In Progress | Hardware enclave support (AWS Nitro / Intel SGX) |
+| **Native ZK-VM** | Active | Groth16 BN254 zero-knowledge proofs via `@nekzus/liop-zk-native` |
+| **Rust Core ZK** | Active | Rayon multi-threaded arkworks R1CS circuits for analytical queries |
+| **TEE Attestation** | In Progress | Hardware enclave support (AWS Nitro / Intel SGX) |
 
 <Tip>
   Sovereign Zero-Knowledge Proofs are available through version 2 binary receipts. Enclaves equipped with `@nekzus/liop-zk-native` generate mathematical Groth16 proofs over the BN254 curve, whereas lightweight TypeScript SDK clients and MCP bridges verify proofs without native compilation dependencies.

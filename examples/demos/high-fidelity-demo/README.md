@@ -4,7 +4,7 @@ A dynamic, high-fidelity demonstration showcasing an end-to-end Logic-Injection-
 
 ---
 
-## 📚 Official Documentation
+## Official Documentation
 
 For comprehensive guides and architecture specifications, visit the [official LIOP documentation](https://nekzus-32.mintlify.app/).
 

@@ -4,7 +4,7 @@ A focused demonstration illustrating direct usage of the `@nekzus/liop` SDK to p
 
 ---
 
-## 📚 Official Documentation
+## Official Documentation
 
 For comprehensive guides, API references, and production deployment patterns, visit the [official LIOP documentation](https://nekzus-32.mintlify.app/).
 

@@ -20,9 +20,9 @@ if not Path('graphify-out/graph.json').exists():
 ```
 If it fails, stop and tell the user to run `/graphify <path>` first.
 
-### Step 0 — Constrained query expansion (REQUIRED before traversal)
+### Step 0, Constrained query expansion (REQUIRED before traversal)
 
-graphify's `query` CLI matches nodes via case-folded substring + IDF — there is **no stemming, no synonyms, no cross-language match** inside the binary, and the inline fallback below matches the same way. If the user's question uses different language or different domain vocabulary than the graph's labels (user says "обработчик" / graph says "handler"; user says "authentication" / graph says "Guardian"), the literal matcher returns 0 hits and the answer collapses to noise.
+graphify's `query` CLI matches nodes via case-folded substring + IDF, there is **no stemming, no synonyms, no cross-language match** inside the binary, and the inline fallback below matches the same way. If the user's question uses different language or different domain vocabulary than the graph's labels (user says "обработчик" / graph says "handler"; user says "authentication" / graph says "Guardian"), the literal matcher returns 0 hits and the answer collapses to noise.
 
 Fix this **without inventing tokens** by expanding the query against the actual graph vocabulary first:
 
@@ -47,7 +47,7 @@ print(f'vocab: {len(vocab)} tokens')
 
 2. Read `graphify-out/.vocab.txt`. Then for the user's question, select **up to 12 tokens from this exact list** that semantically match the query intent. Hard constraints:
    - You MUST pick only tokens present in the vocabulary file. Do NOT invent tokens.
-   - If a query concept has no plausible token in the vocab, skip it — do not substitute a near-synonym from training memory.
+   - If a query concept has no plausible token in the vocab, skip it, do not substitute a near-synonym from training memory.
    - If **no** vocab tokens match the query at all, output an empty list and tell the user the corpus has no relevant vocabulary for this question. Do not fabricate a search.
    - Translate cross-language: Russian "аутентификация" → look for `auth`, `credential`, `token`, `security` IFF present in vocab.
    - Morphology: "handlers" maps to `handler` IFF present; "todos" maps to `todo` IFF present.
@@ -56,11 +56,11 @@ print(f'vocab: {len(vocab)} tokens')
 ```
 Query expanded to (from graph vocab, N tokens): [token1, token2, ...]
 ```
-If the list is empty, say so plainly and stop — do not proceed to traversal.
+If the list is empty, say so plainly and stop, do not proceed to traversal.
 
-### Step 1 — Traversal
+### Step 1, Traversal
 
-Build the **expanded query string** by joining the selected tokens with spaces. Use this string as `QUESTION` below — NOT the original user question. (The original question is preserved only for `save-result` at the end.)
+Build the **expanded query string** by joining the selected tokens with spaces. Use this string as `QUESTION` below, NOT the original user question. (The original question is preserved only for `save-result` at the end.)
 
 Prefer the CLI when it is installed:
 ```bash

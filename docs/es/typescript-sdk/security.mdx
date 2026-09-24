@@ -209,7 +209,7 @@ El escáner PII intercepta toda la salida del sandbox **antes** de devolver los 
 | **3. Validadores de Patrones** | Regex + verificaciones algorítmicas | Detecta valores PII independientemente del nombre de la clave |
 | **4. Escaneo NER de Contenido** | Motor NLP `compromise` | Identifica nombres de personas, lugares y organizaciones en texto libre |
 
-### Etapas 1–2: Análisis de Claves
+### Etapas 1 y 2: Análisis de Claves
 
 La **coincidencia exacta** utiliza un `Set<string>` para búsqueda en tiempo constante O(1) contra una lista configurable de claves prohibidas.
 
@@ -226,8 +226,8 @@ Una **lista segura** de palabras comunes del inglés y claves internas del proto
 |:-------|:----------|:-----------|
 | **EMAIL** | Regex | Excluye `@example.com`, `@test.com` |
 | **CREDIT_CARD** | **Checksum Luhn** | Suma de dígitos mod 10 === 0 |
-| **IP_ADDRESS** | Regex + verificación de rango | Excluye `127.x.x.x`, valida octetos 0–255 |
-| **PHONE** | Regex + verificación de repetición | 7–15 dígitos, rechaza patrones `1111111` |
+| **IP_ADDRESS** | Regex + verificación de rango | Excluye `127.x.x.x`, valida octetos 0 a 255 |
+| **PHONE** | Regex + verificación de repetición | 7 a 15 dígitos, rechaza patrones `1111111` |
 | **SSN** | Validación estructural | Bloquea area=0/666/≥900, grupo=0, serial=0 |
 | **IBAN** | **ISO 7064 Mod-97 via BigInt** | `BigInt(cadenaNumérica) % 97n === 1n` |
 | **PASSPORT_MRZ** | Regex | Zona de Lectura Mecánica TD3 de 44 caracteres |
@@ -532,7 +532,7 @@ Las operaciones criptográficas de alto consumo se despachan a threads del siste
 | `logic-execution` | Instanciación del sandbox, descifrado AES, inspección AST |
 | `zk-verifier` | Deserialización de recibos, verificación HMAC |
 
-Configuración por defecto: 2–8 threads (producción), 0–1 threads (test), planificación `FixedQueue`, 5s de timeout por inactividad.
+Configuración por defecto: 2 a 8 threads (producción), 0 a 1 threads (test), planificación `FixedQueue`, 5s de timeout por inactividad.
 
 ### Defensa contra Heap Bomb
 
@@ -736,9 +736,9 @@ Las siguientes capacidades están definidas arquitectónicamente y planificadas 
 
 | Característica | Estado | Descripción |
 |:---------------|:-------|:------------|
-| **ZK-VM Nativo** | 🟢 Activo | Pruebas de conocimiento cero Groth16 BN254 via `@nekzus/liop-zk-native` |
-| **ZK Core Rust** | 🟢 Activo | Circuitos R1CS multi-hilo con Rayon y arkworks para analítica |
-| **TEE Attestation** | 🟡 En Progreso | Soporte para enclaves de hardware (AWS Nitro / Intel SGX) |
+| **ZK-VM Nativo** | Activo | Pruebas de conocimiento cero Groth16 BN254 via `@nekzus/liop-zk-native` |
+| **ZK Core Rust** | Activo | Circuitos R1CS multi-hilo con Rayon y arkworks para analítica |
+| **TEE Attestation** | En Progreso | Soporte para enclaves de hardware (AWS Nitro / Intel SGX) |
 
 <Tip>
   Las pruebas soberanas de Conocimiento Cero están operativas mediante recibos binarios versión 2. Los nodos provistos con `@nekzus/liop-zk-native` sintetizan pruebas Groth16 sobre la curva BN254, mientras que los clientes ligeros del SDK TypeScript y puentes MCP verifican las atestaciones sin requerir dependencias de compilación nativa en el host cliente.

@@ -24,7 +24,7 @@ npm install -g @nekzus/liop@latest
 liop
 ```
 
-## 🤖 Claude Desktop Integration
+## Claude Desktop Integration
 
 LIOP is designed to be a drop-in replacement for MCP servers. To add LIOP tools to your Claude Desktop experience, update your configuration file:
 
@@ -65,7 +65,7 @@ LIOP is designed to be a drop-in replacement for MCP servers. To add LIOP tools 
 ```
 </CodeGroup>
 
-Once configured, restart Claude Desktop. You will see the 🛡️ **LIOP Guard** status in your logs.
+Once configured, restart Claude Desktop. You will see the **LIOP Guard** status in your logs.
 
 ## Core Features
 
@@ -181,6 +181,6 @@ await mesh.stop();
 | `queryManifest(target)` | `Promise<LiopManifest \| null>` | Directly fetches signed JSON manifest from a remote peer |
 | `announceManifest(manifest)` | `Promise<void>` | Publishes local capabilities to the DHT and registers manifest stream handler |
 
-If you encounter connection issues, check for the 🛡️ icon in the console or ask the LLM to call `LiopMeshStatus`.
+If you encounter connection issues, check for the LIOP Guard banner in the console or ask the LLM to call `LiopMeshStatus`.
 
 

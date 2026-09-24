@@ -281,14 +281,14 @@ The engine automatically derives **per-field sensitivity** based on the output k
 |:---|:---|:---|
 | Healthcare (HIPAA) | `2.0` | Apple Health Data |
 | Finance (SOX/PCI) | `2.0` | DOJ PET Guidelines |
-| Public Data | `4.0–8.0` | US Census, Google RAPPOR |
+| Public Data | `4.0-8.0` | US Census, Google RAPPOR |
 
-See [Zero-Trust Security — Differential Privacy](/concepts/zero-trust#7-differential-privacy-engine-laplace-mechanism) for the detailed technical specification.
+See [Zero-Trust Security (Differential Privacy)](/concepts/zero-trust#7-differential-privacy-engine-laplace-mechanism) for the detailed technical specification.
 
 ### Dynamic Return Structure (Native Auto-i18n)
 
 <Note>
-**Roadmap Specification** — Dynamic Return Structure is scheduled for a future protocol release and is not yet available in the active SDK runtime.
+**Roadmap Specification**. Dynamic Return Structure is scheduled for a future protocol release and is not yet available in the active SDK runtime.
 </Note>
 
 When a Data Node registers its capabilities, it embeds a structural directive into the payload definition (`DYNAMIC RETURN STRUCTURE`). This instructs the executing agent to output JSON schemas using keys mapped to the **language detected in the user's initial prompt.**

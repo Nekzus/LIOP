@@ -7,7 +7,7 @@ icon: "scroll"
 
 ## Abstract
 
-A decentralized binary transport mesh that inverts the dominant AI integration paradigm: instead of pulling sensitive data to a remote model, LIOP pushes sandboxed WebAssembly logic to the data's origin. The data never leaves its physical boundary. Injected modules execute inside strict WASI sandboxes, undergo static taint analysis, and operate under Post-Quantum cryptographic sealing (ML-KEM-768). Only mathematically aggregated results — bound to cryptographic integrity proofs (ZK-Receipts) — cross the network. This architecture eliminates the privacy, bandwidth, and compliance failures inherent to Context-Pulling protocols. LIOP is designed for Machine-to-Machine communication at scale: healthcare analytics, financial telemetry, IoT edge processing, and any domain where data sovereignty is non-negotiable.
+A decentralized binary transport mesh that inverts the dominant AI integration paradigm: instead of pulling sensitive data to a remote model, LIOP pushes sandboxed WebAssembly logic to the data's origin. The data never leaves its physical boundary. Injected modules execute inside strict WASI sandboxes, undergo static taint analysis, and operate under Post-Quantum cryptographic sealing (ML-KEM-768). Only mathematically aggregated results, bound to cryptographic integrity proofs (ZK-Receipts), cross the network. This architecture eliminates the privacy, bandwidth, and compliance failures inherent to Context-Pulling protocols. LIOP is designed for Machine-to-Machine communication at scale: healthcare analytics, financial telemetry, IoT edge processing, and any domain where data sovereignty is non-negotiable.
 
 ## 1. The Context-Pulling Crisis
 
@@ -15,13 +15,13 @@ A decentralized binary transport mesh that inverts the dominant AI integration p
 **Definition 1 (Context-Pulling).** An architectural pattern in which an AI agent extracts raw, unprocessed data from its origin node across a network boundary into a remote execution environment for analysis. This pattern requires the data owner to relinquish physical custody of the data before any computation occurs.
 </Note>
 
-The current generation of AI integration protocols — including the Model Context Protocol (MCP) — standardizes this extraction. While highly effective for local agent tool ergonomics, IDE extensions, and desktop developer tooling, applying Context-Pulling to distributed enterprise data transfers megabytes or gigabytes of sensitive records across the internet so a centralized model can parse, reason, and summarize on a remote server.
+The current generation of AI integration protocols, including the Model Context Protocol (MCP), standardizes this extraction. While highly effective for local agent tool ergonomics, IDE extensions, and desktop developer tooling, applying Context-Pulling to distributed enterprise data transfers megabytes or gigabytes of sensitive records across the internet so a centralized model can parse, reason, and summarize on a remote server.
 
 This approach fails in three measurable ways:
 
-1. **The Privacy Paradox.** You cannot ask an AI to find a statistical correlation across a hospital's database of 10,000 patients without first extracting those 10,000 patient records — including their PII — out of the hospital's secure perimeter and into a third-party cloud. The computation requires the data to leave. Compliance (HIPAA, GDPR, CCPA) demands the data to stay. The architecture makes both impossible simultaneously.
+1. **The Privacy Paradox.** You cannot ask an AI to find a statistical correlation across a hospital's database of 10,000 patients without first extracting those 10,000 patient records, including their PII, out of the hospital's secure perimeter and into a third-party cloud. The computation requires the data to leave. Compliance (HIPAA, GDPR, CCPA) demands the data to stay. The architecture makes both impossible simultaneously.
 
-2. **The Bandwidth and Economic Collapse.** Telemetry streams, IoT sensor logs, and high-frequency trading ledgers generate gigabytes of data per second. Streaming this volume over HTTP into an LLM context window is not slow — it is architecturally wasteful. In Context-Pulling, network transfer and tokenization costs scale linearly with dataset size $O(N)$. In Logic-Injection, transferring logic to origin scales at constant network cost $O(1)$. The useful output is often a single percentage or a ranked list; pulling raw data wastes compute, energy, and bandwidth.
+2. **The Bandwidth and Economic Collapse.** Telemetry streams, IoT sensor logs, and high-frequency trading ledgers generate gigabytes of data per second. Streaming this volume over HTTP into an LLM context window is not merely slow, but architecturally wasteful. In Context-Pulling, network transfer and tokenization costs scale linearly with dataset size $O(N)$. In Logic-Injection, transferring logic to origin scales at constant network cost $O(1)$. The useful output is often a single percentage or a ranked list; pulling raw data wastes compute, energy, and bandwidth.
 
 3. **The Zero-Trust Illusion.** When you pull data, you lose physical custody. You must trust the remote provider's data retention policies, their internal access controls, and their regulatory posture. For defense, healthcare, and financial institutions, this trust requirement creates adoption barriers that no API key or encryption-in-transit can resolve. The data left the building.
 
@@ -35,24 +35,24 @@ The Logic-Injection-on-Origin Protocol is born from this postulate:
 
 ***We must stop moving the data to the math. We must move the math to the data.***
 
-An LIOP Agent does not request records from a server. It pushes executable logic — in the form of WebAssembly micro-modules or dynamically transpiled algorithms — to the server. The server executes this logic inside a sandboxed environment against its local data and returns only the aggregated result, sealed with a cryptographic proof that binds the output to the exact logic that produced it.
+An LIOP Agent does not request records from a server. It pushes executable logic, in the form of WebAssembly micro-modules or dynamically transpiled algorithms, to the server. The server executes this logic inside a sandboxed environment against its local data and returns only the aggregated result, sealed with a cryptographic proof that binds the output to the exact logic that produced it.
 
 Instead of an Agent asking: *"Give me all your database records so I can filter them,"*
 an LIOP Agent says: *"Here is my logic. Run it locally. Return only the computed result."*
 
 ## 3. Design Principles
 
-These seven principles govern every architectural decision in the protocol. They are not aspirational — they are constraints. A contribution that violates any of them is rejected.
+These seven principles govern every architectural decision in the protocol. They are not aspirational, but binding constraints. A contribution that violates any of them is rejected.
 
-1. **Data Sovereignty** — Data never leaves its origin unless the output satisfies aggregation or cryptographic attestation constraints. No exception.
-2. **Zero-Trust by Default** — Every injected module is untrusted. Capabilities must be explicitly granted through a static allowlist, never inherited from the host environment.
-3. **Aggregation-First** — Raw row-level data export is architecturally forbidden. Only mathematically reduced outputs cross the network boundary.
-4. **Cryptographic Verifiability** — Every computation produces a ZK-Receipt that binds the output hash to the exact logic executed and the session secret. Third parties can audit results without re-executing the logic.
-5. **Quantum Resilience** — All key exchanges and session seals use post-quantum algorithms (ML-KEM-768) from day one. This is not a future upgrade path — it is a launch requirement, designed against harvest-now-decrypt-later strategies.
-6. **Minimal Footprint** — The protocol must operate on resource-constrained edge devices. Efficiency is a hard constraint, not an optimization target. CPU fuel limits are deterministic and AST-derived.
-7. **Ecosystem Coexistence & Backward Compatibility** — LIOP operates at the sovereign compute and distributed mesh layer while coexisting with application-level agent protocols. Through a dual-era gateway adapter, legacy MCP clients consume LIOP services without requiring client-side modifications or creating ecosystem fragmentation.
+1. **Data Sovereignty**. Data never leaves its origin unless the output satisfies aggregation or cryptographic attestation constraints. No exception.
+2. **Zero-Trust by Default**. Every injected module is untrusted. Capabilities must be explicitly granted through a static allowlist, never inherited from the host environment.
+3. **Aggregation-First**. Raw row-level data export is architecturally forbidden. Only mathematically reduced outputs cross the network boundary.
+4. **Cryptographic Verifiability**. Every computation produces a ZK-Receipt that binds the output hash to the exact logic executed and the session secret. Third parties can audit results without re-executing the logic.
+5. **Quantum Resilience**. All key exchanges and session seals use post-quantum algorithms (ML-KEM-768) from day one. This is not a future upgrade path, but a launch requirement designed against harvest-now-decrypt-later strategies.
+6. **Minimal Footprint**. The protocol must operate on resource-constrained edge devices. Efficiency is a hard constraint, not an optimization target. CPU fuel limits are deterministic and AST-derived.
+7. **Ecosystem Coexistence & Backward Compatibility**. LIOP operates at the sovereign compute and distributed mesh layer while coexisting with application-level agent protocols. Through a dual-era gateway adapter, legacy MCP clients consume LIOP services without requiring client-side modifications or creating ecosystem fragmentation.
 
-## 4. The Six Shields — Threat Model & Defense Layers
+## 4. The Six Shields (Threat Model & Defense Layers)
 
 LIOP implements six layered defenses. Each layer addresses a specific attack class. Together, they form a defense-in-depth architecture where compromising a single layer does not compromise the system.
 
@@ -74,23 +74,23 @@ LIOP implements six layered defenses. Each layer addresses a specific attack cla
 These guarantees are not marketing claims. Each one maps directly to an implemented mechanism in the SDK. If LIOP cannot deliver a guarantee, it is not listed here.
 
 <Info>
-**G1 — Data Residency.** No byte of raw, unaggregated user data crosses the origin node's network boundary during a standard LIOP execution cycle.
+**G1. Data Residency.** No byte of raw, unaggregated user data crosses the origin node's network boundary during a standard LIOP execution cycle.
 </Info>
 
 <Info>
-**G2 — Computational Integrity.** Every execution produces a ZK-Receipt containing the output hash, the logic image digest, and the PQC session seal. Any modification to the output, the logic, or the session invalidates the receipt.
+**G2. Computational Integrity.** Every execution produces a ZK-Receipt containing the output hash, the logic image digest, and the PQC session seal. Any modification to the output, the logic, or the session invalidates the receipt.
 </Info>
 
 <Info>
-**G3 — Sandbox Isolation.** Injected modules cannot access the host filesystem, network stack, or environment variables beyond the WASI strict allowlist. Violations are caught at AST inspection time (pre-execution) or terminated at runtime via fuel exhaustion.
+**G3. Sandbox Isolation.** Injected modules cannot access the host filesystem, network stack, or environment variables beyond the WASI strict allowlist. Violations are caught at AST inspection time (pre-execution) or terminated at runtime via fuel exhaustion.
 </Info>
 
 <Info>
-**G4 — Quantum-Safe Sessions.** All session keys are negotiated via ML-KEM-768. Intercepted ciphertexts provide zero computational advantage to adversaries with access to quantum hardware.
+**G4. Quantum-Safe Sessions.** All session keys are negotiated via ML-KEM-768. Intercepted ciphertexts provide zero computational advantage to adversaries with access to quantum hardware.
 </Info>
 
 <Info>
-**G5 — Autonomous Self-Correction.** An agent that violates the LIO paradigm (e.g., attempts to request raw data) receives a structured cognitive correction prompt and can self-correct without human intervention.
+**G5. Autonomous Self-Correction.** An agent that violates the LIO paradigm (e.g., attempts to request raw data) receives a structured cognitive correction prompt and can self-correct without human intervention.
 </Info>
 
 ## 6. Application Horizons
@@ -100,7 +100,7 @@ These guarantees are not marketing claims. Each one maps directly to an implemen
     A pharmaceutical researcher injects a correlation-detection module into a hospital's patient database node. The module executes locally, returns only aggregated statistical correlations with Differential Privacy noise applied, and the hospital's patient records never leave the premises. HIPAA compliance is architectural, not contractual.
   </Card>
   <Card title="Financial Telemetry" icon="chart-line">
-    A quantitative trading firm pushes a volatility-scanning algorithm into an exchange's order book node. The algorithm processes tick data locally at microsecond granularity and returns only computed risk metrics — spread, implied volatility, Greeks. Zero raw trade data crosses the wire.
+    A quantitative trading firm pushes a volatility-scanning algorithm into an exchange's order book node. The algorithm processes tick data locally at microsecond granularity and returns only computed risk metrics (spread, implied volatility, and Greeks). Zero raw trade data crosses the wire.
   </Card>
   <Card title="IoT Edge Processing" icon="microchip">
     A fleet management system injects anomaly-detection logic into 50,000 vehicle telemetry nodes. Each node processes its own sensor data locally and reports only aggregated health scores. Bandwidth consumption drops by orders of magnitude compared to centralized ingestion.
@@ -123,10 +123,10 @@ This manifesto serves as the immutable constitutional foundation of the Logic-In
 
 The technical implementation, cryptographic primitives, and transport features evolve through the **LIOP Enhancement Proposal (LEP)** process governing the [Protocol Specification](/concepts/specification):
 
-1. **LEP Submission** — Contributors submit architectural or cryptographic enhancements via Pull Request to the `protocol/` directory.
-2. **Constitutional Alignment** — Every proposal must demonstrate strict adherence to the 7 Design Principles. Proposals violating data sovereignty or aggregation guarantees are rejected by design.
-3. **Peer Review & Verification** — A minimum 14-day technical review period, including empirical test vectors in the reference SDK.
-4. **Specification Ratification** — Approved LEPs are incorporated into the next dated release of the [Protocol Specification](/concepts/specification).
+1. **LEP Submission**. Contributors submit architectural or cryptographic enhancements via Pull Request to the `protocol/` directory.
+2. **Constitutional Alignment**. Every proposal must demonstrate strict adherence to the 7 Design Principles. Proposals violating data sovereignty or aggregation guarantees are rejected by design.
+3. **Peer Review & Verification**. A minimum 14-day technical review period, including empirical test vectors in the reference SDK.
+4. **Specification Ratification**. Approved LEPs are incorporated into the next dated release of the [Protocol Specification](/concepts/specification).
 
 ## 9. Next Steps
 
@@ -134,4 +134,4 @@ Review the [Protocol Specification](/concepts/specification), explore the [Web P
 
 ---
 
-**First Published:** March 1, 2026 | **Version:** 1.0 (Ratified: August 31, 2026) | **Author:** Mauricio Ortega (Nekzus) — Nekzus Solutions | **License:** [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
+**First Published:** March 1, 2026 | **Version:** 1.0 (Ratified: August 31, 2026) | **Author:** Mauricio Ortega (Nekzus), Nekzus Solutions | **License:** [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)

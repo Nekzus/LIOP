@@ -712,16 +712,16 @@ This comparative matrix synthesizes how LIOP integrates the battle-tested engine
 ### 9.1 Audited Status in `@nekzus/liop@2.5.0`
 
 The production package `@nekzus/liop@2.5.0` fully implements the following cryptographic, networking, and governance modules:
-- ✅ **RBAC Engine:** Scope-based authorization across MCP methods (`security/rbac.ts`).
-- ✅ **JWT Token Validator:** Dual-mode JWKS resolution with authority aliasing (`security/jwt-validator.ts`).
-- ✅ **Embedded OAuth 2.1 Server:** Hardened for M2M Client Credentials (`security/oauth-server.ts`).
-- ✅ **Protected Resource Metadata (PRM):** RFC 9728 discovery endpoint (`security/prm.ts`).
-- ✅ **Certificate Manager:** Automated X.509 inspection and debounced hot-reloading (`security/cert-manager.ts`).
-- ✅ **Immutable Audit Logger:** SHA-256 cryptographic hash-chain ledger (`security/audit-logger.ts`).
-- ✅ **Post-Quantum Cryptography:** Native ML-KEM-768 and ML-DSA-65 bindings.
-- ✅ **Sandboxed Execution Core:** V8 Isolate with 25 poisoned globals and 11 frozen prototypes.
-- ✅ **ZK-Receipt Engine:** HMAC-SHA256 commitments anchored to `dataset_hash`.
-- ✅ **Differential Privacy Engine:** NIST SP 800-226 Laplace and Discrete Differential Privacy.
+- **RBAC Engine:** Scope-based authorization across MCP methods (`security/rbac.ts`).
+- **JWT Token Validator:** Dual-mode JWKS resolution with authority aliasing (`security/jwt-validator.ts`).
+- **Embedded OAuth 2.1 Server:** Hardened for M2M Client Credentials (`security/oauth-server.ts`).
+- **Protected Resource Metadata (PRM):** RFC 9728 discovery endpoint (`security/prm.ts`).
+- **Certificate Manager:** Automated X.509 inspection and debounced hot-reloading (`security/cert-manager.ts`).
+- **Immutable Audit Logger:** SHA-256 cryptographic hash-chain ledger (`security/audit-logger.ts`).
+- **Post-Quantum Cryptography:** Native ML-KEM-768 and ML-DSA-65 bindings.
+- **Sandboxed Execution Core:** V8 Isolate with 25 poisoned globals and 11 frozen prototypes.
+- **ZK-Receipt Engine:** HMAC-SHA256 commitments anchored to `dataset_hash`.
+- **Differential Privacy Engine:** NIST SP 800-226 Laplace and Discrete Differential Privacy.
 
 ---
 

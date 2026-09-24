@@ -254,7 +254,7 @@ export const staticPatternHook: GatewayInterceptor = (request) => {
 Cuando no se especifica ningún interceptor, el gateway opera sin intervención perimetral:
 
 ```typescript
-// Instanciación estándar — cero sobrecoste computacional
+// Instanciación estándar, cero sobrecoste computacional
 const gateway = new LiopHybridGateway(server, meshNode, 50051);
 await gateway.listen(3000);
 ```
@@ -305,5 +305,5 @@ El `GatewayInterceptor` actúa exclusivamente como compuerta de admisión en el 
 
 ## Referencias Relacionadas
 
-- [Interceptores de Log y Auditoría](/es/typescript-sdk/log-audit-interceptors) — Ganchos para flujos de logs operacionales y registros criptográficos de auditoría.
+- [Interceptores de Log y Auditoría](/es/typescript-sdk/log-audit-interceptors): Ganchos para flujos de logs operacionales y registros criptográficos de auditoría.
 

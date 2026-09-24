@@ -199,9 +199,9 @@ Unlike `GatewayInterceptor` (which is strictly restricted to perimeter gateways)
 
 | Node Role | `GatewayInterceptor` | `LogInterceptor` | `AuditInterceptor` | Network Boundary Role |
 |:---|:---|:---|:---|:---|
-| **Perimeter Ingress (`Nexus`)** | ✅ **Mandatory** | ✅ Active (OOB) | ✅ Active (OOB) | L7 WAF / Admission filtering |
-| **Border Gateway (`BLG`)** | ❌ Bypassed | ✅ Active (OOB) | ✅ Active (OOB) | Asymmetric mTLS / Swarm PSK bridge |
-| **Data Enclaves (`Bank` / `Vault`)** | ❌ **Prohibited** | ✅ Active (OOB) | ✅ Active (OOB) | Zero-Trust WASI / The Shield execution |
+| **Perimeter Ingress (`Nexus`)** | **Mandatory** | Active (OOB) | Active (OOB) | L7 WAF / Admission filtering |
+| **Border Gateway (`BLG`)** | Bypassed | Active (OOB) | Active (OOB) | Asymmetric mTLS / Swarm PSK bridge |
+| **Data Enclaves (`Bank` / `Vault`)** | **Prohibited** | Active (OOB) | Active (OOB) | Zero-Trust WASI / The Shield execution |
 
 Because both hooks execute asynchronously via `fire-and-forget` (`Promise.resolve().then(...)` or un-awaited `fetch()`), external inference latency or remote SIEM outages introduce exactly **0 ms of delay** to client RPC responses or host sandbox evaluation.
 
@@ -229,5 +229,5 @@ LIOP defines three complementary interceptor hooks. None replace or compromise t
 
 ## Related References
 
-- [Gateway Interceptor](/typescript-sdk/gateway-interceptor) — Perimeter admission hook for `LiopHybridGateway`.
-- [Audit & Compliance](/typescript-sdk/security) — Hash-chain specifications and SOC 2 Type II controls.
+- [Gateway Interceptor](/typescript-sdk/gateway-interceptor): Perimeter admission hook for `LiopHybridGateway`.
+- [Audit & Compliance](/typescript-sdk/security): Hash-chain specifications and SOC 2 Type II controls.

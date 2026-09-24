@@ -122,8 +122,8 @@ Traditional MCP requires pulling entire raw datasets across the network into the
 | Metric | Traditional MCP (Context-Pulling) | LIOP (Logic-on-Origin) | Net Savings |
 |:---|:---|:---|:---|
 | **Paradigm** | Raw Data Extraction to Agent | Sandboxed WASI Execution in Origin | **Zero Data Egress** |
-| **Input Context Tokens** | ~16,000 – 48,000 tokens | ~320 – 650 tokens | **98.9% – 99.3% reduction** |
-| **Output Context Tokens** | ~1,200 – 4,500 tokens | ~80 – 180 tokens | **93.3% – 96.0% reduction** |
+| **Input Context Tokens** | ~16,000 to 48,000 tokens | ~320 to 650 tokens | **98.9% to 99.3% reduction** |
+| **Output Context Tokens** | ~1,200 to 4,500 tokens | ~80 to 180 tokens | **93.3% to 96.0% reduction** |
 | **Network Wire Transfer** | ~195 KB (raw JSON payload) | ~801 B (gRPC envelope + receipt) | **99.6% reduction** |
 | **LLM Context Saturation** | High (triggers truncation / sliding window) | Minimal (preserves reasoning capacity) | **Zero Context Bloat** |
 | **PII / Exfiltration Risk** | Severe (raw records leave perimeter) | Zero (blocked by 6-layer shield) | **Cryptographically Sealed** |

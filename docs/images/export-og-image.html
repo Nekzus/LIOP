@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>LIOP · Exportador de Imagen para LinkedIn (Fase 1 · 1200x630)</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      background-color: #050505;
+      color: #EDEDED;
+      font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 30px 20px;
+      min-height: 100vh;
+    }
+    .container {
+      max-width: 1240px;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 24px;
+    }
+    .header-card {
+      width: 100%;
+      background: #0D0D0D;
+      border: 1px solid #222222;
+      border-radius: 12px;
+      padding: 20px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .header-titles h1 {
+      font-size: 18px;
+      font-weight: 700;
+      color: #FFFFFF;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .header-titles p {
+      font-size: 13px;
+      color: #A1A1AA;
+      margin-top: 4px;
+    }
+    .badge-alpha {
+      background: #161616;
+      color: #A1A1AA;
+      border: 1px solid #27272A;
+      font-size: 11px;
+      font-weight: 500;
+      padding: 3px 10px;
+      border-radius: 20px;
+    }
+    .lang-switcher {
+      display: flex;
+      background: #141414;
+      border: 1px solid #27272A;
+      border-radius: 8px;
+      padding: 3px;
+      gap: 2px;
+    }
+    .lang-btn {
+      background: transparent;
+      border: none;
+      color: #71717A;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .lang-btn.active {
+      background: #27272A;
+      color: #FFFFFF;
+    }
+    .actions-group {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    button {
+      background: #18181B;
+      color: #EDEDED;
+      border: 1px solid #27272A;
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.15s ease;
+    }
+    button:hover {
+      background: #27272A;
+      border-color: #3F3F46;
+      color: #FFFFFF;
+    }
+    button.primary {
+      background: #FFFFFF;
+      color: #000000;
+      border: 1px solid #FFFFFF;
+    }
+    button.primary:hover {
+      background: #E4E4E7;
+    }
+    .preview-wrapper {
+      width: 100%;
+      max-width: 1200px;
+      background: #000000;
+      border: 1px solid #222222;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.9);
+      position: relative;
+    }
+    .preview-wrapper img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+    .text-helpers {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    @media (max-width: 900px) {
+      .text-helpers {
+        grid-template-columns: 1fr;
+      }
+    }
+    .helper-card {
+      background: #0D0D0D;
+      border: 1px solid #222222;
+      border-radius: 12px;
+      padding: 20px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .helper-card h3 {
+      font-size: 14px;
+      font-weight: 700;
+      color: #FFFFFF;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .helper-card pre {
+      background: #050505;
+      border: 1px solid #1A1A1A;
+      border-radius: 8px;
+      padding: 14px;
+      font-size: 11.5px;
+      color: #D4D4D8;
+      font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 240px;
+      overflow-y: auto;
+      line-height: 1.5;
+    }
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      background: #10B981;
+      color: #000000;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      display: none;
+      box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+      z-index: 100;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <!-- Header Controls -->
+    <div class="header-card">
+      <div class="header-titles">
+        <h1>
+          LIOP · Fase 1 (Imagen Landscape)
+          <span class="badge-alpha" id="status-badge">Fase de Pruebas</span>
+        </h1>
+        <p id="header-desc">1200 × 630 px · Estándar de imagen de alto impacto para el feed de LinkedIn</p>
+      </div>
+
+      <div class="actions-group">
+        <!-- Language Switcher -->
+        <div class="lang-switcher">
+          <button class="lang-btn active" id="btn-lang-es" onclick="setLanguage('es')">🇪🇸 ES</button>
+          <button class="lang-btn" id="btn-lang-en" onclick="setLanguage('en')">🇬🇧 EN</button>
+        </div>
+
+        <button class="primary" id="btn-download-retina">
+          📥 Descargar PNG (@2x Retina - 2400x1260)
+        </button>
+        <button id="btn-download-standard">
+          📥 Descargar PNG (1200x630)
+        </button>
+      </div>
+    </div>
+
+    <!-- Visual Preview -->
+    <div class="preview-wrapper">
+      <img id="og-svg-img" src="og-liop-vercel.svg" alt="LIOP OG Vercel Image" />
+    </div>
+
+    <!-- Copy Helpers -->
+    <div class="text-helpers">
+      <div class="helper-card">
+        <h3>
+          <span id="label-post-title">Texto para el Post (Fase 1 · Español)</span>
+          <button id="btn-copy-post" style="padding: 5px 12px; font-size: 11px;">📋 Copiar</button>
+        </h3>
+        <pre id="post-text"></pre>
+      </div>
+
+      <div class="helper-card">
+        <h3>
+          <span id="label-comment-title">Primer Comentario Fijado (Con Enlaces)</span>
+          <button id="btn-copy-comment" style="padding: 5px 12px; font-size: 11px;">📋 Copiar</button>
+        </h3>
+        <pre id="comment-text"></pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast">Copiado al portapapeles</div>
+
+  <canvas id="export-canvas" style="display:none;"></canvas>
+
+  <script>
+    const CONTENT = {
+      es: {
+        svg: 'og-liop-vercel.svg',
+        badge: 'Fase de Pruebas',
+        headerDesc: '1200 × 630 px · Estándar de imagen de alto impacto para el feed de LinkedIn',
+        postTitle: 'Texto para el Post (Fase 1 · Español)',
+        commentTitle: 'Primer Comentario Fijado (Con Enlaces)',
+        btnRetina: '📥 Descargar PNG (@2x Retina - 2400x1260)',
+        btnStandard: '📥 Descargar PNG (1200x630)',
+        btnCopy: '📋 Copiar',
+        filenamePrefix: 'liop-og-linkedin-es',
+        post: `En el desarrollo web aprendimos hace tiempo que descargar bases de datos enteras al navegador para filtrarlas con JavaScript era un error grave tanto en rendimiento como en seguridad. La solución natural fue procesar la información en el servidor y enviar únicamente el resultado.
+
+Hoy estamos cometiendo exactamente el mismo error con los agentes de IA. Cuando conectamos un modelo o servicio externo a bases de datos privadas mediante protocolos como MCP, la costumbre es transferir miles de registros crudos por la red para que el cliente los filtre. Si esos datos son balances bancarios, historias clínicas o telemetría industrial, moverlos fuera de su entorno seguro satura los enlaces y abre una brecha de seguridad innecesaria, sin contar con el riesgo de que terminen viajando también al centro de datos del proveedor remoto del modelo que utilice ese cliente.
+
+Conscientes de este peligro, empresas, hospitales y gobiernos han blindado sus infraestructuras para preservar la soberanía de sus datos a cualquier precio. Es una postura totalmente lógica, pero el costo colateral es enorme. Justo en el momento histórico donde disponemos de una capacidad de análisis y procesamiento sin precedentes con los nuevos modelos de IA, nos encontramos demorando o perdiendo avances invaluables en medicina, genómica, estudios climáticos y ciencia experimental, simplemente porque los datos permanecen atrapados en silos por miedo justificado a una fuga o a perder su custodia.
+
+Reconstruir la infraestructura digital del mundo desde cero para solucionar esto es inviable hoy. El camino realista es adaptar lo que ya tenemos incorporando todas las garantías de seguridad posibles, llevando el código a donde residen los datos en vez de forzar a los datos a viajar. No se trata de una carrera de competencia entre países o empresas por ver quién acapara más información, sino de un esfuerzo colectivo por destrabar conocimiento para un bien común.
+
+Con esa premisa comencé a diseñar LIOP (Logic-Injection-on-Origin Protocol). En este esquema, la aplicación compila una función ligera en WebAssembly, un binario WASI de menos de 5 KB que viaja cifrado por gRPC hasta el servidor de origen. Allí corre dentro de un sandbox aislado en Rust con Wasmtime, con límites estrictos de memoria y consumo de CPU por instrucción, sin permisos para tocar el disco ni abrir conexiones de red. El servidor filtra y agrega la información en el lugar, devolviendo a la red solo el resultado final junto con una firma criptográfica HMAC-SHA256, sin exponer registros privados ni transferir información sensible fuera de su perímetro.
+
+A nivel de arquitectura esto tiene un balance claro. Ganamos que la información confidencial nunca sale del servidor y reducimos el tráfico a unos pocos bytes. A cambio, el servidor asume el costo de CPU de ejecutar el sandbox y el código inyectado queda limitado a cálculos puros sin acceso al sistema anfitrión.
+
+El proyecto es de código abierto bajo licencia Apache 2.0, con el runtime central en Rust y un SDK en TypeScript compatible con MCP. Actualmente transita una etapa de pruebas y evaluación en bancos de laboratorio, así que todavía no está pensado para usarse con datos reales en producción. El foco actual es validar el aislamiento y debatir la arquitectura con otros desarrolladores.
+
+Dejo la especificación técnica, el código y las pruebas en el repositorio para quienes quieran auditar el aislamiento en WASI o colaborar en el protocolo.
+
+Enlaces a la documentación y al código fuente en el primer comentario.
+
+#OpenSource #AppSec #WebAssembly #Rust #DistributedSystems #DataSovereignty #ZeroTrust #Science`,
+        comment: `Documentación técnica y especificación de seguridad en https://nekzus-32.mintlify.app/
+Código fuente y pruebas en GitHub en https://github.com/Nekzus/LIOP
+
+El repositorio incluye la especificación formal del protocolo, el runtime en Rust y el SDK en TypeScript bajo licencia Apache 2.0.
+
+Cualquier observación sobre el sandbox de Wasmtime, los límites de combustible o el transporte gRPC es bienvenida en las discusiones del proyecto.`
+      },
+      en: {
+        svg: 'og-liop-vercel-en.svg',
+        badge: 'Testing Phase',
+        headerDesc: '1200 × 630 px · High-impact feed image standard for LinkedIn',
+        postTitle: 'Post Copy (Phase 1 · English)',
+        commentTitle: 'Pinned First Comment (With Links)',
+        btnRetina: '📥 Download PNG (@2x Retina - 2400x1260)',
+        btnStandard: '📥 Download PNG (1200x630)',
+        btnCopy: '📋 Copy',
+        filenamePrefix: 'liop-og-linkedin-en',
+        post: `In web development, we learned years ago that pulling entire databases into the browser to filter them with client-side JavaScript was a costly mistake for both performance and security. The natural solution was processing data right on the server and returning only the computed output.
+
+Today, we are repeating that same mistake with AI agents. When connecting external models or analytical tools to private databases through protocols like MCP, the common pattern is pulling thousands of raw records across the network for client-side evaluation. When those records contain bank ledgers, healthcare records, or factory telemetry, moving them outside their secure perimeter clogs bandwidth and creates an avoidable security vulnerability, without even counting the risk of having that sensitive data travel straight to the remote data centers of whichever model provider the client happens to use.
+
+Aware of this risk, enterprises, hospitals, and governments have locked down their infrastructure to preserve data sovereignty at all costs. While this defensive posture is completely justified, the collateral cost is immense. At the exact historical moment when computational reasoning has expanded with modern AI models, we find ourselves stalling or losing invaluable breakthroughs across medicine, genomics, climate research, and experimental science, simply because vital data remains locked inside silos out of valid concerns over custody loss or privacy leaks.
+
+Rebuilding the world's digital infrastructure from scratch to solve this is impossible today. The pragmatic answer is adapting our existing systems with every possible security guarantee, moving sandboxed code directly to the data instead of forcing records across the wire. This is not a geopolitical arms race or a contest between platforms to hoard information, but a shared responsibility to unlock progress for the collective good of humanity.
+
+With that premise in mind, I began developing LIOP (Logic-Injection-on-Origin Protocol). In this setup, the client packages a compact WebAssembly function, a WASI binary under 5 KB that travels encrypted over gRPC to the host where the records live. There, it runs inside an isolated Rust sandbox using Wasmtime, with strict memory limits and per-instruction CPU fuel caps, without access to host disks or network sockets. The server aggregates and filters the data in place, returning only the final result along with an HMAC-SHA256 cryptographic receipt, without exposing raw rows or leaking sensitive data beyond its perimeter.
+
+This architecture has a clear set of trade-offs. We ensure sensitive data never leaves the host and compress network egress to a few bytes. In exchange, the host assumes the CPU cost of running the sandbox, and injected modules are strictly confined to pure computation without system privileges.
+
+LIOP is open source under the Apache 2.0 license, featuring a core Rust runtime and an MCP-compatible TypeScript SDK. It is currently in a testing and evaluation phase in lab testbeds, so it isn't ready to handle live data in production yet. The priority right now is verifying sandbox containment and discussing the design with the developer community.
+
+The formal specification, source code, and integration suites are open on GitHub for anyone interested in inspecting the WASI sandbox or contributing to the protocol.
+
+Direct links to the documentation and repository are in the first comment.
+
+#OpenSource #AppSec #WebAssembly #Rust #DistributedSystems #DataSovereignty #ZeroTrust #Science`,
+        comment: `Technical documentation and security specification at https://nekzus-32.mintlify.app/
+Source code and test suites on GitHub at https://github.com/Nekzus/LIOP
+
+The repository contains the formal protocol specification, the Rust runtime, and the TypeScript SDK under Apache 2.0.
+
+Feedback on the Wasmtime sandbox, fuel consumption limits, or gRPC transport is welcome in GitHub discussions.`
+      }
+    };
+
+    let currentLang = 'es';
+
+    function setLanguage(lang) {
+      currentLang = lang;
+      const data = CONTENT[lang];
+
+      document.getElementById('og-svg-img').src = data.svg + '?' + Date.now();
+      document.getElementById('status-badge').innerText = data.badge;
+      document.getElementById('header-desc').innerText = data.headerDesc;
+      document.getElementById('label-post-title').innerText = data.postTitle;
+      document.getElementById('label-comment-title').innerText = data.commentTitle;
+      document.getElementById('btn-download-retina').innerText = data.btnRetina;
+      document.getElementById('btn-download-standard').innerText = data.btnStandard;
+      document.getElementById('post-text').innerText = data.post;
+      document.getElementById('comment-text').innerText = data.comment;
+
+      document.getElementById('btn-lang-es').classList.toggle('active', lang === 'es');
+      document.getElementById('btn-lang-en').classList.toggle('active', lang === 'en');
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.innerText = msg;
+      t.style.display = 'block';
+      setTimeout(() => { t.style.display = 'none'; }, 2000);
+    }
+
+    document.getElementById('btn-copy-post').onclick = () => {
+      navigator.clipboard.writeText(document.getElementById('post-text').innerText);
+      showToast(currentLang === 'es' ? '¡Texto del post copiado!' : 'Post copy copied!');
+    };
+
+    document.getElementById('btn-copy-comment').onclick = () => {
+      navigator.clipboard.writeText(document.getElementById('comment-text').innerText);
+      showToast(currentLang === 'es' ? '¡Primer comentario copiado!' : 'Pinned comment copied!');
+    };
+
+    function exportToPng(scale, suffix) {
+      const data = CONTENT[currentLang];
+      const filename = `${data.filenamePrefix}-${suffix}.png`;
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = function() {
+        const canvas = document.getElementById('export-canvas');
+        canvas.width = 1200 * scale;
+        canvas.height = 630 * scale;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+        const a = document.createElement('a');
+        a.download = filename;
+        a.href = canvas.toDataURL('image/png');
+        a.click();
+        showToast((currentLang === 'es' ? 'Descargando ' : 'Downloading ') + filename);
+      };
+      img.src = data.svg + '?' + Date.now();
+    }
+
+    document.getElementById('btn-download-retina').onclick = () => {
+      exportToPng(2, '2400x1260');
+    };
+
+    document.getElementById('btn-download-standard').onclick = () => {
+      exportToPng(1, '1200x630');
+    };
+
+    // Initialize in Spanish
+    setLanguage('es');
+  </script>
+</body>
+</html>

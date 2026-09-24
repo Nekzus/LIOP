@@ -254,7 +254,7 @@ export const staticPatternHook: GatewayInterceptor = (request) => {
 When no interceptor is passed to `LiopHybridGateway`, the perimeter admission stage is bypassed:
 
 ```typescript
-// Standard instantiation — zero interceptor overhead
+// Standard instantiation, zero interceptor overhead
 const gateway = new LiopHybridGateway(server, meshNode, 50051);
 await gateway.listen(3000);
 ```
@@ -305,5 +305,5 @@ The `GatewayInterceptor` operates solely as an admission gate at the DMZ boundar
 
 ## Related References
 
-- [Log & Audit Interceptors](/typescript-sdk/log-audit-interceptors) — Operational log stream and cryptographic audit ledger hooks.
+- [Log & Audit Interceptors](/typescript-sdk/log-audit-interceptors): Operational log stream and cryptographic audit ledger hooks.
 

@@ -1,4 +1,4 @@
-# LIOP Sovereign Studio — Web UI Architecture
+# LIOP Sovereign Studio: Web UI Architecture
 
 The frontend of **LIOP Studio** is a decoupled Single Page Application (SPA) designed to inspect, test, and inject sandboxed WASI micro-modules across multi-tier LIOP nodes and standard Model Context Protocol (MCP) servers.
 

@@ -17,7 +17,7 @@
 
 ---
 
-## 📚 Official Documentation
+## Official Documentation
 
 Detailed incident response runbooks, alerting remediation procedures, and metric calculation formulas are hosted on Mintlify:
 

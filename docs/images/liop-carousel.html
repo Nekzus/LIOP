@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>LIOP · Carrusel de LinkedIn (Fase 2 · 1080x1080)</title>
+  <style>
+    @page {
+      size: 1080px 1080px;
+      margin: 0;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    html, body {
+      background-color: #000000;
+      width: 1080px;
+      margin: 0 auto;
+      font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+    }
+    .slide-container {
+      width: 1080px;
+      height: 1080px;
+      page-break-after: always;
+      break-after: page;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      background: #000000;
+    }
+    .slide-container img {
+      width: 1080px;
+      height: 1080px;
+      display: block;
+      border: none;
+    }
+    @media screen {
+      body {
+        padding: 40px 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 36px;
+        background-color: #0A0A0A;
+      }
+      .sticky-control-bar {
+        position: sticky;
+        top: 20px;
+        z-index: 50;
+        max-width: 1080px;
+        width: 100%;
+        background: #111111;
+        border: 1px solid #282828;
+        border-radius: 12px;
+        padding: 16px 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: 0 16px 32px rgba(0,0,0,0.8);
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+      .bar-info h1 {
+        font-size: 15px;
+        font-weight: 700;
+        color: #FFFFFF;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .bar-info p {
+        font-size: 12px;
+        color: #A1A1AA;
+        margin-top: 2px;
+      }
+      .badge-alpha {
+        background: #161616;
+        color: #A1A1AA;
+        border: 1px solid #27272A;
+        font-size: 11px;
+        font-weight: 500;
+        padding: 2px 8px;
+        border-radius: 12px;
+      }
+      .lang-switcher {
+        display: flex;
+        background: #18181B;
+        border: 1px solid #27272A;
+        border-radius: 8px;
+        padding: 3px;
+        gap: 2px;
+      }
+      .lang-btn {
+        background: transparent;
+        border: none;
+        color: #71717A;
+        font-size: 12px;
+        font-weight: 600;
+        padding: 5px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+      }
+      .lang-btn.active {
+        background: #27272A;
+        color: #FFFFFF;
+      }
+      .bar-buttons {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      button {
+        background: #18181B;
+        color: #EDEDED;
+        border: 1px solid #27272A;
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-size: 12.5px;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.15s ease;
+      }
+      button:hover {
+        background: #27272A;
+        border-color: #3F3F46;
+        color: #FFFFFF;
+      }
+      button.primary {
+        background: #FFFFFF;
+        color: #000000;
+        border: 1px solid #FFFFFF;
+      }
+      button.primary:hover {
+        background: #E4E4E7;
+      }
+      .instructions {
+        max-width: 1080px;
+        width: 100%;
+        background: #0D0D0D;
+        border: 1px solid #222222;
+        border-radius: 10px;
+        padding: 18px 24px;
+        color: #EDEDED;
+        font-size: 13px;
+        line-height: 1.6;
+      }
+      .instructions h2 {
+        font-size: 14px;
+        color: #34D399;
+        margin-bottom: 6px;
+      }
+      .instructions kbd {
+        background: #1E1E1E;
+        padding: 2px 6px;
+        border-radius: 4px;
+        border: 1px solid #333333;
+        font-family: monospace;
+      }
+      .slide-container {
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.8), 0 0 0 1px #222222;
+        border-radius: 6px;
+        overflow: hidden;
+      }
+      .toast {
+        position: fixed;
+        bottom: 24px;
+        background: #10B981;
+        color: #000000;
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        display: none;
+        box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+        z-index: 100;
+      }
+      .hidden-data {
+        display: none;
+      }
+    }
+    @media print {
+      .sticky-control-bar,
+      .instructions,
+      .toast,
+      .hidden-data {
+        display: none !important;
+      }
+      body {
+        margin: 0;
+        padding: 0;
+        background: #000000;
+      }
+      .slide-container {
+        box-shadow: none;
+        border-radius: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Sticky Top Control Bar -->
+  <div class="sticky-control-bar">
+    <div class="bar-info">
+      <h1>
+        <span id="header-title">LIOP · Carrusel Documento (Fase 2)</span>
+        <span class="badge-alpha" id="status-badge">Fase de Pruebas</span>
+      </h1>
+      <p id="header-desc">4 Diapositivas (1080 × 1080 px) · Zero Shift Invariant Certificado</p>
+    </div>
+
+    <div class="bar-buttons">
+      <!-- Language Switcher -->
+      <div class="lang-switcher">
+        <button class="lang-btn active" id="btn-lang-es" onclick="setLanguage('es')">🇪🇸 ES</button>
+        <button class="lang-btn" id="btn-lang-en" onclick="setLanguage('en')">🇬🇧 EN</button>
+      </div>
+
+      <button class="primary" onclick="window.print()">
+        🖨️ <span id="btn-label-print">Guardar como PDF (Ctrl + P)</span>
+      </button>
+      <button onclick="copyPostText()">
+        📋 <span id="btn-label-copy-post">Copiar Copy Post</span>
+      </button>
+      <button onclick="copyCommentText()">
+        💬 <span id="btn-label-copy-comment">Copiar 1er Comentario</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Printing Instructions -->
+  <div class="instructions" id="instructions-box">
+    <h2 id="inst-title">📄 Instrucciones para exportar el PDF para LinkedIn:</h2>
+    <p id="inst-step-1">1. Pulsa el botón blanco <strong>«Guardar como PDF»</strong> (o presiona <kbd>Ctrl + P</kbd>).</p>
+    <p id="inst-step-2">2. Destino: <strong>Guardar como PDF</strong> | Páginas: <strong>Todas (1 a 4)</strong>.</p>
+    <p id="inst-step-3">3. Más ajustes: Márgenes: <strong>Ninguno</strong> | Gráficos de fondo: <strong>Activado (Check)</strong>.</p>
+    <p id="inst-step-4">4. Guarda el archivo como <code id="inst-filename">liop-carrusel.pdf</code> y súbelo en LinkedIn haciendo clic en el icono de <strong>«Documento»</strong>.</p>
+  </div>
+
+  <!-- Slide 01: Cover -->
+  <div class="slide-container">
+    <img id="slide-img-1" src="carousel-slide-1-cover.svg" alt="LIOP Slide 1 - Cover">
+  </div>
+
+  <!-- Slide 02: Problem -->
+  <div class="slide-container">
+    <img id="slide-img-2" src="carousel-slide-2-problem.svg" alt="LIOP Slide 2 - The Problem">
+  </div>
+
+  <!-- Slide 03: Solution -->
+  <div class="slide-container">
+    <img id="slide-img-3" src="carousel-slide-3-solution.svg" alt="LIOP Slide 3 - The Solution">
+  </div>
+
+  <!-- Slide 04: Ecosystem -->
+  <div class="slide-container">
+    <img id="slide-img-4" src="carousel-slide-4-ecosystem.svg" alt="LIOP Slide 4 - Ecosystem">
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="toast" id="toast">Copiado al portapapeles</div>
+
+  <script>
+    const CONTENT = {
+      es: {
+        badge: 'Fase de Pruebas',
+        headerTitle: 'LIOP · Carrusel Documento (Fase 2)',
+        headerDesc: '4 Diapositivas (1080 × 1080 px) · Zero Shift Invariant Certificado',
+        btnPrint: 'Guardar como PDF (Ctrl + P)',
+        btnCopyPost: 'Copiar Copy Post',
+        btnCopyComment: 'Copiar 1er Comentario',
+        instTitle: '📄 Instrucciones para exportar el PDF para LinkedIn:',
+        instStep1: '1. Pulsa el botón blanco <strong>«Guardar como PDF»</strong> (o presiona <kbd>Ctrl + P</kbd>).',
+        instStep2: '2. Destino: <strong>Guardar como PDF</strong> | Páginas: <strong>Todas (1 a 4)</strong>.',
+        instStep3: '3. Más ajustes: Márgenes: <strong>Ninguno</strong> | Gráficos de fondo: <strong>Activado (Check)</strong>.',
+        instStep4: '4. Guarda el archivo como <code>liop-carrusel.pdf</code> y súbelo en LinkedIn haciendo clic en el icono de <strong>«Documento»</strong>.',
+        slides: [
+          'carousel-slide-1-cover.svg',
+          'carousel-slide-2-problem.svg',
+          'carousel-slide-3-solution.svg',
+          'carousel-slide-4-ecosystem.svg'
+        ],
+        post: `Hace unos días compartí la idea detrás de LIOP sobre evitar la sobrecarga de procesar en el cliente y llevar la ejecución en WebAssembly directamente al servidor donde residen los datos.
+
+En las conversaciones con ingenieros de sistemas, especialistas en seguridad y equipos de investigación, el consenso fue claro. Mover información confidencial a través de la red no solo satura los enlaces, sino que abre brechas de privacidad y expone los datos al riesgo añadido de terminar en centros de datos de terceros. Ante esto, la reacción lógica de empresas y gobiernos ha sido blindar sus silos para preservar su soberanía. Sin embargo, ese aislamiento frena avances críticos en medicina, genómica y ciencia justo cuando la IA ofrece una capacidad de análisis histórica. La salida realista no es intentar reconstruir internet desde cero, sino adaptar nuestras arquitecturas para llevar el cómputo seguro y anónimo hacia donde ya residen los registros.
+
+Para mostrar el funcionamiento del sistema preparé este documento de 4 diapositivas que sintetiza el diseño técnico.
+• El problema de transferir datos crudos cuando manejamos volumen o registros sensibles.
+• El flujo de inyección de micro-módulos WASI de menos de 5 KB transportados por gRPC, devolviendo únicamente el resultado agregado con firma HMAC-SHA256.
+• Las garantías de aislamiento en Wasmtime, con cuotas estrictas de memoria y combustible de CPU, sin permisos de red ni acceso al disco anfitrión.
+• La base técnica en Rust, la red P2P con libp2p, la compatibilidad con MCP y el repositorio abierto.
+
+LIOP se encuentra en etapa activa de pruebas y evaluación bajo licencia Apache 2.0. El foco actual está en validar el aislamiento y medir latencias en laboratorio antes de pensar en llevarlo a producción real.
+
+La documentación técnica detalla cómo opera el sandbox y los límites de ejecución.
+
+Comparto los enlaces al repositorio y a la especificación en el primer comentario. Agradezco cualquier análisis técnico sobre el modelo de contención.
+
+#WebAssembly #Rust #DistributedSystems #DataSovereignty #AppSec #ZeroTrust #Science #OpenSource`,
+        comment: `Documentación técnica y modelo de seguridad en https://nekzus-32.mintlify.app/
+Repositorio en GitHub en https://github.com/Nekzus/LIOP
+
+El proyecto incluye la especificación formal del protocolo, el runtime en Rust con Wasmtime y el SDK en TypeScript bajo licencia Apache 2.0.
+
+Para quienes trabajan en sistemas distribuidos, bases de datos o edge computing, las discusiones sobre el sandbox y los RFCs están abiertas en GitHub.`
+      },
+      en: {
+        badge: 'Testing Phase',
+        headerTitle: 'LIOP · Document Carousel (Phase 2)',
+        headerDesc: '4 Slides (1080 × 1080 px) · Certified Zero-Shift Invariant',
+        btnPrint: 'Save as PDF (Ctrl + P)',
+        btnCopyPost: 'Copy Post Text',
+        btnCopyComment: 'Copy Pinned Comment',
+        instTitle: '📄 Instructions to export LinkedIn Document PDF:',
+        instStep1: '1. Click the white <strong>«Save as PDF»</strong> button (or press <kbd>Ctrl + P</kbd>).',
+        instStep2: '2. Destination: <strong>Save as PDF</strong> | Pages: <strong>All (1 to 4)</strong>.',
+        instStep3: '3. More settings: Margins: <strong>None</strong> | Background graphics: <strong>Enabled (Checked)</strong>.',
+        instStep4: '4. Save the file as <code>liop-carousel-en.pdf</code> and upload it to LinkedIn via the <strong>«Document»</strong> button.',
+        slides: [
+          'carousel-slide-1-cover-en.svg',
+          'carousel-slide-2-problem-en.svg',
+          'carousel-slide-3-solution-en.svg',
+          'carousel-slide-4-ecosystem-en.svg'
+        ],
+        post: `A few days ago I shared the core idea behind LIOP, avoiding the client-side processing trap by moving WebAssembly execution directly to the server where data lives.
+
+Discussions with systems engineers, AppSec specialists, and research teams highlighted the same dilemma. Transferring confidential data over the network saturates bandwidth, widens the attack surface, and pushes sensitive records into third-party model data centers. In response, enterprises and governments have understandably fortified their silos to protect data sovereignty. Yet, this defensive lock-in stalls critical breakthroughs in medicine, genomics, and scientific research at the exact moment when modern AI has unlocked unprecedented computational reasoning. The viable solution is not rebuilding global infrastructure from scratch, but adapting our systems to bring sandboxed code directly to where the records already reside.
+
+To illustrate how this architecture works, I put together this 4-slide document outlining the technical design.
+• Why streaming raw records breaks down when handling high volume or sensitive data.
+• How lightweight WASI modules under 5 KB travel over gRPC to compute in place, returning only the aggregated result signed with HMAC-SHA256.
+• Sandbox isolation guarantees in Wasmtime, with strict memory caps and CPU fuel limits, preventing network egress and host disk access by design.
+• The underlying stack in Rust, P2P networking with libp2p, MCP interoperability, and the open-source repository.
+
+LIOP is in an active testing and evaluation phase under the Apache 2.0 license. Our current goal is verifying sandbox containment and benchmarking latency in lab environments before thinking about deploying it with live production data.
+
+The documentation covers how the sandbox operates and enforces execution constraints.
+
+Direct links to the repository and formal specification are in the first comment. Feedback on the execution model is welcome.
+
+#WebAssembly #Rust #DistributedSystems #DataSovereignty #AppSec #ZeroTrust #Science #OpenSource`,
+        comment: `Technical documentation and security specification at https://nekzus-32.mintlify.app/
+GitHub repository at https://github.com/Nekzus/LIOP
+
+The repository contains the formal protocol specification, the Rust runtime with Wasmtime, and the TypeScript SDK under Apache 2.0.
+
+Discussions regarding sandbox isolation, benchmarks, and protocol RFCs are open on GitHub.`
+      }
+    };
+
+    let currentLang = 'es';
+
+    function setLanguage(lang) {
+      currentLang = lang;
+      const data = CONTENT[lang];
+
+      document.getElementById('status-badge').innerText = data.badge;
+      document.getElementById('header-title').innerText = data.headerTitle;
+      document.getElementById('header-desc').innerText = data.headerDesc;
+      document.getElementById('btn-label-print').innerText = data.btnPrint;
+      document.getElementById('btn-label-copy-post').innerText = data.btnCopyPost;
+      document.getElementById('btn-label-copy-comment').innerText = data.btnCopyComment;
+
+      document.getElementById('inst-title').innerText = data.instTitle;
+      document.getElementById('inst-step-1').innerHTML = data.instStep1;
+      document.getElementById('inst-step-2').innerHTML = data.instStep2;
+      document.getElementById('inst-step-3').innerHTML = data.instStep3;
+      document.getElementById('inst-step-4').innerHTML = data.instStep4;
+
+      document.getElementById('slide-img-1').src = data.slides[0] + '?' + Date.now();
+      document.getElementById('slide-img-2').src = data.slides[1] + '?' + Date.now();
+      document.getElementById('slide-img-3').src = data.slides[2] + '?' + Date.now();
+      document.getElementById('slide-img-4').src = data.slides[3] + '?' + Date.now();
+
+      document.getElementById('btn-lang-es').classList.toggle('active', lang === 'es');
+      document.getElementById('btn-lang-en').classList.toggle('active', lang === 'en');
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.innerText = msg;
+      t.style.display = 'block';
+      setTimeout(() => { t.style.display = 'none'; }, 2000);
+    }
+
+    function copyPostText() {
+      navigator.clipboard.writeText(CONTENT[currentLang].post);
+      showToast(currentLang === 'es' ? '¡Texto del post copiado!' : 'Post text copied!');
+    }
+
+    function copyCommentText() {
+      navigator.clipboard.writeText(CONTENT[currentLang].comment);
+      showToast(currentLang === 'es' ? '¡Primer comentario copiado!' : 'Pinned comment copied!');
+    }
+
+    // Initialize in Spanish
+    setLanguage('es');
+  </script>
+
+</body>
+</html>

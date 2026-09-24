@@ -39,7 +39,7 @@ A single flat global mesh introduces catastrophic vulnerabilities (Sybil attacks
 ┌─────────────────────────────────────────────────────────────────────────┐
 │              TIER 1: INTRA-ORGANIZATION SOVEREIGN ENCLAVES              │
 │       (Zero-Trust Private Subnets, Libp2p Swarm PSK, Host Databases)     │
-│       DATA AT REST — ZERO EXTERNAL DIRECT ACCESS — INTERNAL SANDBOX     │
+│       DATA AT REST | ZERO EXTERNAL DIRECT ACCESS | INTERNAL SANDBOX     │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 

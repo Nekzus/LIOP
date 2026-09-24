@@ -1,0 +1,230 @@
+<svg width="1080" height="1080" viewBox="0 0 1080 1080" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Uniform Pure Black Canvas (Vercel Style) -->
+  <rect width="1080" height="1080" fill="#000000" />
+
+  <defs>
+    <!-- Technical Background Grid (Unified across all 4 slides) -->
+    <pattern id="technical-grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#121212" stroke-width="1" />
+    </pattern>
+  </defs>
+
+  <rect width="1080" height="1080" fill="url(#technical-grid)" opacity="0.75" />
+
+  <!-- ==================== TOP SYSTEM BAR (SHARED FIXED ELEMENT) ==================== -->
+  <g transform="translate(60, 50)">
+    <!-- Compact Open Source Pill -->
+    <rect width="128" height="32" rx="16" fill="#0C0C0C" stroke="#222222" stroke-width="1.2" />
+    
+    <!-- Lucide: CodeXml (14x14) in Emerald -->
+    <g transform="translate(14, 9)">
+      <g stroke="#34D399" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none">
+        <polyline points="10 10 13 7 10 4" />
+        <polyline points="4 4 1 7 4 10" />
+        <line x1="8.5" x2="5.5" y1="1.5" y2="12.5" />
+      </g>
+    </g>
+    
+    <text x="34" y="20" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="11" font-weight="600" fill="#EDEDED" letter-spacing="0.4">
+      Open Source
+    </text>
+
+    <!-- Status Pill: Testing Phase (Minimalist Badge) -->
+    <g transform="translate(140, 0)">
+      <rect width="118" height="32" rx="16" fill="#0C0C0C" stroke="#222222" stroke-width="1.2" />
+      <text x="59" y="20" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="11" font-weight="500" fill="#A1A1AA" letter-spacing="0.3">
+        Testing Phase
+      </text>
+    </g>
+
+    <!-- Slide Indicator -->
+    <text x="960" y="21" text-anchor="end" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="12" font-weight="500" fill="#71717A" letter-spacing="0.5">
+      Slide 01 / 04
+    </text>
+  </g>
+
+  <!-- ==================== HERO LOGO EMBLEM ==================== -->
+  <g transform="translate(540, 230)">
+    <!-- Outer Concentric Orbit Rings -->
+    <circle cx="0" cy="0" r="115" stroke="#1A1A1A" stroke-width="1" stroke-dasharray="4 4" />
+    <circle cx="0" cy="0" r="85" stroke="#242424" stroke-width="1.2" />
+
+    <!-- Corner Crosshairs -->
+    <path d="M -130 -115 L -115 -115 L -115 -130" stroke="#333333" stroke-width="1.5" fill="none" />
+    <path d="M 130 -115 L 115 -115 L 115 -130" stroke="#333333" stroke-width="1.5" fill="none" />
+    <path d="M -130 115 L -115 115 L -115 130" stroke="#333333" stroke-width="1.5" fill="none" />
+    <path d="M 130 115 L 115 115 L 115 130" stroke="#333333" stroke-width="1.5" fill="none" />
+
+    <!-- Official LIOP Symbol -->
+    <g transform="scale(1.375) translate(-60, -60)">
+      <g stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none">
+        <polygon points="100,76.57 76.57,100 43.43,100 20,76.57 20,43.43 43.43,20 76.57,20 100,43.43" />
+        <circle cx="60" cy="60" r="10" fill="#FFFFFF" stroke="none" />
+        <path d="M 60 60 C 60 45, 100 75, 100 60" />
+        <path d="M 60 60 C 60 45, 100 75, 100 60" transform="rotate(45 60 60)" />
+        <path d="M 60 60 C 60 45, 100 75, 100 60" transform="rotate(90 60 60)" />
+        <path d="M 60 60 C 60 45, 100 75, 100 60" transform="rotate(135 60 60)" />
+        <path d="M 60 60 C 60 45, 100 75, 100 60" transform="rotate(180 60 60)" />
+        <path d="M 60 60 C 60 45, 100 75, 100 60" transform="rotate(225 60 60)" />
+        <path d="M 60 60 C 60 45, 100 75, 100 60" transform="rotate(270 60 60)" />
+        <path d="M 60 60 C 60 45, 100 75, 100 60" transform="rotate(315 60 60)" />
+      </g>
+    </g>
+  </g>
+
+  <!-- ==================== HERO TITLE & DEFINITION ==================== -->
+  <text x="540" y="405" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="56" font-weight="800" fill="#FFFFFF" letter-spacing="-2">
+    LIOP
+  </text>
+  <text x="540" y="442" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="20" font-weight="500" fill="#A1A1AA" letter-spacing="-0.5">
+    Logic-Injection-on-Origin Protocol
+  </text>
+
+  <!-- ==================== CENTRAL VALUE PROPOSITION CARD ==================== -->
+  <g transform="translate(60, 485)">
+    <rect width="960" height="140" rx="12" fill="#080808" stroke="#222222" stroke-width="1.2" />
+    
+    <text x="480" y="46" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="20" font-weight="700" fill="#FFFFFF" letter-spacing="-0.4">
+      Data sovereignty and in-situ compute for distributed systems and autonomous agents
+    </text>
+    
+    <text x="480" y="80" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="14.5" font-weight="400" fill="#D4D4D8">
+      Computation travels to data as isolated WebAssembly micro-modules.
+    </text>
+    <text x="480" y="106" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="14.5" font-weight="400" fill="#A1A1AA">
+      Confidential records never leave the secure server perimeter or OT network.
+    </text>
+  </g>
+
+  <!-- ==================== 3 ARCHITECTURAL PILLARS (SHARED ROW: Y=655, H=250) ==================== -->
+  <g transform="translate(60, 655)">
+    <!-- Pillar 1: WASI Sandboxing (w=304, h=250) -->
+    <g transform="translate(0, 0)">
+      <rect width="304" height="250" rx="10" fill="#080808" stroke="#1F1F1F" stroke-width="1.2" />
+      <rect x="20" y="20" width="140" height="22" rx="4" fill="#141414" />
+      <text x="90" y="35" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="9.5" font-weight="700" fill="#818CF8">NATIVE ISOLATION</text>
+
+      <!-- Lucide: Cpu (22x22 in Indigo) -->
+      <g transform="translate(20, 56)">
+        <g stroke="#818CF8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none">
+          <rect width="12" height="12" x="3" y="3" rx="2"/>
+          <path d="M11 1v2"/><path d="M11 15v2"/><path d="M1 11h2"/><path d="M1 7h2"/>
+          <path d="M15 11h2"/><path d="M15 7h2"/><path d="M7 1v2"/><path d="M7 15v2"/>
+        </g>
+      </g>
+      <text x="52" y="73" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="16" font-weight="700" fill="#FFFFFF">
+        WASI Sandboxing
+      </text>
+
+      <text x="20" y="104" font-family="'JetBrains Mono', 'Fira Code', monospace" font-size="11.5" font-weight="500" fill="#818CF8">
+        Wasmtime (Rust)
+      </text>
+
+      <text x="20" y="140" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="12" font-weight="400" fill="#A1A1AA">
+        • Strict memory boundary isolation.
+      </text>
+      <text x="20" y="166" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="12" font-weight="400" fill="#A1A1AA">
+        • Per-instruction CPU fuel limits.
+      </text>
+      <text x="20" y="192" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="12" font-weight="400" fill="#A1A1AA">
+        • Zero host disk or network access.
+      </text>
+      <text x="20" y="218" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="12" font-weight="400" fill="#A1A1AA">
+        • Immediate teardown on exit.
+      </text>
+    </g>
+
+    <!-- Pillar 2: Zero-Trust Custody (w=304, h=250, x=328) -->
+    <g transform="translate(328, 0)">
+      <rect width="304" height="250" rx="10" fill="#080808" stroke="#1F1F1F" stroke-width="1.2" />
+      <rect x="20" y="20" width="140" height="22" rx="4" fill="#141414" />
+      <text x="90" y="35" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="9.5" font-weight="700" fill="#34D399">TOTAL CUSTODY</text>
+
+      <!-- Lucide: ShieldCheck (22x22 in Emerald) -->
+      <g transform="translate(20, 56)">
+        <g stroke="#34D399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none">
+          <path d="M11 20.5s7-3.6 7-9V5l-7-2.7-7 2.7v6.5c0 5.4 7 9 7 9z"/>
+          <path d="m8.5 11 2 2 4-4"/>
+        </g>
+      </g>
+      <text x="52" y="73" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="16" font-weight="700" fill="#FFFFFF">
+        Zero-Trust Custody
+      </text>
+
+      <text x="20" y="104" font-family="'JetBrains Mono', 'Fira Code', monospace" font-size="11.5" font-weight="500" fill="#34D399">
+        Hardened Perimeter
+      </text>
+
+      <text x="20" y="140" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="12" font-weight="400" fill="#A1A1AA">
+        • Private data resides on its host.
+      </text>
+      <text x="20" y="166" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="12" font-weight="400" fill="#A1A1AA">
+        • 0 bytes of raw PII over the wire.
+      </text>
+      <text x="20" y="192" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="12" font-weight="400" fill="#A1A1AA">
+        • Banking, health, SOC 2 &amp; IIoT.
+      </text>
+      <text x="20" y="218" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="12" font-weight="400" fill="#A1A1AA">
+        • Non-delegated physical control.
+      </text>
+    </g>
+
+    <!-- Pillar 3: In-Situ Computing (w=304, h=250, x=656) -->
+    <g transform="translate(656, 0)">
+      <rect width="304" height="250" rx="10" fill="#080808" stroke="#1F1F1F" stroke-width="1.2" />
+      <rect x="20" y="20" width="140" height="22" rx="4" fill="#141414" />
+      <text x="90" y="35" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="9.5" font-weight="700" fill="#EDEDED">ORIGIN PERFORMANCE</text>
+
+      <!-- Lucide: Database (22x22 in Zinc) -->
+      <g transform="translate(20, 56)">
+        <g stroke="#EDEDED" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none">
+          <ellipse cx="11" cy="5" rx="8" ry="3"/>
+          <path d="M3 5V17A8 3 0 0 0 19 17V5"/>
+          <path d="M3 11A8 3 0 0 0 19 11"/>
+        </g>
+      </g>
+      <text x="52" y="73" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="16" font-weight="700" fill="#FFFFFF">
+        In-Situ Computing
+      </text>
+
+      <text x="20" y="104" font-family="'JetBrains Mono', 'Fira Code', monospace" font-size="11.5" font-weight="500" fill="#EDEDED">
+        Origin-Level Filtering
+      </text>
+
+      <text x="20" y="140" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="12" font-weight="400" fill="#A1A1AA">
+        • Filtering before network egress.
+      </text>
+      <text x="20" y="166" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="12" font-weight="400" fill="#A1A1AA">
+        • Aggregated or scalar output.
+      </text>
+      <text x="20" y="192" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="12" font-weight="400" fill="#A1A1AA">
+        • Context token &amp; WAN reduction.
+      </text>
+      <text x="20" y="218" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="12" font-weight="400" fill="#A1A1AA">
+        • Minimal latency and bandwidth.
+      </text>
+    </g>
+  </g>
+
+  <!-- ==================== FOOTER / SHARED FIXED ACTION BAR ==================== -->
+  <g transform="translate(60, 960)">
+    <text x="0" y="27" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="13" font-weight="500" fill="#71717A">
+      Stack: Rust · TypeScript · WebAssembly · libp2p · gRPC
+    </text>
+
+    <!-- Swipe Prompt Pill (w=280, h=42, rx=21) -->
+    <g transform="translate(680, 5)">
+      <rect width="280" height="42" rx="21" fill="#121212" stroke="#2B2B2B" stroke-width="1.2" />
+      <text x="24" y="26" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="11.5" font-weight="600" fill="#FFFFFF">
+        Swipe to inspect architecture
+      </text>
+      <!-- Lucide: ArrowRight -->
+      <g transform="translate(244, 13)">
+        <g stroke="#34D399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none">
+          <line x1="2" y1="8" x2="14" y2="8"/>
+          <polyline points="9 3 14 8 9 13"/>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>

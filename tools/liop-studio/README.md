@@ -18,7 +18,7 @@
 
 ---
 
-## 📚 Official Documentation
+## Official Documentation
 
 Interactive guides and architectural deep dives for LIOP Studio and Playground are hosted on Mintlify:
 

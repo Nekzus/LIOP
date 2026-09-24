@@ -122,8 +122,8 @@ El enfoque MCP tradicional requiere transferir conjuntos de datos completos sin 
 | Métrica | MCP Tradicional (Context-Pulling) | LIOP (Logic-on-Origin) | Ahorro Neto |
 |:---|:---|:---|:---|
 | **Paradigma** | Extracción Masiva de Datos al Agente | Ejecución Aislada WASI en Origen | **Cero Egreso de Datos** |
-| **Tokens de Contexto de Entrada** | ~16.000 – 48.000 tokens | ~320 – 650 tokens | **98.9% – 99.3% de reducción** |
-| **Tokens de Contexto de Salida** | ~1.200 – 4.500 tokens | ~80 – 180 tokens | **93.3% – 96.0% de reducción** |
+| **Tokens de Contexto de Entrada** | ~16.000 a 48.000 tokens | ~320 a 650 tokens | **98.9% a 99.3% de reducción** |
+| **Tokens de Contexto de Salida** | ~1.200 a 4.500 tokens | ~80 a 180 tokens | **93.3% a 96.0% de reducción** |
 | **Tráfico de Red (Wire Egress)** | ~195 KB (payload JSON crudo) | ~801 B (envelope gRPC + recibo ZK) | **99.6% de reducción** |
 | **Saturación del Contexto LLM** | Alta (dispara truncamiento / sliding window) | Mínima (preserva capacidad de razonamiento) | **Cero Saturación** |
 | **Riesgo de Filtración PII** | Severo (registros crudos abandonan el perímetro) | Cero (bloqueado por escudo de 6 capas) | **Sellado Criptográfico** |

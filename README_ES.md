@@ -19,7 +19,7 @@
 
 ---
 
-## 📚 Documentación Oficial
+## Documentación Oficial
 
 Para acceder a guías interactivas, recetas de producción y especificaciones completas de APIs, consulte nuestro portal oficial de documentación:
 
@@ -69,12 +69,12 @@ Este monorepo poliglot está organizado en espacios de trabajo modulares adminis
 LIOP-Protocol/
 ├── docs/                    # Portal de documentación bilingüe (EN/ES) en Mintlify
 ├── sdks/
-│   ├── typescript/          # @nekzus/liop — SDK oficial de TypeScript y Puente MCP
+│   ├── typescript/          # @nekzus/liop: SDK oficial de TypeScript y Puente MCP
 │   └── rust/                # Crates nativos en Rust liop-core y liop-client
 ├── servers/
 │   └── liop-node/           # Nodo de Datos de alto rendimiento (Wasmtime + Tonic gRPC + libp2p)
 ├── tools/
-│   ├── liop-studio/         # @nekzus/liop-studio — Interfaz Web (:16000) y escáner de red CLI
+│   ├── liop-studio/         # @nekzus/liop-studio: Interfaz Web (:16000) y escáner de red CLI
 │   └── liop-cli/            # Utilidad CLI en Rust para diagnóstico de nodos
 ├── protocol/
 │   ├── proto/               # Definiciones de servicio Protobuf v3 (liop_core.proto)
@@ -170,7 +170,7 @@ LIOP impone seis capas de seguridad programática antes de que cualquier dato o 
 
 ---
 
-## 🤖 Preparación para Agentes de IA y LLMs
+## Preparación para Agentes de IA y LLMs
 
 LIOP implementa la pila estándar para agentes autónomos de codificación:
 - **[`AGENTS.md`](./AGENTS.md)**: Instrucciones universales, invariantes arquitectónicos y reglas de seguridad.

@@ -82,7 +82,7 @@ In scenarios where an Agent must trust a remote Server (e.g., "Did the Server ac
 
 The current implementation uses **HMAC-SHA256 commitments**: each execution generates a SHA-256 `ImageID` (hash of the injected logic) and an HMAC-SHA256 `Seal` derived from the Post-Quantum session secret. This binds the output to the exact logic executed, making forgery computationally infeasible. Migration to a native ZK-VM engine (RISC Zero / SP1) for full zero-knowledge proofs is planned for future releases.
 
-**Dataset Integrity Anchor**: Each ZK-Receipt includes a `dataset_hash` — a SHA-256 digest of the underlying dataset at execution time. This cryptographic anchor allows clients to verify that the dataset was identical across consecutive queries, definitively separating legitimate Differential Privacy noise from unauthorized data mutation.
+**Dataset Integrity Anchor**: Each ZK-Receipt includes a `dataset_hash` (a SHA-256 digest of the underlying dataset at execution time). This cryptographic anchor allows clients to verify that the dataset was identical across consecutive queries, definitively separating legitimate Differential Privacy noise from unauthorized data mutation.
 
 **The ZK Shield Proxy**: This cryptographic validation (`verifyZkReceipt`) is performed natively by both the SDK's `LiopClient` (via `client.verifier`) and the `LiopMcpRouter`. These components act as a Zero-Trust Shield, automatically isolating compromised environments and blocking the delivery of adulterated execution payloads back to the calling LLM framework.
 
@@ -103,7 +103,7 @@ All noise is generated using `crypto.randomBytes()` from the Node.js `crypto` mo
 
 ### Deterministic Audit Mode (DDP)
 
-For SOX/PCI-DSS audit scenarios requiring reproducible ZK-Receipts, the engine supports **Deterministic Differential Privacy (DDP)**. When activated, the Laplace noise generator initializes a SHA-256-based PRNG seeded with `dataset_hash + image_id`, producing identical noise for identical queries on immutable datasets. This restores full ZK-Receipt verifiability without violating the mathematical privacy guarantee — the seed remains cryptographically unpredictable to external observers who lack access to both the dataset and the exact injected logic.
+For SOX/PCI-DSS audit scenarios requiring reproducible ZK-Receipts, the engine supports **Deterministic Differential Privacy (DDP)**. When activated, the Laplace noise generator initializes a SHA-256-based PRNG seeded with `dataset_hash + image_id`, producing identical noise for identical queries on immutable datasets. This restores full ZK-Receipt verifiability without violating the mathematical privacy guarantee, because the seed remains cryptographically unpredictable to external observers who lack access to both the dataset and the exact injected logic.
 
 ### Query-Aware Sensitivity
 
@@ -115,7 +115,7 @@ Instead of applying a single global sensitivity to all output fields, the engine
 | **AVERAGE** | `avg`, `mean`, `average` | `globalSensitivity / n` | Bounded contribution per record |
 | **SUM** | Any other numeric key | `globalSensitivity` | Operator-configured max plausible value |
 
-This mirrors Google's Differential Privacy library architecture, which uses separate `CountParams`, `SumParams`, and `MeanParams` — each with independent sensitivity calibration.
+This mirrors Google's Differential Privacy library architecture, which uses separate `CountParams`, `SumParams`, and `MeanParams`, each with independent sensitivity calibration.
 
 ### Epsilon Floor
 

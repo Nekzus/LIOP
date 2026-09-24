@@ -19,7 +19,7 @@
 
 ---
 
-## 📚 Official Documentation
+## Official Documentation
 
 For complete interactive guides, production cookbooks, and API specifications, visit our official documentation portal:
 
@@ -69,12 +69,12 @@ This polyglot monorepo is organized into modular workspaces managed with **pnpm*
 LIOP-Protocol/
 ├── docs/                    # Mintlify bilingüe (EN/ES) documentation portal
 ├── sdks/
-│   ├── typescript/          # @nekzus/liop — Official TypeScript SDK and MCP Bridge
+│   ├── typescript/          # @nekzus/liop, Official TypeScript SDK and MCP Bridge
 │   └── rust/                # liop-core & liop-client native Rust crates
 ├── servers/
 │   └── liop-node/           # High-performance Data Node (Wasmtime + Tonic gRPC + libp2p)
 ├── tools/
-│   ├── liop-studio/         # @nekzus/liop-studio — Web UI (:16000) & CLI mesh scanner
+│   ├── liop-studio/         # @nekzus/liop-studio, Web UI (:16000) & CLI mesh scanner
 │   └── liop-cli/            # Rust CLI utility for node diagnostics
 ├── protocol/
 │   ├── proto/               # Protobuf v3 service definitions (liop_core.proto)
@@ -170,7 +170,7 @@ LIOP enforces six programmatic defense layers before any data or compute leaves 
 
 ---
 
-## 🤖 AI Agent & LLM Readiness
+## AI Agent & LLM Readiness
 
 LIOP implements the complete standard stack for autonomous coding agents:
 - **[`AGENTS.md`](./AGENTS.md)**: Universal instructions, architectural invariants, and security rules.

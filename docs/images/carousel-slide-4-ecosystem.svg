@@ -1,0 +1,328 @@
+<svg width="1080" height="1080" viewBox="0 0 1080 1080" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Uniform Pure Black Canvas (Vercel Style) -->
+  <rect width="1080" height="1080" fill="#000000" />
+
+  <defs>
+    <!-- Technical Background Grid (Unified across all 4 slides) -->
+    <pattern id="technical-grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#121212" stroke-width="1" />
+    </pattern>
+  </defs>
+
+  <rect width="1080" height="1080" fill="url(#technical-grid)" opacity="0.75" />
+
+  <!-- ==================== TOP SYSTEM BAR (SHARED FIXED ELEMENT) ==================== -->
+  <g transform="translate(60, 50)">
+    <!-- Compact Open Source Pill -->
+    <rect width="128" height="32" rx="16" fill="#0C0C0C" stroke="#222222" stroke-width="1.2" />
+    
+    <!-- Lucide: CodeXml (14x14) in Emerald -->
+    <g transform="translate(14, 9)">
+      <g stroke="#34D399" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none">
+        <polyline points="10 10 13 7 10 4" />
+        <polyline points="4 4 1 7 4 10" />
+        <line x1="8.5" x2="5.5" y1="1.5" y2="12.5" />
+      </g>
+    </g>
+    
+    <text x="34" y="20" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="11" font-weight="600" fill="#EDEDED" letter-spacing="0.4">
+      Open Source
+    </text>
+
+    <!-- Status Pill: Fase de Pruebas (Minimalist Badge) -->
+    <g transform="translate(140, 0)">
+      <rect width="118" height="32" rx="16" fill="#0C0C0C" stroke="#222222" stroke-width="1.2" />
+      <text x="59" y="20" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="11" font-weight="500" fill="#A1A1AA" letter-spacing="0.3">
+        Fase de Pruebas
+      </text>
+    </g>
+
+    <!-- Slide Indicator -->
+    <text x="960" y="21" text-anchor="end" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="12" font-weight="500" fill="#71717A" letter-spacing="0.5">
+      Slide 04 / 04
+    </text>
+  </g>
+
+  <!-- ==================== SECTION TITLE & SUBTITLE (SHARED FIXED ELEMENT) ==================== -->
+  <g transform="translate(60, 115)">
+    <text x="0" y="30" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="34" font-weight="800" fill="#FFFFFF" letter-spacing="-1">
+      Arquitectura, Ecosistema &amp; Comunidad
+    </text>
+    <text x="0" y="58" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="15" font-weight="400" fill="#71717A">
+      Código abierto (Apache 2.0). Construido con Rust, WebAssembly y TypeScript.
+    </text>
+  </g>
+
+  <!-- ==================== UPPER SECTION: ARCHITECTURAL CORE (Y=205, H=320) ==================== -->
+  <g transform="translate(60, 205)">
+    <!-- Tile 1: Runtime Rust (Wasmtime) -->
+    <g transform="translate(0, 0)">
+      <rect width="222" height="320" rx="10" fill="#080808" stroke="#1F1F1F" stroke-width="1.2" />
+      <g transform="translate(18, 16)">
+        <g stroke="#818CF8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none">
+          <rect width="12" height="12" x="3" y="3" rx="2"/>
+          <path d="M11 1v2"/><path d="M11 15v2"/><path d="M1 11h2"/><path d="M1 7h2"/>
+          <path d="M15 11h2"/><path d="M15 7h2"/><path d="M7 1v2"/><path d="M7 15v2"/>
+        </g>
+      </g>
+      <text x="48" y="31" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="11" font-weight="700" fill="#818CF8">RUNTIME CORE</text>
+      <text x="18" y="60" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="15" font-weight="700" fill="#FFFFFF">Wasmtime (Rust)</text>
+      <text x="18" y="80" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="11" font-weight="600" fill="#34D399">Aislamiento WASI nativo</text>
+      
+      <line x1="18" y1="94" x2="204" y2="94" stroke="#1F1F1F" stroke-width="1" />
+
+      <text x="18" y="118" font-family="-apple-system, BlinkMacSystemFont, 'Inter', sans-serif" font-size="11" font-weight="400" fill="#D4D4D8">• Capacidades nulas:</text>
+      <text x="18" y="136" font-family="-apple-system, BlinkMacSystemFont, 'Inter', sans-serif" font-size="11" font-weight="400" fill="#71717A">  sin red ni disco del host.</text>
+
+      <text x="18" y="166" font-family="-apple-system, BlinkMacSystemFont, 'Inter', sans-serif" font-size="11" font-weight="400" fill="#D4D4D8">• Límite de fuel CPU:</text>
+      <text x="18" y="184" font-family="-apple-system, BlinkMacSystemFont, 'Inter', sans-serif" font-size="11" font-weight="400" fill="#71717A">  control por instrucción.</text>
+
+      <text x="18" y="214" font-family="-apple-system, BlinkMacSystemFont, 'Inter', sans-serif" font-size="11" font-weight="400" fill="#D4D4D8">• Memoria acotada:</text>
+      <text x="18" y="232" font-family="-apple-system, BlinkMacSystemFont, 'Inter', sans-serif" font-size="11" font-weight="400" fill="#71717A">  aislamiento por instancia.</text>
+
+      <text x="18" y="262" font-family="-apple-system, BlinkMacSystemFont, 'Inter', sans-serif" font-size="11" font-weight="400" fill="#D4D4D8">• Compilación JIT segura</text>
+      <text x="18" y="280" font-family="-apple-system, BlinkMacSystemFont, 'Inter', sans-serif" font-size="11" font-weight="400" fill="#71717A">  con validación de imports.</text>
+    </g>
+
+    <!-- Tile 2: Tonic gRPC Transport -->
+    <g transform="translate(246, 0)">
+      <rect width="222" height="320" rx="10" fill="#080808" stroke="#1F1F1F" stroke-width="1.2" />
+      <g transform="translate(18, 16)">
+        <g stroke="#34D399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none">
+          <polygon points="11 1 2 11 10 11 9 17 18 7 10 7 11 1"/>
+        </g>
+      </g>
+      <text x="46" y="31" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="11" font-weight="700" fill="#34D399">TRANSPORTE RPC</text>
+      <text x="18" y="60" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="15" font-weight="700" fill="#FFFFFF">Tonic gRPC</text>
+      <text x="18" y="80" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="11" font-weight="600" fill="#34D399">Protocol Buffers v3</text>
+
+      <line x1="18" y1="94" x2="204" y2="94" stroke="#1F1F1F" stroke-width="1" />
+
+      <text x="18" y="118" font-family="-apple-system, BlinkMacSystemFont, 'Inter', sans-serif" font-size="11" font-weight="400" fill="#D4D4D8">• Canales HTTP/2 cifrados</text>
+      <text x="18" y="136" font-family="-apple-system, BlinkMacSystemFont, 'Inter', sans-serif" font-size="11" font-weight="400" fill="#71717A">  con TLS / mTLS mutuo.</text>
+
+      <text x="18" y="166" font-family="-apple-system, BlinkMacSystemFont, 'Inter', sans-serif" font-size="11" font-weight="400" fill="#D4D4D8">• Streaming bidireccional</text>
+      <text x="18" y="184" font-family="-apple-system, BlinkMacSystemFont, 'Inter', sans-serif" font-size="11" font-weight="400" fill="#71717A">  para baja latencia perimetral.</text>
+
+      <text x="18" y="214" font-family="-apple-system, BlinkMacSystemFont, 'Inter', sans-serif" font-size="11" font-weight="400" fill="#D4D4D8">• Despacho ligero WASI:</text>
+      <text x="18" y="232" font-family="-apple-system, BlinkMacSystemFont, 'Inter', sans-serif" font-size="11" font-weight="400" fill="#71717A">  módulos de menos de 5 KB.</text>
+
+      <text x="18" y="262" font-family="-apple-system, BlinkMacSystemFont, 'Inter', sans-serif" font-size="11" font-weight="400" fill="#D4D4D8">• Retorno exclusivo de</text>
+      <text x="18" y="280" font-family="-apple-system, BlinkMacSystemFont, 'Inter', sans-serif" font-size="11" font-weight="400" fill="#71717A">  resultados agregados.</text>
+    </g>
+
+    <!-- Tile 3: rust-libp2p P2P Mesh -->
+    <g transform="translate(492, 0)">
+      <rect width="222" height="320" rx="10" fill="#080808" stroke="#1F1F1F" stroke-width="1.2" />
+      <g transform="translate(18, 16)">
+        <g stroke="#60A5FA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none">
+          <circle cx="9" cy="9" r="8"/>
+          <line x1="1" x2="17" y1="9" y2="9"/>
+          <path d="M9 1a12 12 0 0 1 3 8 12 12 0 0 1-3 8 12 12 0 0 1-3-8 12 12 0 0 1 3-8z"/>
+        </g>
+      </g>
+      <text x="46" y="31" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="11" font-weight="700" fill="#60A5FA">RED P2P MESH</text>
+      <text x="18" y="60" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="15" font-weight="700" fill="#FFFFFF">rust-libp2p</text>
+      <text x="18" y="80" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="11" font-weight="600" fill="#60A5FA">Kademlia DHT federado</text>
+
+      <line x1="18" y1="94" x2="204" y2="94" stroke="#1F1F1F" stroke-width="1" />
+
+      <text x="18" y="118" font-family="-apple-system, BlinkMacSystemFont, 'Inter', sans-serif" font-size="11" font-weight="400" fill="#D4D4D8">• Descubrimiento mesh:</text>
+      <text x="18" y="136" font-family="-apple-system, BlinkMacSystemFont, 'Inter', sans-serif" font-size="11" font-weight="400" fill="#71717A">  enrutamiento de enclaves.</text>
+
+      <text x="18" y="166" font-family="-apple-system, BlinkMacSystemFont, 'Inter', sans-serif" font-size="11" font-weight="400" fill="#D4D4D8">• Cifrado Noise Protocol</text>
+      <text x="18" y="184" font-family="-apple-system, BlinkMacSystemFont, 'Inter', sans-serif" font-size="11" font-weight="400" fill="#71717A">  en capa de transporte.</text>
+
+      <text x="18" y="214" font-family="-apple-system, BlinkMacSystemFont, 'Inter', sans-serif" font-size="11" font-weight="400" fill="#D4D4D8">• Direcciones Multiaddr:</text>
+      <text x="18" y="232" font-family="-apple-system, BlinkMacSystemFont, 'Inter', sans-serif" font-size="11" font-weight="400" fill="#71717A">  resiliencia tras NAT.</text>
+
+      <text x="18" y="262" font-family="-apple-system, BlinkMacSystemFont, 'Inter', sans-serif" font-size="11" font-weight="400" fill="#D4D4D8">• Conexión con gateways</text>
+      <text x="18" y="280" font-family="-apple-system, BlinkMacSystemFont, 'Inter', sans-serif" font-size="11" font-weight="400" fill="#71717A">  industriales y edge OT.</text>
+    </g>
+
+    <!-- Tile 4: TypeScript SDK & MCP -->
+    <g transform="translate(738, 0)">
+      <rect width="222" height="320" rx="10" fill="#080808" stroke="#1F1F1F" stroke-width="1.2" />
+      <g transform="translate(18, 16)">
+        <g stroke="#38BDF8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none">
+          <polyline points="3 14 8 9 3 4"/>
+          <line x1="10" x2="16" y1="16" y2="16"/>
+        </g>
+      </g>
+      <text x="46" y="31" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="11" font-weight="700" fill="#38BDF8">CLIENTE &amp; GATEWAY</text>
+      <text x="18" y="60" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="15" font-weight="700" fill="#FFFFFF">TypeScript SDK</text>
+      <text x="18" y="80" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="11" font-weight="600" fill="#38BDF8">Gateway compatible MCP</text>
+
+      <line x1="18" y1="94" x2="204" y2="94" stroke="#1F1F1F" stroke-width="1" />
+
+      <text x="18" y="118" font-family="-apple-system, BlinkMacSystemFont, 'Inter', sans-serif" font-size="11" font-weight="400" fill="#D4D4D8">• Transcodificación MCP:</text>
+      <text x="18" y="136" font-family="-apple-system, BlinkMacSystemFont, 'Inter', sans-serif" font-size="11" font-weight="400" fill="#71717A">  compatibilidad bidireccional.</text>
+
+      <text x="18" y="166" font-family="-apple-system, BlinkMacSystemFont, 'Inter', sans-serif" font-size="11" font-weight="400" fill="#D4D4D8">• Runtime agnóstico:</text>
+      <text x="18" y="184" font-family="-apple-system, BlinkMacSystemFont, 'Inter', sans-serif" font-size="11" font-weight="400" fill="#71717A">  Node.js 20+ y edge runtimes.</text>
+
+      <text x="18" y="214" font-family="-apple-system, BlinkMacSystemFont, 'Inter', sans-serif" font-size="11" font-weight="400" fill="#D4D4D8">• Validación de AST:</text>
+      <text x="18" y="232" font-family="-apple-system, BlinkMacSystemFont, 'Inter', sans-serif" font-size="11" font-weight="400" fill="#71717A">  inspección estática previa.</text>
+
+      <text x="18" y="262" font-family="-apple-system, BlinkMacSystemFont, 'Inter', sans-serif" font-size="11" font-weight="400" fill="#D4D4D8">• Verificación de firmas</text>
+      <text x="18" y="280" font-family="-apple-system, BlinkMacSystemFont, 'Inter', sans-serif" font-size="11" font-weight="400" fill="#71717A">  y recibos criptográficos.</text>
+    </g>
+  </g>
+
+  <!-- ==================== LOWER SECTION: ECOSYSTEM, DOCS & COLLABORATION (Y=555, H=360) ==================== -->
+  <g transform="translate(60, 555)">
+    <!-- Card 1: Mintlify Docs -->
+    <g transform="translate(0, 0)">
+      <rect width="304" height="360" rx="10" fill="#080808" stroke="#1F1F1F" stroke-width="1.2" />
+      <rect x="20" y="20" width="155" height="22" rx="4" fill="#141414" />
+      <text x="97" y="35" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="9.5" font-weight="700" fill="#34D399">ESPECIFICACIÓN FORMAL</text>
+
+      <!-- Lucide: BookOpen (22x22 in emerald) -->
+      <g transform="translate(20, 56)">
+        <g stroke="#34D399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none">
+          <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+          <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+        </g>
+      </g>
+      <text x="52" y="73" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="16" font-weight="700" fill="#FFFFFF">
+        Documentación Oficial
+      </text>
+      
+      <text x="20" y="104" font-family="'JetBrains Mono', 'Fira Code', monospace" font-size="11.5" font-weight="600" fill="#34D399">
+        nekzus-32.mintlify.app
+      </text>
+
+      <line x1="20" y1="120" x2="284" y2="120" stroke="#1F1F1F" stroke-width="1" />
+
+      <text x="20" y="148" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="12" font-weight="400" fill="#A1A1AA">
+        • Paradigma Logic-on-Origin y flujos.
+      </text>
+      <text x="20" y="180" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="12" font-weight="400" fill="#A1A1AA">
+        • Modelo de contención y amenazas.
+      </text>
+      <text x="20" y="212" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="12" font-weight="400" fill="#A1A1AA">
+        • Aislamiento WASI y fuel limits.
+      </text>
+      <text x="20" y="244" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="12" font-weight="400" fill="#A1A1AA">
+        • Recibos criptográficos HMAC-SHA256.
+      </text>
+      <text x="20" y="276" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="12" font-weight="400" fill="#A1A1AA">
+        • Enclaves para banca, salud e IIoT.
+      </text>
+      <text x="20" y="308" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="12" font-weight="400" fill="#A1A1AA">
+        • Diagramas de secuencia gRPC.
+      </text>
+    </g>
+
+    <!-- Card 2: GitHub Repository -->
+    <g transform="translate(328, 0)">
+      <rect width="304" height="360" rx="10" fill="#080808" stroke="#1F1F1F" stroke-width="1.2" />
+      <rect x="20" y="20" width="155" height="22" rx="4" fill="#141414" />
+      <text x="97" y="35" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="9.5" font-weight="700" fill="#818CF8">CÓDIGO FUENTE LIBRE</text>
+
+      <!-- Lucide: GitBranch (22x22 in Indigo) -->
+      <g transform="translate(20, 56)">
+        <g stroke="#818CF8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none">
+          <line x1="6" x2="6" y1="3" y2="15"/>
+          <circle cx="18" cy="6" r="3"/>
+          <circle cx="6" cy="18" r="3"/>
+          <path d="M18 9a9 9 0 0 1-9 9"/>
+        </g>
+      </g>
+      <text x="52" y="73" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="16" font-weight="700" fill="#FFFFFF">
+        GitHub Monorepo
+      </text>
+
+      <text x="20" y="104" font-family="'JetBrains Mono', 'Fira Code', monospace" font-size="11.5" font-weight="600" fill="#818CF8">
+        github.com/Nekzus/LIOP
+      </text>
+
+      <line x1="20" y1="120" x2="284" y2="120" stroke="#1F1F1F" stroke-width="1" />
+
+      <text x="20" y="148" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="12" font-weight="400" fill="#A1A1AA">
+        • Licencia abierta Apache 2.0.
+      </text>
+      <text x="20" y="180" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="12" font-weight="400" fill="#A1A1AA">
+        • Implementaciones en Rust y TypeScript.
+      </text>
+      <text x="20" y="212" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="12" font-weight="400" fill="#A1A1AA">
+        • Suites de tests de integración y sandbox.
+      </text>
+      <text x="20" y="244" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="12" font-weight="400" fill="#A1A1AA">
+        • Discusión técnica vía RFCs e Issues.
+      </text>
+      <text x="20" y="276" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="12" font-weight="400" fill="#A1A1AA">
+        • Roadmap público de desarrollo.
+      </text>
+      <text x="20" y="308" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="12" font-weight="400" fill="#A1A1AA">
+        • Commits firmados criptográficamente.
+      </text>
+    </g>
+
+    <!-- Card 3: Invitation to Collaborate (Comunidad & Contribuidores Open Source) -->
+    <g transform="translate(656, 0)">
+      <rect width="304" height="360" rx="10" fill="#080808" stroke="#1F1F1F" stroke-width="1.2" />
+      <rect x="20" y="20" width="168" height="22" rx="4" fill="#141414" />
+      <text x="104" y="35" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="9" font-weight="700" fill="#EDEDED">CONSTRUIR EN ABIERTO</text>
+
+      <!-- Lucide: Users (22x22 in White) -->
+      <g transform="translate(20, 56)">
+        <g stroke="#EDEDED" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none">
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </g>
+      </g>
+      <text x="52" y="73" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="15" font-weight="700" fill="#FFFFFF">
+        Comunidad &amp; Contribuidores
+      </text>
+
+      <text x="20" y="104" font-family="'JetBrains Mono', 'Fira Code', monospace" font-size="11.5" font-weight="600" fill="#EDEDED">
+        Código &amp; RFCs Libres
+      </text>
+
+      <line x1="20" y1="120" x2="284" y2="120" stroke="#1F1F1F" stroke-width="1" />
+
+      <text x="20" y="148" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="12" font-weight="400" fill="#A1A1AA">
+        • Debate técnico abierto y RFCs.
+      </text>
+      <text x="20" y="180" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="12" font-weight="400" fill="#A1A1AA">
+        • Colaboración en Rust y TypeScript.
+      </text>
+      <text x="20" y="212" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="12" font-weight="400" fill="#A1A1AA">
+        • Pruebas en enclaves y edge OT.
+      </text>
+      <text x="20" y="244" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="12" font-weight="400" fill="#A1A1AA">
+        • Bienvenidas empresas que sumen.
+      </text>
+      <text x="20" y="276" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="12" font-weight="400" fill="#A1A1AA">
+        • Cero capturas propietarias.
+      </text>
+      <text x="20" y="308" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="12" font-weight="400" fill="#A1A1AA">
+        • Construir el estándar juntos.
+      </text>
+    </g>
+  </g>
+
+  <!-- ==================== FOOTER / SHARED FIXED ACTION BAR ==================== -->
+  <g transform="translate(60, 960)">
+    <text x="0" y="27" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="13" font-weight="500" fill="#71717A">
+      Stack libre y abierto · En etapa de pruebas · No apto para producción aún
+    </text>
+
+    <!-- Comment Pill (w=280, h=42, rx=21) -->
+    <g transform="translate(680, 5)">
+      <rect width="280" height="42" rx="21" fill="#121212" stroke="#2B2B2B" stroke-width="1.2" />
+      <text x="22" y="26" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="11.5" font-weight="600" fill="#FFFFFF">
+        Comenta o escribe para conectar
+      </text>
+      <!-- Lucide: MessageSquare -->
+      <g transform="translate(244, 13)">
+        <g stroke="#34D399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>

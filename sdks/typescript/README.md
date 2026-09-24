@@ -4,7 +4,7 @@
     <img alt="Logic-Injection-on-Origin Protocol Logo" src="https://raw.githubusercontent.com/Nekzus/LIOP/main/docs/logo/light.svg" width="700">
   </picture>
 
-  <h1>Logic-Injection-on-Origin Protocol (LIOP) — TypeScript SDK</h1>
+  <h1>Logic-Injection-on-Origin Protocol (LIOP), TypeScript SDK</h1>
   <p><strong>The official TypeScript SDK and MCP Bridge for the Logic-Injection-on-Origin Protocol.</strong></p>
 
   <p align="center">
@@ -19,7 +19,7 @@
 
 ---
 
-## 📚 Official Documentation
+## Official Documentation
 
 Comprehensive interactive guides, architectural deep dives, and API specifications are hosted on our official portal:
 
@@ -37,7 +37,7 @@ Comprehensive interactive guides, architectural deep dives, and API specificatio
 
 ## Overview
 
-`@nekzus/liop` is an SDK that implements the **Logic-Injection-on-Origin (LIO)** paradigm: instead of extracting raw data from a server and sending it to an LLM, the LLM injects a micro-module of logic to be executed *at the data source*, inside a secure sandbox. The result — never the raw data — is returned.
+`@nekzus/liop` is an SDK that implements the **Logic-Injection-on-Origin (LIO)** paradigm: instead of extracting raw data from a server and sending it to an LLM, the LLM injects a micro-module of logic to be executed *at the data source*, inside a secure sandbox. The result, and never the raw data, is returned.
 
 This addresses the data privacy, bandwidth, and latency bottlenecks of distributed agent data analysis.
 
@@ -52,7 +52,7 @@ This addresses the data privacy, bandwidth, and latency bottlenecks of distribut
 | **Multi-Tier Sovereign Enclaves** | Physical socket isolation via `@libp2p/pnet` (256-bit Swarm Key PSK) and Border LIO Gateway (`blg`) with OAuth 2.1 authentication.       |
 | **AST Fuel Metering**         | Deterministic AST instruction fuel scoring with 100-bucket quantization for NIST SP 800-53 timing side-channel elimination (`stddev = 0`).|
 | **Differential Privacy Engine** | NIST SP 800-226 Laplace mechanism with CSPRNG entropy, query-aware sensitivity, and deterministic ZK-Receipt auditing (`DpEngine`). |
-| **MCP Drop-in Replacement**   | `LiopServer` mirrors the Anthropic MCP `Server` API — tools, resources, and prompts with `Zod` schemas.                             |
+| **MCP Drop-in Replacement**   | `LiopServer` mirrors the Anthropic MCP `Server` API (tools, resources, and prompts with `Zod` schemas).                             |
 | **Guardian AST**              | Pre-execution heuristic inspection blocks sandbox escapes (`require`, `fs`, `eval`, `fetch`, prototype pollution).                 |
 | **IFC Taint Analyzer**        | 5-pass Acorn AST information flow control tracking collection aliases, correlation guards, and extrema gates at preflight.         |
 | **WASI Sandbox**              | JavaScript payloads execute inside V8 isolates with CPU fuel limits, no Node.js globals, and safe environment isolation (`allowEnv`). |
@@ -121,7 +121,7 @@ npm install -g @nekzus/liop@latest
 liop
 ```
 
-### 🤖 Claude Desktop Configuration
+### Claude Desktop Configuration
 
 To integrate LIOP into Claude Desktop, update your `claude_desktop_config.json` (typically found in `%APPDATA%\Claude\claude_desktop_config.json` on Windows):
 
@@ -185,7 +185,7 @@ server.tool(
   "Analyzes local log files without sending raw data to the LLM.",
   { target_error: z.string().describe("The error pattern to search for") },
   async ({ target_error }) => {
-    // This logic runs at origin — data never leaves the server
+    // This logic runs at origin, data never leaves the server
     return {
       content: [{ type: "text", text: `Found 51 occurrences of ${target_error}` }],
     };
@@ -324,13 +324,13 @@ await bridge.connect();
 
 **Supported JSON-RPC methods:**
 
-- `initialize` — Returns server capabilities and info
-- `tools/list` — Lists available tools
-- `tools/call` — Calls a tool (with ZK-Receipt verification)
-- `resources/list` — Lists available resources
-- `resources/read` — Reads a resource
-- `prompts/list` — Lists available prompts
-- `prompts/get` — Gets a specific prompt
+- `initialize`: Returns server capabilities and info
+- `tools/list`: Lists available tools
+- `tools/call`: Calls a tool (with ZK-Receipt verification)
+- `resources/list`: Lists available resources
+- `resources/read`: Reads a resource
+- `prompts/list`: Lists available prompts
+- `prompts/get`: Gets a specific prompt
 
 ---
 
@@ -343,13 +343,13 @@ await bridge.connect();
 │  Layer 1: Guardian AST (Pre-Execution Static Analysis)    │
 │  14-function WASI allowlist • 128 import cap • Blocks     │
 │  require, import(), fs, eval, fetch, __proto__            │
-├───────────────────────────────────────────────────────────┐
+├───────────────────────────────────────────────────────────┤
 │  Layer 2: WASI Sandbox (V8 Isolate)                       │
 │  25 poisoned globals (incl. Date, TypedArrays) •          │
 │  CPU Fuel limits • 5s timeout • maxHeapMb (64MB default)  │
 │  Object.freeze() on 11 core prototypes • allowEnv allowlist │
 ├───────────────────────────────────────────────────────────┤
-│  Layer 3: Taint Analyzer (IFC — Static)                   │
+│  Layer 3: Taint Analyzer (IFC, Static)                    │
 │  Acorn AST 3-pass analysis blocks PII side-channels:      │
 │  charCodeAt, boolean inference, arithmetic derivation     │
 ├───────────────────────────────────────────────────────────┤
@@ -408,7 +408,7 @@ const server = new LiopServer(info, {
 
 To avoid false positive triggers caused by HMAC-SHA256 ZK-Receipt signatures or transport wrapper frames (such as `{ content: [{ type: "text", text: "..." }] }`), the PII Shield and Aggregation-First engines scan only the unwrapped business data (via `unwrapForAggregationPolicyScan`). Cryptographic seals and protocol routing structures are isolated and excluded from compliance scans.
 
-### 📊 3-Tier Query Budget (NIST SP 800-226)
+### 3-Tier Query Budget (NIST SP 800-226)
 
 To prevent advanced statistical differentiation or database reconstruction attacks, the SDK implements a tiered, session-based budget engine:
 
@@ -418,27 +418,27 @@ To prevent advanced statistical differentiation or database reconstruction attac
 
 If an injected payload queries a field beyond its budget limit, the preflight static analysis immediately blocks execution.
 
-### 🛡️ K-Anonymity on Small Datasets
+### K-Anonymity on Small Datasets
 
 When operating on high-privacy datasets, if the source records count is **less than 10**, the SDK forces a strict K-Anonymity restriction:
 - Rejects any output that contains nested objects or arrays.
 - Restricts the returned structure to a maximum of **3 scalar keys** (e.g., simple aggregate counts or statistics).
 - Prevents structural data leakage in low-entropy datasets.
 
-### ❄️ Sandbox Poisoned Globals & Date Workaround
+### Sandbox Poisoned Globals & Date Workaround
 
 For maximum host security, the WASI sandbox enforces a poisoned environment that strips dangerous globals and prevents timing side-channels:
 - **Poisoned/Disabled**: `Date` (Date.now, parse, etc. throw an exception to prevent timing analysis), `eval`, `Function`, `setTimeout`, `setInterval`, `Buffer`, `ArrayBuffer`, and all `TypedArrays`.
 - **Date Workaround**: To perform date checks, use lexicographical string comparison on ISO 8601 strings (e.g., `record.date >= "2026-01-01"`).
 
-### 🧹 Recursive In-Memory Numerical Sanitization
+### Recursive In-Memory Numerical Sanitization
 
 To mitigate timing channels, statistical differentiation, and floats side-channels, the SDK executes a recursive sanitization pipeline before the PII scanner runs:
 - Positive floating-point numbers are recursively rounded to exactly **4 decimal places**.
 - Negative values are safely clamped to **0** (via `sanitizeOutput()`).
 - This operation runs entirely in-memory and recursively on all fields, preserving data structure immutability without expensive and fragile serialization-deserialization cycles.
 
-### 🌐 Environment Isolation & allowEnv Allowlist
+### Environment Isolation & allowEnv Allowlist
 
 For robust sandboxing, the WASI execution path isolates host environment variables. Propagation can be enabled explicitly:
 ```typescript
@@ -451,7 +451,7 @@ To block arbitrary command execution (e.g., Shellshock) and prevent exposure of 
 - **Unix/Linux Allowlist**: `HOME`, `LOGNAME`, `PATH`, `SHELL`, `TERM`, `USER`.
 Variables starting with shell functions `()` are dropped.
 
-### 🔒 Sovereign ZK-Receipts & Groth16 Attestation
+### Sovereign ZK-Receipts & Groth16 Attestation
 
 LIOP ZK-Receipts provide cryptographic evidence that a computation was executed honestly under zero-trust bounds. Version 2 receipts introduce true Zero-Knowledge Groth16 proofs over the BN254 pairing-friendly elliptic curve, packing a 144-byte binary journal:
 
@@ -534,7 +534,7 @@ Node.js is single-threaded. Heavy operations like Kyber768 decryption, AES-GCM a
 This SDK dispatches all heavy computation to OS-level threads via [`piscina`](https://github.com/piscinajs/piscina), achieving Rust-like concurrency. On server or verifier initialization, background warmup tasks are automatically dispatched to pre-warm the pool workers, eliminating V8/WASI cold-start overhead (~820k fuel units) for subsequent calls:
 
 ```typescript
-// Automatic — no configuration needed
+// Automatic, no configuration needed
 // When a Logic-Injection-on-Origin payload is received:
 // 1. Main thread receives JSON-RPC request
 // 2. Worker thread: AST inspection + PQC decryption + Sandbox execution
@@ -607,7 +607,7 @@ Navigate to **`http://localhost:16000`** in your browser:
 
 * **Live 7-Phase Streaming:** Visualizes Bootstrap, DHT Discovery, ML-KEM-768 Handshake, AES-256-GCM Sealing, WASI Sandbox Execution, ZK-Receipt Verification, and Output Aggregation via real-time Server-Sent Events (SSE).
 * **Tri-Tab Results Panel:** Switch between `Aggregated Output` (sanitized JSON), `Fuel & Telemetry` (WASI fuel metering, token economy comparison banner), and `Crypto Proofs` (ImageID, Dataset Hash, and HMAC-SHA256 signature with instant copy).
-* **Token Economy Dashboard:** Live comparison showing **98.9% – 99.6% token reduction** and **99.6% network bandwidth savings** over traditional MCP context-pulling.
+* **Token Economy Dashboard:** Live comparison showing **98.9% to 99.6% token reduction** and **99.6% network bandwidth savings** over traditional MCP context-pulling.
 * **REST Telemetry Endpoint:** Query session analytics programmatically at `GET http://localhost:16000/api/telemetry`.
 * **Built-in Scenario Presets:** Ready-to-run micro-modules for High-Frequency Trading (HFT Level 2 order books), Banking transaction analysis, Medical Vault HIPAA records, and Edge IoT industrial sensor telemetry.
 * **Dual Dark Modes:** Toggle between Obsidian OLED (`#000000`) and Slate Navy (`#0f172a`) interfaces.
@@ -654,7 +654,7 @@ This package is continuously tested across multiple platforms and Node.js versio
 - **Multi-OS matrix:** Ubuntu, Windows, macOS
 - **Node.js versions:** 20.x, 22.x
 - **Code quality:** Enforced by [Biome.js](https://biomejs.dev/) (linting + formatting)
-- **Security:** Verified 6-layer defense-in-depth architecture — see [Security Architecture](https://nekzus-32.mintlify.app/typescript-sdk/security)
+- **Security:** Verified 6-layer defense-in-depth architecture (see [Security Architecture](https://nekzus-32.mintlify.app/typescript-sdk/security))
 
 > To run tests locally or contribute, clone the [repository](https://github.com/Nekzus/LIOP) and follow the [Contributing Guide](https://github.com/Nekzus/LIOP/blob/main/CONTRIBUTING.md).
 
@@ -674,12 +674,12 @@ The codebase undergoes regular dependencies audits. As of June 2026, the SDK is 
 
 ## Related
 
-- [LIOP Documentation](https://nekzus-32.mintlify.app/) — Full conceptual and API documentation
-- [LIOP Specification](https://github.com/Nekzus/LIOP/blob/main/protocol/SPECIFICATION.md) — Technical specification
-- [LIOP Manifesto](https://github.com/Nekzus/LIOP/blob/main/MANIFESTO.md) — Project philosophy
-- [Contributing Guide](https://github.com/Nekzus/LIOP/blob/main/CONTRIBUTING.md) — How to contribute
-- [Rust Mesh Node](https://github.com/Nekzus/LIOP/tree/main/servers/liop-node) — Native high-performance backend
-- [LIOP CLI](https://github.com/Nekzus/LIOP/tree/main/tools/liop-cli) — Developer diagnostics
+- [LIOP Documentation](https://nekzus-32.mintlify.app/): Full conceptual and API documentation
+- [LIOP Specification](https://github.com/Nekzus/LIOP/blob/main/protocol/SPECIFICATION.md): Technical specification
+- [LIOP Manifesto](https://github.com/Nekzus/LIOP/blob/main/MANIFESTO.md): Project philosophy
+- [Contributing Guide](https://github.com/Nekzus/LIOP/blob/main/CONTRIBUTING.md): How to contribute
+- [Rust Mesh Node](https://github.com/Nekzus/LIOP/tree/main/servers/liop-node): Native high-performance backend
+- [LIOP CLI](https://github.com/Nekzus/LIOP/tree/main/tools/liop-cli): Developer diagnostics
 
 ---
 

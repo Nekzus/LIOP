@@ -199,9 +199,9 @@ A diferencia de `GatewayInterceptor` (cuya ejecución está restringida estricta
 
 | Rol del Nodo | `GatewayInterceptor` | `LogInterceptor` | `AuditInterceptor` | Rol en la Frontera de Red |
 |:---|:---|:---|:---|:---|
-| **Perímetro de Entrada (`Nexus`)** | ✅ **Mandatorio** | ✅ Activo (OOB) | ✅ Activo (OOB) | Filtro de admisión WAF / L7 |
-| **Pasarela Fronteriza (`BLG`)** | ❌ Omitido | ✅ Activo (OOB) | ✅ Activo (OOB) | Puente asimétrico mTLS / Swarm PSK |
-| **Enclaves de Datos (`Bank` / `Vault`)** | ❌ **Prohibido** | ✅ Activo (OOB) | ✅ Activo (OOB) | Ejecución Zero-Trust WASI / The Shield |
+| **Perímetro de Entrada (`Nexus`)** | **Mandatorio** | Activo (OOB) | Activo (OOB) | Filtro de admisión WAF / L7 |
+| **Pasarela Fronteriza (`BLG`)** | Omitido | Activo (OOB) | Activo (OOB) | Puente asimétrico mTLS / Swarm PSK |
+| **Enclaves de Datos (`Bank` / `Vault`)** | **Prohibido** | Activo (OOB) | Activo (OOB) | Ejecución Zero-Trust WASI / The Shield |
 
 Dado que ambos hooks se ejecutan de forma estrictamente asíncrona (*fire-and-forget* mediante `Promise.resolve().then(...)` o `fetch()` no bloqueante), la latencia de inferencia externa o la indisponibilidad de SIEMs remotos introduce exactamente **0 ms de retraso** en las respuestas RPC de los clientes o en la evaluación de los sandboxes.
 
@@ -229,5 +229,5 @@ LIOP define tres ganchos de intercepción complementarios. Ninguno sustituye ni 
 
 ## Referencias Relacionadas
 
-- [Gateway Interceptor](/es/typescript-sdk/gateway-interceptor) — Gancho de admisión perimetral para `LiopHybridGateway`.
-- [Auditoría y Seguridad](/es/typescript-sdk/security) — Especificaciones de cadena de hash y controles SOC 2 Type II.
+- [Gateway Interceptor](/es/typescript-sdk/gateway-interceptor): Gancho de admisión perimetral para `LiopHybridGateway`.
+- [Auditoría y Seguridad](/es/typescript-sdk/security): Especificaciones de cadena de hash y controles SOC 2 Type II.

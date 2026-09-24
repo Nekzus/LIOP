@@ -15,7 +15,7 @@ icon: "shield-check"
 
 ## Context and Problem Statement
 
-Distributed agent mesh nodes in LIOP exchange analytical queries and WebAssembly logic across untrusted network boundaries. Adversaries can record encrypted transport traffic today with the objective of decrypting it once Cryptanalytically Relevant Quantum Computers (CRQCs) become viable—a vector known as "Harvest Now, Decrypt Later" (HNDL). 
+Distributed agent mesh nodes in LIOP exchange analytical queries and WebAssembly logic across untrusted network boundaries. Adversaries can record encrypted transport traffic today with the objective of decrypting it once Cryptanalytically Relevant Quantum Computers (CRQCs) become viable, a vector known as "Harvest Now, Decrypt Later" (HNDL). 
 
 Classical asymmetric algorithms such as RSA-2048 and Elliptic Curve Diffie-Hellman (X25519) will be compromised by Shor's algorithm. LIOP requires a key encapsulation mechanism that provides long-term data confidentiality without compromising sub-millisecond transaction latency.
 
@@ -40,7 +40,7 @@ Classical asymmetric algorithms such as RSA-2048 and Elliptic Curve Diffie-Hellm
 
 ## Decision Outcome
 
-**Chosen Option:** Option 3 — Pure ML-KEM-768 with AES-256-GCM.
+**Chosen Option:** Option 3, Pure ML-KEM-768 with AES-256-GCM.
 
 ### Positive Consequences
 
