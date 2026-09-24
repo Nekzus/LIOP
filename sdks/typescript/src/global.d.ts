@@ -15,3 +15,11 @@ interface PromiseConstructor {
 	 */
 	withResolvers<T>(): PromiseWithResolvers<T>;
 }
+
+declare module "@nekzus/liop-zk-native" {
+	export function prove_analytical_query(
+		circuit: string,
+		inputsJson: string,
+	): Promise<Buffer>;
+	export function get_native_prover_version(): string;
+}
