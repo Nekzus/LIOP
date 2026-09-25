@@ -8,6 +8,7 @@ import {
 	deriveLogicImageDigest,
 	normalizeLogicSource,
 } from "../crypto/logic-image-id.js";
+import { ProofMode } from "../rpc/types.js";
 import { ASTGuardian } from "../sandbox/guardian.js";
 import { WasiSandbox } from "../sandbox/wasi.js";
 import { applyDpToOutput } from "../security/dp-engine.js";
@@ -284,10 +285,20 @@ export default async function processLogicExecution(data: WorkerData): Promise<{
 						circuit,
 						inputsJson,
 					);
-				} catch {
+				} catch (err) {
+					if (data.proofMode === ProofMode.PROOF_MODE_ZK_BLOCKING) {
+						throw new Error(
+							`ZK PROOF GENERATION FAILED: Native Groth16 prover execution error: ${err instanceof Error ? err.message : String(err)}`,
+						);
+					}
 					proofBuf = Buffer.alloc(128, 0x42);
 				}
 			} else {
+				if (data.proofMode === ProofMode.PROOF_MODE_ZK_BLOCKING) {
+					throw new Error(
+						"ZK PROOF GENERATION FAILED: Native Groth16 prover module unavailable for required policy.",
+					);
+				}
 				proofBuf = Buffer.alloc(128, 0x42);
 			}
 

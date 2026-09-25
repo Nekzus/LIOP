@@ -333,7 +333,10 @@ async function verifyZkReceipt(
 
 		return {
 			verified: true,
-			message: "Groth16 Zero-Knowledge Proof Mathematically Certified.",
+			message:
+				vkeyRaw && vkeyRaw.length > 0
+					? "Groth16 Zero-Knowledge Proof Mathematically Certified."
+					: "Groth16 Receipt Structure and Journal Integrity Certified.",
 			proofType: "groth16",
 		};
 	}
