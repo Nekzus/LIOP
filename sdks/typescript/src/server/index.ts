@@ -771,7 +771,10 @@ export class LiopServer {
 		const isTS = import.meta.url.endsWith(".ts");
 		const workerExt = isTS ? ".ts" : ".js";
 
-		let execArgv: string[] = [];
+		const execArgv: string[] = ["--no-expose-gc"];
+		if (process.env.LIOP_DISABLE_JITLESS !== "true") {
+			execArgv.push("--jitless");
+		}
 		if (isTS) {
 			try {
 				const req = createRequire(import.meta.url);
@@ -779,9 +782,9 @@ export class LiopServer {
 				const absoluteTsx = pathToFileURL(
 					path.join(path.dirname(tsxPkg), "dist", "loader.mjs"),
 				).href;
-				execArgv = ["--import", absoluteTsx];
+				execArgv.push("--import", absoluteTsx);
 			} catch (_e) {
-				execArgv = ["--import", "tsx"];
+				execArgv.push("--import", "tsx");
 			}
 		}
 
