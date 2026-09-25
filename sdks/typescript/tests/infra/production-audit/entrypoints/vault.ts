@@ -114,6 +114,8 @@ async function main() {
 		{
 			enforceAggregationFirst: true,
 			outputSchema: medicalAggregatedOutputSchema,
+			zkMode: "optimistic",
+			circuitName: "sum",
 			dpEpsilon: 2.0,
 			dpSensitivity: 1.0,
 			sensitiveKeys: ["diagnosis", "bloodType"],

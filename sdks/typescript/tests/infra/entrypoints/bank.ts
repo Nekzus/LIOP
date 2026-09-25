@@ -123,6 +123,8 @@ async function main() {
 		{
 			enforceAggregationFirst: true,
 			outputSchema: bankAggregatedOutputSchema,
+			zkMode: "optimistic",
+			circuitName: "sum",
 			// Phase 110: SOX/PCI-DSS Financial Privacy Profile
 			// Engine auto-derives per-field sensitivity (count→1, avg→s/n).
 			// Global sensitivity covers SUM fields (max plausible single balance).
