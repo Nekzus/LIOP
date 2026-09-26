@@ -116,6 +116,7 @@ async function main() {
 			enforceAggregationFirst: true,
 			outputSchema: bankAggregatedOutputSchema,
 			zkMode: "optimistic",
+			pqcSign: true,
 			circuitName: "sum",
 			dpEpsilon: 2.0,
 			dpSensitivity: 100000.0,
