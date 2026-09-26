@@ -64,7 +64,10 @@ describe("Production Audit Suite 11 — Sovereign ZK-Receipts & Groth16 Enclave 
 			).toBe(true);
 
 			if (decoded.version === RECEIPT_VERSION_V2) {
-				expect(decoded.proofType).toBe(ProofType.GROTH16);
+				expect(
+					decoded.proofType === ProofType.GROTH16 ||
+						decoded.proofType === ProofType.GROTH16_PQC_HYBRID,
+				).toBe(true);
 				expect(decoded.journal.length).toBe(ZK_JOURNAL_V2_SIZE);
 
 				const journal = decodeJournalV2(decoded.journal);

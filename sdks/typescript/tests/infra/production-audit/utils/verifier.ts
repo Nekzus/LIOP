@@ -6,6 +6,7 @@ import crypto from "node:crypto";
 export enum ProofType {
 	HMAC_LEGACY = 0x00,
 	GROTH16 = 0x02,
+	GROTH16_PQC_HYBRID = 0x03,
 }
 
 export const RECEIPT_VERSION_V1 = 0x01;

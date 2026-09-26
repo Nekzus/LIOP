@@ -1,0 +1,60 @@
+# ==============================================================================
+# LIOP Production Readiness Audit — Docker Compose Local Extension
+# Overrides all services to use Dockerfile.local containing the freshly packed tarball.
+# ==============================================================================
+
+services:
+  psk-init:
+    build:
+      context: .
+      dockerfile: Dockerfile.local
+
+  nexus-prod:
+    build:
+      context: .
+      dockerfile: Dockerfile.local
+
+  blg-prod:
+    build:
+      context: .
+      dockerfile: Dockerfile.local
+
+  vault-prod:
+    build:
+      context: .
+      dockerfile: Dockerfile.local
+
+  bank-prod:
+    build:
+      context: .
+      dockerfile: Dockerfile.local
+
+  oracle-prod:
+    build:
+      context: .
+      dockerfile: Dockerfile.local
+
+  edge-prod:
+    build:
+      context: .
+      dockerfile: Dockerfile.local
+
+  relay-prod:
+    build:
+      context: .
+      dockerfile: Dockerfile.local
+
+  playground-prod:
+    build:
+      context: .
+      dockerfile: Dockerfile.local
+
+  studio-prod:
+    build:
+      context: .
+      dockerfile: Dockerfile.local
+
+  audit-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile.local
