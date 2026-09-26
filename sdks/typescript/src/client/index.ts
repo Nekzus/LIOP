@@ -624,9 +624,13 @@ export class LiopClient {
 					// If the remote execution failed due to a policy error (e.g. Egress Shield),
 					// the ZK proof is empty and we should bypass validation to propagate the original error.
 					let isV2 = false;
+					let resolvedProofType = ProofType.HMAC_LEGACY;
 					if (!response.is_error) {
 						const receiptBuf = Buffer.from(response.zk_receipt);
 						isV2 = receiptBuf.length > 0 && receiptBuf[0] === 0x02;
+						if (isV2 && receiptBuf.length > 1) {
+							resolvedProofType = receiptBuf[1] as ProofType;
+						}
 
 						const zkPolicy = options?.zkPolicy ?? (isV2 ? "required" : "none");
 
@@ -712,7 +716,7 @@ export class LiopClient {
 						],
 						isError: response.is_error,
 						zkVerified: !response.is_error,
-						zkProofType: isV2 ? ProofType.GROTH16 : ProofType.HMAC_LEGACY,
+						zkProofType: isV2 ? resolvedProofType : ProofType.HMAC_LEGACY,
 					});
 				} catch (err) {
 					try {

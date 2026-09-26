@@ -15,6 +15,7 @@ export enum ProofMode {
 export enum ProofType {
 	PROOF_TYPE_HMAC_LEGACY = 0,
 	PROOF_TYPE_GROTH16 = 2,
+	PROOF_TYPE_GROTH16_PQC_HYBRID = 3,
 }
 
 export interface IntentRequest {
