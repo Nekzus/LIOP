@@ -187,21 +187,54 @@ const result = await client.callTool(
 
 ## Mathematical Verification (ZK-Receipts)
 
-Every analytical payload executed by a compliant LIOP Data Node generates a cryptographic ZK-Receipt (HMAC-SHA256 sealed under the ephemeral ML-KEM-768 session secret). `LiopClient` validates this proof automatically during `callTool()`.
+Every analytical payload executed by a compliant LIOP Data Node generates a cryptographic ZK-Receipt. The client verifier automatically inspects receipts returned during `callTool()`, supporting all three protocol modes:
+- **Mode 0 (Version 1)**: HMAC-SHA256 session commitment negotiated via ML-KEM-768.
+- **Mode 2 (Version 2)**: Groth16 Zero-Knowledge SNARK proof over the BN254 pairing-friendly elliptic curve.
+- **Mode 3 (Version 2.1)**: Dual-layer hybrid receipt combining a Groth16 BN254 mathematical proof with an ML-DSA-65 post-quantum digital signature.
 
-To manually verify proofs received out-of-band:
+To manually verify receipts received out-of-band:
 
 ```typescript
-const isValid = await client.verifier.verifyZkReceipt(
-  wasmPayload,          // Buffer containing the exact injected code
-  remoteImageIdHex,     // Expected hash of the data environment
+import { LiopVerifier } from "@nekzus/liop";
+
+const verifier = new LiopVerifier();
+
+const isValid = await verifier.verifyZkReceipt(
+  wasmPayload,          // Buffer containing the exact injected logic code
+  remoteImageIdHex,     // Expected 32-byte guest image identifier
   zkReceiptBuffer,      // Cryptographic receipt returned by the server
+  { zkPolicy: "required" } // "none" | "optimistic" | "required"
 );
 
 if (!isValid) {
   throw new Error("Zero-Trust Verification Failure: Computation tampering detected");
 }
 ```
+
+### Pre-Flight Hardware TEE Attestation
+
+When communicating with confidential virtual machines on untrusted cloud hosts, verify hardware root-of-trust evidence before initiating cryptographic handshakes:
+
+```typescript
+import { verifyTeeAttestationDetailed } from "@nekzus/liop";
+
+const attestationResult = await verifyTeeAttestationDetailed(
+  attestationEvidenceBytes,
+  expectedSessionNonce,
+  {
+    allowedMeasurements: ["b7f8c9..."],
+    requireHardwareSigned: true,
+  }
+);
+
+if (!attestationResult.valid) {
+  throw new Error(`Confidential hardware validation failed: ${attestationResult.reason}`);
+}
+```
+
+The pre-flight verifier validates:
+- **AMD SEV-SNP**: Inspects 1,184-byte `snp_report_t` headers, checks `REPORT_DATA` at byte offset `0x50` against `SHA-256(publicKey || nonce)`, verifies VCEK certificate signatures, and ensures debug mode is disabled.
+- **AWS Nitro Enclaves**: Decodes CBOR-encoded `COSE_Sign1` documents, checks PCR registers (`PCR0`, `PCR1`, `PCR2`), validates `user_data` binding, and verifies certificates up to AWS Nitro Root CA.
 
 ---
 
@@ -305,4 +338,4 @@ try {
 | `AST_SECURITY_VIOLATION` | RPC -32099 / gRPC 3 | Guardian AST detected forbidden imports or poisoned globals. | Ensure bytecode complies with strict WASI Preview 1 allowlist. |
 | `SANDBOX_HALTED` | RPC -32098 / gRPC 9 | V8 Isolate exceeded allocated CPU fuel or heap memory limits. | Optimize inner loops or raise `maxHeapMb` configuration. |
 | `CIRCUIT_BREAKER_OPEN` | HTTP 503 / gRPC 14 | Target endpoint reached 5 consecutive failures (`MAX_FAILURES = 5`). | Wait for decay interval or use alternative gateway route. |
-| `ZK_VERIFICATION_FAILED` | RPC -32097 / gRPC 10 | Output mathematical proof failed HMAC-SHA256 integrity seal. | Potential active network tampering. Drop response immediately. |
+| `ZK_VERIFICATION_FAILED` | RPC -32097 / gRPC 10 | Output proof failed Groth16 pairing check, HMAC seal, or ML-DSA-65 post-quantum signature verification. | Potential active network tampering or untrusted enclave image. Drop response immediately. |

@@ -56,7 +56,7 @@ Mediciones empíricas obtenidas al evaluar 520 MB de registros de acceso de serv
 | **Tráfico WAN Emitido** | `520.140.820 bytes` (520 MB) | `412 bytes` | **1.262.477x menor salida de red** |
 | **Consumo de Tokens (`o200k_base`)** | `38.400 tokens` (truncado) | `168 tokens` | **99.56% de ahorro en tokens** |
 | **Tiempo de Respuesta Total** | `42.4s` (serialización y red) | `1.82s` (flujo local) | **23.2x mayor rapidez analítica** |
-| **Prueba Criptográfica** | Ninguna (Datos sin firmar) | Recibo ZK (Sello HMAC-SHA256) | **Integridad Matemática Verificada** |
+| **Prueba Criptográfica** | Ninguna (Datos sin firmar) | Recibo ZK Tri-Modal (HMAC / Groth16 BN254 / ML-DSA-65 PQC Híbrido) | **Integridad Matemática Verificada** |
 | **Riesgo de Fuga de PII** | Alto (IPs enviadas al LLM) | Nulo (IPs descartadas in-situ) | **Soberanía Absoluta Garantizada** |
 
 ---
@@ -166,7 +166,7 @@ LIOP impone seis capas de seguridad programática antes de que cualquier dato o 
 3. **Capa 3: Analizador de Flujo Taint (IFC)**: El control estático de flujo bloquea la inferencia indirecta de datos confidenciales por canales laterales.
 4. **Capa 4: Escudo PII de Salida**: Un filtro en múltiples etapas (expresiones regulares, validadores de Luhn/IBAN y modelos de lenguaje NER) censura tokens confidenciales.
 5. **Capa 5: Política de Agregación**: Prohíbe la exportación de listas de registros individuales y exige resultados estadísticos o resúmenes.
-6. **Capa 6: Generación de Recibos ZK**: Sella los resultados mediante resúmenes HMAC-SHA256 vinculados matemáticamente al código exacto ejecutado y a la clave efímera de sesión post-cuántica.
+6. **Capa 6: Recibos ZK Tri-Modales y Atestación TEE**: Sella los resultados mediante pruebas matemáticas de ejecución honesta, admitiendo HMAC-SHA256 (Modo 0, v1), pruebas de conocimiento cero SNARK Groth16 sobre la curva BN254 (Modo 2, v2) y recibos híbridos post-cuánticos ML-DSA-65 (Modo 3, v2.1) conformes con NIST FIPS 204. La verificación TEE pre-vuelo autentica enclaves AMD SEV-SNP y AWS Nitro Enclaves.
 
 ---
 

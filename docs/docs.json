@@ -79,7 +79,8 @@
                   "adrs/0003-ast-instruction-fuel-quantization",
                   "adrs/0004-dual-era-mcp-handshake-compatibility",
                   "adrs/0005-bearer-oauth21-m2m-enclave-propagation",
-                  "adrs/0006-single-gateway-invariant-claude-desktop"
+                  "adrs/0006-single-gateway-invariant-claude-desktop",
+                  "adrs/0007-zkvm-groth16-pqc-hybrid-receipts-and-tee-attestation"
                 ]
               },
               {
@@ -230,7 +231,8 @@
                   "es/adrs/0003-ast-instruction-fuel-quantization",
                   "es/adrs/0004-dual-era-mcp-handshake-compatibility",
                   "es/adrs/0005-bearer-oauth21-m2m-enclave-propagation",
-                  "es/adrs/0006-single-gateway-invariant-claude-desktop"
+                  "es/adrs/0006-single-gateway-invariant-claude-desktop",
+                  "es/adrs/0007-zkvm-groth16-pqc-hybrid-receipts-and-tee-attestation"
                 ]
               },
               {

@@ -1,0 +1,118 @@
+---
+title: "ADR-0007: zk-VM Groth16 v2 con Recibos Híbridos PQC ML-DSA-65 y Atestación TEE por Hardware"
+description: "Decisión arquitectónica que adopta pruebas de conocimiento cero Groth16 sobre BN254, co-firma híbrida post-cuántica ML-DSA-65 (NIST FIPS 204) y atestación previa al vuelo por hardware TEE para Enclaves Soberanos."
+icon: "shield-check"
+---
+
+# zk-VM Groth16 v2 con Recibos Híbridos PQC ML-DSA-65 y Atestación TEE por Hardware
+
+- **Estado:** Aceptado
+- **Decisores:** Comité Directivo del Protocolo, Grupo de Ingeniería Criptográfica, Equipo de Arquitectura Central
+- **Fecha:** 2026-09-25
+- **Historia Técnica:** Hito de Paridad Matemática zk-VM, Alineación con NIST FIPS 204 y Verificación Previa al Vuelo de TEE por Hardware
+
+---
+
+## Contexto y Planteamiento del Problema
+
+Las versiones preliminares del protocolo LIOP utilizaban compromisos simétricos HMAC-SHA256 (recibos versión 1) derivados del secreto de sesión negociado con ML-KEM-768 para sellar los resultados computacionales. Aunque esta solución resulta eficiente en latencia (menos de 0.05 milisegundos), los compromisos HMAC proporcionan únicamente verificación simétrica en lugar de pruebas matemáticas asimétricas de conocimiento cero. Como consecuencia, no permiten la liquidación en contratos inteligentes de la EVM sin divulgar la clave compartida de sesión, ni ofrecen una prueba demostrable a terceros que no formaron parte del intercambio inicial.
+
+Por otro lado, los esquemas clásicos de conocimiento cero como Groth16 sobre la curva de emparejamiento BN254 se fundamentan en la dificultad del problema del logaritmo discreto. Esto significa que una prueba Groth16 aislada será vulnerable al algoritmo de Shor cuando existan ordenadores cuánticos criptográficamente relevantes (CRQC).
+
+Finalmente, la ejecución de lógica en sandboxes de software puro está expuesta a compromisos del hipervisor o inspecciones ilegítimas de memoria física en el host a menos que el entorno ofrezca aislamiento respaldado por hardware confiable.
+
+---
+
+## Factores de Decisión
+
+- **Pruebas Matemáticas de Conocimiento Cero:** Proporcionar integridad computacional no interactiva sin revelar conjuntos de datos ni secretos de sesión.
+- **Protección Post-Cuántica Duradera:** Neutralizar la recolección de tráfico para descifrado futuro mediante la vinculación de pruebas algebraicas a firmas digitales de retículos basadas en el estándar NIST FIPS 204.
+- **Eficiencia e Interoperabilidad con EVM:** Mantener un formato de prueba compacto y compatible con los precompilados de Ethereum (`ecPairing`, `ecAdd`), posibilitando la verificación en cadena a bajo costo de gas (aproximadamente 200,000 gas).
+- **Garantía de Aislamiento Físico:** Verificar reportes criptográficos de hardware (AMD SEV-SNP y AWS Nitro Enclaves) antes de autorizar la inyección de código.
+- **Eliminación de Ataques de Degradación:** Establecer barreras deterministas en las políticas para impedir que un atacante fuerce modos de prueba degradados en enclaves de Nivel 1.
+
+---
+
+## Opciones Evaluadas
+
+1. **STARKs Puros (RISC Zero o SP1 Nativo Exclusivo):** Totalmente post-cuánticos y transparentes sin requerir ceremonia de parámetros confiables. Sin embargo, generar pruebas STARK para consultas analíticas cotidianas produce recibos voluminosos (entre 100 KB y 250 KB), lo que penaliza la latencia de red y sobrecarga los nodos perimetrales.
+2. **Groth16 Clásico Aislado (BN254):** Tamaño de prueba muy reducido (252 bytes) con síntesis veloz y verificación en microsegundos. No obstante, carece de resistencia contra computación cuántica y requiere parámetros confiables de configuración inicial.
+3. **Arquitectura Graduada Tri-Modal con Groth16 v2 y Recibos Híbridos ML-DSA-65 (Opción Seleccionada):**
+   - Modo 0 (`HMAC_LEGACY`, `0x00`): Compromiso simétrico ligero para microcontroladores perimetrales y dispositivos IoT.
+   - Modo 2 (`GROTH16`, `0x02`): Prueba Groth16 compacta de 252 bytes sobre BN254 con journal binario inmutable de 144 bytes, optimizada para liquidación en EVM y clientes web.
+   - Modo 3 (`GROTH16_PQC_HYBRID`, `0x03`): Recibo con sellado dual que combina la prueba Groth16 con una firma de retículos de 3,309 bytes (ML-DSA-65, NIST FIPS 204) y su clave pública de 1,952 bytes sobre el digest `SHA-256(journal || proof)`.
+
+---
+
+## Decisión Adoptada
+
+**Opción Seleccionada:** Opción 3, complementada con verificación previa al vuelo de atestación por hardware TEE e inmunización del sandbox contra canales laterales de temporización.
+
+### Especificaciones de la Arquitectura
+
+#### 1. Formato del Recibo Binario v2.1 (`GROTH16_PQC_HYBRID`)
+
+El formato v2.1 unifica la corrección matemática de conocimiento cero y la firma post-cuántica en una secuencia binaria continua:
+
+| Desplazamiento | Tamaño | Tipo | Descripción del Campo |
+|---|---|---|---|
+| `0` | 1 byte | `UInt8` | Identificador de versión del formato (`0x02`) |
+| `1` | 1 byte | `UInt8` | Discriminador del tipo de prueba (`0x03` = `GROTH16_PQC_HYBRID`) |
+| `2..5` | 4 bytes | Big-Endian `UInt32` | Longitud en bytes del journal (144 bytes) |
+| `6..149` | 144 bytes | Búfer binario | Estructura empaquetada del Journal v2 |
+| `150..151` | 2 bytes | Big-Endian `UInt16` | Longitud en bytes de la prueba Groth16 ($L_{\text{proof}}$) |
+| `152..151+L_p` | Variable | Búfer binario | Coordenadas comprimidas de la curva BN254 ($A \in G_1, B \in G_2, C \in G_1$) |
+| Siguientes 2 B | 2 bytes | Big-Endian `UInt16` | Longitud en bytes de la firma ML-DSA-65 (3,309 bytes) |
+| Siguientes 3,309 B | 3,309 bytes | Búfer binario | Firma digital NIST FIPS 204 ML-DSA-65 sobre `SHA-256(journal || proof)` |
+| Siguientes 1,952 B | 1,952 bytes | Búfer binario | Clave pública Dilithium ML-DSA-65 |
+| Últimos 32 bytes | 32 bytes | SHA-256 | Suma de verificación sobre todos los bytes precedentes del encabezado y payload |
+
+#### 2. Disposición del Journal ZK v2 (144 Bytes Fijos)
+
+El journal vincula las variables esenciales del cómputo en un bloque inmutable de 144 bytes:
+- `guest_image_id` (bytes `0..31`): Hash SHA-256 del binario del intérprete invitado.
+- `logic_digest` (bytes `32..63`): Hash SHA-256 del módulo de lógica JavaScript o WebAssembly inyectado.
+- `dataset_digest` (bytes `64..95`): Hash SHA-256 que ancla el estado del conjunto de datos durante la consulta.
+- `output_digest` (bytes `96..127`): Hash SHA-256 del resultado final luego de aplicar la privacidad diferencial.
+- `fuel_consumed` (bytes `128..135`): Big-Endian `UInt64` con las unidades de combustible cuantizadas en bloques de 100.
+- `execution_timestamp` (bytes `136..143`): Big-Endian `UInt64` con la marca de tiempo en milisegundos Unix.
+
+#### 3. Atestación TEE Previa al Vuelo
+
+Los nodos configurados en enclaves confidenciales entregan evidencias de atestación validadas por `verifyTeeAttestationDetailed` antes de admitir cualquier inyección de código:
+- **AMD SEV-SNP**: Valida reportes binarios de 1,184 bytes comprobando que el campo `REPORT_DATA` en el desplazamiento `0x50` coincida rigurosamente con `SHA-256(publicKey || nonce)`.
+- **AWS Nitro Enclaves**: Analiza documentos COSE_Sign1 verificando los registros de arranque medido (`PCR0`, `PCR1`, `PCR2`) y la inclusión de la clave pública en `user_data`.
+- **Enclaves Sintéticos (Entornos de Prueba)**: Acepta sobres prefijados con `TEES` únicamente en entornos fuera de producción.
+
+#### 4. Invariantes contra Ataques de Degradación
+
+Para prevenir ataques de degradación de suites criptográficas:
+- Las capacidades configuradas con `zkMode: "required"` (`PROOF_MODE_ZK_BLOCKING`) abortan con una excepción fatal si el prover nativo falla o no está disponible, impidiendo la emisión de búferes ficticios de relleno.
+- Las claves de verificación (`vkey`) son validadas durante el registro de la herramienta.
+- Los enclaves de Nivel 1 exigen `pqcSign: true`, haciendo obligatoria la co-firma post-cuántica en cada recibo emitido.
+
+---
+
+## Consecuencias Positivas
+
+- **No Repudio Multicapa:** Se garantiza tanto la exactitud matemática del cálculo mediante Groth16 como la identidad verificada del enclave emisor mediante ML-DSA-65.
+- **Inmunidad Cuántica a Largo Plazo:** Las trazas de auditoría selladas con recibos v2.1 permanecen blindadas ante futuros avances en computación cuántica.
+- **Aislamiento por Hardware Comprobado:** Un sistema operativo anfitrión comprometido no puede falsificar reportes de atestación física ni inspeccionar la memoria interna del enclave.
+- **Verificación Asíncrona sin Bloqueo:** La validación de curvas elípticas y firmas cuánticas se ejecuta en hilos independientes mediante `Piscina` en [zk-verifier.ts](file:///z:/Nekzus-Solutions/Active-Projects/NMP-v1.0-alpha/sdks/typescript/src/workers/zk-verifier.ts).
+
+---
+
+## Consecuencias Negativas y Mitigaciones
+
+- **Mayor Tamaño del Recibo en Red:** La prueba Groth16 pura ocupa solo 252 bytes, mientras que el recibo híbrido asciende a unos 5.6 KB debido a la firma y la clave pública cuántica.  
+  *Mitigación:* Esta carga se transmite una única vez por cálculo analítico, representando una reducción de volumen superior al 99% comparado con la extracción tradicional de registros completos.
+- **Cómputo Adicional para ML-DSA-65:** La generación de firmas y comprobación de retículos consume ciclos de CPU.  
+  *Mitigation:* Las operaciones criptográficas se distribuyen en el worker pool de Node.js sin bloquear el ciclo de eventos del gateway.
+
+---
+
+## Validación y Cumplimiento Normativo
+
+- **Pruebas Unitarias:** Cobertura total en `zk-blocking.test.ts`, `pqc-hybrid-receipt.test.ts`, `tee-attestation.test.ts` y `side-channel.test.ts`.
+- **Auditoría de Producción en Docker:** Validación sobre 13 suites y 68 pruebas automatizadas ejecutadas contra enclaves activos.
+- **Alineación con Estándares:** Conforme a NIST FIPS 204 (firmas digitales cuánticas), NIST FIPS 203 (encapsulamiento de claves), NIST SP 800-53 Control SC-39 (aislamiento de procesos y mitigación de canales laterales) y SOX 404 (inmutabilidad de auditorías).

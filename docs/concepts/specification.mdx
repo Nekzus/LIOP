@@ -47,9 +47,19 @@ An LIOP Agent interacting with an LIOP Server pushes executable logic (in the fo
 ### 4.3 Symmetric Payload Sealing
 - The agreed Post-Quantum symmetric secret acts as the cipher for `AES-256-GCM`, enveloping the entirety of the execution payload inside a zero-trust capsule.
 
-### 4.4 Computational Integrity (ZK-Receipts)
-- The SDK generates **HMAC-SHA256 commitments** that cryptographically bind the output to the exact logic executed, sealed with the Post-Quantum session secret.
-- **Dataset Integrity Anchor**: Receipts embed a SHA-256 `dataset_hash`, guaranteeing that Differential Privacy perturbations and aggregation logic are strictly anchored to immutable origin data.
+### 4.4 Computational Integrity (ZK-Receipts & ZK-VM)
+LIOP defines a tri-modal cryptographic integrity framework providing verifiable non-repudiation:
+- **Mode 0 (`HMAC_LEGACY`, `0x00`)**: Symmetric commitment derived from the ML-KEM-768 shared key.
+- **Mode 2 (`GROTH16`, `0x02`)**: Zero-knowledge succinct non-interactive proof over BN254 curves with a 144-byte binary journal (`guest_image_id`, `logic_digest`, `dataset_digest`, `output_digest`, `fuel_consumed`, `execution_timestamp`).
+- **Mode 3 (`GROTH16_PQC_HYBRID`, `0x03`)**: Dual-sealed binary receipt combining the Groth16 proof with an ML-DSA-65 post-quantum digital signature (NIST FIPS 204) of 3,309 bytes and 1,952-byte public key over `SHA-256(journal || proof)`.
+- **Binary v2.1 Wire Layout**:
+  `[0x02][0x03][journalLen: 4B BE][journal: 144B][proofLen: 2B BE][proof][sigLen: 2B BE][signature: 3309B][publicKey: 1952B][checksum: 32B SHA-256]`
+- **Dataset Integrity Anchor**: Receipts embed a SHA-256 `dataset_digest`, guaranteeing that Differential Privacy perturbations and aggregation logic are strictly anchored to immutable origin data.
+
+### 4.5 Hardware TEE Pre-Flight Attestation
+Before logic injection is dispatched into confidential enclaves, nodes submit hardware attestation evidence validated by `verifyTeeAttestationDetailed`:
+- **AMD SEV-SNP**: Validates 1,184-byte binary reports, confirming that `REPORT_DATA` at byte offset `0x50` strictly binds to `SHA-256(publicKey || nonce)`.
+- **AWS Nitro Enclaves**: Validates COSE_Sign1 documents, asserting PCR boot measurements and embedded public key bindings in `user_data`.
 
 ## 5. Execution Core Architecture
 
