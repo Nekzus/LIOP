@@ -1,0 +1,43 @@
+name: SIMD Benchmark Matrix
+on:
+  push:
+    branches: [alpha, beta, main, feat/zkvm-gap-closure]
+    paths:
+      - "crates/zk-native/**"
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    name: Benchmark (${{ matrix.arch }} - ${{ matrix.features }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            arch: x86_64
+            features: "simd-auto"
+            runner: ubuntu-24.04
+          - os: ubuntu-latest
+            arch: aarch64
+            features: "simd-neon"
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Run SIMD Prover Benchmarks
+        run: |
+          cd crates/zk-native
+          cargo bench --features ${{ matrix.features }} -- --output-format bencher | tee benchmark-${{ matrix.arch }}.txt
+
+      - name: Upload Benchmark Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-${{ matrix.arch }}
+          path: crates/zk-native/benchmark-${{ matrix.arch }}.txt

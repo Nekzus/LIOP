@@ -3,12 +3,12 @@
 
 import { Buffer } from "node:buffer";
 import crypto from "node:crypto";
-import { ml_dsa65 } from "@noble/post-quantum/ml-dsa.js";
 import { createMlKem768 } from "mlkem";
 import {
 	deriveLogicImageDigest,
 	normalizeLogicSource,
 } from "../crypto/logic-image-id.js";
+import { Dilithium65Wrapper } from "../rpc/crypto/dilithium.js";
 import { ProofMode } from "../rpc/types.js";
 import { ASTGuardian } from "../sandbox/guardian.js";
 import { WasiSandbox } from "../sandbox/wasi.js";
@@ -314,8 +314,11 @@ export default async function processLogicExecution(data: WorkerData): Promise<{
 					.update(Buffer.concat([journalV2Buf, proofBuf]))
 					.digest();
 
-				const signature = ml_dsa65.sign(messageToSign, data.pqcSigningKey);
-				const publicKey = ml_dsa65.getPublicKey(data.pqcSigningKey);
+				const signature = Dilithium65Wrapper.sign(
+					messageToSign,
+					data.pqcSigningKey,
+				);
+				const publicKey = Dilithium65Wrapper.getPublicKey(data.pqcSigningKey);
 
 				receiptBuf = receiptCodec.encodeHybridV2(
 					journalV2Buf,
