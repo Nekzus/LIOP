@@ -2,6 +2,27 @@
 
 All notable changes to @nekzus/liop-studio will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.0.0-alpha.20](https://github.com/Nekzus/LIOP/compare/studio-v1.0.0-alpha.19...studio-v1.0.0-alpha.20) (2026-09-27)
+
+
+### Bug Fixes
+
+* **tests:** enable zkMode optimistic in entrypoint policies for Groth16 v2 verification ([7169d5a](https://github.com/Nekzus/LIOP/commit/7169d5aa89a530c29ddb7013aa3b51ab444d291b))
+* **zk:** reject dummy proof buffer in required mode ([f95a13b](https://github.com/Nekzus/LIOP/commit/f95a13beb7b127bffd319caa182716a16c056843))
+
+
+### Features
+
+* **audit:** enable ML-DSA-65 post-quantum signing in banking and healthcare enclaves ([ceac5b8](https://github.com/Nekzus/LIOP/commit/ceac5b8791d09e50b6b7b7703a5dc1242f956cde))
+* **pqc:** implement ML-DSA-65 hybrid receipts with FIPS 204 co-signing ([37b4e13](https://github.com/Nekzus/LIOP/commit/37b4e13d0b3a6dd91a96320ec59e202419356256))
+* **security:** isolate logic workers with jitless and poison timing side-channels ([cc36e83](https://github.com/Nekzus/LIOP/commit/cc36e8335773d83c668d583f4b6f43a08bdacac2))
+* **zkvm:** implement SP1 guest scaffold, TEE pre-flight attestation, and SIMD acceleration matrix ([8dc6dbb](https://github.com/Nekzus/LIOP/commit/8dc6dbb4777b292aa580d467dd122a0a5f01aa39))
+
+
+### Performance Improvements
+
+* **sdk:** optimize bundle size by excluding source maps and externalizing gpt-tokenizer ([3009439](https://github.com/Nekzus/LIOP/commit/3009439c6fce61a27d682542a9d49a7e535382a3))
+
 # [1.0.0-alpha.19](https://github.com/Nekzus/LIOP/compare/studio-v1.0.0-alpha.18...studio-v1.0.0-alpha.19) (2026-09-24)
 
 
