@@ -961,9 +961,19 @@ An LIOP Agent interacting with an LIOP Server pushes executable logic (in the fo
 ### 4.3 Symmetric Payload Sealing
 - The agreed Post-Quantum symmetric secret acts as the cipher for `AES-256-GCM`, enveloping the entirety of the execution payload inside a zero-trust capsule.
 
-### 4.4 Computational Integrity (ZK-Receipts)
-- The SDK generates **HMAC-SHA256 commitments** that cryptographically bind the output to the exact logic executed, sealed with the Post-Quantum session secret.
-- **Dataset Integrity Anchor**: Receipts embed a SHA-256 `dataset_hash`, guaranteeing that Differential Privacy perturbations and aggregation logic are strictly anchored to immutable origin data.
+### 4.4 Computational Integrity (ZK-Receipts & ZK-VM)
+LIOP defines a tri-modal cryptographic integrity framework providing verifiable non-repudiation:
+- **Mode 0 (`HMAC_LEGACY`, `0x00`)**: Symmetric commitment derived from the ML-KEM-768 shared key.
+- **Mode 2 (`GROTH16`, `0x02`)**: Zero-knowledge succinct non-interactive proof over BN254 curves with a 144-byte binary journal (`guest_image_id`, `logic_digest`, `dataset_digest`, `output_digest`, `fuel_consumed`, `execution_timestamp`).
+- **Mode 3 (`GROTH16_PQC_HYBRID`, `0x03`)**: Dual-sealed binary receipt combining the Groth16 proof with an ML-DSA-65 post-quantum digital signature (NIST FIPS 204) of 3,309 bytes and 1,952-byte public key over `SHA-256(journal || proof)`.
+- **Binary v2.1 Wire Layout**:
+  `[0x02][0x03][journalLen: 4B BE][journal: 144B][proofLen: 2B BE][proof][sigLen: 2B BE][signature: 3309B][publicKey: 1952B][checksum: 32B SHA-256]`
+- **Dataset Integrity Anchor**: Receipts embed a SHA-256 `dataset_digest`, guaranteeing that Differential Privacy perturbations and aggregation logic are strictly anchored to immutable origin data.
+
+### 4.5 Hardware TEE Pre-Flight Attestation
+Before logic injection is dispatched into confidential enclaves, nodes submit hardware attestation evidence validated by `verifyTeeAttestationDetailed`:
+- **AMD SEV-SNP**: Validates 1,184-byte binary reports, confirming that `REPORT_DATA` at byte offset `0x50` strictly binds to `SHA-256(publicKey || nonce)`.
+- **AWS Nitro Enclaves**: Validates COSE_Sign1 documents, asserting PCR boot measurements and embedded public key bindings in `user_data`.
 
 ## 5. Execution Core Architecture
 
@@ -1739,21 +1749,30 @@ In production environments (`NODE_ENV=production`), all Egress violations return
 
 As detailed in the [WASI Sandboxing](/concepts/wasi-sandboxing) chapter, the execution layer is fundamentally isolated by the CPU restrictions imposed by the bytecode runtime, ensuring zero unauthorized I/O or network escalation.
 
-## 5. Hardware Isolation (TEEs)
+## 5. Hardware Isolation and Remote Attestation (TEEs)
 
-Software isolation is never perfect against advanced persistent threats (APT) leveraging hypervisor bypasses or zero-days. LIOP's ultimate tier of security defines native architecture for **Trusted Execution Environments (TEEs)** like AWS Nitro Enclaves or Intel SGX.
+Software isolation is never complete against advanced persistent threats (APT) leveraging hypervisor bypasses or zero-day kernel exploits. LIOP integrates native hardware isolation with pre-flight cryptographic attestation for **Trusted Execution Environments (TEEs)** such as AMD SEV-SNP and AWS Nitro Enclaves.
 
-By running the `Wasmtime` engine inside an Enclave, we guarantee that neither the Cloud Provider (e.g., Amazon) nor a compromised root administrator on the Host machine can dump the RAM to steal the proprietary datasets being analyzed by the Agent. This is a baseline requirement for Financial and Healthcare AI agents.
+Before injecting any computational module into a confidential enclave, the client or gateway router executes `verifyTeeAttestationDetailed`:
+- **AMD SEV-SNP Reports**: Validates binary attestation reports of 1,184 bytes, verifying hardware signature validity and asserting that the `REPORT_DATA` field at byte offset `0x50` strictly binds to `SHA-256(publicKey || nonce)`.
+- **AWS Nitro Enclaves**: Parses COSE_Sign1 documents, validating platform measurement registers (`PCR0`, `PCR1`, `PCR2`) and confirming that the enclave public key is embedded in `user_data`.
+- **Synthetic Enclaves**: Permits prefixed `TEES` envelopes strictly within development environments.
 
-## 6. Computational Integrity (ZK-Receipts)
+This ensures that neither cloud infrastructure operators nor compromised host operating system administrators can read memory, extract keys, or mutate datasets during execution.
 
-In scenarios where an Agent must trust a remote Server (e.g., "Did the Server actually execute my sorting algorithm, or did it fake the response?"), LIOP implements cryptographic integrity verification via **ZK-Receipts**.
+## 6. Computational Integrity (ZK-VM and Post-Quantum Hybrid Receipts)
 
-The current implementation uses **HMAC-SHA256 commitments**: each execution generates a SHA-256 `ImageID` (hash of the injected logic) and an HMAC-SHA256 `Seal` derived from the Post-Quantum session secret. This binds the output to the exact logic executed, making forgery computationally infeasible. Migration to a native ZK-VM engine (RISC Zero / SP1) for full zero-knowledge proofs is planned for future releases.
+In decentralized agent workflows, clients must verify that remote data nodes executed the requested logic honestly without adulterating inputs or fabricating responses. LIOP resolves this through a **tri-modal zero-knowledge proof architecture**:
 
-**Dataset Integrity Anchor**: Each ZK-Receipt includes a `dataset_hash` (a SHA-256 digest of the underlying dataset at execution time). This cryptographic anchor allows clients to verify that the dataset was identical across consecutive queries, definitively separating legitimate Differential Privacy noise from unauthorized data mutation.
+1. **Mode 0 (`HMAC_LEGACY`, `0x00`)**: Symmetric lightweight commitment derived from the ML-KEM-768 session secret. Delivers sub-millisecond execution ($< 0.05\text{ ms}$) with minimal compute overhead, designed for battery-constrained edge IoT devices.
+2. **Mode 2 (`GROTH16`, `0x02`)**: Zero-knowledge succinct non-interactive proof over the BN254 elliptic curve paired with a canonical 144-byte immutable binary journal. Provides compact 252-byte proofs verifiable directly on EVM smart contracts (`ecPairing` precompile) at low gas costs ($~200,000\text{ gas}$).
+3. **Mode 3 (`GROTH16_PQC_HYBRID`, `0x03`)**: Quantum-resistant hybrid receipt combining the Groth16 BN254 proof with an ML-DSA-65 post-quantum digital signature (NIST FIPS 204) of 3,309 bytes over `SHA-256(journal || proof)`. This mode is mandatory for Clearance Tier 1 enclaves (banking, medical vaults), ensuring computational proofs cannot be forged even after classical elliptic curves are broken by Shor's algorithm.
 
-**The ZK Shield Proxy**: This cryptographic validation (`verifyZkReceipt`) is performed natively by both the SDK's `LiopClient` (via `client.verifier`) and the `LiopMcpRouter`. These components act as a Zero-Trust Shield, automatically isolating compromised environments and blocking the delivery of adulterated execution payloads back to the calling LLM framework.
+The protocol also incorporates the **SP1 zkVM Guest Scaffold** (`crates/liop-sp1-guest`), compiling a deterministic WebAssembly runtime (`wasmi`) to the `riscv32im-succinct-zkvm-elf` architecture to facilitate universal STARK-based execution proofs.
+
+**Dataset Integrity Anchor**: Each ZK-Receipt embeds a `dataset_digest` (a SHA-256 digest of the underlying dataset at execution time). This cryptographic anchor allows clients to verify that the dataset was identical across consecutive queries, definitively separating legitimate Differential Privacy noise from unauthorized data mutation.
+
+**The ZK Shield Proxy**: Cryptographic receipt validation (`verifyZkReceipt`) is executed off the main event loop using worker threads (`zk-verifier.ts`). Capabilities marked with `zkMode: "required"` (`PROOF_MODE_ZK_BLOCKING`) reject any missing or invalid proof deterministically, preventing cipher-suite downgrade attacks.
 
 ## 7. Differential Privacy Engine (Laplace Mechanism)
 
@@ -2332,21 +2351,54 @@ const result = await client.callTool(
 
 ## Mathematical Verification (ZK-Receipts)
 
-Every analytical payload executed by a compliant LIOP Data Node generates a cryptographic ZK-Receipt (HMAC-SHA256 sealed under the ephemeral ML-KEM-768 session secret). `LiopClient` validates this proof automatically during `callTool()`.
+Every analytical payload executed by a compliant LIOP Data Node generates a cryptographic ZK-Receipt. The client verifier automatically inspects receipts returned during `callTool()`, supporting all three protocol modes:
+- **Mode 0 (Version 1)**: HMAC-SHA256 session commitment negotiated via ML-KEM-768.
+- **Mode 2 (Version 2)**: Groth16 Zero-Knowledge SNARK proof over the BN254 pairing-friendly elliptic curve.
+- **Mode 3 (Version 2.1)**: Dual-layer hybrid receipt combining a Groth16 BN254 mathematical proof with an ML-DSA-65 post-quantum digital signature.
 
-To manually verify proofs received out-of-band:
+To manually verify receipts received out-of-band:
 
 ```typescript
-const isValid = await client.verifier.verifyZkReceipt(
-  wasmPayload,          // Buffer containing the exact injected code
-  remoteImageIdHex,     // Expected hash of the data environment
+import { LiopVerifier } from "@nekzus/liop";
+
+const verifier = new LiopVerifier();
+
+const isValid = await verifier.verifyZkReceipt(
+  wasmPayload,          // Buffer containing the exact injected logic code
+  remoteImageIdHex,     // Expected 32-byte guest image identifier
   zkReceiptBuffer,      // Cryptographic receipt returned by the server
+  { zkPolicy: "required" } // "none" | "optimistic" | "required"
 );
 
 if (!isValid) {
   throw new Error("Zero-Trust Verification Failure: Computation tampering detected");
 }
 ```
+
+### Pre-Flight Hardware TEE Attestation
+
+When communicating with confidential virtual machines on untrusted cloud hosts, verify hardware root-of-trust evidence before initiating cryptographic handshakes:
+
+```typescript
+import { verifyTeeAttestationDetailed } from "@nekzus/liop";
+
+const attestationResult = await verifyTeeAttestationDetailed(
+  attestationEvidenceBytes,
+  expectedSessionNonce,
+  {
+    allowedMeasurements: ["b7f8c9..."],
+    requireHardwareSigned: true,
+  }
+);
+
+if (!attestationResult.valid) {
+  throw new Error(`Confidential hardware validation failed: ${attestationResult.reason}`);
+}
+```
+
+The pre-flight verifier validates:
+- **AMD SEV-SNP**: Inspects 1,184-byte `snp_report_t` headers, checks `REPORT_DATA` at byte offset `0x50` against `SHA-256(publicKey || nonce)`, verifies VCEK certificate signatures, and ensures debug mode is disabled.
+- **AWS Nitro Enclaves**: Decodes CBOR-encoded `COSE_Sign1` documents, checks PCR registers (`PCR0`, `PCR1`, `PCR2`), validates `user_data` binding, and verifies certificates up to AWS Nitro Root CA.
 
 ---
 
@@ -2450,7 +2502,7 @@ try {
 | `AST_SECURITY_VIOLATION` | RPC -32099 / gRPC 3 | Guardian AST detected forbidden imports or poisoned globals. | Ensure bytecode complies with strict WASI Preview 1 allowlist. |
 | `SANDBOX_HALTED` | RPC -32098 / gRPC 9 | V8 Isolate exceeded allocated CPU fuel or heap memory limits. | Optimize inner loops or raise `maxHeapMb` configuration. |
 | `CIRCUIT_BREAKER_OPEN` | HTTP 503 / gRPC 14 | Target endpoint reached 5 consecutive failures (`MAX_FAILURES = 5`). | Wait for decay interval or use alternative gateway route. |
-| `ZK_VERIFICATION_FAILED` | RPC -32097 / gRPC 10 | Output mathematical proof failed HMAC-SHA256 integrity seal. | Potential active network tampering. Drop response immediately. |
+| `ZK_VERIFICATION_FAILED` | RPC -32097 / gRPC 10 | Output proof failed Groth16 pairing check, HMAC seal, or ML-DSA-65 post-quantum signature verification. | Potential active network tampering or untrusted enclave image. Drop response immediately. |
 
 
 ---
@@ -2484,7 +2536,7 @@ flowchart TD
             S3["Layer 3: Taint Analyzer (IFC)"]
             S4["Layer 4: Egress PII Shield (Regex/NER)"]
             S5["Layer 5: Aggregation-First Policy"]
-            S6["Layer 6: ZK-Receipt (HMAC-SHA256)"]
+            S6["Layer 6: ZK-Receipt (Tri-Modal / PQC Hybrid)"]
         end
     end
 ```
@@ -2643,7 +2695,36 @@ When an agent passes dynamic logic bytecode (`.wasm` or JavaScript envelopes), t
 3. **Layer 3 (Taint Analyzer)**: Acorn-based information flow control tracks variable assignments to prevent side-channel derivation of confidential inputs via boolean inference or character-code indexing.
 4. **Layer 4 (Egress PII Shield)**: Scans outbound data against fuzzy matches, credit card patterns, IBAN formulas, and NER entity detection.
 5. **Layer 5 (Aggregation-First Policy)**: Enforces that query outputs return summary statistics. Returning raw entity arrays triggers automatic policy rejection.
-6. **Layer 6 (ZK-Receipt Generation)**: Computes an HMAC-SHA256 digest binding the returned output to the exact SHA-256 hash of the injected logic module, sealed using the ephemeral post-quantum session key.
+6. **Layer 6 (ZK-Receipt Generation)**: Emits a cryptographic receipt bound to the executed logic digest and dataset hash. Supports HMAC-SHA256 commitments (Mode 0, v1), native Groth16 zero-knowledge proofs over BN254 (Mode 2, v2), and dual-layer ML-DSA-65 post-quantum hybrid receipts (Mode 3, v2.1) configured via tool-level execution policies.
+
+### Tool Execution Policies (`LogicExecutionPolicy`)
+
+Enclaves configure fine-grained Zero-Knowledge and cryptographic parameters per tool by providing an optional `policy` object during registration:
+
+```typescript
+server.tool(
+  "Analyze_Corporate_Payroll",
+  "Aggregates payroll distributions without exposing individual compensation records",
+  { department: z.string() },
+  async ({ department }) => {
+    // In-situ aggregation logic
+    return { content: [{ type: "text", text: JSON.stringify({ department, meanSalary: 84500 }) }] };
+  },
+  {
+    zkMode: "required", // "none" | "optimistic" | "required"
+    pqcSign: true,      // Enables ML-DSA-65 post-quantum co-signing (Receipt v2.1)
+    circuitName: "sum", // R1CS constraint circuit identifier
+  }
+);
+```
+
+| Property | Type | Default | Description |
+|:---|:---|:---|:---|
+| **`zkMode`** | `"none" \| "optimistic" \| "required"` | `"none"` | Governs zero-knowledge attestation. `"required"` blocks execution if Groth16 proofs cannot be synthesized or if mock proofs are supplied. |
+| **`pqcSign`** | `boolean` | `false` | When `true`, signs the Groth16 receipt with the enclave's persistent ML-DSA-65 private key, emitting a v2.1 wire receipt. |
+| **`circuitName`** | `string` | `"default"` | Target R1CS circuit identifier for the analytical query. |
+| **`guestImageId`** | `string` | Auto | 32-byte hexadecimal identifier representing the enclave guest runtime environment. |
+| **`vkey`** | `object` | Embedded | Custom Groth16 verification key points overriding default circuit parameters. |
 
 ---
 
@@ -3120,7 +3201,7 @@ The LIOP TypeScript SDK enforces a **defense-in-depth** security model composed 
 | **IFC Taint Analyzer** | Static information flow control preventing PII side-channel and computed-key derivations | Pre-flight |
 | **PII Shield** | Prevents data leakage with algorithmic validators and NER detection | Post-execution |
 | **Aggregation Policy** | Enforces output cardinality limits on row-level data (Aggregation-First) | Post-execution |
-| **ZK-Receipt** | Provides HMAC-SHA256 proof of honest computation bound to PQC session keys | Post-execution |
+| **ZK-Receipt** | Tri-modal proof of honest computation: HMAC (v1), Groth16 BN254 (v2), and ML-DSA-65 PQC Hybrid (v2.1) | Post-execution |
 
 ---
 
@@ -3166,7 +3247,7 @@ const POISONED_GLOBALS = [
   "Buffer", "setTimeout", "setInterval", "setImmediate",
   "queueMicrotask", "eval", "Function", "SharedArrayBuffer",
   // Timing Side-Channel Defense
-  "Date",
+  "Date", "performance", "Intl",
   // Heap Bomb / Binary Exploitation Defense
   "ArrayBuffer", "Uint8Array", "Int8Array",
   "Uint16Array", "Int16Array", "Uint32Array", "Int32Array",
@@ -3176,7 +3257,7 @@ const POISONED_GLOBALS = [
 ```
 
 <Tip>
-  **`Date` poisoning** prevents injected logic from performing timing side-channel analysis to infer dataset size or execution patterns. **TypedArray poisoning** prevents heap bomb DoS attacks that allocate massive binary buffers to crash the worker process.
+  **Timing API poisoning (`Date`, `performance`, `Intl`, `SharedArrayBuffer`)** prevents injected logic from performing high-resolution side-channel analysis to infer dataset cardinality or record values. **TypedArray poisoning** prevents heap bomb DoS attacks that allocate massive binary buffers to crash the worker process.
 </Tip>
 
 After assignment, the entire sandbox context is recursively frozen via `Object.freeze()`, preventing any runtime modification of the execution environment.
@@ -3403,25 +3484,53 @@ The engine automatically calibrates the sensitivity ($\Delta s$) based on field 
 
 ---
 
-## Layer 4: ZK-Receipts
+## Layer 6: ZK-Receipts (Tri-Modal ZK Architecture)
 
-Every sandbox execution produces a cryptographic receipt that binds the output to the exact logic that generated it, providing tamper-evident proof of honest computation. The protocol supports dual-era receipt formats: legacy HMAC session commitments (version 1) and sovereign Groth16 Zero-Knowledge proofs (version 2).
+Every sandbox execution produces a cryptographic receipt that binds the output to the exact logic that generated it, providing tamper-evident proof of honest computation. The protocol supports a tri-modal receipt architecture spanning three cryptographic regimes:
 
-### Receipt Structure (Binary v2: Groth16 BN254)
+1. **Mode 0 (`HMAC_LEGACY`, Version 1)**: Cryptographic commitments derived from the ML-KEM-768 quantum-resistant session key.
+2. **Mode 2 (`GROTH16`, Version 2)**: True Zero-Knowledge SNARK proofs over the BN254 pairing-friendly elliptic curve with a 144-byte binary journal.
+3. **Mode 3 (`GROTH16_PQC_HYBRID`, Version 2.1)**: Dual-layer quantum-resistant receipts combining a Groth16 BN254 mathematical proof with an ML-DSA-65 post-quantum digital signature adhering to NIST FIPS 204.
 
-Version 2 receipts provide true cryptographic Zero-Knowledge verification with zero external SaaS dependencies, packing a canonical 144-byte binary journal:
+### Receipt Structure (Binary v2.1: Groth16 + ML-DSA-65 PQC Hybrid)
+
+Version 2.1 receipts provide defense-in-depth against both algorithmic tampering and quantum adversaries. The payload packs the 144-byte canonical execution journal, the Groth16 proof, and the ML-DSA-65 signature into an immutable binary wire envelope (~5.6 KB):
+
+```text
++------+-----------+---------------+---------------+---------------+--------------+---------------+------------------+-------------------+------------------+
+| 0x02 | 0x03      | journalLen    | Journal       | proofLen      | Proof        | sigLen        | Signature        | PublicKey         | Checksum         |
+| (1B) | (1B)      | (4B BE)       | (144B fixed)  | (2B BE)       | (Variable)   | (2B BE)       | (3309B fixed)    | (1952B fixed)     | (32B SHA-256)    |
++------+-----------+---------------+---------------+---------------+--------------+---------------+------------------+-------------------+------------------+
+```
 
 | Field | Size | Type | Description |
 |:------|:-----|:-----|:------------|
 | **Version** | 1 byte | `0x02` | Protocol version identifier |
-| **Proof Type** | 1 byte | `0x02` | Proof discriminator (`0x00` = HMAC Legacy, `0x02` = Groth16) |
+| **Proof Type** | 1 byte | `0x03` | Discriminator (`0x03` = `GROTH16_PQC_HYBRID`) |
+| **Journal Length** | 4 bytes | Big-Endian `UInt32` | Byte length of the canonical journal (fixed 144 bytes) |
 | **Journal** | 144 bytes | Fixed Binary | Packed execution journal |
 | ↳ `guest_image_id` | 32 bytes | Binary hash | Enclave guest binary or runtime image identifier |
-| ↳ `logic_digest` | 32 bytes | Binary hash | SHA-256 fingerprint of injected JavaScript/WASM logic |
+| ↳ `logic_digest` | 32 bytes | Binary hash | SHA-256 fingerprint of injected JavaScript or WASM logic |
 | ↳ `dataset_digest` | 32 bytes | Binary hash | SHA-256 fingerprint of the enclave dataset at execution |
 | ↳ `output_digest` | 32 bytes | Binary hash | SHA-256 fingerprint of post-DP sanitized output |
-| ↳ `fuel_consumed` | 8 bytes | Big-Endian `UInt64` | Instruction-level fuel consumed by the sandbox |
+| ↳ `fuel_consumed` | 8 bytes | Big-Endian `UInt64` | Quantized instruction-level fuel consumed by the sandbox |
 | ↳ `execution_timestamp`| 8 bytes | Big-Endian `UInt64` | Epoch timestamp in milliseconds |
+| **Proof Length** | 2 bytes | Big-Endian `UInt16` | Byte length of the Groth16 proof payload |
+| **Proof** | Variable | Binary | Compressed Groth16 curve points ($A \in G_1, B \in G_2, C \in G_1$) |
+| **Signature Length**| 2 bytes | Big-Endian `UInt16` | Byte length of the post-quantum signature (fixed 3,309 bytes) |
+| **Signature** | 3309 bytes | Binary | ML-DSA-65 digital signature over Version + ProofType + Journal + Proof |
+| **Public Key** | 1952 bytes | Binary | ML-DSA-65 verification key of the signing enclave |
+| **Checksum** | 32 bytes | SHA-256 | Integrity digest over Version through Public Key |
+
+### Receipt Structure (Binary v2: Groth16 BN254)
+
+Version 2 receipts provide compact zero-knowledge attestation without post-quantum signatures, packing the 144-byte binary journal and curve points into approximately 252 bytes:
+
+| Field | Size | Type | Description |
+|:------|:-----|:-----|:------------|
+| **Version** | 1 byte | `0x02` | Protocol version identifier |
+| **Proof Type** | 1 byte | `0x02` | Discriminator (`0x02` = `GROTH16`) |
+| **Journal** | 144 bytes | Fixed Binary | Packed execution journal identical to v2.1 |
 | **Proof Length** | 4 bytes | Big-Endian `UInt32` | Byte length of the Groth16 proof payload |
 | **Proof** | Variable | Binary | Compressed Groth16 curve points ($A \in G_1, B \in G_2, C \in G_1$) |
 | **Checksum** | 32 bytes | SHA-256 | Integrity digest over Version + ProofType + Journal + Proof |
@@ -3439,11 +3548,47 @@ Maintained for backwards compatibility with legacy nodes:
 
 ### Enclave ZK Execution Policies
 
-Tool capabilities configure their Zero-Knowledge attestation level via `LogicExecutionPolicy.zkMode`:
+Tool capabilities configure their Zero-Knowledge attestation level via `LogicExecutionPolicy`:
 
-- **`"none"`**: Default standard mode using HMAC-SHA256 session commitment.
-- **`"optimistic"`**: Attempts Groth16 v2 receipt generation via `@nekzus/liop-zk-native` or fast-path R1CS circuits. If the native prover is unavailable, falls back gracefully to HMAC commitment without disrupting analytical query workflows.
-- **`"required"` (`ZK_BLOCKING`)**: Mandatory for Tier 1 Sovereign Enclaves (banking, defense, sensitive healthcare). Strictly enforces valid Groth16 zero-knowledge proof generation. If the native prover is absent or proof verification fails, the enclave rejects the request with an explicit error response: `"[LIOP-ZK] Clearance Tier 1 enclave policy violation: Valid Groth16 zero-knowledge proof required but unavailable."`
+- **`zkMode: "none"`**: Default standard mode using HMAC-SHA256 session commitment.
+- **`zkMode: "optimistic"`**: Attempts Groth16 v2 receipt generation via `@nekzus/liop-zk-native` or fast-path R1CS circuits. If the native prover is unavailable, falls back gracefully to HMAC commitment without disrupting analytical query workflows.
+- **`zkMode: "required"` (`ZK_BLOCKING`)**: Mandatory for Tier 1 Sovereign Enclaves (banking, defense, sensitive healthcare). Strictly enforces valid Groth16 zero-knowledge proof generation. If the native prover is absent, if mock proofs are supplied, or if proof verification fails, the enclave rejects the request with an explicit error response: `"[LIOP-ZK] Clearance Tier 1 enclave policy violation: Valid Groth16 zero-knowledge proof required but unavailable."`
+- **`pqcSign: true`**: Instructs the enclave to co-sign the Groth16 proof with its persistent ML-DSA-65 private key, emitting a Version 2.1 `GROTH16_PQC_HYBRID` receipt.
+
+### Hardware TEE Pre-Flight Attestation
+
+To establish trust in untrusted physical infrastructure before transmitting encrypted logic payloads, the SDK provides the `verifyTeeAttestationDetailed` function. This utility inspects hardware root-of-trust measurements emitted by confidential virtual machines:
+
+```typescript
+import { verifyTeeAttestationDetailed } from "@nekzus/liop";
+
+const result = await verifyTeeAttestationDetailed(
+  attestationBytes,
+  expectedNonce,
+  {
+    allowedMeasurements: ["b7f8c..."],
+    requireHardwareSigned: true,
+  }
+);
+
+if (!result.valid) {
+  throw new Error(`TEE Attestation rejected: ${result.reason}`);
+}
+```
+
+The verifier supports two primary confidential computing platforms:
+
+1. **AMD SEV-SNP**:
+   - Parses the canonical 1,184-byte `snp_report_t` data structure.
+   - Extracts the 64-byte `REPORT_DATA` field at byte offset `0x50` (decimal 80).
+   - Validates that `REPORT_DATA` matches the cryptographic digest `SHA-256(publicKey || nonce)` padded with trailing zeroes.
+   - Asserts that debug mode is disabled (`POLICY.DEBUG === 0`) and validates the firmware signature chain against AMD Versioned Chip Endorsement Keys (VCEK).
+
+2. **AWS Nitro Enclaves**:
+   - Decodes the CBOR-encoded `COSE_Sign1` attestation document.
+   - Evaluates Platform Configuration Registers (`PCR0` for image digest, `PCR1` for Linux kernel, `PCR2` for user application).
+   - Verifies the cryptographic binding of the caller's ephemeral public key and nonce in `user_data`.
+   - Validates the X.509 certificate chain up to the AWS Nitro Enclaves Root CA.
 
 ### Cryptographic Pipeline
 
@@ -3452,8 +3597,9 @@ Tool capabilities configure their Zero-Knowledge attestation level via `LogicExe
 3. **Differential Privacy**: Laplace noise is applied to numeric outputs before commitment, ensuring the ZK-Receipt matches the noisy data the client receives. Supports **DDP mode** (seeded PRNG via `dataset_hash + image_id`) for audit reproducibility.
 4. **Binary Journal Encoding**: A fixed 144-byte memory buffer packing `guest_image_id`, `logic_digest`, `dataset_digest`, `output_digest`, `fuel_consumed`, and `execution_timestamp`.
 5. **Native Groth16 Proving**: Rayon-parallelized R1CS circuit execution via `@nekzus/liop-zk-native` generating curve points over the BN254 pairing-friendly elliptic curve in sub-second CPU time.
-6. **Verification & Replay Mitigation**: The client verifier validates the proof via constant-time pairing checks or Worker Pool execution. To prevent reply manipulation and replay attacks, the verifier computes a local SHA-256 hash of the received result and strictly asserts identity against `journal.outputDigest`.
-7. **Balanced-Brace Proxy Extractor**: If the tool call was delegated via proxy (`__liop_proxy_tool`), the verifier utilizes an in-process balanced-brace state machine to isolate raw proxy arguments before hashing, avoiding false positives when host layers append metadata.
+6. **Post-Quantum Co-Signing (Mode 3)**: When `pqcSign` is active, the enclave signs the journal and proof points using ML-DSA-65, embedding the signature and public key into the v2.1 wire layout.
+7. **Verification & Replay Mitigation**: The client verifier validates the proof via constant-time pairing checks or Worker Pool execution. To prevent reply manipulation and replay attacks, the verifier computes a local SHA-256 hash of the received result and strictly asserts identity against `journal.outputDigest`.
+8. **Balanced-Brace Proxy Extractor**: If the tool call was delegated via proxy (`__liop_proxy_tool`), the verifier utilizes an in-process balanced-brace state machine to isolate raw proxy arguments before hashing, avoiding false positives when host layers append metadata.
 
 <Tip>
   The `sessionSecret` used in legacy v1 mode is the shared key negotiated via Post-Quantum Cryptography (ML-KEM-768), ensuring legacy compatibility remains quantum-resistant.
@@ -3825,16 +3971,16 @@ $$f(x) = \frac{1}{2\lambda} \exp\left(-\frac{|x|}{\lambda}\right)$$
 
 ## Roadmap
 
-The following capabilities are architecturally defined and planned for future releases:
+The following capabilities are architecturally defined and active across the protocol release channels:
 
 | Feature | Status | Description |
 |:--------|:-------|:------------|
-| **Native ZK-VM** | Active | Groth16 BN254 zero-knowledge proofs via `@nekzus/liop-zk-native` |
-| **Rust Core ZK** | Active | Rayon multi-threaded arkworks R1CS circuits for analytical queries |
-| **TEE Attestation** | In Progress | Hardware enclave support (AWS Nitro / Intel SGX) |
+| **Native ZK-VM** | Active (v2.1) | Groth16 BN254 proofs and dual-layer ML-DSA-65 post-quantum hybrid receipts via `@nekzus/liop-zk-native` |
+| **Rust Core ZK** | Active (v2.1) | Rayon multi-threaded arkworks R1CS circuits for analytical queries with Criterion benchmarks and SP1 guest |
+| **TEE Attestation** | Active Pre-Flight | Hardware enclave measurement verification (AMD SEV-SNP and AWS Nitro Enclaves) |
 
 <Tip>
-  Sovereign Zero-Knowledge Proofs are available through version 2 binary receipts. Enclaves equipped with `@nekzus/liop-zk-native` generate mathematical Groth16 proofs over the BN254 curve, whereas lightweight TypeScript SDK clients and MCP bridges verify proofs without native compilation dependencies.
+  Sovereign Zero-Knowledge Proofs are available through version 2 and version 2.1 binary receipts. Enclaves equipped with `@nekzus/liop-zk-native` generate mathematical Groth16 proofs over the BN254 curve, whereas lightweight TypeScript SDK clients and MCP bridges verify proofs and post-quantum signatures without native compilation dependencies.
 </Tip>
 
 
