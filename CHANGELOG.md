@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.4.0-alpha.26](https://github.com/Nekzus/LIOP/compare/v2.4.0-alpha.25...v2.4.0-alpha.26) (2026-09-27)
+
+
+### Performance Improvements
+
+* **sdk:** enable production minification with keepNames symbol preservation ([739e047](https://github.com/Nekzus/LIOP/commit/739e0474ce2c0a7820f0a5a40ede28c42d240464))
+
 # [2.4.0-alpha.25](https://github.com/Nekzus/LIOP/compare/v2.4.0-alpha.24...v2.4.0-alpha.25) (2026-09-27)
 
 
