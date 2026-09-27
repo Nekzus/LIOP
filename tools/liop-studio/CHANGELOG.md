@@ -2,6 +2,13 @@
 
 All notable changes to @nekzus/liop-studio will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.0.0-alpha.21](https://github.com/Nekzus/LIOP/compare/studio-v1.0.0-alpha.20...studio-v1.0.0-alpha.21) (2026-09-27)
+
+
+### Performance Improvements
+
+* **sdk:** enable production minification with keepNames symbol preservation ([739e047](https://github.com/Nekzus/LIOP/commit/739e0474ce2c0a7820f0a5a40ede28c42d240464))
+
 # [1.0.0-alpha.20](https://github.com/Nekzus/LIOP/compare/studio-v1.0.0-alpha.19...studio-v1.0.0-alpha.20) (2026-09-27)
 
 
