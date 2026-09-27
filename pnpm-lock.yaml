@@ -226,6 +226,9 @@ importers:
       acorn-walk:
         specifier: 8.3.5
         version: 8.3.5
+      gpt-tokenizer:
+        specifier: 4.0.0
+        version: 4.0.0
       hono:
         specifier: 4.13.8
         version: 4.13.8
@@ -281,9 +284,6 @@ importers:
       '@vitest/coverage-v8':
         specifier: '>=4.1.11'
         version: 5.0.1(vitest@5.0.1)
-      gpt-tokenizer:
-        specifier: 4.0.0
-        version: 4.0.0
       tsup:
         specifier: 8.5.1
         version: 8.5.1(jiti@2.6.1)(postcss@8.5.26)(supports-color@10.2.2)(tsx@4.23.13)(typescript@6.0.3)

@@ -1,9 +1,9 @@
 # LIOP Protocol — Production Readiness Audit Report
 
 - **Target Package**: `@nekzus/liop@2.5.0` (Official published production package)
-- **Execution Date**: 2026-09-26T21:58:06.346Z
+- **Execution Date**: 2026-09-27T00:14:46.689Z
 - **Environment**: Multi-region Docker WAN simulation (Kernel Traffic Control `tc/netem`)
-- **Duration**: 27.9s
+- **Duration**: 67.5s
 - **Audit Verdict**: **PRODUCTION READY**
 
 ---
