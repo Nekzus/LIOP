@@ -68,21 +68,30 @@ En entornos de producción (`NODE_ENV=production`), todas las violaciones de Egr
 
 Como se detalla en [Sandboxing con WASI](/es/concepts/wasi-sandboxing), la ejecución está aislada por las restricciones de CPU y memoria del runtime; de esta manera impide cualquier acceso no autorizado a recursos del host.
 
-## 5. Aislamiento por Hardware (TEEs)
+## 5. Aislamiento por Hardware y Atestación Remota (TEEs)
 
-El aislamiento de software no es perfecto contra amenazas avanzadas que explotan vulnerabilidades del kernel. Por ello, LIOP soporta nativamente **Enclaves de Ejecución Confiable (TEEs)** como AWS Nitro.
+El aislamiento de software puro no resulta suficiente frente a amenazas persistentes avanzadas que explotan vulnerabilidades del hipervisor o escaladas de privilegios en el kernel. Por este motivo, LIOP integra aislamiento físico por hardware con atestación criptográfica previa al vuelo para **Entornos de Ejecución Confiable (TEEs)**, incluyendo AMD SEV-SNP y AWS Nitro Enclaves.
 
-Al ejecutar la lógica dentro de un Enclave, garantizamos que ni el proveedor de la nube ni un administrador con privilegios root puedan volcar la memoria RAM para robar los datos que el Agente está analizando localmente. Esta "Computación Ciega" es esencial para el cumplimiento en sectores regulados.
+Antes de autorizar la inyección de cualquier módulo computacional en un enclave confidencial, el cliente o el enrutador de frontera ejecuta `verifyTeeAttestationDetailed`:
+- **Reportes AMD SEV-SNP**: Valida reportes binarios de 1,184 bytes, verificando la firma del silicio y comprobando que el campo `REPORT_DATA` en el desplazamiento `0x50` coincida rigurosamente con `SHA-256(publicKey || nonce)`.
+- **AWS Nitro Enclaves**: Analiza documentos COSE_Sign1 comprobando los registros de arranque medido (`PCR0`, `PCR1`, `PCR2`) y confirmando la presencia de la clave pública del enclave en `user_data`.
+- **Enclaves Sintéticos**: Acepta sobres prefijados con `TEES` exclusivamente en entornos de desarrollo y pruebas.
 
-## 6. Integridad Computacional (ZK-Receipts)
+Este mecanismo asegura que ni los operadores de infraestructura en la nube ni un administrador con privilegios root en el sistema operativo anfitrión puedan inspeccionar la memoria RAM, sustraer claves o manipular conjuntos de datos durante la ejecución.
 
-¿Cómo sabe un Agente que el servidor ejecutó realmente su lógica y no manipuló el resultado? LIOP implementa soporte para **Máquinas Virtuales de Cero Conocimiento (zkVMs)**.
+## 6. Integridad Computacional (zk-VM y Recibos Híbridos Post-Cuánticos)
 
-Junto a la respuesta, el servidor puede emitir un **Recibo ZK**. El Agente verifica este recibo criptográfico en milisegundos y confirma matemáticamente que el resultado proviene de la ejecución exacta de su binario sobre los datos protegidos, sin que el servidor tenga que revelar los datos al exterior para ser auditado. 
+En flujos de trabajo con agentes autónomos descentralizados, el cliente necesita comprobar matemáticamente que el nodo remoto ejecutó la lógica solicitada de forma íntegra, sin omitir registros ni adulterar las salidas. LIOP resuelve esta garantía mediante una **arquitectura graduada tri-modal de pruebas de conocimiento cero**:
 
-**Ancla de Integridad de Datos**: Cada Recibo ZK incluye un `dataset_hash` (un digest SHA-256 del dataset subyacente al momento de la ejecución). Este ancla criptográfica permite a los clientes verificar que el dataset fue idéntico entre consultas consecutivas; esto desvincula definitivamente el ruido legítimo de Privacidad Diferencial de cualquier mutación no autorizada de los datos.
+1. **Modo 0 (`HMAC_LEGACY`, `0x00`)**: Compromiso simétrico ligero derivado del secreto de sesión ML-KEM-768. Ofrece una latencia inferior a 0.05 milisegundos y un consumo computacional mínimo, concebido para microcontroladores perimetrales y dispositivos IoT con restricciones de batería.
+2. **Modo 2 (`GROTH16`, `0x02`)**: Prueba no interactiva de conocimiento cero sobre la curva BN254 combinada con un journal binario inmutable de 144 bytes. Genera pruebas compactas de 252 bytes verificables de forma nativa en contratos inteligentes de la EVM mediante el precompilado `ecPairing` a muy bajo coste de gas (aproximadamente 200,000 gas).
+3. **Modo 3 (`GROTH16_PQC_HYBRID`, `0x03`)**: Recibo híbrido resistente a computación cuántica que combina la prueba Groth16 sobre BN254 con una firma digital post-cuántica ML-DSA-65 (NIST FIPS 204) de 3,309 bytes calculada sobre el digest `SHA-256(journal || proof)`. Este modo es obligatorio en enclaves de Nivel 1 (banca y expedientes clínicos), garantizando que las pruebas no puedan falsificarse aun cuando se resuelva el problema del logaritmo discreto clásico mediante el algoritmo de Shor.
 
-**Validación Estructural ZK**: Esta validación (`verifyZkReceipt`) es ejecutada de forma nativa tanto por el `LiopClient` como por el adaptador `LiopMcpBridge`. Estos componentes actúan como filtros de verificación criptográfica que comprueban las firmas e impiden la entrega de datos adulterados u orígenes comprometidos a la IA.
+El protocolo incluye adicionalmente el **Scaffold Invitado SP1 zkVM** (`crates/liop-sp1-guest`), el cual compila el intérprete determinista WebAssembly (`wasmi`) a la arquitectura `riscv32im-succinct-zkvm-elf` para respaldar pruebas universales basadas en STARKs.
+
+**Ancla de Integridad de Datos**: Cada recibo incorpora el campo `dataset_digest` (un hash SHA-256 del conjunto de datos al momento del cálculo). Este ancla criptográfica permite a los clientes verificar que el conjunto de datos se mantuvo inalterado entre consultas consecutivas, separando el ruido legítimo de Privacidad Diferencial de cualquier mutación no autorizada en el origen.
+
+**Validación Asíncrona sin Bloqueo**: La verificación del recibo (`verifyZkReceipt`) se ejecuta fuera del hilo principal mediante hilos dedicados (`zk-verifier.ts`). Aquellas herramientas configuradas con `zkMode: "required"` (`PROOF_MODE_ZK_BLOCKING`) rechazan de manera determinista cualquier prueba ausente o defectuosa, impidiendo ataques de degradación de suites criptográficas.
 
 ## 7. Motor de Privacidad Diferencial (Mecanismo de Laplace)
 

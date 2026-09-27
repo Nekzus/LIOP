@@ -60,8 +60,8 @@ This addresses the data privacy, bandwidth, and latency bottlenecks of distribut
 | **Resilient Hybrid Routing**  | Deterministic per-tool multiplexing across `http-gateway`, `p2p-grpc`, and `local` with 5-failure circuit breaker (`RoutingTable`).|
 | **OAuth 2.1 M2M Lifecycle**   | Concurrency in-flight de-duplication, 30-second preemptive refresh buffer, and reactive invalidation (`TokenManager`).            |
 | **Sliding-Window Rate Limiter**| In-memory OWASP API4:2023 rate limiting with background cleanup unreferenced intervals (`InMemoryRateLimiter`).                    |
-| **PII Shield**                | Multi-layer egress filter with Regional Presets, custom keys, and recursive floats sanitization (`sanitizeOutput`). |
-| **ZK-Receipts**               | Sovereign Zero-Knowledge Proofs: Groth16 BN254 with 144-byte binary journal (v2) and legacy HMAC-SHA256 (v1). Enforces `ZK_BLOCKING` on Tier 1 Enclaves. |
+| **ZK-Receipts**               | Tri-modal Zero-Knowledge proofs: HMAC-SHA256 (v1), Groth16 BN254 with 144-byte binary journal (v2), and dual-layer ML-DSA-65 post-quantum hybrid receipts (v2.1). Enforces `ZK_BLOCKING` on Tier 1 Enclaves. |
+| **Hardware TEE Attestation** | Pre-flight validation of confidential hardware root-of-trust evidence for AMD SEV-SNP (1,184-byte report) and AWS Nitro Enclaves (`verifyTeeAttestationDetailed`). |
 | **Worker Pool**               | Heavy computation (crypto, sandboxing) dispatched to OS threads via `piscina` with background async warmup. |
 | **Post-Quantum Ready**        | ML-KEM-768 (Kyber) + ML-DSA-65 (Dilithium) with 1-hour session lifetime and AES-256-GCM encryption.                                        |
 | **Enterprise Observability**  | Immutable SOC 2 Hash-Chain audit log (`AuditLogger`), physical wire egress tracking, Prometheus metrics (`/metrics`), and K8s probes.      |
@@ -451,25 +451,28 @@ To block arbitrary command execution (e.g., Shellshock) and prevent exposure of 
 - **Unix/Linux Allowlist**: `HOME`, `LOGNAME`, `PATH`, `SHELL`, `TERM`, `USER`.
 Variables starting with shell functions `()` are dropped.
 
-### Sovereign ZK-Receipts & Groth16 Attestation
+### Sovereign Tri-Modal ZK-Receipts & Hardware Attestation
 
-LIOP ZK-Receipts provide cryptographic evidence that a computation was executed honestly under zero-trust bounds. Version 2 receipts introduce true Zero-Knowledge Groth16 proofs over the BN254 pairing-friendly elliptic curve, packing a 144-byte binary journal:
+LIOP ZK-Receipts provide cryptographic evidence that a computation was executed honestly under zero-trust bounds. The protocol implements three complementary cryptographic modes:
+- **Mode 0 (`HMAC_LEGACY`, v1)**: Session commitments sealed with the ML-KEM-768 quantum-resistant shared key.
+- **Mode 2 (`GROTH16`, v2)**: Compact Zero-Knowledge SNARK proofs over the BN254 pairing-friendly elliptic curve packing a 144-byte binary journal (~252 bytes total).
+- **Mode 3 (`GROTH16_PQC_HYBRID`, v2.1)**: Dual-layer receipts combining Groth16 BN254 mathematical proofs with an ML-DSA-65 post-quantum digital signature conforming to NIST FIPS 204 (~5.6 KB total).
 
 - **144-Byte Binary Journal Layout**:
   - `guest_image_id` (32 bytes): Sovereign enclave guest runtime image identifier
   - `logic_digest` (32 bytes): SHA-256 fingerprint of the executed JavaScript/WASM logic
   - `dataset_digest` (32 bytes): SHA-256 fingerprint of the origin dataset at execution time
   - `output_digest` (32 bytes): SHA-256 fingerprint of the sanitized computation result
-  - `fuel_consumed` (8 bytes uint64 BE): AST fuel metering units consumed
+  - `fuel_consumed` (8 bytes uint64 BE): Quantized instruction-level AST fuel units consumed
   - `execution_timestamp` (8 bytes uint64 BE): Epoch timestamp in milliseconds
-- **Tampering & Replay Mitigation**: The client computes the local SHA-256 hash of the received output and asserts strict equality with `journal.outputDigest`. Any modified bit in either the journal or curve proof causes immediate rejection.
-- **Enclave Policy Invariant (`ZK_BLOCKING`)**: Tier 1 Sovereign Enclaves configure `zkMode: "required"`, rejecting queries if a valid Groth16 proof cannot be synthesized.
+- **Tampering & Replay Mitigation**: The client computes the local SHA-256 hash of the received output and asserts strict equality with `journal.outputDigest`. Any modified bit in either the journal, curve proof, or post-quantum signature causes immediate rejection.
+- **Enclave Policy Invariant (`ZK_BLOCKING`)**: Tier 1 Sovereign Enclaves configure `zkMode: "required"`, rejecting queries if a valid Groth16 proof cannot be synthesized or if mock proofs are supplied. When `pqcSign: true` is configured, the enclave emits a Version 2.1 hybrid receipt co-signed with ML-DSA-65.
 
 ```typescript
 import { LiopServer } from "@nekzus/liop/server";
-import { LiopVerifier } from "@nekzus/liop";
+import { LiopVerifier, verifyTeeAttestationDetailed } from "@nekzus/liop";
 
-// 1. Enclave configuration with ZK_BLOCKING policy
+// 1. Enclave configuration with ZK_BLOCKING and PQC signing
 const server = new LiopServer({ name: "bank-enclave", version: "1.0.0" });
 server.tool(
   "calculate_payroll_aggregate",
@@ -478,6 +481,7 @@ server.tool(
   async () => ({ content: [{ type: "text", text: "ok" }] }),
   {
     zkMode: "required", // Enforces Groth16 proof generation (ZK_BLOCKING)
+    pqcSign: true,      // Enables ML-DSA-65 digital signature (Receipt v2.1)
     circuitName: "sum",
   }
 );
@@ -489,6 +493,13 @@ const isValid = await verifier.verifyZkReceipt(
   remoteImageIdHex,
   rawReceiptBuffer,
   { zkPolicy: "required" }
+);
+
+// 3. Pre-flight Hardware TEE Attestation (AMD SEV-SNP / AWS Nitro Enclaves)
+const teeStatus = await verifyTeeAttestationDetailed(
+  attestationBytes,
+  expectedNonce,
+  { requireHardwareSigned: true }
 );
 ```
 
@@ -505,7 +516,7 @@ The following shows a complete Logic-Injection-on-Origin execution cycle (handle
 4. Code executes inside a V8 isolate with CPU fuel limits (no Node.js globals)
 5. Taint Analyzer blocks PII side-channel derivation (charCodeAt, boolean inference)
 6. PII Shield scans output for forbidden data and keys
-7. ZK-Receipt generated (SHA-256 ImageID + HMAC-SHA256 seal)
+7. ZK-Receipt generated (Tri-modal: HMAC v1, Groth16 v2, or Groth16 + ML-DSA-65 v2.1)
 8. Result + receipt returned to the LLM (raw data never exposed)
 ```
 

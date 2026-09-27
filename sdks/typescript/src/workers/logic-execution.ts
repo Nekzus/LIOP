@@ -8,6 +8,8 @@ import {
 	deriveLogicImageDigest,
 	normalizeLogicSource,
 } from "../crypto/logic-image-id.js";
+import { Dilithium65Wrapper } from "../rpc/crypto/dilithium.js";
+import { ProofMode } from "../rpc/types.js";
 import { ASTGuardian } from "../sandbox/guardian.js";
 import { WasiSandbox } from "../sandbox/wasi.js";
 import { applyDpToOutput } from "../security/dp-engine.js";
@@ -28,6 +30,7 @@ export interface WorkerData {
 	aesNonce?: Uint8Array;
 	proofMode?: number;
 	guestImageId?: string;
+	pqcSigningKey?: Uint8Array;
 	dpConfig?: {
 		epsilon: number;
 		sensitivity: number;
@@ -284,18 +287,53 @@ export default async function processLogicExecution(data: WorkerData): Promise<{
 						circuit,
 						inputsJson,
 					);
-				} catch {
+				} catch (err) {
+					if (data.proofMode === ProofMode.PROOF_MODE_ZK_BLOCKING) {
+						throw new Error(
+							`ZK PROOF GENERATION FAILED: Native Groth16 prover execution error: ${err instanceof Error ? err.message : String(err)}`,
+						);
+					}
 					proofBuf = Buffer.alloc(128, 0x42);
 				}
 			} else {
+				if (data.proofMode === ProofMode.PROOF_MODE_ZK_BLOCKING) {
+					throw new Error(
+						"ZK PROOF GENERATION FAILED: Native Groth16 prover module unavailable for required policy.",
+					);
+				}
 				proofBuf = Buffer.alloc(128, 0x42);
 			}
 
-			const receiptBuf = receiptCodec.encodeV2(
-				ProofType.GROTH16,
-				journalV2Buf,
-				proofBuf,
-			);
+			let receiptBuf: Buffer;
+			let effectiveProofType: ProofType = ProofType.GROTH16;
+
+			if (data.pqcSigningKey && data.pqcSigningKey.length > 0) {
+				effectiveProofType = ProofType.GROTH16_PQC_HYBRID;
+				const messageToSign = crypto
+					.createHash("sha256")
+					.update(Buffer.concat([journalV2Buf, proofBuf]))
+					.digest();
+
+				const signature = Dilithium65Wrapper.sign(
+					messageToSign,
+					data.pqcSigningKey,
+				);
+				const publicKey = Dilithium65Wrapper.getPublicKey(data.pqcSigningKey);
+
+				receiptBuf = receiptCodec.encodeHybridV2(
+					journalV2Buf,
+					proofBuf,
+					Buffer.from(signature),
+					Buffer.from(publicKey),
+				);
+			} else {
+				receiptBuf = receiptCodec.encodeV2(
+					ProofType.GROTH16,
+					journalV2Buf,
+					proofBuf,
+				);
+			}
+
 			const zkReceipt = receiptBuf.toString("base64");
 
 			return {
@@ -303,7 +341,7 @@ export default async function processLogicExecution(data: WorkerData): Promise<{
 				zk_receipt: zkReceipt,
 				output: finalOutput,
 				fuel_consumed: result.fuelConsumed,
-				proof_type: ProofType.GROTH16,
+				proof_type: effectiveProofType,
 				guest_image_id: guestImageIdBuf.toString("hex"),
 			};
 		}

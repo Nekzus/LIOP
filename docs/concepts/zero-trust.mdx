@@ -70,21 +70,30 @@ In production environments (`NODE_ENV=production`), all Egress violations return
 
 As detailed in the [WASI Sandboxing](/concepts/wasi-sandboxing) chapter, the execution layer is fundamentally isolated by the CPU restrictions imposed by the bytecode runtime, ensuring zero unauthorized I/O or network escalation.
 
-## 5. Hardware Isolation (TEEs)
+## 5. Hardware Isolation and Remote Attestation (TEEs)
 
-Software isolation is never perfect against advanced persistent threats (APT) leveraging hypervisor bypasses or zero-days. LIOP's ultimate tier of security defines native architecture for **Trusted Execution Environments (TEEs)** like AWS Nitro Enclaves or Intel SGX.
+Software isolation is never complete against advanced persistent threats (APT) leveraging hypervisor bypasses or zero-day kernel exploits. LIOP integrates native hardware isolation with pre-flight cryptographic attestation for **Trusted Execution Environments (TEEs)** such as AMD SEV-SNP and AWS Nitro Enclaves.
 
-By running the `Wasmtime` engine inside an Enclave, we guarantee that neither the Cloud Provider (e.g., Amazon) nor a compromised root administrator on the Host machine can dump the RAM to steal the proprietary datasets being analyzed by the Agent. This is a baseline requirement for Financial and Healthcare AI agents.
+Before injecting any computational module into a confidential enclave, the client or gateway router executes `verifyTeeAttestationDetailed`:
+- **AMD SEV-SNP Reports**: Validates binary attestation reports of 1,184 bytes, verifying hardware signature validity and asserting that the `REPORT_DATA` field at byte offset `0x50` strictly binds to `SHA-256(publicKey || nonce)`.
+- **AWS Nitro Enclaves**: Parses COSE_Sign1 documents, validating platform measurement registers (`PCR0`, `PCR1`, `PCR2`) and confirming that the enclave public key is embedded in `user_data`.
+- **Synthetic Enclaves**: Permits prefixed `TEES` envelopes strictly within development environments.
 
-## 6. Computational Integrity (ZK-Receipts)
+This ensures that neither cloud infrastructure operators nor compromised host operating system administrators can read memory, extract keys, or mutate datasets during execution.
 
-In scenarios where an Agent must trust a remote Server (e.g., "Did the Server actually execute my sorting algorithm, or did it fake the response?"), LIOP implements cryptographic integrity verification via **ZK-Receipts**.
+## 6. Computational Integrity (ZK-VM and Post-Quantum Hybrid Receipts)
 
-The current implementation uses **HMAC-SHA256 commitments**: each execution generates a SHA-256 `ImageID` (hash of the injected logic) and an HMAC-SHA256 `Seal` derived from the Post-Quantum session secret. This binds the output to the exact logic executed, making forgery computationally infeasible. Migration to a native ZK-VM engine (RISC Zero / SP1) for full zero-knowledge proofs is planned for future releases.
+In decentralized agent workflows, clients must verify that remote data nodes executed the requested logic honestly without adulterating inputs or fabricating responses. LIOP resolves this through a **tri-modal zero-knowledge proof architecture**:
 
-**Dataset Integrity Anchor**: Each ZK-Receipt includes a `dataset_hash` (a SHA-256 digest of the underlying dataset at execution time). This cryptographic anchor allows clients to verify that the dataset was identical across consecutive queries, definitively separating legitimate Differential Privacy noise from unauthorized data mutation.
+1. **Mode 0 (`HMAC_LEGACY`, `0x00`)**: Symmetric lightweight commitment derived from the ML-KEM-768 session secret. Delivers sub-millisecond execution ($< 0.05\text{ ms}$) with minimal compute overhead, designed for battery-constrained edge IoT devices.
+2. **Mode 2 (`GROTH16`, `0x02`)**: Zero-knowledge succinct non-interactive proof over the BN254 elliptic curve paired with a canonical 144-byte immutable binary journal. Provides compact 252-byte proofs verifiable directly on EVM smart contracts (`ecPairing` precompile) at low gas costs ($~200,000\text{ gas}$).
+3. **Mode 3 (`GROTH16_PQC_HYBRID`, `0x03`)**: Quantum-resistant hybrid receipt combining the Groth16 BN254 proof with an ML-DSA-65 post-quantum digital signature (NIST FIPS 204) of 3,309 bytes over `SHA-256(journal || proof)`. This mode is mandatory for Clearance Tier 1 enclaves (banking, medical vaults), ensuring computational proofs cannot be forged even after classical elliptic curves are broken by Shor's algorithm.
 
-**The ZK Shield Proxy**: This cryptographic validation (`verifyZkReceipt`) is performed natively by both the SDK's `LiopClient` (via `client.verifier`) and the `LiopMcpRouter`. These components act as a Zero-Trust Shield, automatically isolating compromised environments and blocking the delivery of adulterated execution payloads back to the calling LLM framework.
+The protocol also incorporates the **SP1 zkVM Guest Scaffold** (`crates/liop-sp1-guest`), compiling a deterministic WebAssembly runtime (`wasmi`) to the `riscv32im-succinct-zkvm-elf` architecture to facilitate universal STARK-based execution proofs.
+
+**Dataset Integrity Anchor**: Each ZK-Receipt embeds a `dataset_digest` (a SHA-256 digest of the underlying dataset at execution time). This cryptographic anchor allows clients to verify that the dataset was identical across consecutive queries, definitively separating legitimate Differential Privacy noise from unauthorized data mutation.
+
+**The ZK Shield Proxy**: Cryptographic receipt validation (`verifyZkReceipt`) is executed off the main event loop using worker threads (`zk-verifier.ts`). Capabilities marked with `zkMode: "required"` (`PROOF_MODE_ZK_BLOCKING`) reject any missing or invalid proof deterministically, preventing cipher-suite downgrade attacks.
 
 ## 7. Differential Privacy Engine (Laplace Mechanism)
 

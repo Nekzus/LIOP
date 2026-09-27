@@ -6,7 +6,13 @@ license = "Apache-2.0"
 authors = ["Nekzus Solutions"]
 
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["simd-auto"]
+simd-auto = []
+simd-avx512 = []
+simd-neon = []
 
 [dependencies]
 napi = { version = "2", default-features = false, features = ["async", "tokio_rt", "napi4"] }
@@ -34,3 +40,10 @@ hex = "0.4"
 
 [build-dependencies]
 napi-build = "2"
+
+[dev-dependencies]
+criterion = "0.5"
+
+[[bench]]
+name = "proving"
+harness = false

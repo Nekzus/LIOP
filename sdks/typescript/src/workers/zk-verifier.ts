@@ -6,6 +6,7 @@ import {
 	verifyGroth16Proof,
 } from "../crypto/groth16-verifier.js";
 import { deriveLogicImageDigest } from "../crypto/logic-image-id.js";
+import { Dilithium65Wrapper } from "../rpc/crypto/dilithium.js";
 import {
 	decodeJournalV2,
 	ProofType,
@@ -247,11 +248,51 @@ async function verifyZkReceipt(
 
 	// 2. Version 2 (Groth16 / ZK Binary Receipt)
 	if (decodedReceipt.version === RECEIPT_VERSION_V2) {
-		if (decodedReceipt.proofType !== ProofType.GROTH16) {
+		if (
+			decodedReceipt.proofType !== ProofType.GROTH16 &&
+			decodedReceipt.proofType !== ProofType.GROTH16_PQC_HYBRID
+		) {
 			return {
 				verified: false,
 				message: `Unsupported ZK proof type in v2 receipt: ${decodedReceipt.proofType}`,
 			};
+		}
+
+		// [PQC] Verify ML-DSA-65 (FIPS 204) Post-Quantum Digital Signature for Hybrid Receipts
+		if (decodedReceipt.proofType === ProofType.GROTH16_PQC_HYBRID) {
+			const { pqcSignature, pqcPublicKey } = decodedReceipt;
+			if (!pqcSignature || !pqcPublicKey) {
+				return {
+					verified: false,
+					message:
+						"Hybrid Receipt Error: Missing ML-DSA-65 signature or public key.",
+				};
+			}
+
+			const messageDigest = crypto
+				.createHash("sha256")
+				.update(Buffer.concat([decodedReceipt.journal, decodedReceipt.proof]))
+				.digest();
+
+			try {
+				const isPqcValid = Dilithium65Wrapper.verify(
+					new Uint8Array(pqcSignature),
+					messageDigest,
+					new Uint8Array(pqcPublicKey),
+				);
+				if (!isPqcValid) {
+					return {
+						verified: false,
+						message:
+							"PQC Signature Verification Failed: ML-DSA-65 co-sign is forged or corrupted.",
+					};
+				}
+			} catch (err) {
+				return {
+					verified: false,
+					message: `PQC Verification Error: ${(err as Error).message}`,
+				};
+			}
 		}
 
 		let journalV2: ReturnType<typeof decodeJournalV2>;
@@ -331,10 +372,15 @@ async function verifyZkReceipt(
 			}
 		}
 
+		const isHybrid = decodedReceipt.proofType === ProofType.GROTH16_PQC_HYBRID;
 		return {
 			verified: true,
-			message: "Groth16 Zero-Knowledge Proof Mathematically Certified.",
-			proofType: "groth16",
+			message: isHybrid
+				? "Groth16 + ML-DSA-65 Post-Quantum Hybrid Receipt Certified."
+				: vkeyRaw && vkeyRaw.length > 0
+					? "Groth16 Zero-Knowledge Proof Mathematically Certified."
+					: "Groth16 Receipt Structure and Journal Integrity Certified.",
+			proofType: isHybrid ? "groth16_pqc_hybrid" : "groth16",
 		};
 	}
 

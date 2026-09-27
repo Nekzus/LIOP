@@ -24,6 +24,6 @@ export default defineConfig({
   treeshake: true,
   shims: true,
   skipNodeModulesBundle: true,
-  noExternal: ['@opentelemetry/api', 'gpt-tokenizer'],
+  noExternal: ['@opentelemetry/api'],
   outDir: 'dist',
 });

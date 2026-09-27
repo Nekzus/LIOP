@@ -47,9 +47,19 @@ Un Agente LIOP interactuando con un Servidor LIOP inyecta lógica ejecutable (en
 ### 4.3 Sellado Simétrico del Payload
 - El secreto simétrico Post-Cuántico acordado se emplea para cifrar el payload mediante **AES-256-GCM**, envolviendo la ejecución entera dentro de una cápsula zero-trust hermética.
 
-### 4.4 Integridad Computacional (ZK-Receipts)
-- El SDK genera **compromisos HMAC-SHA256** que vinculan criptográficamente la salida con la lógica exacta ejecutada, sellados con el secreto de sesión Post-Cuántico.
-- **Ancla de Integridad del Dataset**: Los recibos incorporan un `dataset_hash` SHA-256, garantizando que las perturbaciones de Privacidad Diferencial y la agregación se apliquen estrictamente sobre datos de origen inmutables.
+### 4.4 Integridad Computacional (ZK-Receipts y zk-VM)
+LIOP define un marco criptográfico tri-modal que garantiza no repudio e integridad matemática:
+- **Modo 0 (`HMAC_LEGACY`, `0x00`)**: Compromiso simétrico derivado del secreto compartido ML-KEM-768.
+- **Modo 2 (`GROTH16`, `0x02`)**: Prueba no interactiva de conocimiento cero sobre curvas BN254 con un journal binario de 144 bytes (`guest_image_id`, `logic_digest`, `dataset_digest`, `output_digest`, `fuel_consumed`, `execution_timestamp`).
+- **Modo 3 (`GROTH16_PQC_HYBRID`, `0x03`)**: Recibo binario con sellado dual que combina la prueba Groth16 con una firma digital post-cuántica ML-DSA-65 (NIST FIPS 204) de 3,309 bytes y su clave pública de 1,952 bytes sobre `SHA-256(journal || proof)`.
+- **Estructura Wire Binaria v2.1**:
+  `[0x02][0x03][journalLen: 4B BE][journal: 144B][proofLen: 2B BE][proof][sigLen: 2B BE][signature: 3309B][publicKey: 1952B][checksum: 32B SHA-256]`
+- **Ancla de Integridad del Dataset**: Los recibos incorporan un `dataset_digest` SHA-256 que garantiza que la Privacidad Diferencial y la agregación se apliquen estrictamente sobre datos inmutables de origen.
+
+### 4.5 Atestación Previa al Vuelo por Hardware TEE
+Antes de autorizar la inyección lógica en enclaves confidenciales, los nodos entregan evidencias de atestación física validadas mediante `verifyTeeAttestationDetailed`:
+- **AMD SEV-SNP**: Valida reportes binarios de 1,184 bytes, comprobando que `REPORT_DATA` en el desplazamiento `0x50` coincida rigurosamente con `SHA-256(publicKey || nonce)`.
+- **AWS Nitro Enclaves**: Valida documentos COSE_Sign1, verificando las mediciones de arranque seguro (PCRs) y la presencia de la clave pública en `user_data`.
 
 ## 5. Núcleo de Ejecución y Aislamiento
 

@@ -212,6 +212,10 @@ export interface LogicExecutionPolicy {
 	 * Static verification key JSON structure for this capability.
 	 */
 	vkey?: Record<string, unknown>;
+	/**
+	 * Whether to co-sign the Groth16 receipt with an ML-DSA-65 post-quantum digital signature (FIPS 204).
+	 */
+	pqcSign?: boolean;
 }
 
 export class LiopServer {
@@ -274,6 +278,10 @@ export class LiopServer {
 	private meshNode: MeshNode | null = null;
 	private rpcServer: LiopRpcServer | null = null;
 	private boundPort: number | null = null;
+	private enclavePqcKeypair?: {
+		publicKey: Uint8Array;
+		secretKey: Uint8Array;
+	};
 	public jwtValidator?: JwtValidator;
 	// biome-ignore lint/suspicious/noExplicitAny: Loaded dynamically in Phase C
 	public oauthProvider?: any;
@@ -771,7 +779,7 @@ export class LiopServer {
 		const isTS = import.meta.url.endsWith(".ts");
 		const workerExt = isTS ? ".ts" : ".js";
 
-		let execArgv: string[] = [];
+		const execArgv: string[] = [];
 		if (isTS) {
 			try {
 				const req = createRequire(import.meta.url);
@@ -779,9 +787,9 @@ export class LiopServer {
 				const absoluteTsx = pathToFileURL(
 					path.join(path.dirname(tsxPkg), "dist", "loader.mjs"),
 				).href;
-				execArgv = ["--import", absoluteTsx];
+				execArgv.push("--import", absoluteTsx);
 			} catch (_e) {
-				execArgv = ["--import", "tsx"];
+				execArgv.push("--import", "tsx");
 			}
 		}
 
@@ -832,6 +840,13 @@ export class LiopServer {
 					);
 				});
 			}
+		}
+
+		// [PQC] Initialize Enclave ML-DSA-65 (FIPS 204) Post-Quantum Digital Signature Keypair
+		try {
+			this.enclavePqcKeypair = Dilithium65Wrapper.generateKeyPair();
+		} catch (_e) {
+			this.enclavePqcKeypair = undefined;
 		}
 
 		// [SEC] Initialize JWT Validator and OAuth Server if auth is enabled
@@ -2064,12 +2079,16 @@ Protocol Adherence is mandatory for successful execution.`,
 							proofMode: requestedProofMode,
 							guestImageId:
 								toolPolicy?.guestImageId ?? this.config?.guestImageId,
+							pqcSigningKey: toolPolicy?.pqcSign
+								? this.enclavePqcKeypair?.secretKey
+								: undefined,
 							dpConfig, // Apply DP noise inside worker before ZK-Receipt commitment
 						});
 
 						if (
 							requestedProofMode === ProofMode.PROOF_MODE_ZK_BLOCKING &&
-							workerResponse.proof_type !== ProofType.GROTH16
+							workerResponse.proof_type !== ProofType.GROTH16 &&
+							workerResponse.proof_type !== ProofType.GROTH16_PQC_HYBRID
 						) {
 							log.error(
 								`[LIOP-RPC] Enclave policy violation: Valid Groth16 zero-knowledge proof required but unavailable for ${toolName || "tool"}`,
@@ -2183,9 +2202,11 @@ Protocol Adherence is mandatory for successful execution.`,
 								: Buffer.from(""),
 							is_error: false,
 							proof_type:
-								workerResponse.proof_type === ProofType.GROTH16
-									? RpcProofType.PROOF_TYPE_GROTH16
-									: RpcProofType.PROOF_TYPE_HMAC_LEGACY,
+								workerResponse.proof_type === ProofType.GROTH16_PQC_HYBRID
+									? RpcProofType.PROOF_TYPE_GROTH16_PQC_HYBRID
+									: workerResponse.proof_type === ProofType.GROTH16
+										? RpcProofType.PROOF_TYPE_GROTH16
+										: RpcProofType.PROOF_TYPE_HMAC_LEGACY,
 							guest_image_id:
 								workerResponse.guest_image_id ||
 								toolPolicy?.guestImageId ||
@@ -2482,12 +2503,16 @@ Protocol Adherence is mandatory for successful execution.`,
 				isEncrypted: false, // Use plaintext for local Logic-on-Origin injection
 				proofMode,
 				guestImageId: dpPolicy?.guestImageId ?? this.config?.guestImageId,
+				pqcSigningKey: dpPolicy?.pqcSign
+					? this.enclavePqcKeypair?.secretKey
+					: undefined,
 				dpConfig, // Pass DP Config to apply inside worker before ZK-Receipt commitment
 			});
 
 			if (
 				proofMode === ProofMode.PROOF_MODE_ZK_BLOCKING &&
-				workerResponse.proof_type !== ProofType.GROTH16
+				workerResponse.proof_type !== ProofType.GROTH16 &&
+				workerResponse.proof_type !== ProofType.GROTH16_PQC_HYBRID
 			) {
 				return {
 					content: [
@@ -2510,9 +2535,11 @@ Protocol Adherence is mandatory for successful execution.`,
 				image_id: workerResponse.image_id,
 				zk_receipt: workerResponse.zk_receipt,
 				proof_type:
-					workerResponse.proof_type === ProofType.GROTH16
-						? "GROTH16"
-						: "HMAC_LEGACY",
+					workerResponse.proof_type === ProofType.GROTH16_PQC_HYBRID
+						? "GROTH16_PQC_HYBRID"
+						: workerResponse.proof_type === ProofType.GROTH16
+							? "GROTH16"
+							: "HMAC_LEGACY",
 				guest_image_id: workerResponse.guest_image_id,
 				status: "Worker Pool Execution Success",
 			});

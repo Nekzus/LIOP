@@ -5,7 +5,12 @@ import * as fs from "node:fs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const auditDir = path.resolve(here, "..");
-const reportPath = path.join(auditDir, "PRODUCTION_READINESS_AUDIT_REPORT.md");
+const reportFileName =
+	process.env.LIOP_AUDIT_REPORT_FILE ||
+	(process.argv.includes("--local")
+		? "PRODUCTION_READINESS_AUDIT_REPORT.local.md"
+		: "PRODUCTION_READINESS_AUDIT_REPORT.md");
+const reportPath = path.join(auditDir, reportFileName);
 
 console.log("═════════════════════════════════════════════════════════");
 console.log("  🧪 RUNNING FULL PRODUCTION AUDIT SUITE");
@@ -22,7 +27,8 @@ const env = {
 	ORACLE_URL: process.env.ORACLE_URL || "http://127.0.0.1:15015",
 	EDGE_URL: process.env.EDGE_URL || "http://127.0.0.1:15016",
 	RELAY_URL: process.env.RELAY_URL || "http://127.0.0.1:15017",
-	PLAYGROUND_URL: process.env.PLAYGROUND_URL || "http://127.0.0.1:16000",
+	PLAYGROUND_URL: process.env.PLAYGROUND_URL || "http://127.0.0.1:16002",
+	STUDIO_URL: process.env.STUDIO_URL || "http://127.0.0.1:16000",
 	LIOP_CLIENT_ID: "liop-mesh-agent",
 	LIOP_CLIENT_SECRET: "dev-secret-change-me",
 	LIOP_TOKEN_BANK: "bank-local-test-token",

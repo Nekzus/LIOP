@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub mod circuits;
+pub mod simd_detect;
 pub mod zkvm;
 
 use ark_bn254::{Bn254, Fr};
@@ -13,11 +14,18 @@ use rand::thread_rng;
 use serde::{Deserialize, Serialize};
 
 use crate::circuits::{AverageCircuit, CountCircuit, FilterCircuit, SumCircuit};
+use crate::zkvm::ZkProverEngine;
 
 /// Native prover metadata and version
 #[napi]
 pub fn get_native_prover_version() -> String {
     "liop-zk-native-v0.1.0-arkworks-bn254".to_string()
+}
+
+/// Detects and returns the active SIMD acceleration backend
+#[napi]
+pub fn get_simd_backend() -> String {
+    simd_detect::optimal_field_backend().as_str().to_string()
 }
 
 /// Input payload schema for analytical circuits
@@ -206,6 +214,43 @@ pub async fn prove_analytical_query(
     .map_err(|e| napi::Error::from_reason(format!("Proving failed: {}", e)))?;
 
     Ok(Buffer::from(proof_json.into_bytes()))
+}
+
+/// Universal zkVM proving via SP1-compatible guest witness format
+#[napi]
+pub async fn prove_universal_zkvm(
+    wasm_module: Buffer,
+    input_data: Buffer,
+    fuel_limit: u32,
+) -> napi::Result<Buffer> {
+    let proof_bytes = async_rayon::spawn(move || -> anyhow::Result<Vec<u8>> {
+        let guest_elf = b"liop-sp1-guest-v1.0-universal-elf";
+        let engine = crate::zkvm::UniversalZkVmFallback::new(guest_elf);
+
+        let mut inputs = Vec::new();
+        inputs.extend_from_slice(&wasm_module);
+        inputs.extend_from_slice(&input_data);
+        inputs.extend_from_slice(&fuel_limit.to_be_bytes());
+
+        engine.generate_proof("liop_universal_zkvm", &inputs)
+    })
+    .await
+    .map_err(|e| napi::Error::from_reason(format!("Universal zkVM proving failed: {}", e)))?;
+
+    Ok(Buffer::from(proof_bytes))
+}
+
+/// Verify universal zkVM proof
+#[napi]
+pub fn verify_universal_zkvm(
+    journal: Buffer,
+    proof: Buffer,
+) -> napi::Result<bool> {
+    let guest_elf = b"liop-sp1-guest-v1.0-universal-elf";
+    let engine = crate::zkvm::UniversalZkVmFallback::new(guest_elf);
+    engine
+        .verify_proof("liop_universal_zkvm", &journal, &proof)
+        .map_err(|e| napi::Error::from_reason(format!("Universal zkVM verification failed: {}", e)))
 }
 
 #[cfg(test)]

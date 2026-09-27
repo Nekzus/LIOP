@@ -6,6 +6,7 @@ import crypto from "node:crypto";
 export enum ProofType {
 	HMAC_LEGACY = 0x00,
 	GROTH16 = 0x02,
+	GROTH16_PQC_HYBRID = 0x03,
 }
 
 export const RECEIPT_VERSION_V1 = 0x01;
@@ -111,6 +112,8 @@ export interface DecodedReceipt {
 	journal: Buffer;
 	proof: Buffer;
 	raw: Buffer;
+	pqcSignature?: Buffer;
+	pqcPublicKey?: Buffer;
 }
 
 export const receiptCodec = {
@@ -125,6 +128,46 @@ export const receiptCodec = {
 		header.writeUInt32BE(journal.length, 2);
 
 		const payload = Buffer.concat([header, journal, proof]);
+		const checksum = crypto.createHash("sha256").update(payload).digest();
+
+		return Buffer.concat([payload, checksum]);
+	},
+
+	/**
+	 * Encodes a version 2.1 Hybrid Binary Receipt (Groth16 + ML-DSA-65 co-sign).
+	 * Layout:
+	 * [0x02][0x03 ProofType.GROTH16_PQC_HYBRID][journalLen: 4B UInt32BE][journal: 144B]
+	 * [proofLen: 2B UInt16BE][groth16 proof: ~260B]
+	 * [sigLen: 2B UInt16BE][signature: 3309B]
+	 * [publicKey: 1952B]
+	 * [checksum: 32B SHA-256]
+	 */
+	encodeHybridV2(
+		journal: Buffer,
+		proof: Buffer,
+		pqcSignature: Buffer,
+		pqcPublicKey: Buffer,
+	): Buffer {
+		const header = Buffer.alloc(6);
+		header.writeUInt8(RECEIPT_VERSION_V2, 0);
+		header.writeUInt8(ProofType.GROTH16_PQC_HYBRID, 1);
+		header.writeUInt32BE(journal.length, 2);
+
+		const proofLenBuf = Buffer.alloc(2);
+		proofLenBuf.writeUInt16BE(proof.length, 0);
+
+		const sigLenBuf = Buffer.alloc(2);
+		sigLenBuf.writeUInt16BE(pqcSignature.length, 0);
+
+		const payload = Buffer.concat([
+			header,
+			journal,
+			proofLenBuf,
+			proof,
+			sigLenBuf,
+			pqcSignature,
+			pqcPublicKey,
+		]);
 		const checksum = crypto.createHash("sha256").update(payload).digest();
 
 		return Buffer.concat([payload, checksum]);
@@ -197,6 +240,49 @@ export const receiptCodec = {
 			}
 
 			const journal = Buffer.from(raw.subarray(6, 6 + journalLen));
+
+			if (proofType === ProofType.GROTH16_PQC_HYBRID) {
+				let offset = 6 + journalLen;
+				if (raw.length < offset + 2 + 32) {
+					throw new ZkVerificationError(
+						"Malformed hybrid receipt: missing proof length header.",
+					);
+				}
+				const proofLen = raw.readUInt16BE(offset);
+				offset += 2;
+
+				if (raw.length < offset + proofLen + 2 + 32) {
+					throw new ZkVerificationError(
+						"Malformed hybrid receipt: truncated Groth16 proof.",
+					);
+				}
+				const proof = Buffer.from(raw.subarray(offset, offset + proofLen));
+				offset += proofLen;
+
+				const sigLen = raw.readUInt16BE(offset);
+				offset += 2;
+
+				if (raw.length < offset + sigLen + 32) {
+					throw new ZkVerificationError(
+						"Malformed hybrid receipt: truncated ML-DSA-65 signature.",
+					);
+				}
+				const pqcSignature = Buffer.from(raw.subarray(offset, offset + sigLen));
+				offset += sigLen;
+
+				const pqcPublicKey = Buffer.from(raw.subarray(offset, raw.length - 32));
+
+				return {
+					version: RECEIPT_VERSION_V2,
+					proofType,
+					journal,
+					proof,
+					pqcSignature,
+					pqcPublicKey,
+					raw,
+				};
+			}
+
 			const proof = Buffer.from(raw.subarray(6 + journalLen, raw.length - 32));
 
 			return {
