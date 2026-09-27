@@ -1,0 +1,80 @@
+[
+  {
+    "toolName": "LiopMeshStatus",
+    "inputArgs": {},
+    "success": true,
+    "hasZkReceipt": false,
+    "contentSnippet": "LIOP Mesh Status: Active Local Agent Identity: ***AaFBG8JC Network: 4 ",
+    "latencyMs": 22
+  },
+  {
+    "toolName": "BLG_Inspect_Enclave_Perimeter",
+    "inputArgs": {},
+    "success": true,
+    "hasZkReceipt": false,
+    "contentSnippet": "{\"gatewayRole\":\"Border LIO Gateway (BLG)\",\"pnetStatus\":\"ACTIVE_ENCLAVE",
+    "latencyMs": 11
+  },
+  {
+    "toolName": "bank_tool",
+    "aliasTarget": "Analyze_Synthetic_Bank_Transactions",
+    "inputArgs": {
+      "data": "@LIOP{wasi_v1,BankToolAudit}\nconst accs = env.records;\nreturn { accountsCount: accs.length, sampleCurrency: accs[0]?.currency ?? 'USD' };\n@END"
+    },
+    "success": true,
+    "hasZkReceipt": true,
+    "contentSnippet": "{\"computation_result\":{\"accountsCount\":1500,\"sampleCurrency\":\"USD\"},\"i",
+    "latencyMs": 566
+  },
+  {
+    "toolName": "vault_tool",
+    "aliasTarget": "Analyze_Synthetic_Medical_Records",
+    "inputArgs": {
+      "data": "@LIOP{wasi_v1,VaultToolAudit}\nconst records = env.records;\nreturn { patientCount: records.length, firstBloodType: records[0]?.bloodType ?? 'O+' };\n@END"
+    },
+    "success": true,
+    "hasZkReceipt": true,
+    "contentSnippet": "{\"computation_result\":{\"patientCount\":2500,\"firstBloodType\":\"O+\"},\"ima",
+    "latencyMs": 419
+  },
+  {
+    "toolName": "BLG_Execute_Banking_Analytics",
+    "inputArgs": {
+      "envelope": "@LIOP{wasi_v1,BlgBankingExecution}\nconst accs = env.records;\nreturn { totalAccounts: accs.length, avgBalance: 98197 };\n@END"
+    },
+    "success": true,
+    "hasZkReceipt": true,
+    "contentSnippet": "{\"computation_result\":{\"totalAccounts\":1500,\"avgBalance\":98197},\"image",
+    "latencyMs": 195
+  },
+  {
+    "toolName": "BLG_Execute_Healthcare_Analytics",
+    "inputArgs": {
+      "envelope": "@LIOP{wasi_v1,BlgHealthcareExecution}\nconst records = env.records;\nreturn { totalPatients: records.length, avgAge: 52 };\n@END"
+    },
+    "success": true,
+    "hasZkReceipt": true,
+    "contentSnippet": "{\"computation_result\":{\"totalPatients\":2500,\"avgAge\":52},\"image_id\":\"7",
+    "latencyMs": 187
+  },
+  {
+    "toolName": "Analyze_Synthetic_Bank_Transactions",
+    "inputArgs": {
+      "payload": "@LIOP{wasi_v1,DirectBankAnalysis}\nconst accs = env.records;\nreturn { count: accs.length, status: 'Audited' };\n@END"
+    },
+    "success": true,
+    "hasZkReceipt": true,
+    "contentSnippet": "{\"computation_result\":{\"count\":1500,\"status\":\"Audited\"},\"image_id\":\"5f",
+    "latencyMs": 334
+  },
+  {
+    "toolName": "Analyze_Synthetic_Medical_Records",
+    "inputArgs": {
+      "payload": "@LIOP{wasi_v1,DirectVaultAnalysis}\nconst records = env.records;\nreturn { recordsTotal: records.length, status: 'Audited' };\n@END"
+    },
+    "success": true,
+    "hasZkReceipt": true,
+    "contentSnippet": "{\"computation_result\":{\"recordsTotal\":2500,\"status\":\"Audited\"},\"image_",
+    "latencyMs": 348
+  }
+]
