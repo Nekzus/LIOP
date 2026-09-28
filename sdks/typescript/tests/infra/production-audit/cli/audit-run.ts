@@ -5,7 +5,12 @@ import * as fs from "node:fs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const auditDir = path.resolve(here, "..");
-const reportPath = path.join(auditDir, "PRODUCTION_READINESS_AUDIT_REPORT.md");
+const reportFileName =
+	process.env.LIOP_AUDIT_REPORT_FILE ||
+	(process.argv.includes("--local")
+		? "PRODUCTION_READINESS_AUDIT_REPORT.local.md"
+		: "PRODUCTION_READINESS_AUDIT_REPORT.md");
+const reportPath = path.join(auditDir, reportFileName);
 
 console.log("═════════════════════════════════════════════════════════");
 console.log("  🧪 RUNNING FULL PRODUCTION AUDIT SUITE");
@@ -22,7 +27,8 @@ const env = {
 	ORACLE_URL: process.env.ORACLE_URL || "http://127.0.0.1:15015",
 	EDGE_URL: process.env.EDGE_URL || "http://127.0.0.1:15016",
 	RELAY_URL: process.env.RELAY_URL || "http://127.0.0.1:15017",
-	PLAYGROUND_URL: process.env.PLAYGROUND_URL || "http://127.0.0.1:16000",
+	PLAYGROUND_URL: process.env.PLAYGROUND_URL || "http://127.0.0.1:16002",
+	STUDIO_URL: process.env.STUDIO_URL || "http://127.0.0.1:16000",
 	LIOP_CLIENT_ID: "liop-mesh-agent",
 	LIOP_CLIENT_SECRET: "dev-secret-change-me",
 	LIOP_TOKEN_BANK: "bank-local-test-token",
@@ -87,6 +93,10 @@ const reportContent = `# LIOP Protocol — Production Readiness Audit Report
 6. **Suite 05 — The Six Defense Layers**: Validates Guardian AST (forbidden globals), WASI sandbox isolation, Egress PII Shield, Aggregation-First policy, and ZK-Receipt verification.
 7. **Suite 06 — Chaos Engineering & Resilience**: Validates burst concurrency (15 parallel executions), malformed envelope rejection, and standard JSON-RPC error codes.
 8. **Suite 07 — SOC 2 Observability & Metrics**: Validates Prometheus \`/metrics\` endpoint, standard \`/health\`, and gRPC-Web HTTP/1.1 framing fallback.
+9. **Suite 08 — Lifecycle Traceability**: Validates end-to-end audit logging, cryptographic tamper-evidence, and token economy metrics.
+10. **Suite 09 — PNet Tier Isolation**: Validates private network boundary controls and asymmetric multi-tier enclave segmentation.
+11. **Suite 10 — Interceptors & TypeSafe Jev**: Validates perimeter security filters, injection blocking, and gateway pipeline hooks.
+12. **Suite 11 — Sovereign ZK-Receipts**: Validates Groth16 zkVM proofs, 144-byte binary journal integrity, and enclave ZK policy invariants.
 
 ---
 

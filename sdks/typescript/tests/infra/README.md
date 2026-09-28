@@ -39,7 +39,7 @@ The Interactive Playground provides a premium, responsive web interface built wi
 
 ### MCP Inspector (browser against LIOP)
 
-The upstream Inspector exposes a **web UI** (MCPI, default port **6274**) and a **proxy** (MCPP, default **6277**). It connects to remote servers using **Streamable HTTP** at the MCP URL — the same shape documented upstream (`streamable-http` → `http://…/mcp`).
+The upstream Inspector exposes a **web UI** (MCPI, default port **6274**) and a **proxy** (MCPP, default **6277**). It connects to remote servers using **Streamable HTTP** at the MCP URL, matching the shape documented upstream (`streamable-http` → `http://…/mcp`).
 
 **LIOP in this demo:** Nexus publishes HTTP/MCP on host port **13000** → `http://127.0.0.1:13000/mcp` (see `docker-compose.yml`).
 
@@ -52,7 +52,7 @@ The upstream Inspector exposes a **web UI** (MCPI, default port **6274**) and a 
 
 **`mcp-server-everything` / STDIO ENOENT:** that is the default **stdio** example trying to spawn a binary that is not installed. Switch the sidebar to **streamable-http** and use LIOP’s URL only, or ignore that error once Streamable HTTP is connected (your logs show `StreamableHttp` sessions working).
 
-**Optional — Inspector in Docker** (profile `inspector`, UI on **16274** to avoid clashing with a local Inspector):
+**Optional: Inspector in Docker** (profile `inspector`, UI on **16274** to avoid clashing with a local Inspector):
 
 ```bash
 docker compose -f sdks/typescript/tests/infra/docker-compose.yml --profile inspector up -d mcp-inspector

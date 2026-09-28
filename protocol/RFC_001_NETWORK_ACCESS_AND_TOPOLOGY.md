@@ -180,11 +180,11 @@ This document registers the following well-known URI per RFC 8615:
 
 ### 7.2 OAuth Scope Namespace Registrations
 This document establishes the `liop` scope namespace:
-- `liop:tools:list` — Read tool declarations and schemas
-- `liop:tools:call` — Submit logic for execution
-- `liop:resources:read` — Read static resources and manifests
-- `liop:schema:read` — Inspect schema definitions
-- `liop:mesh:query` — Query mesh routing tables
+- `liop:tools:list`: Read tool declarations and schemas
+- `liop:tools:call`: Submit logic for execution
+- `liop:resources:read`: Read static resources and manifests
+- `liop:schema:read`: Inspect schema definitions
+- `liop:mesh:query`: Query mesh routing tables
 
 ---
 

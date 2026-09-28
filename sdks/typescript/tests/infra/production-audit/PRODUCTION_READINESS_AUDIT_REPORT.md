@@ -1,4 +1,4 @@
-# LIOP Protocol — Production Readiness Audit Report
+# LIOP Protocol: Production Readiness Audit Report
 
 - **Target Package**: `@nekzus/liop@2.5.0` (Official published production package)
 - **Execution Date**: 2026-09-11T14:09:48.718Z
@@ -24,14 +24,14 @@
 
 ## 2. Test Suites Execution Summary
 
-1. **Suite 00 — NPM Package Integrity**: Validates root import, all 6 sub-exports (`/client`, `/server`, `/mesh`, `/gateway`, `/bridge`, `/types`), Post-Quantum ML-DSA-65/ML-KEM-768 exports, and bundle footprint.
-2. **Suite 01 — Mesh Convergence & DHT Discovery**: Validates 7-node convergence over WAN, DHT query aggregation, and `LiopMeshStatus` diagnostics.
-3. **Suite 02 — Post-Quantum Cryptography**: Validates Kyber-768 key exchange across Pacific latency (150ms) and hostile 3G (300ms), plus ML-DSA-65 manifest attestation signatures.
-4. **Suite 03 — OAuth 2.1 M2M & Dual-Era Protocol**: Validates `client_credentials` JWT acquisition, unauthenticated request rejection, and dual-era MCP 2026-07-28 / 2025-11-25 handshakes.
-5. **Suite 04 — In-situ Logic Execution**: Validates WASI sandbox execution on Bank (1,500 accounts), Vault (2,500 patients), Oracle (HFT ticks), and Edge (IoT sensors) under WAN latencies.
-6. **Suite 05 — The Six Defense Layers**: Validates Guardian AST (forbidden globals), WASI sandbox isolation, Egress PII Shield, Aggregation-First policy, and ZK-Receipt verification.
-7. **Suite 06 — Chaos Engineering & Resilience**: Validates burst concurrency (15 parallel executions), malformed envelope rejection, and standard JSON-RPC error codes.
-8. **Suite 07 — SOC 2 Observability & Metrics**: Validates Prometheus `/metrics` endpoint, standard `/health`, and gRPC-Web HTTP/1.1 framing fallback.
+1. **Suite 00: NPM Package Integrity**: Validates root import, all 6 sub-exports (`/client`, `/server`, `/mesh`, `/gateway`, `/bridge`, `/types`), Post-Quantum ML-DSA-65/ML-KEM-768 exports, and bundle footprint.
+2. **Suite 01: Mesh Convergence & DHT Discovery**: Validates 7-node convergence over WAN, DHT query aggregation, and `LiopMeshStatus` diagnostics.
+3. **Suite 02: Post-Quantum Cryptography**: Validates Kyber-768 key exchange across Pacific latency (150ms) and hostile 3G (300ms), plus ML-DSA-65 manifest attestation signatures.
+4. **Suite 03: OAuth 2.1 M2M & Dual-Era Protocol**: Validates `client_credentials` JWT acquisition, unauthenticated request rejection, and dual-era MCP 2026-07-28 / 2025-11-25 handshakes.
+5. **Suite 04: In-situ Logic Execution**: Validates WASI sandbox execution on Bank (1,500 accounts), Vault (2,500 patients), Oracle (HFT ticks), and Edge (IoT sensors) under WAN latencies.
+6. **Suite 05: The Six Defense Layers**: Validates Guardian AST (forbidden globals), WASI sandbox isolation, Egress PII Shield, Aggregation-First policy, and ZK-Receipt verification.
+7. **Suite 06: Chaos Engineering & Resilience**: Validates burst concurrency (15 parallel executions), malformed envelope rejection, and standard JSON-RPC error codes.
+8. **Suite 07: SOC 2 Observability & Metrics**: Validates Prometheus `/metrics` endpoint, standard `/health`, and gRPC-Web HTTP/1.1 framing fallback.
 
 ---
 

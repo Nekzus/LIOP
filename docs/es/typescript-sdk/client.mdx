@@ -187,21 +187,54 @@ const result = await client.callTool(
 
 ## Verificación Matemática (Recibos ZK)
 
-Cada módulo analítico ejecutado por un Nodo de Datos LIOP genera un recibo criptográfico ZK (HMAC-SHA256 sellado bajo el secreto de sesión efímero ML-KEM-768). `LiopClient` valida esta prueba de manera automática durante la ejecución de `callTool()`.
+Cada carga analítica procesada por un Nodo de Datos LIOP conforme genera un recibo criptográfico ZK. El verificador del cliente inspecciona automáticamente los recibos devueltos durante la invocación de `callTool()`, dando soporte completo a los tres modos del protocolo:
+- **Modo 0 (Versión 1)**: Compromiso de sesión HMAC-SHA256 negociado mediante ML-KEM-768.
+- **Modo 2 (Versión 2)**: Prueba matemática de conocimiento cero SNARK Groth16 sobre la curva de emparejamiento BN254.
+- **Modo 3 (Versión 2.1)**: Recibo híbrido de doble capa que combina una prueba Groth16 BN254 con una firma digital post-cuántica ML-DSA-65.
 
-Para verificar pruebas recibidas de forma asíncrona o fuera de banda:
+Para verificar manualmente recibos obtenidos fuera de banda:
 
 ```typescript
-const isValid = await client.verifier.verifyZkReceipt(
+import { LiopVerifier } from "@nekzus/liop";
+
+const verifier = new LiopVerifier();
+
+const isValid = await verifier.verifyZkReceipt(
   wasmPayload,          // Buffer con el código exacto que fue inyectado
-  remoteImageIdHex,     // Hash esperado del entorno de datos
-  zkReceiptBuffer,      // Recibo criptográfico devuelto por el servidor
+  remoteImageIdHex,     // Identificador hexadecimal de 32 bytes de la imagen huésped
+  zkReceiptBuffer,      // Recibo criptográfico entregado por el servidor
+  { zkPolicy: "required" } // "none" | "optimistic" | "required"
 );
 
 if (!isValid) {
   throw new Error("Fallo de Verificación Zero-Trust: Alteración de cómputo detectada");
 }
 ```
+
+### Atestación de Hardware TEE Pre-Vuelo
+
+Al establecer comunicación con máquinas virtuales confidenciales desplegadas en centros de datos no confiables, el cliente puede verificar la evidencia de la raíz de confianza de hardware antes de iniciar acuerdos criptográficos:
+
+```typescript
+import { verifyTeeAttestationDetailed } from "@nekzus/liop";
+
+const attestationResult = await verifyTeeAttestationDetailed(
+  attestationEvidenceBytes,
+  expectedSessionNonce,
+  {
+    allowedMeasurements: ["b7f8c9..."],
+    requireHardwareSigned: true,
+  }
+);
+
+if (!attestationResult.valid) {
+  throw new Error(`Validación de hardware confidencial fallida: ${attestationResult.reason}`);
+}
+```
+
+El verificador previo valida los siguientes entornos:
+- **AMD SEV-SNP**: Inspecciona la cabecera `snp_report_t` de 1.184 bytes, valida `REPORT_DATA` en el desplazamiento `0x50` contra `SHA-256(publicKey || nonce)`, verifica las firmas de certificados VCEK y corrobora la desactivación del modo de depuración.
+- **AWS Nitro Enclaves**: Decodifica documentos `COSE_Sign1` en formato CBOR, valida los registros PCR (`PCR0`, `PCR1`, `PCR2`), comprueba la vinculación de `user_data` y verifica los certificados hasta la CA raíz de AWS Nitro.
 
 ---
 
@@ -305,4 +338,4 @@ try {
 | `AST_SECURITY_VIOLATION` | RPC -32099 / gRPC 3 | Guardian AST detectó importaciones prohibidas o variables globales envenenadas. | Asegure que el código solo use funciones de la lista permitida de WASI Preview 1. |
 | `SANDBOX_HALTED` | RPC -32098 / gRPC 9 | El Isolate de V8 superó la cuota de instrucciones CPU asignada o el tope de memoria heap. | Optimice bucles internos o incremente el límite de `maxHeapMb`. |
 | `CIRCUIT_BREAKER_OPEN` | HTTP 503 / gRPC 14 | El destino acumuló 5 fallos consecutivos (`MAX_FAILURES = 5`). | Espere el periodo de decaimiento o utilice una ruta perimetral alternativa. |
-| `ZK_VERIFICATION_FAILED` | RPC -32097 / gRPC 10 | La prueba matemática del resultado no coincide con el sello HMAC-SHA256. | Posible manipulación de red en tránsito. Descarte la respuesta de inmediato. |
+| `ZK_VERIFICATION_FAILED` | RPC -32097 / gRPC 10 | La prueba matemática falló la comprobación de emparejamiento Groth16, el sello HMAC o la firma post-cuántica ML-DSA-65. | Posible manipulación de red en tránsito o imagen huésped no autorizada. Descarte la respuesta de inmediato. |

@@ -43,7 +43,7 @@ Una malla plana global única introduce fallas de seguridad catastróficas (ataq
 ┌─────────────────────────────────────────────────────────────────────────┐
 │          NIVEL 1: ENCLAVES SOBERANOS INTRA-ORGANIZACIONALES             │
 │     (Subredes Privadas Zero-Trust, Claves Swarm PSK, Bases de Datos)    │
-│      DATOS EN REPOSO — CERO ACCESO EXTERNO DIRECTO — SANDBOX WASI       │
+│      DATOS EN REPOSO | CERO ACCESO EXTERNO DIRECTO | SANDBOX WASI       │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 

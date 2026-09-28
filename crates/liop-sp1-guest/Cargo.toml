@@ -1,0 +1,13 @@
+[package]
+name = "liop-sp1-guest"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+authors = ["Nekzus Solutions"]
+
+[dependencies]
+sp1-zkvm = "6.6.0"
+wasmi = { version = "2.0.0", default-features = false }
+serde = { version = "1.0", default-features = false, features = ["derive", "alloc"] }
+sha2 = { version = "0.10", default-features = false }
+hex = { version = "0.4", default-features = false, features = ["alloc"] }

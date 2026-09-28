@@ -25,7 +25,7 @@ flowchart TD
             S3["Capa 3: Analizador de Flujo Taint (IFC)"]
             S4["Capa 4: Escudo PII de Salida (Regex/NER)"]
             S5["Capa 5: Política de Agregación"]
-            S6["Capa 6: Recibo ZK (Sello HMAC-SHA256)"]
+            S6["Capa 6: Recibo ZK (Tri-Modal / PQC Híbrido)"]
         end
     end
 ```
@@ -184,7 +184,36 @@ Cuando un agente envía módulos de código dinámico (archivos `.wasm` o script
 3. **Capa 3 (Analizador Taint)**: Rastrea el flujo de información para impedir la inferencia indirecta de datos confidenciales mediante canales laterales o conversiones de caracteres.
 4. **Capa 4 (Escudo PII de Salida)**: Examina las respuestas contra patrones de tarjetas de pago, numeraciones IBAN, fórmulas de validación y modelos NER.
 5. **Capa 5 (Política de Agregación)**: Exige que el resultado contenga métricas consolidadas. La presencia de listas de registros individuales detiene la entrega del paquete.
-6. **Capa 6 (Generación de Recibo ZK)**: Genera un resumen criptográfico HMAC-SHA256 que vincula el resultado al hash del código inyectado, sellado con la clave de sesión post-cuántica efímera.
+6. **Capa 6 (Generación de Recibo ZK)**: Emite un recibo criptográfico vinculado al resumen de la lógica procesada y al hash del dataset. Soporta compromisos HMAC-SHA256 (Modo 0, v1), pruebas de conocimiento cero Groth16 sobre la curva BN254 (Modo 2, v2) y recibos híbridos de doble capa con firma digital post-cuántica ML-DSA-65 (Modo 3, v2.1) según la configuración de la herramienta.
+
+### Políticas de Ejecución de Herramientas (`LogicExecutionPolicy`)
+
+Los enclaves configuran parámetros detallados de Conocimiento Cero y criptografía post-cuántica de forma individual por cada herramienta proporcionando el objeto `policy`:
+
+```typescript
+server.tool(
+  "Analizar_Nomina_Corporativa",
+  "Calcula distribuciones agregadas de nómina sin exponer registros salariales individuales",
+  { departamento: z.string() },
+  async ({ departamento }) => {
+    // Lógica analítica in-situ
+    return { content: [{ type: "text", text: JSON.stringify({ departamento, salarioMedio: 84500 }) }] };
+  },
+  {
+    zkMode: "required", // "none" | "optimistic" | "required"
+    pqcSign: true,      // Habilita la co-firma post-cuántica ML-DSA-65 (Recibo v2.1)
+    circuitName: "sum", // Identificador del circuito R1CS de restricciones
+  }
+);
+```
+
+| Propiedad | Tipo | Predeterminado | Descripción |
+|:---|:---|:---|:---|
+| **`zkMode`** | `"none" \| "optimistic" \| "required"` | `"none"` | Regula el nivel de atestación de conocimiento cero. El valor `"required"` detiene la ejecución si no se genera una prueba Groth16 válida o si se detectan pruebas ficticias simuladas. |
+| **`pqcSign`** | `boolean` | `false` | Cuando se define en `true`, co-firma el recibo Groth16 con la clave privada persistente ML-DSA-65 del enclave, emitiendo un recibo en formato wire v2.1. |
+| **`circuitName`** | `string` | `"default"` | Identificador del circuito R1CS asignado para evaluar la consulta analítica. |
+| **`guestImageId`** | `string` | Automático | Identificador hexadecimal de 32 bytes de la imagen del entorno huésped del enclave. |
+| **`vkey`** | `object` | Embebido | Puntos de la clave de verificación Groth16 para sobrescribir los parámetros por omisión del circuito. |
 
 ---
 

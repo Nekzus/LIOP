@@ -27,7 +27,7 @@ El SDK TypeScript de LIOP aplica un modelo de seguridad basado en **defensa en p
 | **IFC Taint Analyzer** | Control de flujo de información que previene derivaciones PII y canales laterales por claves computadas | Pre-flight |
 | **PII Shield** | Previene la fuga de datos mediante validadores algorítmicos y detección NER | Post-ejecución |
 | **Aggregation Policy** | Impone límites de cardinalidad en la salida de datos a nivel de fila (Aggregation-First) | Post-ejecución |
-| **ZK-Receipt** | Proporciona prueba HMAC-SHA256 de computación honesta vinculada a claves de sesión PQC | Post-ejecución |
+| **ZK-Receipt** | Prueba criptográfica tri-modal de computación honesta: HMAC (v1), Groth16 BN254 (v2) y ML-DSA-65 PQC Híbrido (v2.1) | Post-ejecución |
 
 ---
 
@@ -73,7 +73,7 @@ const POISONED_GLOBALS = [
   "Buffer", "setTimeout", "setInterval", "setImmediate",
   "queueMicrotask", "eval", "Function", "SharedArrayBuffer",
   // Defensa contra Canal Lateral de Tiempo
-  "Date",
+  "Date", "performance", "Intl",
   // Defensa contra Heap Bomb / Explotación Binaria
   "ArrayBuffer", "Uint8Array", "Int8Array",
   "Uint16Array", "Int16Array", "Uint32Array", "Int32Array",
@@ -83,7 +83,7 @@ const POISONED_GLOBALS = [
 ```
 
 <Tip>
-  El **envenenamiento de `Date`** previene que la lógica inyectada realice análisis de canal lateral por temporización para inferir el tamaño del dataset o los patrones de ejecución. El **envenenamiento de TypedArrays** previene ataques DoS de tipo Heap Bomb que alojan buffers binarios masivos para causar la caída del proceso de trabajo.
+  El **envenenamiento de APIs temporales (`Date`, `performance`, `Intl`, `SharedArrayBuffer`)** previene que la lógica inyectada realice análisis de canal lateral por temporización de alta resolución para inferir la cardinalidad o el valor de registros privados. El **envenenamiento de TypedArrays** neutraliza ataques DoS de tipo Heap Bomb que alojan buffers binarios masivos para causar el colapso del proceso de trabajo.
 </Tip>
 
 Tras la asignación, el contexto completo del sandbox se congela recursivamente mediante `Object.freeze()`, impidiendo cualquier alteración del entorno aislado en tiempo de ejecución.
@@ -209,7 +209,7 @@ El escáner PII intercepta toda la salida del sandbox **antes** de devolver los 
 | **3. Validadores de Patrones** | Regex + verificaciones algorítmicas | Detecta valores PII independientemente del nombre de la clave |
 | **4. Escaneo NER de Contenido** | Motor NLP `compromise` | Identifica nombres de personas, lugares y organizaciones en texto libre |
 
-### Etapas 1–2: Análisis de Claves
+### Etapas 1 y 2: Análisis de Claves
 
 La **coincidencia exacta** utiliza un `Set<string>` para búsqueda en tiempo constante O(1) contra una lista configurable de claves prohibidas.
 
@@ -226,8 +226,8 @@ Una **lista segura** de palabras comunes del inglés y claves internas del proto
 |:-------|:----------|:-----------|
 | **EMAIL** | Regex | Excluye `@example.com`, `@test.com` |
 | **CREDIT_CARD** | **Checksum Luhn** | Suma de dígitos mod 10 === 0 |
-| **IP_ADDRESS** | Regex + verificación de rango | Excluye `127.x.x.x`, valida octetos 0–255 |
-| **PHONE** | Regex + verificación de repetición | 7–15 dígitos, rechaza patrones `1111111` |
+| **IP_ADDRESS** | Regex + verificación de rango | Excluye `127.x.x.x`, valida octetos 0 a 255 |
+| **PHONE** | Regex + verificación de repetición | 7 a 15 dígitos, rechaza patrones `1111111` |
 | **SSN** | Validación estructural | Bloquea area=0/666/≥900, grupo=0, serial=0 |
 | **IBAN** | **ISO 7064 Mod-97 via BigInt** | `BigInt(cadenaNumérica) % 97n === 1n` |
 | **PASSPORT_MRZ** | Regex | Zona de Lectura Mecánica TD3 de 44 caracteres |
@@ -310,31 +310,125 @@ El motor calibra la sensibilidad ($\Delta s$) automáticamente basándose en la 
 
 ---
 
-## Capa 4: ZK-Receipts
+## Capa 6: ZK-Receipts (Arquitectura ZK Tri-Modal)
 
-Cada ejecución del sandbox produce un **recibo criptográfico** que vincula la salida con la lógica exacta que la generó, proporcionando una prueba de computación honesta a prueba de manipulaciones.
+Cada ejecución en el sandbox produce un recibo criptográfico que vincula el resultado computado con la lógica exacta que lo generó, garantizando computación honesta a prueba de manipulaciones. El protocolo implementa una arquitectura tri-modal que cubre tres regímenes criptográficos complementarios:
 
-### Estructura del Recibo (Binario v1)
+1. **Modo 0 (`HMAC_LEGACY`, Versión 1)**: Compromisos criptográficos derivados de la clave compartida de sesión post-cuántica ML-KEM-768.
+2. **Modo 2 (`GROTH16`, Versión 2)**: Pruebas matemáticas de conocimiento cero SNARK sobre la curva elíptica de emparejamiento BN254 con un diario binario de 144 bytes.
+3. **Modo 3 (`GROTH16_PQC_HYBRID`, Versión 2.1)**: Recibos de doble capa con resistencia cuántica que combinan una prueba matemática Groth16 BN254 con una firma digital post-cuántica ML-DSA-65 conforme al estándar NIST FIPS 204.
+
+### Estructura del Recibo (Binario v2.1: Groth16 + ML-DSA-65 PQC Híbrido)
+
+Los recibos versión 2.1 ofrecen defensa en profundidad frente a manipulaciones algorítmicas y adversarios con capacidad cuántica. El payload empaqueta el diario canónico de ejecución de 144 bytes, la prueba Groth16 y la firma digital ML-DSA-65 en una estructura binaria inmutable para la red (~5.6 KB):
+
+```text
++------+-----------+---------------+---------------+---------------+--------------+---------------+------------------+-------------------+------------------+
+| 0x02 | 0x03      | journalLen    | Journal       | proofLen      | Proof        | sigLen        | Signature        | PublicKey         | Checksum         |
+| (1B) | (1B)      | (4B BE)       | (144B fixed)  | (2B BE)       | (Variable)   | (2B BE)       | (3309B fixed)    | (1952B fixed)     | (32B SHA-256)    |
++------+-----------+---------------+---------------+---------------+--------------+---------------+------------------+-------------------+------------------+
+```
+
+| Campo | Tamaño | Tipo | Descripción |
+|:------|:-------|:-----|:------------|
+| **Version** | 1 byte | `0x02` | Identificador de versión del protocolo |
+| **Proof Type** | 1 byte | `0x03` | Discriminador de prueba (`0x03` = `GROTH16_PQC_HYBRID`) |
+| **Journal Length** | 4 bytes | Big-Endian `UInt32` | Longitud en bytes del diario canónico (144 bytes fijos) |
+| **Journal** | 144 bytes | Binario Fijo | Diario binario de ejecución empaquetado |
+| ↳ `guest_image_id` | 32 bytes | Hash binario | Identificador de la imagen del runtime o huésped enclave |
+| ↳ `logic_digest` | 32 bytes | Hash binario | Huella SHA-256 de la lógica JavaScript o WASM inyectada |
+| ↳ `dataset_digest` | 32 bytes | Hash binario | Huella SHA-256 del dataset al momento de la ejecución |
+| ↳ `output_digest` | 32 bytes | Hash binario | Huella SHA-256 de la salida sanitizada post-DP |
+| ↳ `fuel_consumed` | 8 bytes | Big-Endian `UInt64` | Unidades de fuel de cómputo cuantizadas consumidas por el sandbox |
+| ↳ `execution_timestamp`| 8 bytes | Big-Endian `UInt64` | Marca temporal en milisegundos |
+| **Proof Length** | 2 bytes | Big-Endian `UInt16` | Longitud en bytes de la prueba Groth16 |
+| **Proof** | Variable | Binario | Puntos de curva elíptica Groth16 comprimidos ($A \in G_1, B \in G_2, C \in G_1$) |
+| **Signature Length**| 2 bytes | Big-Endian `UInt16` | Longitud en bytes de la firma post-cuántica (3.309 bytes fijos) |
+| **Signature** | 3309 bytes | Binario | Firma digital ML-DSA-65 sobre Version + ProofType + Journal + Proof |
+| **Public Key** | 1952 bytes | Binario | Clave pública de verificación ML-DSA-65 del enclave firmante |
+| **Checksum** | 32 bytes | SHA-256 | Digest de integridad sobre Version hasta Public Key |
+
+### Estructura del Recibo (Binario v2: Groth16 BN254)
+
+Los recibos versión 2 proporcionan atestación compacta de conocimiento cero sin firmas post-cuánticas, empaquetando el diario binario de 144 bytes y los puntos de la curva en aproximadamente 252 bytes:
+
+| Campo | Tamaño | Tipo | Descripción |
+|:------|:-------|:-----|:------------|
+| **Version** | 1 byte | `0x02` | Identificador de versión del protocolo |
+| **Proof Type** | 1 byte | `0x02` | Discriminador (`0x02` = `GROTH16`) |
+| **Journal** | 144 bytes | Binario Fijo | Diario binario idéntico a v2.1 |
+| **Proof Length** | 4 bytes | Big-Endian `UInt32` | Longitud en bytes de la prueba Groth16 |
+| **Proof** | Variable | Binario | Puntos de curva Groth16 comprimidos ($A \in G_1, B \in G_2, C \in G_1$) |
+| **Checksum** | 32 bytes | SHA-256 | Digest de integridad sobre Version + ProofType + Journal + Proof |
+
+### Estructura del Recibo (Binario v1: HMAC Heredado)
+
+Mantenido para compatibilidad estricta con nodos legados:
 
 | Campo | Tamaño | Tipo | Descripción |
 |:------|:-------|:-----|:------------|
 | **Version** | 1 byte | `0x01` | Identificador de versión del protocolo |
 | **Journal Length** | 2 bytes | Big-Endian `UInt16` | Longitud del payload JSON |
 | **Journal** | Variable | Cadena JSON | Contiene `image_id`, `dataset_hash`, `output_hash`, `fuel` y `ts` |
-| **Seal** | 32 bytes | HMAC-SHA256 | Compromiso criptográfico sobre el diario |
+| **Seal** | 32 bytes | HMAC-SHA256 | Compromiso criptográfico derivado de la clave ML-KEM-768 |
+
+### Políticas de Ejecución ZK en Enclaves
+
+Las herramientas configuran su nivel de atestación mediante la directiva `LogicExecutionPolicy`:
+
+- **`zkMode: "none"`**: Modo estándar predeterminado con compromiso de sesión HMAC-SHA256.
+- **`zkMode: "optimistic"`**: Intenta generar un recibo Groth16 v2 mediante `@nekzus/liop-zk-native` o circuitos R1CS optimizados. Si el probador nativo no está disponible, degrada de forma segura a HMAC sin interrumpir la entrega del resultado.
+- **`zkMode: "required"` (`ZK_BLOCKING`)**: Obligatorio para enclaves soberanos de Nivel 1 (banca, defensa, registros médicos protegidos). Exige estrictamente una prueba Groth16 válida. Si el probador nativo falta, si se detectan pruebas ficticias simuladas o si la verificación falla, el enclave rechaza la petición con una respuesta formal de error: `"[LIOP-ZK] Clearance Tier 1 enclave policy violation: Valid Groth16 zero-knowledge proof required but unavailable."`
+- **`pqcSign: true`**: Instruye al enclave a co-firmar la prueba Groth16 con su clave privada persistente ML-DSA-65, emitiendo un recibo Versión 2.1 `GROTH16_PQC_HYBRID`.
+
+### Atestación de Hardware TEE Pre-Vuelo
+
+Para establecer confianza sobre infraestructuras físicas no seguras antes de transmitir payloads de lógica cifrados, el SDK proporciona la función `verifyTeeAttestationDetailed`. Esta utilidad inspecciona las mediciones de la raíz de confianza de hardware emitidas por máquinas virtuales confidenciales:
+
+```typescript
+import { verifyTeeAttestationDetailed } from "@nekzus/liop";
+
+const result = await verifyTeeAttestationDetailed(
+  attestationBytes,
+  expectedNonce,
+  {
+    allowedMeasurements: ["b7f8c..."],
+    requireHardwareSigned: true,
+  }
+);
+
+if (!result.valid) {
+  throw new Error(`Atestación TEE rechazada: ${result.reason}`);
+}
+```
+
+El verificador soporta dos plataformas principales de computación confidencial:
+
+1. **AMD SEV-SNP**:
+   - Analiza la estructura canónica de datos `snp_report_t` de 1.184 bytes.
+   - Extrae el campo `REPORT_DATA` de 64 bytes situado en el desplazamiento de bytes `0x50` (80 decimal).
+   - Valida que `REPORT_DATA` coincida con el resumen criptográfico `SHA-256(publicKey || nonce)` completado con ceros a la derecha.
+   - Verifica que el modo de depuración se encuentre inactivo (`POLICY.DEBUG === 0`) y valida la cadena de firmas del firmware contra las claves VCEK de AMD.
+
+2. **AWS Nitro Enclaves**:
+   - Decodifica el documento de atestación `COSE_Sign1` codificado en CBOR.
+   - Evalúa los registros de configuración de plataforma (`PCR0` para la imagen, `PCR1` para el kernel Linux, `PCR2` para la aplicación).
+   - Comprueba la vinculación criptográfica de la clave pública efímera y el nonce del llamante dentro de `user_data`.
+   - Valida la cadena de certificados X.509 hasta la CA raíz de AWS Nitro Enclaves.
 
 ### Pipeline Criptográfico
 
-1. **Generación de ImageID**: Un hash `SHA-256` del payload de lógica original identifica de forma única el código exacto ejecutado
-2. **Hash del Dataset**: Un hash `SHA-256` del dataset serializado ancla el estado de los datos al momento de la ejecución (cumplimiento de auditoría SOX)
-3. **Privacidad Diferencial**: El ruido Laplace se aplica a las salidas numéricas *antes* del compromiso, garantizando que el ZK-Receipt coincida con los datos ruidosos que el cliente recibe. Soporta **modo DDP** (PRNG con semilla via `dataset_hash + image_id`) para reproducibilidad en auditorías.
-4. **Ensamblaje del Journal**: Un objeto JSON que contiene `image_id`, `dataset_hash`, `output_hash` (SHA-256 del resultado post-DP), `fuel` consumido y `ts` (timestamp)
-5. **Sello HMAC**: `crypto.createHmac("sha256", sessionSecret).update(journal).digest()` — el secreto de sesión se deriva del **intercambio de claves ML-KEM-768 (Kyber)**
-6. **Verificación y Mitigación de Replay**: El verificador valida el sello HMAC en tiempo constante (`crypto.timingSafeEqual`). Adicionalmente, para prevenir **ataques de replay e intercambio de respuestas Man-in-the-Middle (MITM)**, el verificador calcula un hash SHA-256 local del resultado recibido (`expectedOutput`) y comprueba rigurosamente que coincida con `Journal.output_hash` (mediante `verifyZkReceipt`).
-7. **Extractor de Proxy por Llaves Balanceadas**: Si la llamada a la herramienta se delegó mediante proxy (`__liop_proxy_tool`), el verificador ejecuta una máquina de estados de llaves balanceadas en proceso para aislar y extraer los argumentos crudos del proxy a partir de la respuesta antes de calcular el hash, eludiendo falsos positivos de validación cuando el host inyecta metadatos.
+1. **Generación de ImageID**: Un hash `SHA-256` del payload de lógica original identifica de forma única el código exacto ejecutado.
+2. **Hash del Dataset**: Un hash `SHA-256` del dataset serializado ancla el estado de los datos al momento de la ejecución para auditorías regulatorias.
+3. **Privacidad Diferencial**: El ruido Laplace se aplica a las salidas numéricas antes del compromiso, garantizando que el ZK-Receipt coincida con los datos que el cliente recibe. Soporta **modo DDP** (PRNG determinista con semilla via `dataset_hash + image_id`) para reproducibilidad en auditorías.
+4. **Codificación Binaria del Journal**: Un buffer de 144 bytes que empaqueta `guest_image_id`, `logic_digest`, `dataset_digest`, `output_digest`, `fuel_consumed` y `execution_timestamp`.
+5. **Generación Nativa Groth16**: Ejecución R1CS paralelizada con Rayon mediante `@nekzus/liop-zk-native` generando puntos sobre la curva BN254 en fracciones de segundo en CPU local.
+6. **Co-Firma Post-Cuántica (Modo 3)**: Cuando `pqcSign` está activo, el enclave firma el diario y los puntos de la prueba empleando ML-DSA-65, integrando la firma y la clave pública en el layout wire v2.1.
+7. **Verificación y Mitigación de Replay**: El cliente valida la prueba en tiempo constante mediante emparejamientos bilineales o en el Worker Pool. Para impedir ataques de replay o manipulación de respuestas, el verificador calcula un hash SHA-256 local del resultado recibido y comprueba identidad estricta contra `journal.outputDigest`.
+8. **Extractor de Proxy por Llaves Balanceadas**: Si la llamada se delegó mediante proxy (`__liop_proxy_tool`), el verificador ejecuta una máquina de estados para aislar los argumentos originales antes del hashing, evitando falsos positivos cuando capas intermedias agregan metadatos.
 
 <Tip>
-  El `sessionSecret` utilizado para la firma HMAC es la clave compartida negociada mediante Criptografía Post-Cuántica (ML-KEM-768). Esto garantiza que la integridad del ZK-Receipt sea resistente a ataques cuánticos.
+  El `sessionSecret` utilizado en modo v1 heredado es la clave compartida negociada mediante Criptografía Post-Cuántica (ML-KEM-768), garantizando resistencia cuántica en todo momento.
 </Tip>
 
 ---
@@ -503,7 +597,7 @@ Las operaciones criptográficas de alto consumo se despachan a threads del siste
 | `logic-execution` | Instanciación del sandbox, descifrado AES, inspección AST |
 | `zk-verifier` | Deserialización de recibos, verificación HMAC |
 
-Configuración por defecto: 2–8 threads (producción), 0–1 threads (test), planificación `FixedQueue`, 5s de timeout por inactividad.
+Configuración por defecto: 2 a 8 threads (producción), 0 a 1 threads (test), planificación `FixedQueue`, 5s de timeout por inactividad.
 
 ### Defensa contra Heap Bomb
 
@@ -703,14 +797,14 @@ $$f(x) = \frac{1}{2\lambda} \exp\left(-\frac{|x|}{\lambda}\right)$$
 
 ## Hoja de Ruta
 
-Las siguientes capacidades están definidas arquitectónicamente y planificadas para versiones futuras:
+Las siguientes capacidades están definidas arquitectónicamente y activas en los canales de publicación del protocolo:
 
 | Característica | Estado | Descripción |
 |:---------------|:-------|:------------|
-| **TEE Attestation** | 🔴 Planificado | Soporte para enclaves de hardware (AWS Nitro / Intel SGX) |
-| **ZK-VM Nativo** | 🔴 Planificado | Bindings RISC Zero o SP1 para pruebas de conocimiento cero reales |
-| **ZK Core Rust** | 🔴 Planificado | Generación nativa de pruebas criptográficas en el core Rust |
+| **ZK-VM Nativo** | Activo (v2.1) | Pruebas Groth16 BN254 y recibos híbridos post-cuánticos ML-DSA-65 via `@nekzus/liop-zk-native` |
+| **ZK Core Rust** | Activo (v2.1) | Circuitos R1CS multi-hilo con Rayon y arkworks para analítica, benchmarks Criterion y guest SP1 |
+| **TEE Attestation** | Activo Pre-Vuelo | Verificación de mediciones de enclaves de hardware (AMD SEV-SNP y AWS Nitro Enclaves) |
 
-<Warning>
-  El SDK actual utiliza **compromisos HMAC-SHA256** como sellos de ZK-Receipt. Si bien son criptográficamente sólidos para la verificación de integridad, no constituyen pruebas de conocimiento cero verdaderas. La migración a un ZK-VM nativo está planificada para una versión futura.
-</Warning>
+<Tip>
+  Las pruebas soberanas de Conocimiento Cero están operativas mediante recibos binarios versión 2 y versión 2.1. Los nodos provistos con `@nekzus/liop-zk-native` sintetizan pruebas Groth16 sobre la curva BN254, mientras que los clientes ligeros del SDK TypeScript y puentes MCP verifican las atestaciones y firmas post-cuánticas sin requerir dependencias de compilación nativa en el host cliente.
+</Tip>

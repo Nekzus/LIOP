@@ -25,7 +25,7 @@ flowchart TD
             S3["Layer 3: Taint Analyzer (IFC)"]
             S4["Layer 4: Egress PII Shield (Regex/NER)"]
             S5["Layer 5: Aggregation-First Policy"]
-            S6["Layer 6: ZK-Receipt (HMAC-SHA256)"]
+            S6["Layer 6: ZK-Receipt (Tri-Modal / PQC Hybrid)"]
         end
     end
 ```
@@ -184,7 +184,36 @@ When an agent passes dynamic logic bytecode (`.wasm` or JavaScript envelopes), t
 3. **Layer 3 (Taint Analyzer)**: Acorn-based information flow control tracks variable assignments to prevent side-channel derivation of confidential inputs via boolean inference or character-code indexing.
 4. **Layer 4 (Egress PII Shield)**: Scans outbound data against fuzzy matches, credit card patterns, IBAN formulas, and NER entity detection.
 5. **Layer 5 (Aggregation-First Policy)**: Enforces that query outputs return summary statistics. Returning raw entity arrays triggers automatic policy rejection.
-6. **Layer 6 (ZK-Receipt Generation)**: Computes an HMAC-SHA256 digest binding the returned output to the exact SHA-256 hash of the injected logic module, sealed using the ephemeral post-quantum session key.
+6. **Layer 6 (ZK-Receipt Generation)**: Emits a cryptographic receipt bound to the executed logic digest and dataset hash. Supports HMAC-SHA256 commitments (Mode 0, v1), native Groth16 zero-knowledge proofs over BN254 (Mode 2, v2), and dual-layer ML-DSA-65 post-quantum hybrid receipts (Mode 3, v2.1) configured via tool-level execution policies.
+
+### Tool Execution Policies (`LogicExecutionPolicy`)
+
+Enclaves configure fine-grained Zero-Knowledge and cryptographic parameters per tool by providing an optional `policy` object during registration:
+
+```typescript
+server.tool(
+  "Analyze_Corporate_Payroll",
+  "Aggregates payroll distributions without exposing individual compensation records",
+  { department: z.string() },
+  async ({ department }) => {
+    // In-situ aggregation logic
+    return { content: [{ type: "text", text: JSON.stringify({ department, meanSalary: 84500 }) }] };
+  },
+  {
+    zkMode: "required", // "none" | "optimistic" | "required"
+    pqcSign: true,      // Enables ML-DSA-65 post-quantum co-signing (Receipt v2.1)
+    circuitName: "sum", // R1CS constraint circuit identifier
+  }
+);
+```
+
+| Property | Type | Default | Description |
+|:---|:---|:---|:---|
+| **`zkMode`** | `"none" \| "optimistic" \| "required"` | `"none"` | Governs zero-knowledge attestation. `"required"` blocks execution if Groth16 proofs cannot be synthesized or if mock proofs are supplied. |
+| **`pqcSign`** | `boolean` | `false` | When `true`, signs the Groth16 receipt with the enclave's persistent ML-DSA-65 private key, emitting a v2.1 wire receipt. |
+| **`circuitName`** | `string` | `"default"` | Target R1CS circuit identifier for the analytical query. |
+| **`guestImageId`** | `string` | Auto | 32-byte hexadecimal identifier representing the enclave guest runtime environment. |
+| **`vkey`** | `object` | Embedded | Custom Groth16 verification key points overriding default circuit parameters. |
 
 ---
 

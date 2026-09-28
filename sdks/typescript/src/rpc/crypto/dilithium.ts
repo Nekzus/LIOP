@@ -82,6 +82,18 @@ export const Dilithium65Wrapper = {
 	},
 
 	/**
+	 * Derives the ML-DSA-65 public key from a given secret key.
+	 */
+	getPublicKey(secretKey: Uint8Array): Uint8Array {
+		if (secretKey.length !== DILITHIUM65_CONSTANTS.SECRET_KEY_BYTES) {
+			throw new Error(
+				`ML-DSA-65 Secret Key must be exactly ${DILITHIUM65_CONSTANTS.SECRET_KEY_BYTES} bytes (Received: ${secretKey.length})`,
+			);
+		}
+		return ml_dsa65.getPublicKey(secretKey);
+	},
+
+	/**
 	 * Validates and imports a raw ML-DSA-65 public key.
 	 */
 	importPublicKey(buffer: Uint8Array): Uint8Array {

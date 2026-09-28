@@ -500,7 +500,7 @@ app.get("/health", async (c) => {
 	return c.json({
 		status: isConnected ? "healthy" : "connecting",
 		version: "2.5.0",
-		package: "@nekzus/liop@latest",
+		package: "@nekzus/liop@beta",
 		toolsCount: allDiscoveredTools.length,
 	});
 });

@@ -26,7 +26,7 @@ export interface TokenEstimator {
  *
  * - Synchronous: safe for hot-path usage without async overhead
  * - Merge cache reduced to 10K entries for long-running server processes
- * - Inlined at build-time: zero external runtime dependencies in node_modules
+ * - External dependency: resolved from gpt-tokenizer in node_modules at runtime
  */
 export class RealTokenEstimator implements TokenEstimator {
 	readonly name = "o200k_base";

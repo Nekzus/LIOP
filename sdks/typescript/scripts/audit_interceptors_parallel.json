@@ -1,0 +1,122 @@
+[
+  {
+    "id": "RAW-04",
+    "channel": "WITHOUT_JEV",
+    "testCase": "Enclave Perimeter Defense Inspection",
+    "payloadType": "LEGITIMATE",
+    "httpStatus": 200,
+    "allowed": true,
+    "defensiveLayer": "Layer 0: Sovereign PSK Swarm Enclave Defense",
+    "latencyMs": 20,
+    "hasZkReceipt": false
+  },
+  {
+    "id": "RAW-03",
+    "channel": "WITHOUT_JEV",
+    "testCase": "Raw Row-Level Data Export (return env.records)",
+    "payloadType": "RAW_PII_LEAK",
+    "httpStatus": 200,
+    "jsonRpcCode": -32000,
+    "errorMessage": "Preflight policy rejected: potential row-level export pattern detected.",
+    "allowed": false,
+    "defensiveLayer": "Layer 4: Egress PII Shield + Layer 5: Aggregation-First",
+    "latencyMs": 276,
+    "hasZkReceipt": false
+  },
+  {
+    "id": "RAW-05",
+    "channel": "WITHOUT_JEV",
+    "testCase": "Direct Healthcare LIO Analytics (Vault Enclave)",
+    "payloadType": "LEGITIMATE",
+    "httpStatus": 200,
+    "allowed": true,
+    "defensiveLayer": "Layer 6: ZK-Receipt (Vault Enclave Groth16)",
+    "latencyMs": 356,
+    "hasZkReceipt": true
+  },
+  {
+    "id": "RAW-01",
+    "channel": "WITHOUT_JEV",
+    "testCase": "Direct BLG Banking Analytics (Native Baseline)",
+    "payloadType": "LEGITIMATE",
+    "httpStatus": 200,
+    "allowed": true,
+    "defensiveLayer": "Layer 6: ZK-Receipt (Direct Enclave Worker Pool)",
+    "latencyMs": 505,
+    "hasZkReceipt": true
+  },
+  {
+    "id": "JEV-04",
+    "channel": "WITH_JEV",
+    "testCase": "Prompt Injection / DAN Mode Override",
+    "payloadType": "PROMPT_INJECTION",
+    "httpStatus": 403,
+    "jsonRpcCode": -32099,
+    "errorMessage": "Perimeter block by Jev: path_traversal",
+    "allowed": false,
+    "defensiveLayer": "Layer L4/L7 TypeSafe Jev (Blocked at Perimeter)",
+    "latencyMs": 524,
+    "hasZkReceipt": false
+  },
+  {
+    "id": "JEV-02",
+    "channel": "WITH_JEV",
+    "testCase": "SQL Injection Probe (Perimeter Filter)",
+    "payloadType": "SQL_INJECTION",
+    "httpStatus": 403,
+    "jsonRpcCode": -32099,
+    "errorMessage": "Perimeter block by Jev: sql_injection",
+    "allowed": false,
+    "defensiveLayer": "Layer L4/L7 TypeSafe Jev (Blocked at Perimeter)",
+    "latencyMs": 552,
+    "hasZkReceipt": false
+  },
+  {
+    "id": "JEV-03",
+    "channel": "WITH_JEV",
+    "testCase": "Path Traversal Probe (Perimeter Filter)",
+    "payloadType": "PATH_TRAVERSAL",
+    "httpStatus": 403,
+    "jsonRpcCode": -32099,
+    "errorMessage": "Perimeter block by Jev: path_traversal",
+    "allowed": false,
+    "defensiveLayer": "Layer L4/L7 TypeSafe Jev (Blocked at Perimeter)",
+    "latencyMs": 593,
+    "hasZkReceipt": false
+  },
+  {
+    "id": "JEV-01",
+    "channel": "WITH_JEV",
+    "testCase": "Legitimate HFT Market Analysis",
+    "payloadType": "LEGITIMATE",
+    "httpStatus": 200,
+    "allowed": true,
+    "defensiveLayer": "Layer L4/L7 Jev Perimeter Admission (Allowed)",
+    "latencyMs": 611,
+    "hasZkReceipt": true
+  },
+  {
+    "id": "JEV-05",
+    "channel": "WITH_JEV",
+    "testCase": "Legitimate VWAP Algorithmic Strategy Analysis",
+    "payloadType": "LEGITIMATE",
+    "httpStatus": 200,
+    "allowed": true,
+    "defensiveLayer": "Layer L4/L7 Jev Perimeter Admission (Allowed)",
+    "latencyMs": 694,
+    "hasZkReceipt": true
+  },
+  {
+    "id": "RAW-02",
+    "channel": "WITHOUT_JEV",
+    "testCase": "Malicious Code Injection (require fs)",
+    "payloadType": "SANDBOX_VIOLATION",
+    "httpStatus": 200,
+    "jsonRpcCode": -32000,
+    "errorMessage": "[LIOP] Egress Security Violation. Output blocked due to policy enforcement. Ensu",
+    "allowed": false,
+    "defensiveLayer": "Layer 1: Guardian AST + Layer 2: WASI Sandbox",
+    "latencyMs": 718,
+    "hasZkReceipt": false
+  }
+]

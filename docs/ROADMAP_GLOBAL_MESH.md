@@ -1,10 +1,10 @@
-# 🌐 LIOP Global Distributed Mesh Deployment Roadmap
+# LIOP Global Distributed Mesh Deployment Roadmap
 
 This document serves as the permanent, authoritative blueprint for transitioning the Logic-Injection-on-Origin Protocol (LIOP) from a local Docker testnet into an autonomous, globally distributed zero-trust mesh protocol operating across corporate networks, firewalls, and diverse geographic regions.
 
 ---
 
-## 🗺️ Evolution Roadmap Overview
+## Evolution Roadmap Overview
 
 ```mermaid
 gantt
@@ -52,7 +52,7 @@ gantt
 
 ---
 
-## ✅ 1. Completed Phases (Verified & Production-Tested)
+## 1. Completed Phases (Verified & Production-Tested)
 
 ### 1.1 Phase Alpha (Core Architecture & Zero-Trust Sandbox)
 * **Status**: Complete & Verified.
@@ -137,9 +137,9 @@ gantt
 
 ---
 
-## ⏳ 2. Upcoming Phases (Detailed Specifications)
+## 2. Upcoming Phases (Detailed Specifications)
 
-### 🔵 Phase RC: Production Resilience, Hardware TEE & Rust Core Parity
+### Phase RC: Production Resilience, Hardware TEE & Rust Core Parity
 * **Target Window**: Q4 2026 - Q1 2027
 * **Key Components**:
   1. **Rust Core Protocol Parity (`servers/liop-node`)**:
@@ -159,7 +159,7 @@ gantt
 
 ---
 
-### 🟣 Phase GA: Massive Global Availability & High-Performance WAN
+### Phase GA: Massive Global Availability & High-Performance WAN
 * **Target Window**: Q3 2027
 * **Key Components**:
   1. **Dedicated Global Bootstrap Supernodes**:
@@ -182,7 +182,7 @@ gantt
 
 ---
 
-## 📦 Dependency Matrix by Phase
+## Dependency Matrix by Phase
 
 | Phase | Package Installation Command | Architectural Purpose |
 |---|---|---|

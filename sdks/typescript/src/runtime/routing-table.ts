@@ -12,6 +12,7 @@
  * Implements per-route latency tracking, failure backoff, and circuit breaking.
  */
 
+import { TOOL_ALIASES } from "../gateway/mcp-compat.js";
 import { log } from "../utils/logger.js";
 
 export type TransportProvider = "http-gateway" | "p2p-grpc" | "local";
@@ -121,7 +122,8 @@ export class RoutingTable {
 	 * Resolves the optimal route for a specific tool.
 	 */
 	public resolve(toolName: string): ToolRoute | undefined {
-		const route = this.routes.get(toolName);
+		const targetName = TOOL_ALIASES[toolName] || toolName;
+		const route = this.routes.get(targetName) ?? this.routes.get(toolName);
 		if (!route) return undefined;
 
 		// If circuit is tripped (excessive failures), still return route but log warning

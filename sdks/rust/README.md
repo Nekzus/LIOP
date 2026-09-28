@@ -4,7 +4,7 @@
     <img alt="Logic-Injection-on-Origin Protocol Logo" src="../../docs/logo/light.svg" width="600">
   </picture>
 
-  <h1>Logic-Injection-on-Origin Protocol — Rust SDK</h1>
+  <h1>Logic-Injection-on-Origin Protocol: Rust SDK</h1>
   <p><strong>Native Rust crates for the Logic-Injection-on-Origin Protocol.</strong></p>
   <p>Zero-cost abstractions, asynchronous gRPC transport, post-quantum key encapsulation, and decentralized P2P routing.</p>
 
@@ -17,7 +17,7 @@
 
 ---
 
-## 📚 Official Documentation
+## Official Documentation
 
 Comprehensive architectural deep dives, compilation instructions, and protocol references are available on Mintlify:
 
@@ -55,10 +55,10 @@ sdks/rust/
 The protocol definitions crate for the LIOP mesh. It compiles Protocol Buffer definitions via [`tonic`](https://github.com/hyperium/tonic) and [`prost`](https://github.com/tokio-rs/prost), exporting typed client and server stubs.
 
 **Key Exports:**
-- `liop_core::v1::LogicMeshClient` — gRPC client stub for connecting to Data Nodes.
-- `liop_core::v1::LogicMeshServer` — gRPC server trait for implementing Data Nodes.
-- `liop_core::v1::IntentRequest` / `IntentResponse` — Zero-Trust handshake negotiation.
-- `liop_core::v1::LogicRequest` / `LogicResponse` — WASM payload injection and streaming results.
+- `liop_core::v1::LogicMeshClient`: gRPC client stub for connecting to Data Nodes.
+- `liop_core::v1::LogicMeshServer`: gRPC server trait for implementing Data Nodes.
+- `liop_core::v1::IntentRequest` / `IntentResponse`: Zero-Trust handshake negotiation.
+- `liop_core::v1::LogicRequest` / `LogicResponse`: WASM payload injection and streaming results.
 
 **Dependencies:**
 | Crate | Version | Purpose |
@@ -142,10 +142,10 @@ cargo test -p liop-core -p liop-client
 
 ## Related Projects
 
-- [Mintlify Documentation](https://nekzus-32.mintlify.app/) — Complete protocol documentation
-- [TypeScript SDK (`@nekzus/liop`)](../../sdks/typescript/README.md) — Node.js SDK and MCP Gateway
-- [Rust Mesh Node (`liop-node`)](../../servers/liop-node/README.md) — Physical WASI host daemon
-- [Protocol Specification](../../protocol/SPECIFICATION.md) — Technical RFC specification
+- [Mintlify Documentation](https://nekzus-32.mintlify.app/): Complete protocol documentation
+- [TypeScript SDK (`@nekzus/liop`)](../../sdks/typescript/README.md): Node.js SDK and MCP Gateway
+- [Rust Mesh Node (`liop-node`)](../../servers/liop-node/README.md): Physical WASI host daemon
+- [Protocol Specification](../../protocol/SPECIFICATION.md): Technical RFC specification
 
 ---
 
