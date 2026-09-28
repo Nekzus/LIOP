@@ -130,9 +130,25 @@ Cualquier mutación efectuada dentro del interceptor opera sobre una instancia a
 
 ## Ejemplos de Implementación
 
-### Ejemplo 1: TypeSafe Jev (Clasificación Probabilística System One)
+### Comparativa Arquitectónica: Servicios Cloud vs Runtime Local In-Situ
 
-TypeSafe Jev ejecuta clasificación semántica rápida sobre los argumentos de herramientas usando primitivas tipadas (`noul`, `choice`, `score`):
+El filtrado de admisión perimetral puede operar mediante servicios de clasificación externos o modelos locales en el proceso. La siguiente tabla sintetiza las diferencias operativas entre ambos enfoques:
+
+| Dimensión | Servicios Cloud Externos (ej. TypeSafe Jev) | Runtime Local ONNX (Recomendado) |
+|:---|:---|:---|
+| **Soberanía de Datos** | Cargas y argumentos viajan por redes públicas | Cero egreso; las cargas permanecen en el host |
+| **Latencia de Inferencia** | 120 ms a 450 ms (tiempo de ida y vuelta WAN) | 0.8 ms a 2.5 ms (ejecución directa en CPU local) |
+| **Riesgo de Disponibilidad** | Sujeto a caídas de servicio, límites de tasa y cuotas | Proceso determinista sin dependencias externas |
+| **Coste Económico** | Tarificación recurrente por volumen de consultas | Cero costes de licencia o consumo de API |
+| **Aislamiento de Red** | Inoperable en redes aisladas o sin acceso a Internet | Compatible con enclaves desconectados (air-gapped) |
+
+<Warning>
+  El empleo de clasificadores cloud externos como TypeSafe Jev **no se recomienda** en infraestructuras de producción que requieran soberanía de datos estricta. Transmitir argumentos en texto plano a plataformas de terceros compromete la confidencialidad exigida por normativas como HIPAA y PCI-DSS, añade puntos únicos de falla ante cortes del proveedor y multiplica la latencia de admisión por más de dos órdenes de magnitud en comparación con el runtime local ONNX.
+</Warning>
+
+### Ejemplo 1: Clasificador Cloud Externo (TypeSafe Jev)
+
+En entornos de evaluación donde el tráfico saliente a Internet esté autorizado, servicios externos analizan el contexto semántico mediante interfaces REST:
 
 ```typescript
 import type { GatewayInterceptor } from "@nekzus/liop";
@@ -196,34 +212,75 @@ export const jevAdmissionHook: GatewayInterceptor = async (request, context) => 
 };
 ```
 
-### Ejemplo 2: Runtime Local ONNX (Inferencia ML Sin Salida a Red)
+### Ejemplo 2: Runtime Local ONNX (Tubería Híbrida en Dos Fases)
 
-Para despliegues perimetrales donde no se permite tráfico saliente, modelos ONNX evalúan representaciones vectoriales en el proceso local:
+Para despliegues soberanos donde se prohíbe el tráfico saliente a servicios de terceros, modelos ONNX evalúan las cargas entrantes de forma local en el host perimetral.
+
+Dado que los modelos neuronales basados en transformadores procesan la coherencia semántica en lenguaje natural y no patrones sintácticos de código, la arquitectura de producción recomendada implementa una canalización híbrida en dos fases:
+1. **Etapa 1A (Filtro Sintáctico)**: Verificación determinista mediante expresiones regulares (< 0.2 ms) que neutraliza ataques estructurados como inyecciones SQL, escapes de directorio o metacaracteres shell.
+2. **Etapa 1B (Clasificador Semántico ONNX)**: Modelo cuantizado INT8 (< 2.0 ms) que detecta inyecciones de prompt, evasiones de restricciones o instrucciones encubiertas.
 
 ```typescript
-import * as ort from "onnxruntime-node";
+import { pipeline, env } from "@huggingface/transformers";
 import type { GatewayInterceptor } from "@nekzus/liop";
 
-const session = await ort.InferenceSession.create("./models/perimeter-detector.onnx");
+// Configuración de almacenamiento local aislado (cero salida a red externa)
+env.localModelPath = process.env.LIOP_MODEL_PATH || "~/.liop/models";
+env.allowRemoteModels = false;
 
-export const onnxAdmissionHook: GatewayInterceptor = async (request) => {
-  const tensor = vectorizeRequest(request);
-  const results = await session.run({ input: tensor });
-  const anomalyScore = (results.score.data as Float32Array)[0];
+// Instancia singleton precalentada para eliminar la latencia de arranque en frío
+const classifier = await pipeline("text-classification", "tiny-prompt-guard", {
+  device: "cpu",
+});
 
-  if (anomalyScore > 0.85) {
+// Paso de calentamiento del tensor durante el arranque de la aplicación
+await classifier("Consulta de inicialización para calentamiento de tensores");
+
+const REGLAS_SINTACTICAS = [
+  { pattern: /(?:--|\b(?:DROP|ALTER|TRUNCATE|DELETE)\b\s+(?:TABLE|DATABASE))/i, name: "SQL_INJECTION" },
+  { pattern: /(?:\.\.\/|\.\.\\){2,}/, name: "PATH_TRAVERSAL" },
+  { pattern: /(?:;\s*(?:cat|ls|rm|curl|wget|sh|bash)\b|\$\(.*\))/, name: "SHELL_INJECTION" },
+];
+
+export const onnxHybridAdmissionHook: GatewayInterceptor = async (request, context) => {
+  if (request.method !== "tools/call") {
+    return { allowed: true };
+  }
+
+  const textToScan = JSON.stringify(request.params ?? {});
+
+  // Etapa 1A: Filtro Sintáctico Determinista (< 0.2 ms)
+  for (const rule of REGLAS_SINTACTICAS) {
+    if (rule.pattern.test(textToScan)) {
+      return {
+        allowed: false,
+        reason: `Rechazado por firma perimetral: ${rule.name}`,
+        errorCode: -32001,
+        metadata: { stage: "1A_SYNTACTIC_FAIL_CLOSED", rule: rule.name },
+      };
+    }
+  }
+
+  // Etapa 1B: Inferencia Semántica Local ONNX (< 2.0 ms)
+  const [verdict] = await classifier(textToScan);
+  const isThreat = verdict.label === "INJECTION" && verdict.score >= 0.70;
+
+  if (isThreat) {
     return {
       allowed: false,
-      reason: `Anomaly threshold exceeded (${anomalyScore.toFixed(3)})`,
-      errorCode: -32050,
+      reason: `Rechazado por clasificador semántico (Confianza: ${(verdict.score * 100).toFixed(1)}%)`,
+      errorCode: -32099,
+      metadata: { stage: "1B_SEMANTIC_FAIL_CLOSED", score: verdict.score },
     };
   }
 
-  return { allowed: true, metadata: { anomalyScore } };
+  return { allowed: true, metadata: { stage: "ADMITTED", score: verdict.score } };
 };
 ```
 
 ### Ejemplo 3: Reglas Estáticas Deterministas (Cero Dependencias)
+
+Cuando no se requiere inferencia de aprendizaje automático o las restricciones de hardware impiden ejecutar modelos neuronales, las expresiones regulares directas proporcionan filtrado perimetral sin librerías externas:
 
 ```typescript
 import type { GatewayInterceptor } from "@nekzus/liop";

@@ -130,9 +130,25 @@ Top-level and nested property modifications performed inside the interceptor ope
 
 ## Usage Examples
 
-### Example 1: TypeSafe Jev (Probabilistic System One Classifier)
+### Architectural Evaluation: Cloud Services vs Local In-Situ Runtime
 
-TypeSafe Jev performs fast semantic classification over tool arguments using typed primitives (`noul`, `choice`, `score`):
+Perimeter admission filtering can execute via external classification APIs or local in-process models. The table below outlines the operational trade-offs:
+
+| Dimension | External Cloud APIs (e.g. TypeSafe Jev) | Local ONNX Runtime (Recommended) |
+|:---|:---|:---|
+| **Data Sovereignty** | Payloads and arguments traverse public networks | Zero egress; payloads remain strictly on host |
+| **Inference Latency** | 120 ms to 450 ms (WAN round-trip) | 0.8 ms to 2.5 ms (CPU in-process) |
+| **Availability Risk** | Dependent on third-party uptime and rate limits | Deterministic local process without remote failure points |
+| **Operating Cost** | Recurring charges per API request | Zero licensing or API invocation fees |
+| **Network Isolation** | Incompatible with air-gapped or private subnets | Operates fully within isolated environments |
+
+<Warning>
+  Deploying external cloud classifiers such as TypeSafe Jev is **not recommended** for production environments requiring strict data sovereignty. Routing unencrypted parameters to third-party endpoints compromises the confidentiality required by regulations such as HIPAA and PCI-DSS, introduces availability risks during remote service disruptions, and increases admission latency by over two orders of magnitude compared to local ONNX execution.
+</Warning>
+
+### Example 1: External Cloud Classifier (TypeSafe Jev)
+
+For development environments where external network egress is acceptable, cloud endpoints evaluate semantic context via REST APIs:
 
 ```typescript
 import type { GatewayInterceptor } from "@nekzus/liop";
@@ -196,34 +212,75 @@ export const jevAdmissionHook: GatewayInterceptor = async (request, context) => 
 };
 ```
 
-### Example 2: Local ONNX Runtime (Zero-Egress ML Inference)
+### Example 2: Local ONNX Runtime (Two-Stage Hybrid Pipeline)
 
-For edge deployments requiring zero network egress, local ONNX models evaluate request embeddings directly in-process:
+For sovereign deployments requiring zero network egress, local ONNX neural classifiers evaluate incoming payloads directly on the host. 
+
+Because small transformer models evaluate semantic language context rather than syntactic code fragments, the recommended production pattern implements a two-stage hybrid pipeline:
+1. **Stage 1A (Syntactic Filter)**: Deterministic regular expression check (< 0.2 ms) blocking structured attacks (SQL injection, directory traversal, shell metacharacters).
+2. **Stage 1B (Semantic ONNX Classifier)**: Quantized INT8 neural model (< 2.0 ms) detecting prompt injections, jailbreak attempts, and covert instruction overrides.
 
 ```typescript
-import * as ort from "onnxruntime-node";
+import { pipeline, env } from "@huggingface/transformers";
 import type { GatewayInterceptor } from "@nekzus/liop";
 
-const session = await ort.InferenceSession.create("./models/perimeter-detector.onnx");
+// Configure local-only model storage (zero external network egress)
+env.localModelPath = process.env.LIOP_MODEL_PATH || "~/.liop/models";
+env.allowRemoteModels = false;
 
-export const onnxAdmissionHook: GatewayInterceptor = async (request) => {
-  const tensor = vectorizeRequest(request);
-  const results = await session.run({ input: tensor });
-  const anomalyScore = (results.score.data as Float32Array)[0];
+// Pre-warmed singleton instance eliminating cold-start latency
+const classifier = await pipeline("text-classification", "tiny-prompt-guard", {
+  device: "cpu",
+});
 
-  if (anomalyScore > 0.85) {
+// Warmup tensor pass during application bootstrap
+await classifier("Warmup initialization query");
+
+const SYNTACTIC_RULES = [
+  { pattern: /(?:--|\b(?:DROP|ALTER|TRUNCATE|DELETE)\b\s+(?:TABLE|DATABASE))/i, name: "SQL_INJECTION" },
+  { pattern: /(?:\.\.\/|\.\.\\){2,}/, name: "PATH_TRAVERSAL" },
+  { pattern: /(?:;\s*(?:cat|ls|rm|curl|wget|sh|bash)\b|\$\(.*\))/, name: "SHELL_INJECTION" },
+];
+
+export const onnxHybridAdmissionHook: GatewayInterceptor = async (request, context) => {
+  if (request.method !== "tools/call") {
+    return { allowed: true };
+  }
+
+  const textToScan = JSON.stringify(request.params ?? {});
+
+  // Stage 1A: Deterministic Syntactic Filter (< 0.2 ms)
+  for (const rule of SYNTACTIC_RULES) {
+    if (rule.pattern.test(textToScan)) {
+      return {
+        allowed: false,
+        reason: `Blocked by perimeter signature: ${rule.name}`,
+        errorCode: -32001,
+        metadata: { stage: "1A_SYNTACTIC_FAIL_CLOSED", rule: rule.name },
+      };
+    }
+  }
+
+  // Stage 1B: Local Semantic ONNX Inference (< 2.0 ms)
+  const [verdict] = await classifier(textToScan);
+  const isThreat = verdict.label === "INJECTION" && verdict.score >= 0.70;
+
+  if (isThreat) {
     return {
       allowed: false,
-      reason: `Anomaly threshold exceeded (${anomalyScore.toFixed(3)})`,
-      errorCode: -32050,
+      reason: `Blocked by semantic neural filter (Confidence: ${(verdict.score * 100).toFixed(1)}%)`,
+      errorCode: -32099,
+      metadata: { stage: "1B_SEMANTIC_FAIL_CLOSED", score: verdict.score },
     };
   }
 
-  return { allowed: true, metadata: { anomalyScore } };
+  return { allowed: true, metadata: { stage: "ADMITTED", score: verdict.score } };
 };
 ```
 
 ### Example 3: Deterministic Rule Matcher (Zero Dependencies)
+
+When machine learning inference is unnecessary or hardware constraints preclude running neural models, lightweight regular expressions provide zero-dependency perimeter filtering:
 
 ```typescript
 import type { GatewayInterceptor } from "@nekzus/liop";

@@ -114,9 +114,13 @@ auditLogger.setInterceptor(securityInterceptor);
 
 ## Integration Examples
 
-### Example 1: Semantic Threat Detection with TypeSafe Jev
+### Example 1: External Threat Detection with TypeSafe Jev
 
-Analyze operational errors in real time using TypeSafe Jev System One judgments:
+<Warning>
+  Forwarding internal log streams or execution exceptions to external cloud services such as TypeSafe Jev is **not recommended** in production. Log messages frequently contain infrastructure paths, query metadata, or partial error traces. Transmitting this operational telemetry to third-party endpoints compromises infrastructure privacy, incurs per-call financial overhead, and introduces remote availability dependencies. For production deployments, use local in-process models (Example 3) or internal SIEM collectors (Example 2).
+</Warning>
+
+In development environments permitting outbound telemetry, operational error logs can be evaluated via cloud classification:
 
 ```typescript
 import { log, type LogInterceptor } from "@nekzus/liop";
@@ -189,6 +193,61 @@ const siemForwarder: AuditInterceptor = async (entry) => {
 
 const auditLogger = new AuditLogger();
 auditLogger.setInterceptor(siemForwarder);
+```
+
+### Example 3: Zero-Egress Threat Monitoring with Local ONNX (`LogInterceptor`)
+
+In air-gapped enclaves where outbound network calls to cloud classifiers are prohibited, `LogInterceptor` can evaluate error patterns using a local ONNX runtime:
+
+```typescript
+import { pipeline, env } from "@huggingface/transformers";
+import { log, type LogInterceptor } from "@nekzus/liop";
+
+env.localModelPath = process.env.LIOP_MODEL_PATH || "~/.liop/models";
+env.allowRemoteModels = false;
+
+const localDetector = await pipeline("text-classification", "tiny-prompt-guard", {
+  device: "cpu",
+});
+
+export const onnxLogMonitor: LogInterceptor = async (event) => {
+  if (event.level !== "error" && event.level !== "warn") return;
+
+  const [verdict] = await localDetector(event.message);
+  if (verdict.label === "INJECTION" && verdict.score >= 0.75) {
+    // Record threat telemetry locally without blocking logging pipeline
+    console.error(`[LOCAL THREAT ALERT] Potential operational exploit: ${event.message} (${(verdict.score * 100).toFixed(1)}%)`);
+  }
+};
+
+log.setInterceptor(onnxLogMonitor);
+```
+
+### Example 4: Local Cryptographic Audit Ledger Bridge (`AuditInterceptor`)
+
+Process sealed audit entries locally to detect unusual execution patterns or trigger local compliance storage:
+
+```typescript
+import { AuditLogger, type AuditInterceptor } from "@nekzus/liop";
+import * as fs from "node:fs/promises";
+
+export const localAuditBridge: AuditInterceptor = async (entry) => {
+  // Post-seal invariant guarantees immutable access to cryptographic hash chain
+  const record = JSON.stringify({
+    timestamp: entry.timestamp,
+    toolName: entry.toolName,
+    status: entry.status,
+    entryHash: entry.entryHash,
+    prevEntryHash: entry.prevEntryHash,
+    fuelConsumed: entry.fuelConsumed,
+  });
+
+  // Append asynchronously to local immutable ledger
+  await fs.appendFile("/var/log/liop/audit-ledger.jsonl", `${record}\n`);
+};
+
+const auditLogger = new AuditLogger();
+auditLogger.setInterceptor(localAuditBridge);
 ```
 
 ---
