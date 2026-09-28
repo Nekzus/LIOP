@@ -37,6 +37,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+*.tgz
 
 # Frameworks / Tooling
 .eslintcache
@@ -91,3 +92,7 @@ scratch/
 
 # Graphify local output
 graphify-out/
+
+# Social Media Launch & Outreach Materials
+launch-materials/
+

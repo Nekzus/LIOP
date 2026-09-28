@@ -4,7 +4,7 @@
     <img alt="Logic-Injection-on-Origin Protocol Logo" src="../../docs/logo/light.svg" width="600">
   </picture>
 
-  <h1>Logic-Injection-on-Origin Protocol — Rust Mesh Node (liop-node)</h1>
+  <h1>Logic-Injection-on-Origin Protocol, Rust Mesh Node (liop-node)</h1>
   <p><strong>High-performance Data Node host, Wasmtime WASI v29 sandbox, and native peer-to-peer transport.</strong></p>
 
   <p align="center">
@@ -16,7 +16,7 @@
 
 ---
 
-## 📚 Official Documentation
+## Official Documentation
 
 Detailed architecture specifications, compilation guides, and runtime benchmarks are hosted on Mintlify:
 

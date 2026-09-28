@@ -273,7 +273,10 @@ export class WasiSandbox {
 				return {
 					output:
 						stdout || (stderr ? `Error: ${stderr}` : "WASM_EXECUTION_SUCCESS"),
-					fuelConsumed: Math.floor(duration * 1000),
+					fuelConsumed: Math.max(
+						100,
+						Math.ceil(Math.floor(duration * 1000) / 100) * 100,
+					),
 				};
 			} catch (error: unknown) {
 				throw new Error(
@@ -302,6 +305,8 @@ export class WasiSandbox {
 			sandboxEnv.Function = undefined;
 			sandboxEnv.SharedArrayBuffer = undefined;
 			sandboxEnv.Date = undefined;
+			sandboxEnv.performance = undefined;
+			sandboxEnv.Intl = undefined;
 
 			// [DoS Defense] Block off-heap memory allocation vectors.
 			// Logic-on-Origin operates on JSON data (env.records) — binary buffers

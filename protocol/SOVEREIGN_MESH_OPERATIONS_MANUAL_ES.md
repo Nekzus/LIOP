@@ -712,16 +712,16 @@ Esta tabla comparativa sintetiza cómo LIOP absorbe los principios sólidos de l
 ### 9.1 Estado Auditado en `@nekzus/liop@2.5.0`
 
 El paquete oficial `@nekzus/liop@2.5.0` implementa en su totalidad los siguientes módulos criptográficos, de red y de gobernanza:
-- ✅ **Motor RBAC:** Autorización por scopes en métodos MCP (`security/rbac.ts`).
-- ✅ **Validador de Tokens JWT:** Resolución dual JWKS con aliasing de autoridades (`security/jwt-validator.ts`).
-- ✅ **Servidor OAuth 2.1 Embebido:** Endurecido para Client Credentials M2M (`security/oauth-server.ts`).
-- ✅ **Metadatos de Recursos Protegidos (PRM):** Endpoint de descubrimiento RFC 9728 (`security/prm.ts`).
-- ✅ **Certificate Manager:** Inspección X.509 y recarga en caliente con debounce (`security/cert-manager.ts`).
-- ✅ **Audit Logger Inmutable:** Libro mayor con cadena hash SHA-256 (`security/audit-logger.ts`).
-- ✅ **Criptografía Post-Cuántica:** Enlaces nativos ML-KEM-768 y ML-DSA-65.
-- ✅ **Núcleo de Aislamiento WASI:** Isolate V8 con 25 globales envenenados y 11 prototipos congelados.
-- ✅ **Motor ZK-Receipt:** Compromisos HMAC-SHA256 anclados a `dataset_hash`.
-- ✅ **Motor de Privacidad Diferencial:** Ruido de Laplace y DDP conforme a NIST SP 800-226.
+- **Motor RBAC:** Autorización por scopes en métodos MCP (`security/rbac.ts`).
+- **Validador de Tokens JWT:** Resolución dual JWKS con aliasing de autoridades (`security/jwt-validator.ts`).
+- **Servidor OAuth 2.1 Embebido:** Endurecido para Client Credentials M2M (`security/oauth-server.ts`).
+- **Metadatos de Recursos Protegidos (PRM):** Endpoint de descubrimiento RFC 9728 (`security/prm.ts`).
+- **Certificate Manager:** Inspección X.509 y recarga en caliente con debounce (`security/cert-manager.ts`).
+- **Audit Logger Inmutable:** Libro mayor con cadena hash SHA-256 (`security/audit-logger.ts`).
+- **Criptografía Post-Cuántica:** Enlaces nativos ML-KEM-768 y ML-DSA-65.
+- **Núcleo de Aislamiento WASI:** Isolate V8 con 25 globales envenenados y 11 prototipos congelados.
+- **Motor ZK-Receipt:** Compromisos HMAC-SHA256 anclados a `dataset_hash`.
+- **Motor de Privacidad Diferencial:** Ruido de Laplace y DDP conforme a NIST SP 800-226.
 
 ---
 

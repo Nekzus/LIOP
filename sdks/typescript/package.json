@@ -32,6 +32,7 @@
   "sideEffects": false,
   "files": [
     "dist",
+    "!dist/**/*.js.map",
     "README.md",
     "LICENSE",
     "NOTICE"
@@ -98,6 +99,9 @@
     "audit:prod:run": "tsx tests/infra/production-audit/cli/audit-run.ts",
     "audit:prod:runner": "docker compose -f tests/infra/production-audit/docker-compose.production-audit.yml run --rm audit-runner",
     "audit:prod:clean": "tsx tests/infra/production-audit/cli/audit-clean.ts",
+    "audit:local:start": "tsx tests/infra/production-audit/cli/audit-start-local.ts",
+    "audit:local:run": "tsx tests/infra/production-audit/cli/audit-run.ts --local",
+    "audit:local:runner": "docker compose -f tests/infra/production-audit/docker-compose.production-audit.yml -f tests/infra/production-audit/docker-compose.local.yml run --rm audit-runner",
     "telemetry:stream": "tsx scripts/telemetry-stream.ts"
   },
   "author": "Nekzus Solutions",
@@ -126,7 +130,6 @@
     "@types/node": "26.4.0",
     "@types/oidc-provider": "9.12.1",
     "@vitest/coverage-v8": "4.1.11",
-    "gpt-tokenizer": "4.0.0",
     "tsup": "8.5.1",
     "tsx": "4.23.13",
     "typescript": "6.0.3",
@@ -155,10 +158,12 @@
     "@noble/post-quantum": "0.7.1",
     "acorn": "8.18.0",
     "acorn-walk": "8.3.5",
+    "gpt-tokenizer": "4.0.0",
     "hono": "4.13.8",
     "it-pipe": "3.0.1",
     "jose": "6.2.12",
     "libp2p": "3.3.11",
+    "micro-zk-proofs": "0.3.1",
     "mlkem": "2.7.0",
     "multiformats": "14.0.5",
     "oidc-provider": "9.12.2",

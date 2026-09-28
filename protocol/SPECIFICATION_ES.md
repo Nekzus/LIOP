@@ -1,4 +1,4 @@
-# Protocolo Logic-Injection-on-Origin (LIOP) — Especificación Técnica
+# Protocolo Logic-Injection-on-Origin (LIOP): Especificación Técnica
 
 > **Estado:** Estándar Ratificado  
 > **Versión:** 1.0.0  
@@ -11,7 +11,7 @@
 
 ---
 
-## 📚 Documentación Oficial
+## Documentación Oficial
 
 Las guías interactivas, arquitecturas de referencia y entornos de pruebas residen en el portal oficial de Mintlify:
 

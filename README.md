@@ -19,7 +19,7 @@
 
 ---
 
-## 📚 Official Documentation
+## Official Documentation
 
 For complete interactive guides, production cookbooks, and API specifications, visit our official documentation portal:
 
@@ -56,7 +56,7 @@ Empirical metrics measured evaluating 520 MB of server access logs (350,000 JSON
 | **Payload Transferred over WAN** | `520,140,820 bytes` (520 MB) | `412 bytes` | **1,262,477x less network egress** |
 | **Token Usage (`o200k_base`)** | `38,400 tokens` (truncated) | `168 tokens` | **99.56% token savings** |
 | **Execution Duration** | `42.4s` (network serialization) | `1.82s` (local stream) | **23.2x faster time-to-insight** |
-| **Cryptographic Proof** | None (Untrusted output) | ZK-Receipt (HMAC-SHA256 seal) | **Mathematical Integrity** |
+| **Cryptographic Proof** | None (Untrusted output) | Tri-Modal ZK-Receipt (HMAC / Groth16 BN254 / ML-DSA-65 PQC Hybrid) | **Mathematical Integrity** |
 | **PII Exposure Risk** | High (Raw IPs sent to model) | Zero (IPs discarded in-situ) | **Guaranteed Sovereignty** |
 
 ---
@@ -69,12 +69,12 @@ This polyglot monorepo is organized into modular workspaces managed with **pnpm*
 LIOP-Protocol/
 ├── docs/                    # Mintlify bilingüe (EN/ES) documentation portal
 ├── sdks/
-│   ├── typescript/          # @nekzus/liop — Official TypeScript SDK and MCP Bridge
+│   ├── typescript/          # @nekzus/liop, Official TypeScript SDK and MCP Bridge
 │   └── rust/                # liop-core & liop-client native Rust crates
 ├── servers/
 │   └── liop-node/           # High-performance Data Node (Wasmtime + Tonic gRPC + libp2p)
 ├── tools/
-│   ├── liop-studio/         # @nekzus/liop-studio — Web UI (:16000) & CLI mesh scanner
+│   ├── liop-studio/         # @nekzus/liop-studio, Web UI (:16000) & CLI mesh scanner
 │   └── liop-cli/            # Rust CLI utility for node diagnostics
 ├── protocol/
 │   ├── proto/               # Protobuf v3 service definitions (liop_core.proto)
@@ -166,11 +166,11 @@ LIOP enforces six programmatic defense layers before any data or compute leaves 
 3. **Layer 3: Taint Analyzer (IFC)**: Acorn-based information flow control stops side-channel leakage via boolean inference or character-code indexing.
 4. **Layer 4: Egress PII Shield**: Multi-stage inspection (regex, fuzzy matching, Luhn/IBAN validators, and NLP-based NER) redacts sensitive tokens.
 5. **Layer 5: Aggregation-First Policy**: Prohibits exporting raw row-level records, requiring summary or statistical transformations.
-6. **Layer 6: ZK-Receipt Generation**: Seals outputs with HMAC-SHA256 mathematical commitments bound to the exact code executed and the ephemeral post-quantum session secret.
+6. **Layer 6: Tri-Modal ZK-Receipts & TEE Attestation**: Seals outputs with mathematical proof of honest execution, supporting HMAC-SHA256 (Mode 0, v1), Groth16 BN254 Zero-Knowledge SNARKs (Mode 2, v2), and ML-DSA-65 Post-Quantum Hybrid receipts (Mode 3, v2.1) conforming to NIST FIPS 204. Pre-flight TEE verification authenticates AMD SEV-SNP and AWS Nitro Enclaves.
 
 ---
 
-## 🤖 AI Agent & LLM Readiness
+## AI Agent & LLM Readiness
 
 LIOP implements the complete standard stack for autonomous coding agents:
 - **[`AGENTS.md`](./AGENTS.md)**: Universal instructions, architectural invariants, and security rules.

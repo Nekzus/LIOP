@@ -57,7 +57,7 @@ La consola organiza los datos de ejecución en cuatro componentes React modulare
 * **Output** (`OutputTab`): Resultado JSON estructurado devuelto por el enclave de origen tras la agregación in-situ. Incluye el hash de atestación ZK-Receipt HMAC-SHA256 y copiado con un clic.
 * **Debug** (`DebugTab`): Inspector de payloads crudos que muestra cabeceras de solicitud/respuesta, envolvente JSON-RPC, desglose de tiempos de ejecución (Descubrimiento de Ruta → ML-KEM-768 → AES-256-GCM → WASI Sandbox → ZK-Receipt), veredicto del Escudo Egress PII (`PASSED` / `INTERCEPTED`) y el secreto de sesión post-cuántico activo.
 * **Telemetry** (`TelemetryTab`):
-  * **Economía de Tokens frente a MCP**: Comparación lado a lado de tokens BPE consumidos (`o200k_base`) contra los ~16.000–48.000 tokens requeridos por MCP context-pulling tradicional.
+  * **Economía de Tokens frente a MCP**: Comparación lado a lado de tokens BPE consumidos (`o200k_base`) contra los ~16.000 a 48.000 tokens requeridos por MCP context-pulling tradicional.
   * **Consumo de Fuel WASI**: Fuel determinista consumido a nivel de instrucción AST (ej. `500 u / 1.000.000 máx`) con **Cuantización en Bloques de 100 Unidades** según NIST SP 800-53 para eliminar canales laterales de temporización.
   * **Soberanía del Cable**: Bytes físicos transmitidos vs bytes retenidos in-situ (>99.6% reducción de tráfico).
 * **Export** (`ExportTab`): Snippets de código ejecutable generados automáticamente para reproducir la consulta actual en TypeScript (SDK `@nekzus/liop`), cURL y Python. Cada snippet incluye el endpoint resuelto, cabeceras de autenticación y payload lógico exacto.

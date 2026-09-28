@@ -8,7 +8,11 @@ import * as os from "node:os";
 import * as path from "node:path";
 import * as readline from "node:readline";
 import { multiaddr } from "@multiformats/multiaddr";
-import { isLegacyRequest } from "../gateway/mcp-compat.js";
+import {
+	isLegacyRequest,
+	normalizeToolArguments,
+	TOOL_ALIASES,
+} from "../gateway/mcp-compat.js";
 import { LiopMcpRouter } from "../gateway/router.js";
 import { MeshNode } from "../mesh/index.js";
 import { RoutingTable, type ToolDefinition } from "../runtime/routing-table.js";
@@ -208,6 +212,22 @@ async function resolveBootstrapNodes(liopDir: string): Promise<string[]> {
 		bootstrapNodes = args.filter((a) => a.startsWith("/"));
 	}
 
+	if (process.env.LIOP_NEXUS_URL || process.env.LIOP_BLG_URL) {
+		const targetUrl = process.env.LIOP_NEXUS_URL || process.env.LIOP_BLG_URL;
+		if (targetUrl) {
+			const resolved = await resolveBootstrapFromUrl(targetUrl);
+			if (resolved) {
+				const normalized = normalizeBootstrap(resolved);
+				if (!bootstrapNodes.includes(normalized)) {
+					bootstrapNodes.push(normalized);
+					log.info(
+						`[LIOP-Agent] ✅ Added bootstrap from URL discovery: ${normalized}`,
+					);
+				}
+			}
+		}
+	}
+
 	if (bootstrapNodes.length === 0) {
 		const searchDirs = [
 			process.cwd(),
@@ -242,20 +262,6 @@ async function resolveBootstrapNodes(liopDir: string): Promise<string[]> {
 				}
 			} catch {
 				/* ignore */
-			}
-		}
-	}
-
-	if (process.env.LIOP_NEXUS_URL) {
-		const nexusUrl = process.env.LIOP_NEXUS_URL;
-		const resolved = await resolveBootstrapFromUrl(nexusUrl);
-		if (resolved) {
-			const normalized = normalizeBootstrap(resolved);
-			if (!bootstrapNodes.includes(normalized)) {
-				bootstrapNodes.push(normalized);
-				log.info(
-					`[LIOP-Agent] ✅ Added bootstrap from URL discovery: ${normalized}`,
-				);
 			}
 		}
 	}
@@ -537,6 +543,13 @@ async function runGatewayMode(
 			const params = request.params as
 				| { name?: string; arguments?: Record<string, unknown> }
 				| undefined;
+			if (params?.arguments) {
+				params.arguments = normalizeToolArguments(params.arguments);
+			}
+			if (params?.name) {
+				const canonicalName = TOOL_ALIASES[params.name] || params.name;
+				params.name = canonicalName;
+			}
 			if (params?.name === "LiopMeshStatus") {
 				const statusResponse: McpResponse = {
 					jsonrpc: "2.0",
@@ -581,6 +594,18 @@ async function runGatewayMode(
 					const hasStatus = toolsList.some((t) => t.name === "LiopMeshStatus");
 					if (!hasStatus) {
 						toolsList.unshift(LIOP_MESH_STATUS_TOOL);
+					}
+					// Expose legacy aliases for full backward compatibility
+					for (const [alias, target] of Object.entries(TOOL_ALIASES)) {
+						const targetDef = toolsList.find((t) => t.name === target);
+						if (targetDef && !toolsList.some((t) => t.name === alias)) {
+							toolsList.push({
+								...targetDef,
+								name: alias,
+								description:
+									`[Alias -> ${target}] ${targetDef.description || ""}`.trim(),
+							});
+						}
 					}
 					// Update routing table with descriptions and schemas
 					routingTable.registerGatewayTools(toolsList, gateway.mcpEndpoint);
@@ -926,7 +951,15 @@ async function runHybridMode(
 			const params = request.params as
 				| { name?: string; arguments?: Record<string, unknown> }
 				| undefined;
-			const toolName = params?.name || "";
+			if (params?.arguments) {
+				params.arguments = normalizeToolArguments(params.arguments);
+			}
+			const rawToolName = params?.name || "";
+			const canonicalToolName = TOOL_ALIASES[rawToolName] || rawToolName;
+			if (params?.name) {
+				params.name = canonicalToolName;
+			}
+			const toolName = canonicalToolName;
 
 			const route = routingTable.resolve(toolName);
 			if (route?.provider === "http-gateway") {
@@ -992,6 +1025,19 @@ async function runHybridMode(
 			for (const t of gatewayTools) toolMap.set(t.name, t);
 			for (const t of meshTools)
 				if (!toolMap.has(t.name)) toolMap.set(t.name, t);
+
+			// Expose legacy aliases for full backward compatibility
+			for (const [alias, target] of Object.entries(TOOL_ALIASES)) {
+				const targetDef = toolMap.get(target);
+				if (targetDef && !toolMap.has(alias)) {
+					toolMap.set(alias, {
+						...targetDef,
+						name: alias,
+						description:
+							`[Alias -> ${target}] ${targetDef.description || ""}`.trim(),
+					});
+				}
+			}
 
 			const merged = Array.from(toolMap.values()).sort((a, b) =>
 				a.name.localeCompare(b.name),

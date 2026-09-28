@@ -10,7 +10,7 @@ Built with React 19, TypeScript, Tailwind CSS, Radix UI primitives, and Framer M
 * **4-Tab Inspector**:
   * **Output**: Formatted result payload, cryptographic ZK-Receipt HMAC-SHA256 attestation, and data sovereignty metrics.
   * **Debug**: Step-by-step pipeline timings (Route Discovery, ML-KEM-768 Handshake, AES-256-GCM Sealing, WASI Sandbox, ZK-Receipt Verification), raw JSON-RPC envelopes, and PII Shield verdicts.
-  * **Telemetry**: Side-by-side token economy comparison (BPE `o200k_base`) vs traditional MCP context-pulling (~16k–48k tokens), deterministic AST instruction fuel metering with 100-unit bucket quantization (NIST SP 800-53), and wire traffic reduction percentages.
+  * **Telemetry**: Side-by-side token economy comparison (BPE `o200k_base`) vs traditional MCP context-pulling (~16k to 48k tokens), deterministic AST instruction fuel metering with 100-unit bucket quantization (NIST SP 800-53), and wire traffic reduction percentages.
   * **System**: Node connection state, active era detection (MCP 2026-07-28 vs legacy 2025-11-25), and routing table status.
 * **Dual High-Contrast Themes**: OLED Obsidian and Midnight Slate modes toggled atomically via CSS custom properties.
 

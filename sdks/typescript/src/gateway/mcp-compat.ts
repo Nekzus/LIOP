@@ -91,3 +91,36 @@ export function adaptResponseForLegacyClient(
 		result: rawResult,
 	};
 }
+
+/**
+ * Canonical tool aliases mapping legacy or shorthand tool names
+ * to production enclave capabilities.
+ */
+export const TOOL_ALIASES: Record<string, string> = {
+	bank_tool: "Analyze_Synthetic_Bank_Transactions",
+	bank_tool_XDwd: "Analyze_Synthetic_Bank_Transactions",
+	vault_tool: "Analyze_Synthetic_Medical_Records",
+	vault_tool_E8wP: "Analyze_Synthetic_Medical_Records",
+	oracle_tool: "Analyze_HFT_Market_Data",
+	compute_aggregate: "Analyze_Synthetic_Bank_Transactions",
+};
+
+/**
+ * Normalizes tool invocation parameters to satisfy dual parameter conventions.
+ * If data is passed instead of payload or envelope, maps data to both fields.
+ */
+export function normalizeToolArguments(
+	args?: Record<string, unknown>,
+): Record<string, unknown> {
+	if (!args) return {};
+	const normalized = { ...args };
+	if (normalized.data !== undefined) {
+		if (normalized.payload === undefined) {
+			normalized.payload = normalized.data;
+		}
+		if (normalized.envelope === undefined) {
+			normalized.envelope = normalized.data;
+		}
+	}
+	return normalized;
+}

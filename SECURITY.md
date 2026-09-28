@@ -21,7 +21,7 @@ If you discover a potential security vulnerability, memory isolation breach, PII
 
 ### Preferred Reporting Method
 Privately submit a vulnerability report through GitHub Security Advisories:
-👉 **[Open a Private Security Advisory](https://github.com/Nekzus/LIOP/security/advisories/new)**
+**[Open a Private Security Advisory](https://github.com/Nekzus/LIOP/security/advisories/new)**
 
 ### Security Scope & Triage Invariants
 Reports regarding the following critical defense layers receive expedited triage and priority review:

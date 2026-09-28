@@ -1,6 +1,6 @@
 ---
 title: "Enterprise Compliance & Regulatory Matrix"
-description: "Cross-framework mapping for SOC 2 Type II, HIPAA Security Rule, PCI-DSS v4.0, NIST SP 800-207, and OWASP Top 10 for LLMs"
+description: "Cross-framework mapping for SOC 2 Type II, HIPAA Security Rule, PCI-DSS v4.0, NIST SP 800-207, NIST FIPS 203/204, and NIST SP 800-53"
 icon: "scale"
 
 ---
@@ -17,8 +17,8 @@ LIOP's Logic-Injection-on-Origin paradigm provides deterministic, mathematically
 |---|---|---|---|
 | **CC6.1** | Logical Access Controls | Access to confidential data assets is restricted to authorized entities. | M2M OAuth 2.1 with RFC 8707 Resource Indicators and granular clearance tiers (`clearanceTier: 1` through `5`). |
 | **CC6.6** | Boundary Protection | Perimeter defenses protect networks against unauthorized access and exfiltration. | `GatewayInterceptor` provides L7 perimeter inspection (blocking SQLi/traversal); `EgressPIIShield` enforces deterministic egress redaction. |
-| **CC6.7** | Data Transmission Transmission | Data is encrypted in transit across untrusted networks. | Symmetric AES-256-GCM combined with quantum-resistant ML-KEM-768 key encapsulation and mutual TLS (mTLS). |
-| **CC7.2** | Threat Monitoring | Automated monitoring detects and alerts on unauthorized security events. | Universal out-of-band `AuditInterceptor` and Prometheus metrics (`liop_ast_rejections_total`, `liop_egress_pii_violations_total`). |
+| **CC6.7** | Data Transmission Transmission | Data is encrypted in transit across untrusted networks. | Symmetric AES-256-GCM combined with quantum-resistant ML-KEM-768 key encapsulation, ML-DSA-65 digital signatures, and mutual TLS (mTLS). |
+| **CC7.2** | Threat Monitoring | Automated monitoring detects and alerts on unauthorized security events. | Universal out-of-band `AuditInterceptor`, Prometheus metrics (`liop_ast_rejections_total`, `liop_egress_pii_violations_total`), and mathematical verification of Groth16 v2 / v2.1 receipts for non-repudiation. |
 
 ---
 
@@ -28,7 +28,7 @@ LIOP's Logic-Injection-on-Origin paradigm provides deterministic, mathematically
 |---|---|---|---|
 | **§164.312(a)(1)** | Technical | **Access Control**: Unique user identification and emergency access procedures. | Granular client credentials issued by Nexus OIDC; clearance tier verification prior to tool dispatch. |
 | **§164.312(b)** | Technical | **Audit Controls**: Mechanisms to record and examine system activity containing EPHI. | Non-blocking `AuditInterceptor` logs caller identity, tool name, and cryptographic execution digest to SIEM endpoints. |
-| **§164.312(c)(1)** | Technical | **Integrity Controls**: Policies to protect EPHI from unauthorized alteration or destruction. | ZK-Receipts (HMAC-SHA256) bind the output cryptographically to the exact hash of the executed WASI module. |
+| **§164.312(c)(1)** | Technical | **Integrity Controls**: Policies to protect EPHI from unauthorized alteration or destruction. | Tri-modal ZK-Receipts (HMAC v1, Groth16 BN254 v2, or Groth16 + ML-DSA-65 v2.1) bind the output cryptographically to the exact hash of the executed WASI module and dataset state via an immutable 144-byte binary journal. |
 | **§164.312(d)** | Technical | **Entity Authentication**: Verification that a person or entity seeking access is authorized. | Mutual TLS with root CA pinning combined with asymmetric post-quantum session handshakes. |
 | **§164.312(e)(1)** | Technical | **Transmission Security**: Guard against unauthorized access to EPHI transmitted over networks. | **Zero PHI Egress**: Datasets are analyzed in-situ. Only mathematically perturbed statistics (Differential Privacy) cross the wire. |
 
@@ -39,7 +39,7 @@ LIOP's Logic-Injection-on-Origin paradigm provides deterministic, mathematically
 | Requirement | Standard Mandate | Protocol Security Layer |
 |---|---|---|
 | **Req 3.4** | Protect Primary Account Numbers (PAN) across all environments. | Layer 4 Egress Shield strips card numbers and CVVs via `forbiddenKeys` and regular expressions before output serialization. |
-| **Req 6.4** | Prevent injection flaws (SQLi, prototype pollution, memory corruption). | Layer 1 Guardian AST pre-execution scanning blocks non-allowlisted imports; Layer 2 V8 sandbox poisons 25 sensitive globals and freezes 11 native prototypes (`Object.freeze`). |
+| **Req 6.4** | Prevent injection flaws (SQLi, prototype pollution, memory corruption). | Layer 1 Guardian AST pre-execution scanning blocks non-allowlisted imports; Layer 2 V8 sandbox poisons 25 sensitive globals (including timing APIs `Date`, `performance`, `Intl`, `SharedArrayBuffer`) and freezes 11 native prototypes (`Object.freeze`). |
 | **Req 10.2** | Automated audit trails for all administrative and data access events. | Built-in out-of-band interceptors emit structured audit telemetry without altering host execution performance. |
 | **Req 11.3** | Protect network traffic from eavesdropping and man-in-the-middle tampering. | Hybrid gRPC transport enforces quantum-resistant ML-KEM-768 key exchange combined with mTLS channel encryption. |
 
@@ -59,7 +59,18 @@ NIST SP 800-207 defines seven core tenets of Zero Trust Architecture. LIOP satis
 
 ---
 
-## 5. OWASP Top 10 for Large Language Model Applications
+## 5. NIST Cryptographic & Physical Security Standards
+
+| Standard | Control Identifier | Regulatory Requirement | LIOP Protocol Defense |
+|---|---|---|---|
+| **NIST FIPS 203** | ML-KEM-768 | Post-quantum key encapsulation for untrusted network transport. | Encapsulates symmetric AES-256-GCM session keys resistant against retrospective decryption attacks. |
+| **NIST FIPS 204** | ML-DSA-65 | Post-quantum digital signatures for authentication and non-repudiation. | Co-signs Groth16 ZK-Receipts (Version 2.1) and seals node manifests against quantum forgeability. |
+| **NIST SP 800-53** | **SC-39** | Process isolation and side-channel elimination. | Fixed 100-bucket instruction fuel quantization ensures structural payloads evaluate with identical fuel consumption (`stddev = 0`). |
+| **NIST SP 800-53** | **PE-3 / SC-28** | Hardware root-of-trust protection and cryptographic attestation. | Pre-flight TEE verification (`verifyTeeAttestationDetailed`) authenticates AMD SEV-SNP (1,184-byte report) and AWS Nitro Enclaves (COSE_Sign1). |
+
+---
+
+## 6. OWASP Top 10 for Large Language Model Applications
 
 | OWASP Vulnerability | Threat Profile | LIOP Protocol Defense |
 |---|---|---|

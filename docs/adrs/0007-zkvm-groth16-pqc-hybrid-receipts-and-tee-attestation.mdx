@@ -1,0 +1,118 @@
+---
+title: "ADR-0007: ZK-VM Groth16 v2 with ML-DSA-65 PQC Hybrid Receipts and Hardware TEE Attestation"
+description: "Architecture decision adopting Groth16 BN254 zero-knowledge proofs, ML-DSA-65 post-quantum hybrid co-signing (NIST FIPS 204), and hardware TEE pre-flight attestation for Sovereign Enclaves."
+icon: "shield-check"
+---
+
+# ZK-VM Groth16 v2 with ML-DSA-65 PQC Hybrid Receipts and Hardware TEE Attestation
+
+- **Status:** Accepted
+- **Deciders:** Protocol Steering Committee, Cryptographic Engineering Group, Core Architecture Team
+- **Date:** 2026-09-25
+- **Technical Story:** ZK-VM Mathematical Parity Milestone, NIST FIPS 204 Alignment, and Hardware TEE Pre-Flight Verification
+
+---
+
+## Context and Problem Statement
+
+Prior iterations of the LIOP protocol relied on symmetric HMAC-SHA256 commitments (version 1 receipts) derived from the negotiated ML-KEM-768 session secret to seal computational outputs. While computationally efficient ($< 0.05\text{ ms}$ latency), HMAC commitments provide symmetric verification rather than asymmetric mathematical zero-knowledge proofs. They cannot settle on public EVM smart contracts without revealing the shared session secret, nor do they prove mathematical execution integrity to third parties who were not part of the initial handshake.
+
+Furthermore, classical zero-knowledge proof systems such as Groth16 over the BN254 pairing curve rely on the hardness of the discrete logarithm problem. Consequently, standalone Groth16 proofs will eventually be vulnerable to polynomial-time quantum cryptanalysis via Shor's algorithm on Cryptanalytically Relevant Quantum Computers (CRQCs).
+
+Finally, running untrusted guest logic inside software sandboxes remains susceptible to hypervisor compromise and host memory snooping unless the underlying execution environment provides verified hardware isolation.
+
+---
+
+## Decision Drivers
+
+- **Mathematical Zero-Knowledge Proofs:** Deliver true non-interactive zero-knowledge computational integrity without exposing raw datasets or session secrets.
+- **Post-Quantum Future-Proofing:** Neutralize Harvest Now, Decrypt/Forge Later attack vectors by binding classical pairing-based proofs to quantum-resistant lattice signatures conforming to NIST FIPS 204.
+- **EVM and Interoperability Efficiency:** Maintain a compact proof representation compatible with EVM precompiles (`ecPairing`, `ecAdd`) for low-cost on-chain verification ($~200,000\text{ gas}$).
+- **Hardware Isolation Assurance:** Verify remote hardware attestation reports (AMD SEV-SNP and AWS Nitro Enclaves) before logic injection occurs.
+- **Zero Downgrade Attack Surface:** Enforce strict policy gates preventing adversaries from forcing weaker proof modes on Tier 1 Sovereign Enclaves.
+
+---
+
+## Considered Options
+
+1. **Pure STARKs (RISC Zero / SP1 Native Only):** Fully post-quantum and transparent with no trusted setup. However, generating standalone STARK proofs for simple analytical queries produces large proof payloads ($100\text{ KB}$ to $250\text{ KB}$), incurring prohibitive network egress overhead and excessive prover latency on edge nodes.
+2. **Standalone Classical Groth16 (BN254):** Highly compact proof size ($252\text{ bytes}$) with sub-second proving and microsecond verification. However, it lacks long-term post-quantum resistance against Shor's algorithm and requires trusted setup parameters.
+3. **Tri-Modal Tiered Architecture with Groth16 v2 and ML-DSA-65 Hybrid Receipts (Chosen):**
+   - Mode 0 (`HMAC_LEGACY`, `0x00`): Symmetric lightweight commitment for high-frequency edge IoT devices.
+   - Mode 2 (`GROTH16`, `0x02`): Compact 252-byte Groth16 proof over BN254 with 144-byte immutable binary journal for EVM settlement and general web clients.
+   - Mode 3 (`GROTH16_PQC_HYBRID`, `0x03`): Dual-sealed receipt combining Groth16 BN254 with a 3,309-byte lattice-based digital signature (ML-DSA-65, NIST FIPS 204) and 1,952-byte public key over `SHA-256(journal || proof)`.
+
+---
+
+## Decision Outcome
+
+**Chosen Option:** Option 3, supplemented with Hardware TEE Pre-Flight Attestation and Side-Channel API Poisoning.
+
+### Architecture Specifications
+
+#### 1. Binary Receipt Layout v2.1 (`GROTH16_PQC_HYBRID`)
+
+The v2.1 hybrid binary receipt format packages classical zero-knowledge correctness and post-quantum digital signature security into a single deterministic buffer:
+
+| Byte Offset | Size | Type | Field Description |
+|---|---|---|---|
+| `0` | 1 byte | `UInt8` | Format version identifier (`0x02`) |
+| `1` | 1 byte | `UInt8` | Proof type discriminator (`0x03` = `GROTH16_PQC_HYBRID`) |
+| `2..5` | 4 bytes | Big-Endian `UInt32` | Journal byte length ($144\text{ bytes}$) |
+| `6..149` | 144 bytes | Binary Buffer | Packed ZK Journal v2 (see specification below) |
+| `150..151` | 2 bytes | Big-Endian `UInt16` | Groth16 proof byte length ($L_{\text{proof}}$) |
+| `152..151+L_p` | Variable | Binary Buffer | Compressed Groth16 curve points ($A \in G_1, B \in G_2, C \in G_1$) |
+| Next 2 bytes | 2 bytes | Big-Endian `UInt16` | ML-DSA-65 signature byte length ($3,309\text{ bytes}$) |
+| Next 3,309 bytes | 3,309 bytes | Binary Buffer | NIST FIPS 204 ML-DSA-65 signature over `SHA-256(journal || proof)` |
+| Next 1,952 bytes | 1,952 bytes | Binary Buffer | ML-DSA-65 public key |
+| Final 32 bytes | 32 bytes | SHA-256 | Integrity checksum over all preceding header and payload bytes |
+
+#### 2. Packed ZK Journal v2 Layout (144 Bytes Fixed)
+
+The execution journal commits to all critical state variables in a fixed 144-byte binary structure:
+- `guest_image_id` (bytes `0..31`): SHA-256 digest of the guest interpreter binary.
+- `logic_digest` (bytes `32..63`): SHA-256 digest of the injected JavaScript or WebAssembly logic module.
+- `dataset_digest` (bytes `64..95`): SHA-256 digest anchoring dataset immutability across query lifecycles.
+- `output_digest` (bytes `96..127`): SHA-256 digest of the post-differential privacy sanitized output.
+- `fuel_consumed` (bytes `128..135`): Big-Endian `UInt64` reporting instruction fuel quantized in 100-unit blocks.
+- `execution_timestamp` (bytes `136..143`): Big-Endian `UInt64` millisecond epoch timestamp.
+
+#### 3. Hardware TEE Pre-Flight Attestation
+
+Nodes hosted in confidential enclaves submit cryptographically signed hardware attestation evidence validated by `verifyTeeAttestationDetailed` before accepting logic injection:
+- **AMD SEV-SNP**: Validates binary attestation reports of exactly 1,184 bytes, verifying that `REPORT_DATA` at byte offset `0x50` strictly binds to `SHA-256(publicKey || nonce)`.
+- **AWS Nitro Enclaves**: Parses COSE_Sign1 documents, asserting valid PCR measurements (`PCR0`, `PCR1`, `PCR2`) and public key inclusion in `user_data`.
+- **Synthetic Enclaves (Development)**: Accepts prefixed `TEES` envelopes solely when operating under non-production environments.
+
+#### 4. Anti-Downgrade and Deterministic Denial Invariants
+
+To eliminate cipher-suite downgrade vulnerabilities:
+- Capabilities configured with `zkMode: "required"` (`PROOF_MODE_ZK_BLOCKING`) strictly abort with an unrecoverable exception if the native prover is unavailable or fails. The engine never emits fallback dummy buffers.
+- Verification keys (`vkey`) are validated upon capability registration.
+- Clearance Tier 1 enclaves enforce `pqcSign: true`, mandating ML-DSA-65 co-signatures on all egress receipts.
+
+---
+
+## Positive Consequences
+
+- **Dual-Layer Non-Repudiation:** Mathematical proof of computation correctness (Groth16) combined with sovereign identity attestation (Dilithium ML-DSA-65).
+- **Long-Term Quantum Security:** Historical audit trails sealed with v2.1 receipts cannot be forged even after classical elliptic curves are broken.
+- **Hardware-Enforced Boundary Defense:** A compromised operating system kernel on the host cannot forge hardware attestation reports or inspect private memory.
+- **Deterministic Zero-Knowledge Verification:** Client verifiers and gateway routers perform two-stage verification (pairing checks and post-quantum signature verification) outside the main event loop using worker threads (`zk-verifier.ts`).
+
+---
+
+## Negative Consequences and Mitigations
+
+- **Increased Receipt Wire Footprint:** While Groth16 proofs alone require only $252\text{ bytes}$, the hybrid receipt expands to approximately $5.6\text{ KB}$ due to the lattice key and signature sizes.  
+  *Mitigation:* The $5.6\text{ KB}$ receipt is transmitted only once per analytical query, representing an egress footprint reduction of over 99% compared to traditional context-pulling architectures that transfer megabytes of raw records.
+- **CPU Cycle Overhead for ML-DSA-65:** Key generation and signature verification require dedicated CPU cycles.  
+  *Mitigation:* Verification tasks are offloaded to OS thread pools via `Piscina`, ensuring gateway response throughput remains unhampered.
+
+---
+
+## Validation and Compliance
+
+- **Unit Test Suite:** 100% green coverage across `zk-blocking.test.ts`, `pqc-hybrid-receipt.test.ts`, `tee-attestation.test.ts`, and `side-channel.test.ts`.
+- **Production Tri-Tier Audit:** Validated across 13 test suites (68 assertions) running against live Docker enclaves.
+- **Regulatory Alignment:** Satisfies NIST FIPS 204 (Digital Signatures), NIST FIPS 203 (Key Encapsulation), NIST SP 800-53 Control SC-39 (Process Isolation), and SOX 404 (Audit Immutability).

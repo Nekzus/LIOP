@@ -1,0 +1,21 @@
+{
+  "name": "@nekzus/liop-zk-native",
+  "version": "0.1.0",
+  "description": "Native multi-threaded Groth16 BN254 prover for LIOP zero-knowledge execution",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "napi": {
+    "name": "liop-zk-native",
+    "triples": {
+      "defaults": true,
+      "additional": []
+    }
+  },
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "@napi-rs/cli": "^3.0.0"
+  },
+  "scripts": {
+    "build": "napi build --platform --release"
+  }
+}

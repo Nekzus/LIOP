@@ -180,11 +180,11 @@ Este documento registra la siguiente URI según RFC 8615:
 
 ### 7.2 Espacio de Nombres de Scopes OAuth
 Este documento establece el espacio de nombres `liop`:
-- `liop:tools:list` — Lectura de declaraciones y esquemas de herramientas
-- `liop:tools:call` — Envío de lógica para ejecución
-- `liop:resources:read` — Lectura de recursos estáticos y manifiestos
-- `liop:schema:read` — Inspección de definiciones de esquemas
-- `liop:mesh:query` — Consulta a tablas de enrutamiento de la malla
+- `liop:tools:list`: Lectura de declaraciones y esquemas de herramientas
+- `liop:tools:call`: Envío de lógica para ejecución
+- `liop:resources:read`: Lectura de recursos estáticos y manifiestos
+- `liop:schema:read`: Inspección de definiciones de esquemas
+- `liop:mesh:query`: Consulta a tablas de enrutamiento de la malla
 
 ---
 

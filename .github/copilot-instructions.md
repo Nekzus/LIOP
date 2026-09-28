@@ -1,4 +1,4 @@
-# LIOP Repository — Copilot Instructions
+# LIOP Repository: Copilot Instructions
 
 This repository contains the Logic-Injection-on-Origin Protocol (LIOP) monorepo.
 

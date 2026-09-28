@@ -7,14 +7,14 @@ This document provides essential instructions, technical context, and developmen
 
 ---
 
-## 🚀 Project Vision & Paradigm
+## Project Vision & Paradigm
 Logic-Injection-on-Origin Protocol (LIOP) is the high-performance successor to the Model Context Protocol (MCP).
 - **Core Paradigm**: *Logic-Injection-on-Origin (LIO)*. Instead of moving data to the logic (Context-Pulling), LIOP moves logic (WASM micro-modules) to the data (Logic-Injection).
 - **Security model**: Extreme Zero-Trust using WASI sandboxing, PQC (Post-Quantum Cryptography), and ZK-Receipts (HMAC-SHA256) for computational integrity.
 
 ---
 
-## 🛠️ Technology Stack
+## Technology Stack
 
 ### Backend (Rust Workspace)
 - **Runtime**: [Wasmtime](https://wasmtime.dev/) (WASI v29.0+).
@@ -31,7 +31,7 @@ Logic-Injection-on-Origin Protocol (LIOP) is the high-performance successor to t
 
 ---
 
-## 📜 Development Standards
+## Development Standards
 
 ### Language Protocols
 - **Code Language**: Strictly **ENGLISH** (Variable names, functions, comments, docs).
@@ -99,7 +99,7 @@ Logic-Injection-on-Origin Protocol (LIOP) is the high-performance successor to t
    - Tokens must be cached in memory with a safety margin (at least 30s before `expires_in`) to prevent HTTP 401 Unauthorized errors during high-frequency analytical queries.
 24. **In-Situ Deterministic Fuel & Token Telemetry Invariant**:
    - Any playground, demo runner, or client harness showcasing Logic-on-Origin capabilities must compute both deterministic instruction-level AST fuel (using `calculateAstInstructionFuel` with 100-unit bucket quantization to eliminate timing side-channels per NIST SP 800-53) and LLM context token consumption (via BPE tokenizer `o200k_base` in `TokenTelemetryEngine`).
-   - Telemetry must contrast empirical in-situ execution against traditional MCP context-pulling baselines (~16k–48k tokens and ~195 KB wire egress) and emit OpenTelemetry semantic metrics (`gen_ai.client.token.usage`) to demonstrate data sovereignty and context reduction.
+   - Telemetry must contrast empirical in-situ execution against traditional MCP context-pulling baselines (~16k to 48k tokens and ~195 KB wire egress) and emit OpenTelemetry semantic metrics (`gen_ai.client.token.usage`) to demonstrate data sovereignty and context reduction.
 25. **Template-to-Capability Bidirectional Synchronization Invariant**:
    - In interactive playgrounds and logic injection studios, template selection and capability/tool targeting must maintain bidirectional synchronization.
    - Selecting a logic template must immediately update the selected tool to the template's designated capability, and choosing a tool from the capability browser must load that tool's corresponding canonical template. This prevents schema mismatch runtime errors and cross-domain payload rejections.
@@ -122,18 +122,18 @@ Logic-Injection-on-Origin Protocol (LIOP) is the high-performance successor to t
 
 ---
 
-## 🛡️ Security Guardrails (The Shield)
+## Security Guardrails (The Shield)
 Agents must enforce these six layers of defense:
 1. **Layer 1: Guardian AST**: Static inspection of injected WASM imports against a strict 14-function allowlist.
 2. **Layer 2: WASI Sandbox**: V8 Isolate with 25 poisoned globals, strict mode, 11-prototype pre-execution freezing (to satisfy PCI-DSS limits), and CPU fuel limits.
 3. **Layer 3: Taint Analyzer (IFC)**: Acorn-based static taint tracking to block PII side-channel derivation (`charCodeAt`, boolean inference).
 4. **Layer 4: Egress PII Shield**: Four-stage pipeline (key match, fuzzy, pattern validators, NER) scanning all outgoing data.
-5. **Layer 5: Aggregation-First Policy**: Blocks raw row-level data export — only aggregated results pass through.
+5. **Layer 5: Aggregation-First Policy**: Blocks raw row-level data export; only aggregated results pass through.
 6. **Layer 6: ZK-Receipt (HMAC-SHA256)**: Cryptographic proof binding output to exact logic executed, sealed with PQC session secret.
 
 ---
 
-## ⚠️ Infrastructure Gotchas (Windows + pnpm)
+## Infrastructure Gotchas (Windows + pnpm)
 - **NEVER use `git clean -fdx`**: It destroys the pnpm virtual store and corrupts `node_modules`.
 - **Symlink Management**: Avoid absolute paths; use relative resolution within the workspace.
 - **Wasmtime Fuel**: Always configure fuel limits to prevent infinite-loop DoS attacks.
@@ -147,7 +147,7 @@ Agents must enforce these six layers of defense:
 
 ---
 
-## 🏛️ Repository Structure
+## Repository Structure
 - `/servers/liop-node`: Main Rust Mesh Node (The Bastion/Vault).
 - `/sdks/typescript`: Official Node.js SDK and MCP Gateway.
 - `/protocol`: gRPC Protobuf definitions.
@@ -156,7 +156,7 @@ Agents must enforce these six layers of defense:
 
 ---
 
-## 🔒 Secure CI/CD & Publishing (OIDC)
+## Secure CI/CD & Publishing (OIDC)
 - **Tokenless Infrastructure**: Static npm tokens (`NPM_TOKEN`) are strictly prohibited in the CI pipeline. The repository uses **OIDC / Trusted Publishers** on npmjs.com.
 - **Decoupled pnpm Workspace Publishing**: Do not enable `"npmPublish": true` in semantic-release configuration. Standard npm publishing breaks under pnpm workspaces. Publishing is decoupled: semantic-release tags the code, and a native `pnpm publish --provenance --no-git-checks` command executes the publish step.
 - **Provenance Verification**: `--provenance` is mandatory in CI to guarantee build origin.

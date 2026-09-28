@@ -73,6 +73,7 @@ pub async fn inject_logic(target_ip: &str, wasm_path: &str) -> Result<(), Box<dy
         inputs: std::collections::HashMap::new(),
         pqc_ciphertext: ct.as_bytes().to_vec(),
         aes_nonce: nonce_bytes.to_vec(),
+        requested_proof_mode: liop_core::v1::ProofMode::LegacyHmac as i32,
     });
 
     let mut response_stream = client.execute_logic(logic_req).await?.into_inner();

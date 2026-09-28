@@ -14,6 +14,19 @@ service LogicMesh {
   rpc ExecuteLogic (LogicRequest) returns (stream LogicResponse);
 }
 
+// Verification and proving policy requested by the caller
+enum ProofMode {
+  PROOF_MODE_LEGACY_HMAC = 0;
+  PROOF_MODE_ZK_OPTIMISTIC = 1;
+  PROOF_MODE_ZK_BLOCKING = 2;
+}
+
+// Cryptographic proof format attached to computation receipts
+enum ProofType {
+  PROOF_TYPE_HMAC_LEGACY = 0;
+  PROOF_TYPE_GROTH16 = 2;
+}
+
 // Request to negotiate an intent to execute a WASM capability
 message IntentRequest {
   string agent_did = 1;         // Decentralized Identifier (DID) e.g., spiffe:// or Noise PeerID
@@ -31,17 +44,20 @@ message IntentResponse {
 
 // Request to push a WASM module down to the origin for execution
 message LogicRequest {
-  string session_token = 1;      // Token acquired from NegotiateIntent
-  bytes wasm_binary = 2;         // AES-GCM Encrypted .wasm Logic-on-Origin filter code
-  map<string, bytes> inputs = 3; // AES-GCM Encrypted input parameters
-  bytes pqc_ciphertext = 4;      // Kyber (ML-KEM-768) Ciphertext encapsulating the AES shared secret
-  bytes aes_nonce = 5;           // 12-byte nonce for AES-GCM
+  string session_token = 1;             // Token acquired from NegotiateIntent
+  bytes wasm_binary = 2;                // AES-GCM Encrypted .wasm Logic-on-Origin filter code
+  map<string, bytes> inputs = 3;        // AES-GCM Encrypted input parameters
+  bytes pqc_ciphertext = 4;             // Kyber (ML-KEM-768) Ciphertext encapsulating the AES shared secret
+  bytes aes_nonce = 5;                  // 12-byte nonce for AES-GCM
+  ProofMode requested_proof_mode = 6;   // Proving policy requested by caller
 }
 
 // Streamed Response back to the LLM agent containing reduced, semantically rich semantic responses
 message LogicResponse {
   string semantic_evidence = 1;  // Condensed semantic result for the LLM
   bytes cryptographic_proof = 2; // Integrity signature (SHA256)
-  bytes zk_receipt = 3;          // Zero-Knowledge Proof Receipt (e.g. risc0 zkVM) for Computational Integrity
+  bytes zk_receipt = 3;          // Zero-Knowledge Proof Receipt for Computational Integrity
   bool is_error = 4;             // Execution status
+  ProofType proof_type = 5;      // Format of the zero-knowledge computational proof
+  bytes guest_image_id = 6;      // Guest image identifier (32 bytes SHA-256)
 }

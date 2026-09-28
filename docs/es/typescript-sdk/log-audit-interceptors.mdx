@@ -114,9 +114,13 @@ auditLogger.setInterceptor(securityInterceptor);
 
 ## Ejemplos de Integración
 
-### Ejemplo 1: Detección Semántica de Amenazas con TypeSafe Jev
+### Ejemplo 1: Detección Externa de Amenazas con TypeSafe Jev
 
-Analiza errores operacionales en tiempo real utilizando juicios de System One de TypeSafe Jev:
+<Warning>
+  El reenvío de flujos internos de registro o excepciones operacionales a servicios en la nube como TypeSafe Jev **no se recomienda** en producción. Los mensajes de log frecuentemente contienen rutas del sistema, metadatos de consultas o trazas parciales de error. Transmitir esta telemetría a plataformas de terceros compromete la privacidad de la infraestructura, genera costes recurrentes por llamada e introduce dependencias frente a caídas de red externa. Para entornos de producción, se recomienda emplear modelos locales en el proceso (Ejemplo 3) o colectores SIEM internos (Ejemplo 2).
+</Warning>
+
+En entornos de prueba donde se autorice la salida de telemetría a Internet, los registros de error pueden evaluarse mediante clasificación en la nube:
 
 ```typescript
 import { log, type LogInterceptor } from "@nekzus/liop";
@@ -191,6 +195,61 @@ const auditLogger = new AuditLogger();
 auditLogger.setInterceptor(siemForwarder);
 ```
 
+### Ejemplo 3: Monitor de Amenazas Sin Salida a Red con ONNX Local (`LogInterceptor`)
+
+En enclaves aislados donde se prohíben llamadas salientes a clasificadores en la nube, `LogInterceptor` puede evaluar anomalías y registros de error mediante un runtime ONNX local:
+
+```typescript
+import { pipeline, env } from "@huggingface/transformers";
+import { log, type LogInterceptor } from "@nekzus/liop";
+
+env.localModelPath = process.env.LIOP_MODEL_PATH || "~/.liop/models";
+env.allowRemoteModels = false;
+
+const localDetector = await pipeline("text-classification", "tiny-prompt-guard", {
+  device: "cpu",
+});
+
+export const onnxLogMonitor: LogInterceptor = async (event) => {
+  if (event.level !== "error" && event.level !== "warn") return;
+
+  const [verdict] = await localDetector(event.message);
+  if (verdict.label === "INJECTION" && verdict.score >= 0.75) {
+    // Registra telemetría local de amenaza sin bloquear el flujo de registro
+    console.error(`[ALERTA DE AMENAZA LOCAL] Posible intento de explotación: ${event.message} (${(verdict.score * 100).toFixed(1)}%)`);
+  }
+};
+
+log.setInterceptor(onnxLogMonitor);
+```
+
+### Ejemplo 4: Puente de Libro Mayor Criptográfico Local (`AuditInterceptor`)
+
+Procesa entradas de auditoría selladas localmente para detectar patrones atípicos de ejecución o respaldar en un almacenamiento inmutable local:
+
+```typescript
+import { AuditLogger, type AuditInterceptor } from "@nekzus/liop";
+import * as fs from "node:fs/promises";
+
+export const localAuditBridge: AuditInterceptor = async (entry) => {
+  // El invariante posterior al sellado garantiza acceso inmutable a la cadena de hashes
+  const record = JSON.stringify({
+    timestamp: entry.timestamp,
+    toolName: entry.toolName,
+    status: entry.status,
+    entryHash: entry.entryHash,
+    prevEntryHash: entry.prevEntryHash,
+    fuelConsumed: entry.fuelConsumed,
+  });
+
+  // Escritura asíncrona en el libro mayor inmutable local
+  await fs.appendFile("/var/log/liop/audit-ledger.jsonl", `${record}\n`);
+};
+
+const auditLogger = new AuditLogger();
+auditLogger.setInterceptor(localAuditBridge);
+```
+
 ---
 
 ## Despliegue Universal Out-of-Band
@@ -199,9 +258,9 @@ A diferencia de `GatewayInterceptor` (cuya ejecución está restringida estricta
 
 | Rol del Nodo | `GatewayInterceptor` | `LogInterceptor` | `AuditInterceptor` | Rol en la Frontera de Red |
 |:---|:---|:---|:---|:---|
-| **Perímetro de Entrada (`Nexus`)** | ✅ **Mandatorio** | ✅ Activo (OOB) | ✅ Activo (OOB) | Filtro de admisión WAF / L7 |
-| **Pasarela Fronteriza (`BLG`)** | ❌ Omitido | ✅ Activo (OOB) | ✅ Activo (OOB) | Puente asimétrico mTLS / Swarm PSK |
-| **Enclaves de Datos (`Bank` / `Vault`)** | ❌ **Prohibido** | ✅ Activo (OOB) | ✅ Activo (OOB) | Ejecución Zero-Trust WASI / The Shield |
+| **Perímetro de Entrada (`Nexus`)** | **Mandatorio** | Activo (OOB) | Activo (OOB) | Filtro de admisión WAF / L7 |
+| **Pasarela Fronteriza (`BLG`)** | Omitido | Activo (OOB) | Activo (OOB) | Puente asimétrico mTLS / Swarm PSK |
+| **Enclaves de Datos (`Bank` / `Vault`)** | **Prohibido** | Activo (OOB) | Activo (OOB) | Ejecución Zero-Trust WASI / The Shield |
 
 Dado que ambos hooks se ejecutan de forma estrictamente asíncrona (*fire-and-forget* mediante `Promise.resolve().then(...)` o `fetch()` no bloqueante), la latencia de inferencia externa o la indisponibilidad de SIEMs remotos introduce exactamente **0 ms de retraso** en las respuestas RPC de los clientes o en la evaluación de los sandboxes.
 
@@ -229,5 +288,5 @@ LIOP define tres ganchos de intercepción complementarios. Ninguno sustituye ni 
 
 ## Referencias Relacionadas
 
-- [Gateway Interceptor](/es/typescript-sdk/gateway-interceptor) — Gancho de admisión perimetral para `LiopHybridGateway`.
-- [Auditoría y Seguridad](/es/typescript-sdk/security) — Especificaciones de cadena de hash y controles SOC 2 Type II.
+- [Gateway Interceptor](/es/typescript-sdk/gateway-interceptor): Gancho de admisión perimetral para `LiopHybridGateway`.
+- [Auditoría y Seguridad](/es/typescript-sdk/security): Especificaciones de cadena de hash y controles SOC 2 Type II.

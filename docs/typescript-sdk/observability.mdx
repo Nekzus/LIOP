@@ -5,7 +5,7 @@ icon: "chart-line"
 
 ---
 
-Every `@nekzus/liop` server instance exposes a native **Prometheus text-format** metrics endpoint at `GET /metrics`. No sidecar, agent, or external dependency is required — the metrics registry is built into the SDK core and refreshes process-level gauges synchronously on each scrape request.
+Every `@nekzus/liop` server instance exposes a native **Prometheus text-format** metrics endpoint at `GET /metrics`. No sidecar, agent, or external dependency is required, as the metrics registry is built into the SDK core and refreshes process-level gauges synchronously on each scrape request.
 
 ## Two-Tier Observability Architecture
 
@@ -37,12 +37,12 @@ The SDK emits three categories of metrics: **protocol counters**, **resource gau
 |---|---|---|---|
 | `liop_tool_calls_total` | Counter | `capability`, `role` | Total logic-injection executions (`role="executor"` on enclaves, `role="proxy"` on gateways) |
 | `liop_tool_call_errors_total` | Counter | `capability`, `error_type` | Failed executions or policy rejections |
-| `liop_egress_blocks_total` | Counter | — | Outputs blocked by Egress PII Shield |
+| `liop_egress_blocks_total` | Counter | N/A | Outputs blocked by Egress PII Shield |
 | `liop_wire_egress_bytes_total` | Counter | `capability` | Physical bytes transmitted over the wire |
 | `liop_wire_saved_bytes_total` | Counter | `capability` | Bytes retained in-situ at the data origin |
-| `liop_tokens_input_total` | Counter | — | BPE input tokens processed (`o200k_base`) |
-| `liop_tokens_output_total` | Counter | — | BPE output tokens emitted |
-| `liop_tokens_saved_total` | Counter | — | Estimated tokens saved vs extracting the origin dataset (`originDatasetTokens - outputTokens`) |
+| `liop_tokens_input_total` | Counter | N/A | BPE input tokens processed (`o200k_base`) |
+| `liop_tokens_output_total` | Counter | N/A | BPE output tokens emitted |
+| `liop_tokens_saved_total` | Counter | N/A | Estimated tokens saved vs extracting the origin dataset (`originDatasetTokens - outputTokens`) |
 | `liop_zk_verifications_total` | Counter | `status` | ZK-Receipt HMAC-SHA256 attestation checks |
 | `liop_pqc_handshakes_total` | Counter | `algorithm`, `status` | ML-KEM-768 key encapsulation operations |
 
@@ -50,17 +50,17 @@ The SDK emits three categories of metrics: **protocol counters**, **resource gau
 
 | Metric | Type | Labels | Description |
 |---|---|---|---|
-| `liop_mesh_peers_connected` | Gauge | — | Active P2P peer connections (Kademlia DHT) |
-| `liop_manifest_cache_size` | Gauge | — | Verified remote tool manifests in cache |
-| `liop_node_health_status` | Gauge | — | Operational health: `1` = healthy, `0` = degraded |
-| `liop_process_uptime_seconds` | Gauge | — | Node process uptime in seconds |
-| `liop_process_memory_rss_bytes` | Gauge | — | Resident Set Size (physical memory) |
-| `liop_process_memory_heap_used_bytes` | Gauge | — | V8 heap memory in use |
-| `liop_process_memory_heap_total_bytes` | Gauge | — | V8 total allocated heap |
-| `liop_process_memory_external_bytes` | Gauge | — | Memory bound to C++ objects and ArrayBuffers |
+| `liop_mesh_peers_connected` | Gauge | N/A | Active P2P peer connections (Kademlia DHT) |
+| `liop_manifest_cache_size` | Gauge | N/A | Verified remote tool manifests in cache |
+| `liop_node_health_status` | Gauge | N/A | Operational health: `1` = healthy, `0` = degraded |
+| `liop_process_uptime_seconds` | Gauge | N/A | Node process uptime in seconds |
+| `liop_process_memory_rss_bytes` | Gauge | N/A | Resident Set Size (physical memory) |
+| `liop_process_memory_heap_used_bytes` | Gauge | N/A | V8 heap memory in use |
+| `liop_process_memory_heap_total_bytes` | Gauge | N/A | V8 total allocated heap |
+| `liop_process_memory_external_bytes` | Gauge | N/A | Memory bound to C++ objects and ArrayBuffers |
 
 <Note>
-  Gauges like `liop_mesh_peers_connected` and `liop_manifest_cache_size` are sampled **synchronously inside the `GET /metrics` handler**, ensuring Prometheus always receives the instantaneous runtime state — not a stale cached snapshot.
+  Gauges like `liop_mesh_peers_connected` and `liop_manifest_cache_size` are sampled **synchronously inside the `GET /metrics` handler**, ensuring Prometheus always receives the instantaneous runtime state rather than a stale cached snapshot.
 </Note>
 
 ### Cryptographic Histograms
@@ -85,7 +85,7 @@ The LIOP server is a standard Node.js process. It binds to a configurable HTTP p
 | `LIOP_PORT` | `3000` | HTTP port for the gateway server |
 | `LIOP_NODE_ROLE` | `enclave` | Node role label exposed in Prometheus (`nexus-seed`, `vault-enclave`, `bank-enclave`, etc.) |
 | `LIOP_TIER` | `tier1-enclave` | Security tier label for fleet grouping |
-| `NODE_OPTIONS` | — | V8 heap configuration (recommended: `--max-old-space-size=2048`) |
+| `NODE_OPTIONS` | N/A | V8 heap configuration (recommended: `--max-old-space-size=2048`) |
 
 ### Running as a System Service
 

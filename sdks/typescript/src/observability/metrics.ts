@@ -360,12 +360,28 @@ export const egressBlocksTotal = protocolMetrics.counter(
 export const zkVerificationDurationMs = protocolMetrics.histogram(
 	"liop_zk_verification_duration_ms",
 	"Duration of ZK-Receipt and HMAC cryptographic attestation in ms",
-	[1, 2, 5, 10, 25, 50, 100],
+	[1, 2, 5, 10, 25, 50, 100, 250, 500],
 );
 
 export const zkVerificationsTotal = protocolMetrics.counter(
 	"liop_zk_verifications_total",
 	"Total number of ZK-Receipt cryptographic attestation checks",
+);
+
+export const zkProofsByTypeTotal = protocolMetrics.counter(
+	"liop_zk_proofs_by_type_total",
+	"Total number of verified ZK receipts partitioned by proof type (groth16, hmac)",
+);
+
+export const zkProvingDurationMs = protocolMetrics.histogram(
+	"liop_zk_proving_duration_ms",
+	"Duration of native ZK proof generation in ms",
+	[10, 25, 50, 100, 250, 500, 1000, 2500],
+);
+
+export const zkVkeyCacheSize = protocolMetrics.gauge(
+	"liop_zk_vkey_cache_size",
+	"Number of registered verification keys in memory cache",
 );
 
 export const tokensInputTotal = protocolMetrics.counter(

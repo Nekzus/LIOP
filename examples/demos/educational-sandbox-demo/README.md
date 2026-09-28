@@ -4,7 +4,7 @@ This interactive sandbox demonstrates the internal security and execution layers
 
 ---
 
-## 📚 Official Documentation
+## Official Documentation
 
 For full guides and architectural documentation, visit the [official LIOP documentation](https://nekzus-32.mintlify.app/).
 
