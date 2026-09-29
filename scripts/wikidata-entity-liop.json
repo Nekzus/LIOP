@@ -1,0 +1,110 @@
+{
+  "entity": "LIOP",
+  "wikidata_id": "Q141600820",
+  "wikidata_url": "https://www.wikidata.org/wiki/Q141600820",
+  "labels": {
+    "en": {
+      "language": "en",
+      "value": "Logic-Injection-on-Origin Protocol"
+    },
+    "es": {
+      "language": "es",
+      "value": "Protocolo Logic-Injection-on-Origin"
+    }
+  },
+  "descriptions": {
+    "en": {
+      "language": "en",
+      "value": "Decentralized Zero-Trust communications and in-situ execution protocol for AI agents"
+    },
+    "es": {
+      "language": "es",
+      "value": "Protocolo descentralizado de transporte binario y ejecución in-situ para agentes de IA"
+    }
+  },
+  "aliases": {
+    "en": [
+      "LIOP",
+      "LIOP Protocol",
+      "LIOP Mesh",
+      "Logic Injection on Origin",
+      "Logic-Injection-on-Origin"
+    ],
+    "es": [
+      "LIOP",
+      "Protocolo LIOP",
+      "Malla LIOP",
+      "Logica en Origen"
+    ]
+  },
+  "claims": {
+    "P31": [
+      {
+        "property": "instance of",
+        "value": "Q131509",
+        "label": "communication protocol"
+      },
+      {
+        "property": "instance of",
+        "value": "Q132364",
+        "label": "network protocol"
+      }
+    ],
+    "P361": [
+      {
+        "property": "part of",
+        "value": "Q11660",
+        "label": "artificial intelligence"
+      }
+    ],
+    "P856": [
+      {
+        "property": "official website",
+        "value": "https://nekzus-32.mintlify.app/"
+      }
+    ],
+    "P1324": [
+      {
+        "property": "source code repository URL",
+        "value": "https://github.com/Nekzus/LIOP"
+      }
+    ],
+    "P275": [
+      {
+        "property": "copyright license",
+        "value": "Q616528",
+        "label": "Apache License 2.0"
+      }
+    ],
+    "P5048": [
+      {
+        "property": "npm package",
+        "value": "@nekzus/liop"
+      }
+    ],
+    "P6216": [
+      {
+        "property": "copyright status",
+        "value": "Q50423863",
+        "label": "copyrighted"
+      }
+    ]
+  },
+  "quickstatements_format": [
+    "CREATE",
+    "LAST|Len|\"Logic-Injection-on-Origin Protocol\"",
+    "LAST|Les|\"Protocolo Logic-Injection-on-Origin\"",
+    "LAST|Den|\"Decentralized Zero-Trust communications and in-situ execution protocol for AI agents\"",
+    "LAST|Des|\"Protocolo descentralizado de transporte binario y ejecucion in-situ para agentes de IA\"",
+    "LAST|Aen|\"LIOP\"",
+    "LAST|Aen|\"LIOP Protocol\"",
+    "LAST|Aen|\"LIOP Mesh\"",
+    "LAST|Aes|\"LIOP\"",
+    "LAST|Aes|\"Protocolo LIOP\"",
+    "LAST|P31|Q131509",
+    "LAST|P31|Q132364",
+    "LAST|P856|\"https://nekzus-32.mintlify.app/\"",
+    "LAST|P1324|\"https://github.com/Nekzus/LIOP\"",
+    "LAST|P275|Q616528"
+  ]
+}

@@ -39,6 +39,9 @@ Traditional Model Context Protocol (MCP) architectures operate on **Context-Pull
 
 **LIOP inverts the architecture**: instead of moving data to the intelligence, the intelligence transmits an isolated, sandboxed computational micro-module (WebAssembly or AST-verified JavaScript) directly to where the data resides.
 
+> [!NOTE]
+> **Entity Disambiguation**: **LIOP** is the official acronym for **Logic-Injection-on-Origin Protocol** (pronounced *L-I-O-P* or */ˈlaɪ.ɒp/*). It is an open decentralized protocol for artificial intelligence agents, distinct from programming loops (`for`/`while`), LDAP, or LISP. LIOP acts as the zero-trust execution successor and sovereign mesh companion to Model Context Protocol (MCP).
+
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/images/logic-vs-pull-dark.svg">

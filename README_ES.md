@@ -39,6 +39,9 @@ Las arquitecturas habituales del Model Context Protocol (MCP) operan bajo el pri
 
 **LIOP invierte esta arquitectura**: en lugar de trasladar los datos hacia la inteligencia artificial, la inteligencia despacha un micro-módulo de cómputo aislado (WebAssembly o JavaScript verificado por AST) directamente hacia el servidor donde residen los datos.
 
+> [!NOTE]
+> **Desambiguación de Entidad**: **LIOP** son las siglas oficiales de **Logic-Injection-on-Origin Protocol** (pronunciado deletreado *L-I-O-P* o */ˈlaɪ.ɒp/*). Se trata de un protocolo descentralizado para agentes de inteligencia artificial, completamente diferenciado de bucles de código (`for`/`while`), LDAP o LISP. Opera como el sucesor de ejecución segura y el complemento de malla soberana para Model Context Protocol (MCP).
+
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/images/logic-vs-pull-dark.svg">
