@@ -10,13 +10,6 @@ All notable changes to this project will be documented in this file. See
 
 * **security:** resolve fast-uri and undici high CVEs in pnpm-workspace.yaml ([8ed031c](https://github.com/Nekzus/LIOP/commit/8ed031ca8ea3603244cde8838de54e14d919aeed))
 
-# [2.4.0-alpha.27](https://github.com/Nekzus/LIOP/compare/v2.4.0-alpha.26...v2.4.0-alpha.27) (2026-09-29)
-
-
-### Bug Fixes
-
-* **security:** resolve fast-uri and undici high CVEs in pnpm-workspace.yaml ([8ed031c](https://github.com/Nekzus/LIOP/commit/8ed031ca8ea3603244cde8838de54e14d919aeed))
-
 # [2.4.0-alpha.26](https://github.com/Nekzus/LIOP/compare/v2.4.0-alpha.25...v2.4.0-alpha.26) (2026-09-27)
 
 
