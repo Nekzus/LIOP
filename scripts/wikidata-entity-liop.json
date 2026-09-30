@@ -152,38 +152,26 @@
     "label": "Nekzus Solutions",
     "description": "Open-source software organization and developer of the Logic-Injection-on-Origin Protocol",
     "claims": {
-      "P31": ["Q43229", "Q1058914"],
+      "P31": [
+        {
+          "property": "instance of",
+          "value": "Q43229",
+          "label": "organization"
+        },
+        {
+          "property": "instance of",
+          "value": "Q1058914",
+          "label": "software company"
+        }
+      ],
       "P856": "https://nekzus-32.mintlify.app/",
       "P1324": "https://github.com/Nekzus",
       "P571": "+2026-00-00T00:00:00Z/9",
-      "P1056": "Q141600820"
+      "P1056": {
+        "property": "product or material produced",
+        "value": "Q141600820",
+        "label": "Logic-Injection-on-Origin Protocol"
+      }
     }
-  },
-  "quickstatements_update_liop": [
-    "Q141600820|P277|Q978185",
-    "Q141600820|P277|Q575650",
-    "Q141600820|P8262|\"@nekzus/liop\"",
-    "Q141600820|P973|\"https://www.npmjs.com/package/@nekzus/liop\"",
-    "Q141600820|P571|+2026-00-00T00:00:00Z/9",
-    "Q141600820|P306|Q174666",
-    "Q141600820|P1072|Q20155677",
-    "Q141600820|P1072|Q1645574",
-    "Q141600820|P1073|Q1645574",
-    "Q141600820|P361|Q1142726"
-  ],
-  "quickstatements_create_organization": [
-    "CREATE",
-    "LAST|Len|\"Nekzus Solutions\"",
-    "LAST|Les|\"Nekzus Solutions\"",
-    "LAST|Den|\"Open-source software organization and developer of the Logic-Injection-on-Origin Protocol\"",
-    "LAST|Des|\"Organización de software de código abierto y desarrolladora del protocolo LIOP\"",
-    "LAST|Aen|\"Nekzus\"",
-    "LAST|Aes|\"Nekzus\"",
-    "LAST|P31|Q43229",
-    "LAST|P31|Q1058914",
-    "LAST|P856|\"https://nekzus-32.mintlify.app/\"",
-    "LAST|P1324|\"https://github.com/Nekzus\"",
-    "LAST|P571|+2026-00-00T00:00:00Z/9",
-    "LAST|P1056|Q141600820"
-  ]
+  }
 }
