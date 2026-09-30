@@ -1,69 +1,90 @@
-# Guía de Registro de LIOP en Wikidata y Knowledge Graphs de IA
+# Manual Wikidata.org Entity Management and Enrichment Guide
 
-Este documento describe el procedimiento paso a paso para dar de alta la entidad oficial de LIOP en **Wikidata**, asegurando que los motores de búsqueda de IA (Google Gemini, ChatGPT Search, Perplexity, Microsoft Copilot) vinculen unívocamente el término `LIOP` con el protocolo de agentes de IA y no con bucles de programación ni acrónimos corporativos ajenos.
+This guide details the direct procedure for maintaining the official Wikidata entity for **Nekzus Solutions ([Q141610167](https://www.wikidata.org/wiki/Q141610167))** and enriching the canonical entity for **Logic-Injection-on-Origin Protocol (LIOP, [Q141600820](https://www.wikidata.org/wiki/Q141600820))**.
 
----
-
-## 1. Por Qué Wikidata es Crítica para el Reconocimiento en LLMs
-
-Wikidata constituye la base de conocimiento estructurada de mayor autoridad para los laboratorios de inteligencia artificial.
-1. **Google Knowledge Graph**: Google alimenta directamente sus paneles de conocimiento y las respuestas de Gemini a partir de tripletas de Wikidata.
-2. **Entrenamiento de LLMs**: Conjuntos de datos masivos utilizados en el pre-entrenamiento consumen volcados periódicos de Wikidata para alinear entidades con identificadores únicos (Q-IDs).
-3. **Resolución de Ambigüedades**: Al registrar `LIOP` como alias primario de *Logic-Injection-on-Origin Protocol*, los sistemas de resolución de entidades desestiman automáticamente la interpretación errónea como errata de *loop*.
+> [!NOTE]
+> Wikimedia requires accounts to be autoconfirmed (minimum 4 days old with 50 edits) to use batch API tooling such as QuickStatements. Direct web interface editing on Wikidata.org has no such restriction and takes effect immediately.
 
 ---
 
-## 2. Método Rápido de Carga Mediante QuickStatements
+## Step 1: Entity Configuration for Nekzus Solutions (Q141610167)
 
-La herramienta oficial [QuickStatements](https://quickstatements.toolforge.org/) permite importar la entidad completa en un solo paso utilizando una cuenta de Wikimedia / Wikipedia.
+The official organization item is registered at [https://www.wikidata.org/wiki/Q141610167](https://www.wikidata.org/wiki/Q141610167).
 
-### Bloque de Comandos para QuickStatements
+### Base Labels and Descriptions
+- **English**:
+  - Label: `Nekzus Solutions`
+  - Description: `Open-source software organization and developer of the Logic-Injection-on-Origin Protocol`
+  - Aliases: `Nekzus`, `Nekzus Dev`, `Nekzus Solutions Inc`
+- **Spanish**:
+  - Label: `Nekzus Solutions`
+  - Description: `Organización de software de código abierto y desarrolladora del protocolo Logic-Injection-on-Origin`
+  - Aliases: `Nekzus`, `Nekzus Dev`
 
-Copie el siguiente bloque y péguelo en la caja de texto de QuickStatements (modo V1):
+### Statements (Claims)
 
-```text
-CREATE
-LAST|Len|"Logic-Injection-on-Origin Protocol"
-LAST|Les|"Protocolo Logic-Injection-on-Origin"
-LAST|Den|"Decentralized Zero-Trust communications and in-situ execution protocol for AI agents"
-LAST|Des|"Protocolo descentralizado de transporte binario y ejecucion in-situ para agentes de IA"
-LAST|Aen|"LIOP"
-LAST|Aen|"LIOP Protocol"
-LAST|Aen|"LIOP Mesh"
-LAST|Aes|"LIOP"
-LAST|Aes|"Protocolo LIOP"
-LAST|P31|Q131509
-LAST|P31|Q132364
-LAST|P856|"https://nekzus-32.mintlify.app/"
-LAST|P1324|"https://github.com/Nekzus/LIOP"
-LAST|P275|Q616528
-```
-
----
-
-## 3. Método Manual en Wikidata.org
-
-Si prefiere crear el elemento de forma manual:
-
-1. Inicie sesión en [Wikidata.org](https://www.wikidata.org/).
-2. Haga clic en el menú lateral izquierdo en **Crear un nuevo elemento** (*Create a new Item*).
-3. Complete los campos iniciales:
-   - **Etiqueta (en)**: `Logic-Injection-on-Origin Protocol`
-   - **Etiqueta (es)**: `Protocolo Logic-Injection-on-Origin`
-   - **Descripción (en)**: `Decentralized Zero-Trust communications and in-situ execution protocol for AI agents`
-   - **Descripción (es)**: `Protocolo descentralizado de transporte binario y ejecución in-situ para agentes de IA`
-   - **Alias (en)**: `LIOP`, `LIOP Protocol`, `LIOP Mesh`
-   - **Alias (es)**: `LIOP`, `Protocolo LIOP`
-4. Guarde el elemento recién creado. Wikidata le asignará un identificador unívoco (por ejemplo, `Q13...`).
-5. Añada las siguientes declaraciones (*Statements*):
-   - **instancia de (`P31`)**: Añadir `protocolo de red` (`Q132364`) y `protocolo de comunicaciones` (`Q131509`).
-   - **sitio web oficial (`P856`)**: `https://nekzus-32.mintlify.app/`.
-   - **repositorio de código (`P1324`)**: `https://github.com/Nekzus/LIOP`.
-   - **licencia (`P275`)**: `Licencia Apache 2.0` (`Q616528`).
-   - **paquete de software en npm (`P5048`)**: `@nekzus/liop`.
+| Property (left field) | Value (right field) | Ontology / Data Type |
+|---|---|---|
+| `instance of` (`P31`) | `organization` (`Q43229`) | Existing class |
+| `instance of` (`P31`) | `software company` (`Q1058914`) | Existing class |
+| `official website` (`P856`) | `https://nekzus-32.mintlify.app/` | Direct URL |
+| `GitHub account` (`P2037`) | `Nekzus` | External identifier |
+| `inception` (`P571`) | `2023` | Year |
+| `product or material produced` (`P1056`) | `Logic-Injection-on-Origin Protocol` (`Q141600820`) | Entity link |
 
 ---
 
-## 4. Verificación Posterior
+## Step 2: Protocol Claims Enrichment for LIOP (Q141600820)
 
-Tras publicar el elemento, las consultas en motores de IA semánticos comenzarán a indexar la entidad en sus próximos ciclos de actualización, fijando a LIOP como un concepto autónomo en el grafo global de conocimiento.
+Navigate to [https://www.wikidata.org/wiki/Q141600820](https://www.wikidata.org/wiki/Q141600820) to maintain or verify the protocol statements:
+
+| Property (left field) | Value (right field) | Ontology / Data Type |
+|---|---|---|
+| `instance of` (`P31`) | `communication protocol` (`Q132364`) | Existing class |
+| `instance of` (`P31`) | `software` (`Q7397`) | Existing class (satisfies tooling constraints) |
+| `developer` (`P178`) | `Nekzus Solutions` (`Q141610167`) | Official linked organization |
+| `programmed in` (`P277`) | `TypeScript` (`Q978185`) | Existing entity |
+| `programmed in` (`P277`) | `Rust` (`Q575650`) | Existing entity |
+| `npm package` (`P8262`) | `@nekzus/liop` | External identifier |
+| `described at URL` (`P973`) | `https://www.npmjs.com/package/@nekzus/liop` | Direct URL (qualifier: `P407` = English `Q1860`) |
+| `inception` (`P571`) | `2026` | Year |
+| `operating system` (`P306`) | `cross-platform` (`Q174666`) | Existing entity |
+| `readable file format` (`P1072`) | `WebAssembly` (`Q20155677`) | Existing entity |
+| `readable file format` (`P1072`) | `Protocol Buffers` (`Q1645574`) | Existing entity |
+| `writable file format` (`P1073`) | `Protocol Buffers` (`Q1645574`) | Existing entity |
+| `part of` (`P361`) | `intelligent agent` (`Q1142726`) | Existing entity |
+| `source code repository URL` (`P1324`) | `https://github.com/Nekzus/LIOP` | Direct repository URL |
+| `copyright license` (`P275`) | `Apache License 2.0` (`Q13785927`) | Existing entity |
+| `copyright status` (`P6216`) | `copyrighted` (`Q50423863`) | Existing entity |
+
+---
+
+## Step 3: Constraint Resolution in LIOP (Q141600820)
+
+Initial constraint warnings on `Q141600820` were resolved through two adjustments:
+
+1. **Adding "software" (`Q7397`) to "instance of" (`P31`)**: Software properties require the entity to belong to the software ontology class.
+2. **Language qualifier on "described at URL" (`P973`)**: Adding qualifier `language of work or name` (`P407`) set to `English` (`Q1860`) satisfies documentation requirements.
+
+---
+
+## Step 4: Constraint Resolution in Nekzus Solutions (Q141610167)
+
+In `Nekzus Solutions` ([Q141610167](https://www.wikidata.org/wiki/Q141610167)), using property `source code repository URL` (`P1324`) triggers validation warnings due to two Wikidata schema rules:
+
+1. **Subject type constraint on P1324**: Property `P1324` applies strictly to software items or code repositories, not to legal entities, organizations, or software companies.
+2. **Scope constraint on references vs qualifiers**: Version control tools such as Git (`P8423`) and GitHub (`P10627`) must not be placed inside citation references. They are valid only as qualifiers on repository statements.
+
+### Canonical Wikidata Solution
+
+Organizations and companies use the dedicated external identifier property **`GitHub account` (`P2037`)**. This property automatically generates the link to `https://github.com/Nekzus` with the GitHub brand icon and requires no code license or repository qualifiers.
+
+Web interface steps:
+
+1. Open [https://www.wikidata.org/wiki/Q141610167](https://www.wikidata.org/wiki/Q141610167).
+2. Locate the **source code repository URL** (`P1324`) statement.
+3. Click **edit**, then click the trash icon / **remove** to delete this invalid statement.
+4. Click **+ add statement**.
+5. In the property field (left), enter `GitHub account` (or `P2037`).
+6. In the value field (right), enter `Nekzus`.
+7. Click **publish**. All warnings will clear immediately.
