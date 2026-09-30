@@ -59,6 +59,7 @@ const plugins = [
 	[
 		"@semantic-release/github",
 		{
+			successComment: false,
 			failComment: false,
 			failTitle: false,
 			labels: false,
