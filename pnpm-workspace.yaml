@@ -53,6 +53,7 @@ overrides:
   "@hono/node-server": ">=1.19.15"
   multiformats: "14.0.0"
   "@multiformats/multiaddr": "13.0.3"
+  "@grpc/grpc-js": ">=1.14.5"
   protobufjs: "^7.6.1"
   content-type: "1.0.5"
   type-is: "2.0.1"
