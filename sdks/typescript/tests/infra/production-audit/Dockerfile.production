@@ -31,7 +31,7 @@ COPY tests/ ./tests/
 
 # Runtime stage: lean image with iproute2 for tc/netem and curl for healthchecks
 FROM node:22-slim AS runtime
-LABEL org.nekzus.liop.audit="production-alpha"
+LABEL org.nekzus.liop.audit="production-main"
 WORKDIR /app
 
 RUN apt-get update \

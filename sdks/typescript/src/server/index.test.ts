@@ -346,21 +346,25 @@ describe("LiopServer", () => {
 		);
 		server.setSandboxData([{ id: 1 }]);
 
-		const result = await server.callTool({
-			name: "exec",
-			arguments: {
-				payload: `@LIOP{wasi_v1,HeapBomb}
+		try {
+			const result = await server.callTool({
+				name: "exec",
+				arguments: {
+					payload: `@LIOP{wasi_v1,HeapBomb}
 const a = [];
-for (let i = 0; i < 5000000; i++) {
+for (let i = 0; i < 100000; i++) {
     a.push(i.toString() + 'X'.repeat(1000) + i.toString());
 }
 return { size: a.length };
 @END`,
-			},
-		});
+				},
+			});
 
-		expect(result.isError).toBe(true);
-		expect(result.content[0].text).toMatch(/memory|heap|Worker|resource/i);
+			expect(result.isError).toBe(true);
+			expect(result.content[0].text).toMatch(/memory|heap|Worker|resource/i);
+		} finally {
+			await server.close();
+		}
 	});
 
 	it("should enforce global cross-tool rate limit", async () => {

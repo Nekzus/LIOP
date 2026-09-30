@@ -77,19 +77,32 @@ Logic-Injection-on-Origin Protocol (LIOP) is the high-performance successor to t
 17. **Lockfile Synchronization on Dependency Category Migrations**:
    - Whenever dependencies are moved between categories (`optionalDependencies`, `dependencies`, `devDependencies`), `pnpm-lock.yaml` must be explicitly refreshed via `pnpm install --no-frozen-lockfile` and committed alongside `package.json`.
    - Always verify `pnpm install --frozen-lockfile` (Exit code 0) locally before pushing to prevent CI pipeline failures (`ERR_PNPM_OUTDATED_LOCKFILE`).
-18. **Multi-Channel Semantic-Release Promotion Protocol**:
+18. **Multi-Channel Semantic-Release Promotion Protocol (Strict PR-Driven Lifecycle)**:
    - In repositories with multi-channel automated releases (`alpha` -> `beta` -> `main`), semantic-release writes channel-specific version tags and changelog headers directly to each release branch.
-   - To avoid GitHub PR merge blocks (`Can't automatically merge`), always use an ephemeral promotion branch (e.g. `promote-alpha-to-beta`, `promote-beta-to-main`), merge the target branch locally, resolve the `package.json` `"version"` field to preserve the target channel's baseline version, and verify frozen lockfile installation before pushing.
-   - Delete ephemeral promotion branches immediately post-merge to maintain a clean 3-channel topology.
-19. **Strict Alpha-First Workflow (Zero Direct Work on `main`)**:
-   - Under no circumstances should bug fixes, dependency updates, security remediations, or feature development be executed directly on the `main` branch.
+   - All merges into `beta` and `main` must strictly be executed via signed GitHub Pull Requests originating from ephemeral promotion branches (`promote-alpha-to-beta` and `promote-beta-to-main`). Direct pushes or local branch merges into protected branches are strictly prohibited.
+   - The promotion procedure must follow this sequential runbook:
+     1. Create an ephemeral branch from the validated source branch (`git checkout -b promote-alpha-to-beta alpha` or `git checkout -b promote-beta-to-main origin/beta`).
+     2. Merge the target branch locally without committing (`git merge origin/<target> --no-commit`).
+     3. Restore dedicated changelogs directly from the target branch (`git checkout origin/<target> -- CHANGELOG.md tools/liop-studio/CHANGELOG.md`) to prevent cross-channel changelog pollution.
+     4. Resolve `package.json` `"version"` fields to preserve the target channel's baseline version (`2.5.0-beta.X` for beta, `2.7.X` for main) so Semantic Release computes the correct SemVer bump.
+     5. Synchronize audit test harnesses and Dockerfiles for channel parity:
+        - For `beta`: configure `Dockerfile.production`, `playground.ts` and `00-npm-integrity.test.ts` to pull and test published `@nekzus/liop@beta` and `@nekzus/liop-studio@beta`.
+        - For `main`: configure the same files to pull and test published `@nekzus/liop@latest` and `@nekzus/liop-studio@latest`.
+     6. Enforce local quality certification: execute `pnpm run check` (BiomeJS), `pnpm install --frozen-lockfile` (0 lockfile drift), and `pnpm test` (Unit test suite 100% green).
+     7. Create a cryptographically signed commit (`git commit -S -m "chore(promotion): prepare <source> to <target> promotion"`).
+     8. Push to GitHub (`git push -u origin <ephemeral-branch>`), open the Pull Request using the official template with Conventional Commits title, and ensure the `Related Issues` section uses descriptive references without unverified auto-closing keywords (`Fixes #` / `Closes #`).
+     9. Verify CI checks pass in GitHub, complete the merge via GitHub UI, and immediately delete the ephemeral promotion branch locally and remotely (`git branch -D` and `git push origin --delete`) to maintain a clean 3-channel topology.
+19. **Strict Alpha-First Workflow & Dependabot Protocol**:
+   - Under no circumstances should bug fixes, dependency updates, security remediations, or feature development be executed directly on the `main` or `beta` branches.
    - All changes must originate and pass 100% of test suites on `alpha`, promote to `beta` for staging/feature freeze, and finally promote to `main` via signed GitHub Pull Requests.
+   - **Dependabot PR Handling Invariant**: When GitHub Dependabot opens automated security pull requests directly against `main` or `beta`, maintainers and agents must strictly CLOSE them without merging. Merging Dependabot PRs directly on production introduces unsigned commits, causes severe lockfile divergence, and bypasses staging validation. All CVE resolutions and dependency overrides must be defined centrally in `pnpm-workspace.yaml` under `alpha`, validated with `pnpm audit`, and promoted through the formal multi-channel pipeline.
 20. **Workspace Dependency Overrides Location (`pnpm-workspace.yaml`)**:
    - In pnpm monorepos, transitive dependency overrides and CVE resolutions must be configured strictly in `pnpm-workspace.yaml` under `overrides:`.
    - Do not configure `pnpm.overrides` inside root `package.json` as pnpm v11 ignores package manifest overrides in favor of workspace settings.
-21. **Verified GPG Release Commits & Channel-Segregated Changelogs**:
+21. **Verified GPG Release Commits, Channel-Segregated Changelogs & GraphQL Release Blindness**:
    - Automated releases in CI must use `@semantic-release-extras/verified-git-commit` to create release commits via GitHub REST API, guaranteeing GitHub's verified GPG signature badge (`B5690EEEBB952194`).
    - Each release branch maintains its own dedicated `CHANGELOG.md` matching only its channel's releases, preventing cross-channel pollution and PR merge conflicts.
+   - **GraphQL Release Blindness Invariant**: Release configurations (`release.sdk.config.js` and `tools/liop-studio/release.config.js`) must permanently enforce `successComment: false` in `@semantic-release/github` options. This prevents semantic-release from querying non-existent issue IDs in GitHub GraphQL API, which otherwise causes fatal pipeline termination (`Could not resolve to an issue or pull request with the number of X`) during release publishing.
 22. **High-Contrast Dynamic Theming Invariant for Web Consoles**:
    - In web dashboards, playgrounds, and monitoring consoles, never hardcode static background or border hex colors (e.g. `bg-[#0b0e14]`) on surface cards, code editors, or interactive elements.
    - All surface colors must use semantic CSS tokens (`bg-card`, `bg-surface1`, `bg-editor`, `bg-tier1`, `border-border`) backed by CSS variables declared in root stylesheets and toggled atomically via `data-theme` attributes and root classes on `document.documentElement`.
