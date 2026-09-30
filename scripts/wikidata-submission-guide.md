@@ -57,3 +57,23 @@ Pulse **publicar** (*publish*) tras añadir cada declaración.
 | `forma parte de` (o `P361`) | `agente inteligente` (`Q1142726`) | Entidad existente |
 
 4. Tras guardar cada declaración con el botón **publicar** (*publish*), la entidad quedará completamente interconectada en el Knowledge Graph de Wikidata.
+
+---
+
+## Paso 3: Resolución de Advertencias de Validación (Constraint Violations)
+
+Si aparecen iconos de exclamación `(!)` junto a `operating system`, `programmed in`, `npm package` o `readable file format`, se debe a la restricción de tipo de Wikidata:
+
+### 1. Añadir "software" a "instancia de" (Resuelve todos los signos de advertencia)
+Las propiedades de software exigen que el elemento pertenezca a la clase software. Para resolver todas las advertencias en un solo paso:
+1. Vaya a la primera declaración en la parte superior: **instancia de** (`P31`).
+2. Pulse en **+ añadir valor** (*+ add value*) dentro de `instancia de`.
+3. Busque y seleccione: `software` (`Q7397`).
+4. Pulse **publicar**. Todos los signos de exclamación desaparecerán inmediatamente al satisfacerse la restricción de tipo ontológico.
+
+### 2. Calificador de idioma en "descrito en la URL" (Resuelve el icono de bandera)
+1. En la declaración **descrito en la URL** (`P973`), pulse en **editar** (*edit*).
+2. Pulse en **+ añadir calificador** (*+ add qualifier*).
+3. En propiedad escriba: `idioma de la obra o del nombre` (`P407`).
+4. En valor escriba: `inglés` (`Q1860`).
+5. Pulse **publicar**.

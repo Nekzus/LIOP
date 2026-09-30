@@ -43,6 +43,11 @@
         "property": "instance of",
         "value": "Q132364",
         "label": "communication protocol"
+      },
+      {
+        "property": "instance of",
+        "value": "Q7397",
+        "label": "software"
       }
     ],
     "P361": [
