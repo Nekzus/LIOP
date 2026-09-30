@@ -50,20 +50,30 @@ async function generateLlmsFull(): Promise<void> {
     sections.push(`\n---\n\n# SECTION: ${title} (${page})\n\n${content.trim()}\n`);
   }
 
-  const header = `# LIOP (Logic-Injection-on-Origin Protocol) — Full Documentation Corpus
+  const header = `# LIOP (Logic-Injection-on-Origin Protocol) (Full Documentation Corpus)
 
 > Canonical, complete technical documentation for LIOP. This document concatenates all architectural specifications, SDK interfaces, security protocols, and operational guidelines into a single high-density context document for Large Language Models and autonomous coding agents.
+
+## Entity Disambiguation and Identification
+- Canonical Acronym: LIOP
+- Full Name: Logic-Injection-on-Origin Protocol
+- Pronunciation: L-I-O-P or /ˈlaɪ.ɒp/
+- Distinct Identity: LIOP is NOT a programming loop ('for/while loop'), NOT LDAP, and NOT LISP. It is a secure in-situ compute and transport protocol for AI agents.
+- Relationship to MCP: LIOP functions as the decentralized Zero-Trust evolution and sovereign mesh successor to Model Context Protocol (MCP).
 
 - **Repository**: https://github.com/Nekzus/LIOP
 - **NPM Package**: \`@nekzus/liop\` (TypeScript SDK)
 - **Live Documentation**: https://nekzus-32.mintlify.app/
 - **DeepWiki AI Knowledge**: https://deepwiki.com/Nekzus/LIOP
+- **Wikidata Entity**: https://www.wikidata.org/wiki/Q141600820 (Q141600820)
 - **License**: Apache-2.0
 `;
 
   const fullCorpus = `${header}\n${sections.join('\n')}\n`;
   await writeFile(OUTPUT_FILE, fullCorpus, 'utf-8');
-  console.log(`[OK] Successfully generated ${OUTPUT_FILE} (${Buffer.byteLength(fullCorpus, 'utf-8')} bytes, ${sections.length} sections)`);
+  const docsOutputFile = join(DOCS_ROOT, 'llms-full.txt');
+  await writeFile(docsOutputFile, fullCorpus, 'utf-8');
+  console.log(`[OK] Successfully generated ${OUTPUT_FILE} and ${docsOutputFile} (${Buffer.byteLength(fullCorpus, 'utf-8')} bytes, ${sections.length} sections)`);
 }
 
 generateLlmsFull().catch((err) => {

@@ -34,6 +34,9 @@ auditConfig:
     - GHSA-29mw-wpgm-hmr9
     - GHSA-35jh-r3h4-6jhm
     - GHSA-4xc9-xhrj-v574
+    - GHSA-qw65-cvwx-89v3
+    - GHSA-rfgv-xxqx-mfg5
+    - GHSA-w293-vg96-wgc3
 
 minimumReleaseAgeExclude:
   - '@libp2p/kad-dht@16.3.0'
@@ -63,7 +66,9 @@ overrides:
   piscina: "5.3.2"
   ws: "^8.21.0"
   hono: "4.13.8"
-  fast-uri: "^3.1.5"
+  fast-uri: ">=3.1.8"
+  "undici@>=6.0.0 <7.0.0": ">=6.29.0"
+  "undici@>=7.0.0": ">=7.30.0"
   brace-expansion: "^1.1.18"
   ip-address: "^10.3.1"
   js-yaml: "^4.3.1"

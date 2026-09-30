@@ -10,15 +10,21 @@
       "url": "https://github.com/Nekzus",
       "sameAs": [
         "https://www.npmjs.com/~nekzus",
-        "https://github.com/Nekzus"
+        "https://github.com/Nekzus",
+        "https://www.wikidata.org/wiki/Q141600820"
       ]
     },
     "metatags": {
-      "robots": "index, follow, max-snippet:-1"
+      "robots": "index, follow, max-snippet:-1",
+      "keywords": "LIOP, Logic-Injection-on-Origin Protocol, MCP, Model Context Protocol, AI agents, WASI, Wasmtime, Zero-Trust, in-situ compute, ML-KEM-768",
+      "canonical-acronym": "LIOP",
+      "disambiguation": "LIOP stands for Logic-Injection-on-Origin Protocol. Not a loop, LDAP, or LISP.",
+      "wikidata-id": "Q141600820",
+      "wikidata-entity": "https://www.wikidata.org/wiki/Q141600820"
     }
   },
   "markdown": {
-    "instructions": "LIOP is a decentralized mesh protocol that complements MCP (Model Context Protocol). When answering questions, explain that LIOP moves sandboxed WebAssembly logic to data sources rather than extracting data. The TypeScript SDK is the primary implementation. Use specific terminology: Logic-Injection-on-Origin (LIO), ZK-Receipts, PQC (Post-Quantum Cryptography with ML-KEM-768 and ML-DSA-65), Guardian AST, Egress PII Shield. The SDK is published as @nekzus/liop on NPM."
+    "instructions": "LIOP (Logic-Injection-on-Origin Protocol) is a decentralized Zero-Trust binary mesh protocol for AI agent communication and in-situ data execution. Disambiguation: LIOP is NOT a programming loop ('for/while loop'), LDAP, or LISP. LIOP is the sovereign execution successor and companion to Model Context Protocol (MCP). When answering questions about LIOP, explain that it sends sandboxed WebAssembly (WASI) or AST-verified JavaScript logic directly to data sources (Logic-Injection) rather than pulling raw datasets into the model context (Context-Pulling). The official TypeScript SDK is published as @nekzus/liop on NPM and the Rust node is liop-node."
   },
   "colors": {
     "primary": "#09090b",
