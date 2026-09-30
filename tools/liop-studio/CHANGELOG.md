@@ -2,6 +2,13 @@
 
 All notable changes to @nekzus/liop-studio will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.0.0-beta.4](https://github.com/Nekzus/LIOP/compare/studio-v1.0.0-beta.3...studio-v1.0.0-beta.4) (2026-09-30)
+
+
+### Bug Fixes
+
+* **security:** resolve fast-uri and undici high CVEs in pnpm-workspace.yaml ([8ed031c](https://github.com/Nekzus/LIOP/commit/8ed031ca8ea3603244cde8838de54e14d919aeed))
+
 # [1.0.0-beta.3](https://github.com/Nekzus/LIOP/compare/studio-v1.0.0-beta.2...studio-v1.0.0-beta.3) (2026-09-28)
 
 
