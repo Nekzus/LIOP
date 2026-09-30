@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.7.1](https://github.com/Nekzus/LIOP/compare/v2.7.0...v2.7.1) (2026-09-30)
+
+
+### Bug Fixes
+
+* **security:** resolve fast-uri and undici high CVEs in pnpm-workspace.yaml ([8ed031c](https://github.com/Nekzus/LIOP/commit/8ed031ca8ea3603244cde8838de54e14d919aeed))
+
 # [2.7.0](https://github.com/Nekzus/LIOP/compare/v2.6.1...v2.7.0) (2026-09-28)
 
 
