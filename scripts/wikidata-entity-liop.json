@@ -41,13 +41,8 @@
     "P31": [
       {
         "property": "instance of",
-        "value": "Q131509",
-        "label": "communication protocol"
-      },
-      {
-        "property": "instance of",
         "value": "Q132364",
-        "label": "network protocol"
+        "label": "communication protocol"
       }
     ],
     "P361": [
@@ -55,6 +50,75 @@
         "property": "part of",
         "value": "Q11660",
         "label": "artificial intelligence"
+      },
+      {
+        "property": "part of",
+        "value": "Q1142726",
+        "label": "intelligent agent"
+      }
+    ],
+    "P178": [
+      {
+        "property": "developer",
+        "value": "PENDING_NEKZUS_QID",
+        "label": "Nekzus Solutions"
+      }
+    ],
+    "P277": [
+      {
+        "property": "programmed in",
+        "value": "Q978185",
+        "label": "TypeScript"
+      },
+      {
+        "property": "programmed in",
+        "value": "Q575650",
+        "label": "Rust"
+      }
+    ],
+    "P8262": [
+      {
+        "property": "npm package",
+        "value": "@nekzus/liop"
+      }
+    ],
+    "P973": [
+      {
+        "property": "described at URL",
+        "value": "https://www.npmjs.com/package/@nekzus/liop"
+      }
+    ],
+    "P571": [
+      {
+        "property": "inception",
+        "value": "+2026-00-00T00:00:00Z/9",
+        "label": "2026"
+      }
+    ],
+    "P306": [
+      {
+        "property": "operating system",
+        "value": "Q174666",
+        "label": "cross-platform"
+      }
+    ],
+    "P1072": [
+      {
+        "property": "readable file format",
+        "value": "Q20155677",
+        "label": "WebAssembly"
+      },
+      {
+        "property": "readable file format",
+        "value": "Q1645574",
+        "label": "Protocol Buffers"
+      }
+    ],
+    "P1073": [
+      {
+        "property": "writable file format",
+        "value": "Q1645574",
+        "label": "Protocol Buffers"
       }
     ],
     "P856": [
@@ -72,14 +136,8 @@
     "P275": [
       {
         "property": "copyright license",
-        "value": "Q616528",
+        "value": "Q13785927",
         "label": "Apache License 2.0"
-      }
-    ],
-    "P5048": [
-      {
-        "property": "npm package",
-        "value": "@nekzus/liop"
       }
     ],
     "P6216": [
@@ -90,21 +148,42 @@
       }
     ]
   },
-  "quickstatements_format": [
+  "organization_entity": {
+    "label": "Nekzus Solutions",
+    "description": "Open-source software organization and developer of the Logic-Injection-on-Origin Protocol",
+    "claims": {
+      "P31": ["Q43229", "Q1058914"],
+      "P856": "https://nekzus-32.mintlify.app/",
+      "P1324": "https://github.com/Nekzus",
+      "P571": "+2026-00-00T00:00:00Z/9",
+      "P1056": "Q141600820"
+    }
+  },
+  "quickstatements_update_liop": [
+    "Q141600820|P277|Q978185",
+    "Q141600820|P277|Q575650",
+    "Q141600820|P8262|\"@nekzus/liop\"",
+    "Q141600820|P973|\"https://www.npmjs.com/package/@nekzus/liop\"",
+    "Q141600820|P571|+2026-00-00T00:00:00Z/9",
+    "Q141600820|P306|Q174666",
+    "Q141600820|P1072|Q20155677",
+    "Q141600820|P1072|Q1645574",
+    "Q141600820|P1073|Q1645574",
+    "Q141600820|P361|Q1142726"
+  ],
+  "quickstatements_create_organization": [
     "CREATE",
-    "LAST|Len|\"Logic-Injection-on-Origin Protocol\"",
-    "LAST|Les|\"Protocolo Logic-Injection-on-Origin\"",
-    "LAST|Den|\"Decentralized Zero-Trust communications and in-situ execution protocol for AI agents\"",
-    "LAST|Des|\"Protocolo descentralizado de transporte binario y ejecucion in-situ para agentes de IA\"",
-    "LAST|Aen|\"LIOP\"",
-    "LAST|Aen|\"LIOP Protocol\"",
-    "LAST|Aen|\"LIOP Mesh\"",
-    "LAST|Aes|\"LIOP\"",
-    "LAST|Aes|\"Protocolo LIOP\"",
-    "LAST|P31|Q131509",
-    "LAST|P31|Q132364",
+    "LAST|Len|\"Nekzus Solutions\"",
+    "LAST|Les|\"Nekzus Solutions\"",
+    "LAST|Den|\"Open-source software organization and developer of the Logic-Injection-on-Origin Protocol\"",
+    "LAST|Des|\"Organización de software de código abierto y desarrolladora del protocolo LIOP\"",
+    "LAST|Aen|\"Nekzus\"",
+    "LAST|Aes|\"Nekzus\"",
+    "LAST|P31|Q43229",
+    "LAST|P31|Q1058914",
     "LAST|P856|\"https://nekzus-32.mintlify.app/\"",
-    "LAST|P1324|\"https://github.com/Nekzus/LIOP\"",
-    "LAST|P275|Q616528"
+    "LAST|P1324|\"https://github.com/Nekzus\"",
+    "LAST|P571|+2026-00-00T00:00:00Z/9",
+    "LAST|P1056|Q141600820"
   ]
 }
