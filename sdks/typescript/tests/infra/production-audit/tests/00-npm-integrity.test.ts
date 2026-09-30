@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
-describe("Production Audit Suite 00 — NPM Package Integrity & Sub-exports (@nekzus/liop@latest)", () => {
+describe("Production Audit Suite 00 — NPM Package Integrity & Sub-exports (@nekzus/liop@beta)", () => {
 	it("should resolve primary entrypoint from @nekzus/liop cleanly", async () => {
 		const pkg = await import("@nekzus/liop");
 		expect(pkg).toBeDefined();
