@@ -35,7 +35,7 @@
   "navbar": {
     "links": [
       {
-        "label": "npm v2.6.1",
+        "label": "npm v2.7.1",
         "href": "https://www.npmjs.com/package/@nekzus/liop",
         "icon": "npm"
       },
