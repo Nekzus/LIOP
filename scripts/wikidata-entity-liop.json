@@ -149,8 +149,37 @@
     ]
   },
   "organization_entity": {
-    "label": "Nekzus Solutions",
-    "description": "Open-source software organization and developer of the Logic-Injection-on-Origin Protocol",
+    "labels": {
+      "en": {
+        "language": "en",
+        "value": "Nekzus Solutions"
+      },
+      "es": {
+        "language": "es",
+        "value": "Nekzus Solutions"
+      }
+    },
+    "descriptions": {
+      "en": {
+        "language": "en",
+        "value": "Open-source software organization and developer of the Logic-Injection-on-Origin Protocol"
+      },
+      "es": {
+        "language": "es",
+        "value": "Organización de software de código abierto y desarrolladora del protocolo Logic-Injection-on-Origin"
+      }
+    },
+    "aliases": {
+      "en": [
+        "Nekzus",
+        "Nekzus Dev",
+        "Nekzus Solutions Inc"
+      ],
+      "es": [
+        "Nekzus",
+        "Nekzus Dev"
+      ]
+    },
     "claims": {
       "P31": [
         {
