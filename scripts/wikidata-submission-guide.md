@@ -28,11 +28,11 @@ Esta guía detalla el procedimiento directo a través de la interfaz visual de *
 | `instancia de` (o `P31`) | `organización` (`Q43229`) |
 | `instancia de` (o `P31`) | `empresa de software` (`Q1058914`) |
 | `sitio web oficial` (o `P856`) | `https://nekzus-32.mintlify.app/` |
-| `repositorio de código` (o `P1324`) | `https://github.com/Nekzus` |
-| `fecha de fundación o creación` (o `P571`) | `2026` |
+| `nombre de usuario en GitHub` (o `P2037`) | `Nekzus` |
+| `fecha de fundación o creación` (o `P571`) | `2023` |
 | `producto` (o `P1056`) | `Logic-Injection-on-Origin Protocol` (`Q141600820`) |
 
-Pulse **publicar** (*publish*) tras añadir cada declaración.
+Pulse **publicar** (*publish*) tras añadir cada declaración. El elemento oficial asignado es [Q141610167](https://www.wikidata.org/wiki/Q141610167).
 
 ---
 
@@ -44,7 +44,7 @@ Pulse **publicar** (*publish*) tras añadir cada declaración.
 
 | Propiedad a buscar (campo izquierdo) | Valor a seleccionar o pegar (campo derecho) | Tipo de dato / Resultado |
 |---|---|---|
-| `desarrollador` (o `P178`) | `Nekzus Solutions` | Ítem creado en el Paso 1 (`Q...`) |
+| `desarrollador` (o `P178`) | `Nekzus Solutions` (`Q141610167`) | Entidad oficial vinculada |
 | `lenguaje de programación` (o `P277`) | `TypeScript` (`Q978185`) | Entidad existente |
 | `lenguaje de programación` (o `P277`) | `Rust` (`Q575650`) | Entidad existente |
 | `paquete npm` (o `P8262`) | `@nekzus/liop` | Identificador externo (Wikidata enlaza a npm) |
@@ -60,20 +60,32 @@ Pulse **publicar** (*publish*) tras añadir cada declaración.
 
 ---
 
-## Paso 3: Resolución de Advertencias de Validación (Constraint Violations)
+## Paso 3: Resolución de Advertencias en LIOP (Q141600820)
 
-Si aparecen iconos de exclamación `(!)` junto a `operating system`, `programmed in`, `npm package` o `readable file format`, se debe a la restricción de tipo de Wikidata:
+Las advertencias iniciales en `Q141600820` quedaron 100% resueltas mediante:
 
-### 1. Añadir "software" a "instancia de" (Resuelve todos los signos de advertencia)
-Las propiedades de software exigen que el elemento pertenezca a la clase software. Para resolver todas las advertencias en un solo paso:
-1. Vaya a la primera declaración en la parte superior: **instancia de** (`P31`).
-2. Pulse en **+ añadir valor** (*+ add value*) dentro de `instancia de`.
-3. Busque y seleccione: `software` (`Q7397`).
-4. Pulse **publicar**. Todos los signos de exclamación desaparecerán inmediatamente al satisfacerse la restricción de tipo ontológico.
+1. **Añadir "software" a "instancia de"**: Al incluir `software` (`Q7397`) en `instancia de` (`P31`), se satisfacen las restricciones ontológicas de las propiedades de ingeniería de software.
+2. **Calificador de idioma en "descrito en la URL"**: Al añadir el calificador `idioma de la obra o del nombre` (`P407`) con valor `inglés` (`Q1860`) en la declaración `P973`, se elimina la advertencia de idioma.
 
-### 2. Calificador de idioma en "descrito en la URL" (Resuelve el icono de bandera)
-1. En la declaración **descrito en la URL** (`P973`), pulse en **editar** (*edit*).
-2. Pulse en **+ añadir calificador** (*+ add qualifier*).
-3. En propiedad escriba: `idioma de la obra o del nombre` (`P407`).
-4. En valor escriba: `inglés` (`Q1860`).
-5. Pulse **publicar**.
+---
+
+## Paso 4: Resolución de Advertencias en Nekzus Solutions (Q141610167)
+
+En la entidad `Nekzus Solutions` ([Q141610167](https://www.wikidata.org/wiki/Q141610167)), la declaración `URL del repositorio de código fuente` (`P1324`) presenta advertencias de validación debido a dos causas concretas del modelo de datos de Wikidata:
+
+1. **Restricción de tipo de sujeto en P1324**: La propiedad `P1324` solo es válida para software o repositorios individuales, no para organizaciones o empresas. Una organización no es un repositorio de código.
+2. **Uso de referencias en lugar de calificadores**: Los metadatos de Git (`P8423`) y GitHub (`P10627`) fueron agregados como fuentes de referencia en lugar de calificadores de la declaración.
+
+### Solución Canónica en Wikidata
+
+Para organizaciones y empresas, Wikidata dispone de la propiedad nativa de identificador externo **`nombre de usuario en GitHub`** (`P2037`), la cual enlaza automáticamente a `https://github.com/Nekzus` sin exigir licencias de código ni calificadores de software.
+
+Procedimiento de corrección en la web:
+
+1. Ingrese a [https://www.wikidata.org/wiki/Q141610167](https://www.wikidata.org/wiki/Q141610167).
+2. Localice la declaración **URL del repositorio de código fuente** (`P1324`).
+3. Pulse en **editar** (*edit*) y luego en el icono de papelera / **eliminar** (*remove*) para suprimir dicha declaración con advertencias.
+4. Pulse en **+ añadir declaración** (*+ add statement*).
+5. En el campo de propiedad (izquierda) escriba: `nombre de usuario en GitHub` (o `P2037`).
+6. En el campo de valor (derecha) escriba: `Nekzus`.
+7. Pulse **publicar** (*publish*). Todas las advertencias desaparecerán y Wikidata renderizará el enlace oficial con el icono de GitHub.
