@@ -2,20 +2,20 @@
 
 # ==============================================================================
 # LIOP Production Readiness Audit — Dockerfile
-# Installs the published @nekzus/liop@beta and @nekzus/liop-studio@beta packages directly from the public registry.
+# Installs the published @nekzus/liop@latest and @nekzus/liop-studio@latest packages directly from the public registry.
 # Simulates WAN environments with Traffic Control (tc/netem) and kernel network shaping.
 # ==============================================================================
 
 FROM node:22-slim AS builder
-LABEL org.nekzus.liop.audit="production-beta"
+LABEL org.nekzus.liop.audit="production-main"
 WORKDIR /app
 
-# Install the exact production beta packages published on NPM along with required peer/runtime tools
+# Install the exact production packages published on NPM along with required peer/runtime tools
 RUN npm init -y \
     && npm pkg set type="module" \
     && npm install --save --no-audit --no-fund --legacy-peer-deps \
-       @nekzus/liop@beta \
-       @nekzus/liop-studio@beta \
+       @nekzus/liop@latest \
+       @nekzus/liop-studio@latest \
        @libp2p/pnet@3.0.29 \
        zod@4.6.5 \
        hono@4.13.8 \
@@ -31,7 +31,7 @@ COPY tests/ ./tests/
 
 # Runtime stage: lean image with iproute2 for tc/netem and curl for healthchecks
 FROM node:22-slim AS runtime
-LABEL org.nekzus.liop.audit="production-beta"
+LABEL org.nekzus.liop.audit="production-main"
 WORKDIR /app
 
 RUN apt-get update \
