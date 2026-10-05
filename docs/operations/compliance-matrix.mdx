@@ -39,7 +39,7 @@ LIOP's Logic-Injection-on-Origin paradigm provides deterministic, mathematically
 | Requirement | Standard Mandate | Protocol Security Layer |
 |---|---|---|
 | **Req 3.4** | Protect Primary Account Numbers (PAN) across all environments. | Layer 4 Egress Shield strips card numbers and CVVs via `forbiddenKeys` and regular expressions before output serialization. |
-| **Req 6.4** | Prevent injection flaws (SQLi, prototype pollution, memory corruption). | Layer 1 Guardian AST pre-execution scanning blocks non-allowlisted imports; Layer 2 V8 sandbox poisons 25 sensitive globals (including timing APIs `Date`, `performance`, `Intl`, `SharedArrayBuffer`) and freezes 11 native prototypes (`Object.freeze`). |
+| **Req 6.4** | Prevent injection flaws (SQLi, prototype pollution, memory corruption). | Layer 1 Guardian AST pre-execution scanning blocks non-allowlisted imports; Layer 2 V8 sandbox poisons 27 sensitive globals (including timing APIs `Date`, `performance`, `Intl`, `SharedArrayBuffer`) and freezes 11 native prototypes (`Object.freeze`). |
 | **Req 10.2** | Automated audit trails for all administrative and data access events. | Built-in out-of-band interceptors emit structured audit telemetry without altering host execution performance. |
 | **Req 11.3** | Protect network traffic from eavesdropping and man-in-the-middle tampering. | Hybrid gRPC transport enforces quantum-resistant ML-KEM-768 key exchange combined with mTLS channel encryption. |
 
@@ -63,10 +63,10 @@ NIST SP 800-207 defines seven core tenets of Zero Trust Architecture. LIOP satis
 
 | Standard | Control Identifier | Regulatory Requirement | LIOP Protocol Defense |
 |---|---|---|---|
-| **NIST FIPS 203** | ML-KEM-768 | Post-quantum key encapsulation for untrusted network transport. | Encapsulates symmetric AES-256-GCM session keys resistant against retrospective decryption attacks. |
-| **NIST FIPS 204** | ML-DSA-65 | Post-quantum digital signatures for authentication and non-repudiation. | Co-signs Groth16 ZK-Receipts (Version 2.1) and seals node manifests against quantum forgeability. |
+| **NIST FIPS 203** | ML-KEM-768 | Post-quantum key encapsulation for untrusted network transport. | Encapsulates symmetric AES-256-GCM session keys. Implemented in TypeScript SDK via NIST FIPS 203 final (`mlkem`). Rust mesh node compiles Kyber-768 Round 3 draft (`pqcrypto-kyber`), with native FIPS 203 final crate upgrade scheduled for Phase RC. |
+| **NIST FIPS 204** | ML-DSA-65 | Post-quantum digital signatures for authentication and non-repudiation. | Implemented in TypeScript SDK via `@noble/post-quantum` (ML-DSA-65) for co-signing Groth16 ZK-Receipts (Version 2.1) and manifest sealing. Wire Protocol Buffer serialization in Rust is scheduled for Phase RC. |
 | **NIST SP 800-53** | **SC-39** | Process isolation and side-channel elimination. | Fixed 100-bucket instruction fuel quantization ensures structural payloads evaluate with identical fuel consumption (`stddev = 0`). |
-| **NIST SP 800-53** | **PE-3 / SC-28** | Hardware root-of-trust protection and cryptographic attestation. | Pre-flight TEE verification (`verifyTeeAttestationDetailed`) authenticates AMD SEV-SNP (1,184-byte report) and AWS Nitro Enclaves (COSE_Sign1). |
+| **NIST SP 800-53** | **PE-3 / SC-28** | Hardware root-of-trust protection and cryptographic attestation. | Pre-flight TEE verification (`verifyTeeAttestationDetailed`) authenticates AMD SEV-SNP (1,184-byte report) and AWS Nitro Enclaves (COSE_Sign1). Operates via validated cryptographic software stubs in development, with physical hardware root-of-trust activation scheduled for Phase RC. |
 
 ---
 

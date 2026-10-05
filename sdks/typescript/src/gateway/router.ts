@@ -1386,14 +1386,16 @@ export class LiopMcpRouter {
 		if (isLocal) {
 			try {
 				const localStartTime = Date.now();
+				const localArgs =
+					params?.arguments ?? (params?.payload !== undefined ? params : {});
 				const result = await this.liopServer.callTool({
 					name: toolName,
-					arguments: params.arguments || {},
+					arguments: localArgs,
 				});
 
 				// [Token Economy] Record local tool call telemetry
 				const localTelemetry = TokenTelemetryEngine.getInstance();
-				const localInputPayload = JSON.stringify(params.arguments || {});
+				const localInputPayload = JSON.stringify(localArgs);
 				const localOutputPayload = JSON.stringify(result);
 
 				let originDatasetTokens: number | undefined;

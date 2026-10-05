@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 
 # Stage 1: Build & Deploy Isolate
-FROM node:22-slim AS builder
+FROM node:22-slim@sha256:43ac6c60b8f89723f746e8a92ce91abd5017e627ce1ddfe4238355d3a30b772c AS builder
 LABEL org.nekzus.liop.project="neural-mesh-protocol"
 WORKDIR /app
 
@@ -38,7 +38,7 @@ RUN --mount=type=cache,target=/pnpm/store,id=liop-pnpm-store \
     pnpm deploy --legacy --filter @nekzus/liop /app/deploy
 
 # Stage 2: Runtime (lean image)
-FROM node:22-slim AS runtime
+FROM node:22-slim@sha256:43ac6c60b8f89723f746e8a92ce91abd5017e627ce1ddfe4238355d3a30b772c AS runtime
 LABEL org.nekzus.liop.project="neural-mesh-protocol"
 WORKDIR /app
 
@@ -60,6 +60,10 @@ COPY --from=builder /app/sdks/typescript/tests/crossnet/ ./tests/crossnet/
 
 # Manually place the proto file matching PROD_PROTO_PATH resolution relative to /src/rpc
 COPY --from=builder /app/protocol/proto/liop_core.proto ./src/protocol/liop_core.proto
+
+RUN chown -R node:node /app
+
+USER node
 
 WORKDIR /app
 ENV LIOP_LOG_LEVEL=info

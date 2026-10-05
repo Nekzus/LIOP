@@ -25,11 +25,18 @@ jobs:
             runner: ubuntu-24.04-arm
     runs-on: ${{ matrix.runner }}
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@4d991eb9b905ef189e4c376166672c3f2f230481 # v2.11.0
+        with:
+          egress-policy: audit
+
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Install Rust Toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@7e38f4b43b4db5c8dd498af069a4f6196df1d067 # master
+        with:
+          toolchain: stable
 
       - name: Run SIMD Prover Benchmarks
         run: |
@@ -37,7 +44,7 @@ jobs:
           cargo bench --features ${{ matrix.features }} -- --output-format bencher | tee benchmark-${{ matrix.arch }}.txt
 
       - name: Upload Benchmark Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         with:
           name: benchmark-${{ matrix.arch }}
           path: crates/zk-native/benchmark-${{ matrix.arch }}.txt

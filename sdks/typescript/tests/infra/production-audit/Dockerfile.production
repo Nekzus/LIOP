@@ -6,7 +6,7 @@
 # Simulates WAN environments with Traffic Control (tc/netem) and kernel network shaping.
 # ==============================================================================
 
-FROM node:22-slim AS builder
+FROM node:22-slim@sha256:43ac6c60b8f89723f746e8a92ce91abd5017e627ce1ddfe4238355d3a30b772c AS builder
 LABEL org.nekzus.liop.audit="production-alpha"
 WORKDIR /app
 
@@ -30,13 +30,14 @@ COPY network-profiles/ ./network-profiles/
 COPY tests/ ./tests/
 
 # Runtime stage: lean image with iproute2 for tc/netem and curl for healthchecks
-FROM node:22-slim AS runtime
+FROM node:22-slim@sha256:43ac6c60b8f89723f746e8a92ce91abd5017e627ce1ddfe4238355d3a30b772c AS runtime
 LABEL org.nekzus.liop.audit="production-alpha"
 WORKDIR /app
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends iproute2 curl ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+    && apt-get install -y --no-install-recommends iproute2 curl ca-certificates libcap2-bin \
+    && rm -rf /var/lib/apt/lists/* \
+    && (setcap cap_net_admin+ep /usr/sbin/tc 2>/dev/null || setcap cap_net_admin+ep /sbin/tc 2>/dev/null || true)
 
 # Install tsx and vitest globally for running entrypoints and test runner in container
 RUN npm install -g tsx vitest
@@ -47,8 +48,11 @@ COPY --from=builder /app ./
 # Ensure local node_modules binaries and packages are prioritized
 ENV PATH="/app/node_modules/.bin:$PATH"
 
-# Ensure network scripts have execution permissions
-RUN chmod +x /app/network-profiles/*.sh
+# Ensure network scripts have execution permissions and give node user ownership of /app
+RUN chmod +x /app/network-profiles/*.sh \
+    && chown -R node:node /app
+
+USER node
 
 ENV LIOP_LOG_LEVEL=info
 ENV LIOP_GRPC_PORT=50051
@@ -61,4 +65,3 @@ HEALTHCHECK --interval=5s --timeout=3s --start-period=15s --retries=5 \
 
 ENTRYPOINT ["/app/network-profiles/entrypoint-wrapper.sh"]
 CMD ["vitest", "run", "--config", "tests/vitest.audit.config.ts"]
-

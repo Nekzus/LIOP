@@ -1,4 +1,4 @@
-name: Sync LLMs Documentation Corpus
+name: Verify LLMs Documentation Corpus
 
 on:
   push:
@@ -10,25 +10,43 @@ on:
       - 'docs/**'
       - 'scripts/generate-llms-full.ts'
       - 'llms.txt'
+      - 'llms-full.txt'
+  pull_request:
+    branches:
+      - main
+      - alpha
+      - beta
+    paths:
+      - 'docs/**'
+      - 'scripts/generate-llms-full.ts'
+      - 'llms.txt'
+      - 'llms-full.txt'
+
+permissions:
+  contents: read
 
 jobs:
-  sync-llms:
-    name: Regenerate llms-full.txt
+  verify-llms:
+    name: Verify llms-full.txt Parity
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@4d991eb9b905ef189e4c376166672c3f2f230481 # v2.11.0
+        with:
+          egress-policy: audit
+
       - name: Checkout Repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v6
+        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a # v4.2.0
         with:
           node-version: 24.x
           cache: 'pnpm'
@@ -39,21 +57,11 @@ jobs:
       - name: Generate LLMs Corpus
         run: pnpm generate:llms
 
-      - name: Check for Changes
-        id: git-check
+      - name: Verify llms-full.txt Consistency
         run: |
-          git status --porcelain llms-full.txt
           if [ -n "$(git status --porcelain llms-full.txt)" ]; then
-            echo "changed=true" >> $GITHUB_OUTPUT
-          else
-            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "Error: llms-full.txt is out of date with docs/."
+            echo "Please run 'pnpm generate:llms' locally, create a cryptographically signed commit (git commit -S), and push."
+            git diff llms-full.txt
+            exit 1
           fi
-
-      - name: Commit and Push if Changed
-        if: steps.git-check.outputs.changed == 'true'
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add llms-full.txt
-          git commit -m "docs(llms): regenerate llms-full.txt corpus [skip ci]"
-          git push

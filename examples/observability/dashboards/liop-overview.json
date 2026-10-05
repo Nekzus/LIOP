@@ -316,7 +316,7 @@
       },
       "targets": [
         {
-          "expr": "clamp_max(clamp_min((sum(liop_wire_saved_bytes_total{instance=~\"$instance\"}) / (sum(liop_wire_saved_bytes_total{instance=~\"$instance\"}) + sum(liop_wire_egress_bytes_total{instance=~\"$instance\"}))) * 100, 0), 100) or vector(100)",
+          "expr": "clamp_max(clamp_min(((sum(liop_wire_saved_bytes_total{instance=~\"$instance\"}) or vector(0)) / ((sum(liop_wire_saved_bytes_total{instance=~\"$instance\"}) + sum(liop_wire_egress_bytes_total{instance=~\"$instance\"})) > 0)) * 100, 0), 100) or vector(100)",
           "legendFormat": "Sovereignty Ratio",
           "refId": "A"
         }
@@ -1769,7 +1769,63 @@
           "type": "prometheus",
           "uid": "${datasource}"
         },
-        "definition": "label_values(up{environment=~\"$environment\"}, instance)",
+        "definition": "label_values(up{environment=~\"$environment\"}, tier)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Security Tier",
+        "multi": true,
+        "name": "tier",
+        "options": [],
+        "query": {
+          "query": "label_values(up{environment=~\"$environment\"}, tier)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 2,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "definition": "label_values(up{environment=~\"$environment\",tier=~\"$tier\"}, node_role)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Node Role",
+        "multi": true,
+        "name": "node_role",
+        "options": [],
+        "query": {
+          "query": "label_values(up{environment=~\"$environment\",tier=~\"$tier\"}, node_role)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 2,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "definition": "label_values(up{environment=~\"$environment\",tier=~\"$tier\",node_role=~\"$node_role\"}, instance)",
         "hide": 0,
         "includeAll": true,
         "label": "Enclave Instance",
@@ -1777,7 +1833,7 @@
         "name": "instance",
         "options": [],
         "query": {
-          "query": "label_values(up{environment=~\"$environment\"}, instance)",
+          "query": "label_values(up{environment=~\"$environment\",tier=~\"$tier\",node_role=~\"$node_role\"}, instance)",
           "refId": "StandardVariableQuery"
         },
         "refresh": 2,

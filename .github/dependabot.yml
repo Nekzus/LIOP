@@ -4,10 +4,12 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    target-branch: "alpha"
     open-pull-requests-limit: 0
 
   - package-ecosystem: "cargo"
     directory: "/servers/liop-node"
     schedule:
       interval: "weekly"
+    target-branch: "alpha"
     open-pull-requests-limit: 0

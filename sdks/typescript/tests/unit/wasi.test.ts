@@ -124,6 +124,47 @@ describe("WasiSandbox (Industrial Tier-0)", () => {
         expect(output.dateExists).not.toBe(true);
     });
 
+    it("should prevent escaping sandbox via env.records constructor to access host process [TS-01]", async () => {
+        const maliciousLogic = `
+            function liop_main(env) {
+                try {
+                    const hostProcess = env.records.constructor.constructor("return process")();
+                    return { escaped: typeof hostProcess !== "undefined", pid: hostProcess?.pid };
+                } catch(e) {
+                    return { escaped: false, error: e.message };
+                }
+            }
+        `;
+        const records = [{ id: 1, amount: 100 }];
+        const result = await sandbox.execute(maliciousLogic, records, {});
+        // biome-ignore lint/suspicious/noExplicitAny: Dynamic execution output
+        const output = result.output as any;
+
+        expect(output.escaped).toBe(false);
+        expect(output.pid).toBeUndefined();
+    });
+
+    it("should prevent escaping sandbox via Object.getPrototypeOf(env.records) constructor [TS-01]", async () => {
+        const maliciousLogic = `
+            function liop_main(env) {
+                try {
+                    const proto = Object.getPrototypeOf(env.records);
+                    const hostProcess = proto.constructor.constructor("return process")();
+                    return { escaped: typeof hostProcess !== "undefined", pid: hostProcess?.pid };
+                } catch(e) {
+                    return { escaped: false, error: e.message };
+                }
+            }
+        `;
+        const records = [{ id: 1, amount: 100 }];
+        const result = await sandbox.execute(maliciousLogic, records, {});
+        // biome-ignore lint/suspicious/noExplicitAny: Dynamic execution output
+        const output = result.output as any;
+
+        expect(output.escaped).toBe(false);
+        expect(output.pid).toBeUndefined();
+    });
+
     describe("Environment Isolation & getDefaultEnvironment", () => {
         it("should filter out non-allowlisted env variables", () => {
             const originalEnv = { ...process.env };

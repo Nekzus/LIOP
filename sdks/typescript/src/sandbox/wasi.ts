@@ -72,7 +72,7 @@ export function getDefaultEnvironment(): Record<string, string> {
 export function calculateAstInstructionFuel(code: string): number {
 	try {
 		const ast = acorn.parse(code, {
-			ecmaVersion: 2022,
+			ecmaVersion: "latest",
 			sourceType: "script",
 			allowReturnOutsideFunction: true,
 		});
@@ -325,29 +325,54 @@ export class WasiSandbox {
 			sandboxEnv.BigUint64Array = undefined;
 			sandboxEnv.DataView = undefined;
 
-			// Recurse and strip prototype chain from host-passed objects to prevent escaping via constructor
-			// biome-ignore lint/suspicious/noExplicitAny: Required for recursive null prototype mapping
-			const toNullPrototype = (obj: any): any => {
-				if (!obj || typeof obj !== "object") {
-					return obj;
-				}
-				if (Array.isArray(obj)) {
-					return obj.map(toNullPrototype);
-				}
-				const clone = Object.create(null);
-				for (const [key, val] of Object.entries(obj)) {
-					clone[key] = toNullPrototype(val);
-				}
-				return clone;
-			};
+			// Create VM Context with hardened global scope
+			// microtaskMode: Ensures Promises created inside the sandbox are
+			// resolved within the timeout/breakOnSigint scope (Node.js ≥14.6).
+			const context = vm.createContext(sandboxEnv, {
+				name: "LIOP Isolate",
+				origin: "liop://sandbox",
+				microtaskMode: "afterEvaluate",
+			});
 
-			// Inject strictly monitored globals
-			sandboxEnv.records = toNullPrototype(JSON.parse(JSON.stringify(records))); // Deep copy safety + null prototype
-			sandboxEnv.env = toNullPrototype(JSON.parse(JSON.stringify(env)));
+			// Neutralize constructor on function prototypes inside the isolate realm
+			vm.runInContext(
+				`for (const proto of [
+					Object.getPrototypeOf(function(){}),
+					Object.getPrototypeOf(async function(){}),
+					Object.getPrototypeOf(function*(){})
+				]) {
+					if (proto) {
+						try {
+							Object.defineProperty(proto, "constructor", {
+								value: undefined,
+								writable: false,
+								configurable: false,
+							});
+							Object.freeze(proto);
+						} catch (_) {}
+					}
+				}`,
+				context,
+			);
 
-			for (const [key, value] of Object.entries(inputs)) {
-				sandboxEnv[key] = toNullPrototype(JSON.parse(JSON.stringify(value)));
-			}
+			// Realm-bound parser to reconstruct records and inputs using context-native prototypes.
+			// This completely eliminates TS-01 (Host prototype leakage via constructor.constructor).
+			const realmParser = vm.runInContext(
+				`(function(raw) {
+					const parsed = JSON.parse(raw);
+					function sanitize(val) {
+						if (!val || typeof val !== "object") return val;
+						if (Array.isArray(val)) return val.map(sanitize);
+						const clone = Object.create(null);
+						for (const [k, v] of Object.entries(val)) {
+							clone[k] = sanitize(v);
+						}
+						return clone;
+					}
+					return sanitize(parsed);
+				})`,
+				context,
+			);
 
 			// Freeze the sandbox context to prevent mutation (SEC-GAP-1)
 			// biome-ignore lint/suspicious/noExplicitAny: Required for recursive deep freeze of unknown data
@@ -361,8 +386,13 @@ export class WasiSandbox {
 				return obj;
 			};
 
-			deepFreeze(sandboxEnv.records);
-			deepFreeze(sandboxEnv.env);
+			// Inject strictly monitored globals using realmParser (zero host prototype leakage)
+			sandboxEnv.records = deepFreeze(realmParser(JSON.stringify(records)));
+			sandboxEnv.env = deepFreeze(realmParser(JSON.stringify(env)));
+
+			for (const [key, value] of Object.entries(inputs)) {
+				sandboxEnv[key] = deepFreeze(realmParser(JSON.stringify(value)));
+			}
 
 			// Prevent property addition/modification on global scope
 			for (const key of Object.keys(sandboxEnv)) {
@@ -434,15 +464,6 @@ export class WasiSandbox {
 					Object.freeze(Promise.prototype);
 					Object.freeze(Error.prototype);
 				}
-
-				// microtaskMode: Ensures Promises created inside the sandbox are
-				// resolved within the timeout/breakOnSigint scope (Node.js ≥14.6).
-				// Without this, async microtasks could escape the 5s CPU limit.
-				const context = vm.createContext(sandboxEnv, {
-					name: "LIOP Isolate",
-					origin: "liop://sandbox",
-					microtaskMode: "afterEvaluate",
-				});
 
 				// Execution with hard CPU and Memory limits (Fuel)
 				const output = script.runInContext(context, {

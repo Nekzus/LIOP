@@ -6,7 +6,7 @@
 
 use std::error::Error;
 use tracing::{info, warn};
-use wasmtime::{Config, Engine, Linker, Module, Store};
+use wasmtime::{Config, Engine, Linker, Module, ResourceLimiter, Store};
 use wasmtime_wasi::preview1::WasiP1Ctx;
 use wasmtime_wasi::{DirPerms, FilePerms, WasiCtxBuilder};
 
@@ -18,6 +18,28 @@ use tokio::sync::mpsc::Sender;
 pub struct AgentExecutionState {
     pub wasi: WasiP1Ctx,
     pub tx: Sender<Result<LogicResponse, tonic::Status>>,
+}
+
+impl ResourceLimiter for AgentExecutionState {
+    fn memory_growing(
+        &mut self,
+        _current: usize,
+        desired: usize,
+        _maximum: Option<usize>,
+    ) -> Result<bool, anyhow::Error> {
+        // Enforce 50 MB max linear memory (800 Wasm pages * 64 KB = 51.2 MB)
+        const MAX_PAGES: usize = 800;
+        Ok(desired <= MAX_PAGES)
+    }
+
+    fn table_growing(
+        &mut self,
+        _current: usize,
+        desired: usize,
+        _maximum: Option<usize>,
+    ) -> Result<bool, anyhow::Error> {
+        Ok(desired <= 10_000)
+    }
 }
 
 pub fn create_wasi_engine() -> Result<Engine, Box<dyn Error>> {
@@ -61,6 +83,7 @@ pub fn execute_sandboxed_logic(
         .build_p1();
 
     let mut store = Store::new(engine, AgentExecutionState { wasi, tx });
+    store.limiter(|state| state);
 
     // GUARDIAN: Assign Computational Fuel Limit
     store.set_fuel(500_000_000)?;

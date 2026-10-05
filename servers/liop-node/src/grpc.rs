@@ -201,6 +201,12 @@ impl LogicMesh for LiopService {
         info!("AES-GCM: Decrypting Payload");
         let key = Key::<Aes256Gcm>::from_slice(shared_secret.as_bytes());
         let cipher = Aes256Gcm::new(key);
+        if req.aes_nonce.len() != 12 {
+            return Err(Status::invalid_argument(format!(
+                "Invalid AES-GCM nonce length: expected 12 bytes, got {}",
+                req.aes_nonce.len()
+            )));
+        }
         let nonce = Nonce::from_slice(&req.aes_nonce);
 
         let wasm_binary = cipher

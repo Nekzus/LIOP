@@ -1,6 +1,6 @@
 ---
 title: "ADR-0002: Hybrid Zero-Trust Sandbox: V8 Prototype Freezing"
-description: "Architecture decision enforcing 25 poisoned globals and 11 frozen native prototypes in V8 execution contexts to satisfy PCI-DSS limits."
+description: "Architecture decision enforcing 27 poisoned globals and 11 frozen native prototypes in V8 execution contexts to satisfy PCI-DSS limits."
 icon: "box"
 ---
 
@@ -38,7 +38,7 @@ Spawning separate OS child processes incurs high startup overhead ($50\text{--}1
 
 1. **Child Process Isolation (`child_process.fork`):** Strong OS-level boundary, but introduces massive startup overhead ($>50\text{ ms}$) and high memory usage.
 2. **Third-Party Sandbox Libraries (`vm2`):** Historically prone to sandbox escapes; deprecated across the enterprise ecosystem.
-3. **Hardened V8 Isolates with Prototype Freezing & Global Poisoning:** Native Node.js `node:vm` contexts with pre-execution freezing of 11 root prototypes, poisoning 25 ambient globals, executed inside a Piscina worker pool.
+3. **Hardened V8 Isolates with Prototype Freezing & Global Poisoning:** Native Node.js `node:vm` contexts with pre-execution freezing of 11 root prototypes, poisoning 27 ambient globals, executed inside a Piscina worker pool.
 
 ---
 
@@ -50,7 +50,7 @@ Spawning separate OS child processes incurs high startup overhead ($50\text{--}1
 
 - **Microsecond Spin-up:** Isolates initialize and execute in under $0.08\text{ ms}$.
 - **Prototype Pollution Immunity:** The 11 core prototypes (`Object`, `Array`, `Function`, `String`, `Number`, `Boolean`, `Promise`, `RegExp`, `Error`, `Map`, `Set`) are frozen with `Object.freeze()` prior to untrusted execution.
-- **Strict Isolation:** 25 dangerous globals (`process`, `require`, `eval`, `Function`, `fetch`, `WebAssembly`, `importScripts`, etc.) are replaced with throwing proxies.
+- **Strict Isolation:** 27 dangerous globals (`process`, `require`, `eval`, `Function`, `fetch`, `WebAssembly`, `importScripts`, etc.) are replaced with throwing proxies.
 
 ### Negative Consequences and Mitigations
 

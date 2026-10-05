@@ -143,12 +143,13 @@ export class TaintAnalyzer {
 			// Wrap in function body to handle bare `return` statements
 			const wrapped = `function liop_analysis_wrapper(env) {\n${sourceCode}\n}`;
 			ast = acorn.parse(wrapped, {
-				ecmaVersion: 2022,
+				ecmaVersion: "latest",
 				sourceType: "script",
 				locations: true,
+				allowReturnOutsideFunction: true,
 			});
 		} catch {
-			// Syntax errors are handled downstream by the sandbox VM
+			// Syntax errors are handled downstream by the sandbox VM (invalid syntax cannot execute in V8)
 			return null;
 		}
 
@@ -213,8 +214,9 @@ export class TaintAnalyzer {
 		let ast: acorn.Node;
 		try {
 			ast = acorn.parse(`function w(env) {\n${sourceCode}\n}`, {
-				ecmaVersion: 2022,
+				ecmaVersion: "latest",
 				sourceType: "script",
+				allowReturnOutsideFunction: true,
 			});
 		} catch {
 			return [];

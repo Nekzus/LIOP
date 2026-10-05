@@ -336,8 +336,8 @@ El despliegue de interceptores en una malla LIOP distribuida exige respetar estr
 - **Nodo Destino**: Proveedores de datos privados y enclaves Tier 1 (ej. `The Bank`, `The Vault`).
 - **Política**: `GatewayInterceptor` **NO DEBE** configurarse en servidores de enclave de datos.
 - **Fundamento Técnico**:
-  1. **Prevención de Falsos Positivos sobre Código Legítimo**: En LIOP, los clientes inyectan micro-módulos de lógica (`@LIOP{...}...@END`). Un filtro WAF heurístico genérico evaluando parámetros dentro del enclave clasificaría erróneamente funciones matemáticas o bucles de agregación legítimos como inyecciones de código malicioso.
-  2. **Aislamiento Zero-Trust Auténtico**: Un enclave jamás debe asumir que un proxy perimetral anterior "desinfectó" el tráfico. El enclave debe neutralizar código hostil mediante **The Shield** (Guardian AST, Sandbox WASI/V8 con 25 globales envenenados, Taint IFC y Escudo PII de Egreso). Colocar un WAF perimetral frente al sandbox del enclave desvirtúa la auditoría de seguridad y encubre fallas de contención.
+  1. **Prevención de Falsos Positivos sobre Código Legítimo**: En LIOP, los clientes inyectan micro-módulos de lógica (`@LIOP{...}...@END`). Un filtro WAF heurístico genérico que evalúe parámetros dentro del enclave clasificaría erróneamente funciones matemáticas o bucles de agregación legítimos como inyecciones de código malicioso.
+  2. **Aislamiento Zero-Trust Auténtico**: Un enclave jamás debe asumir que un proxy perimetral anterior "desinfectó" el tráfico. El enclave debe neutralizar código hostil mediante **The Shield** (Guardian AST, Sandbox WASI/V8 con 27 globales envenenados, Taint IFC y Escudo PII de Egreso). Colocar un WAF perimetral frente al sandbox del enclave desvirtúa la auditoría de seguridad y encubre fallas de contención.
 
 ### 3. Pasarelas Fronterizas Asimétricas (`BLG`)
 - **Nodo Destino**: Border LIO Gateway (`BLG`) que conecta Tier 2 (Consorcio) con Tier 1 (Enclaves Privados).
@@ -352,7 +352,7 @@ El `GatewayInterceptor` actúa exclusivamente como compuerta de admisión en el 
 | Capa | Mecanismo Protocolar | Frontera del Interceptor |
 |:---|:---|:---|
 | **Capa 1: Guardian AST** | Validación de importaciones Wasm (lista blanca de 14 funciones) | Interna al enclave. Opera tras la admisión perimetral. |
-| **Capa 2: Sandbox WASI** | Memoria aislada con 25 globales neutralizadas y prototipos congelados | Interna al enclave. Totalmente aislada del nodo gateway. |
+| **Capa 2: Sandbox WASI** | Memoria aislada con 27 globales neutralizadas y prototipos congelados | Interna al enclave. Totalmente aislada del nodo gateway. |
 | **Capa 3: Analizador de Taint (IFC)** | Rastreo de flujo de información estático en variables | Interna al enclave. Analiza la lógica inyectada en el servidor. |
 | **Capa 4: Escudo PII de Salida** | Canalización de 4 etapas para sanitización de datos (Fuzzy, NER, RegEx) | Frontera de egreso. Filtra respuestas salientes del enclave. |
 | **Capa 5: Agregación en Origen** | Bloqueo estricto de exportación de filas sin agregar | Interna al enclave. Se aplica antes de ejecutar WASM. |

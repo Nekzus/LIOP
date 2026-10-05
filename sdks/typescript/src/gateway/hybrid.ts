@@ -128,6 +128,20 @@ export class LiopHybridGateway {
 
 			// [Phase Beta-3] Prometheus Metrics Endpoint
 			if (method === "GET" && url === "/metrics") {
+				const metricsToken = process.env.LIOP_METRICS_TOKEN;
+				if (
+					metricsToken &&
+					req.headers.authorization !== `Bearer ${metricsToken}`
+				) {
+					res.writeHead(401, {
+						"Content-Type": "application/json; charset=utf-8",
+					});
+					res.end(
+						JSON.stringify({ error: "Unauthorized: Invalid metrics token" }),
+					);
+					return;
+				}
+
 				if (this.meshNode) {
 					meshPeersConnected.set({}, this.meshNode.getPeers().length);
 				}

@@ -59,7 +59,7 @@ LIOP implementa seis defensas en capas. Cada capa aborda una clase de ataque esp
 | Escudo | Amenaza Neutralizada | Mecanismo |
 |---|---|---|
 | **Guardian AST** | Escape del sandbox vía imports prohibidos | Inspección estática de imports WASM contra una allowlist de 14 funciones WASI antes de iniciar ejecución |
-| **Sandbox WASI** | Acceso arbitrario al host, bucles infinitos, fugas de variables de entorno | Isolate V8 con 25 globals envenenados, aislamiento de objetos con prototipo nulo, deep freeze recursivo, y límites determinísticos de combustible CPU |
+| **Sandbox WASI** | Acceso arbitrario al host, bucles infinitos, fugas de variables de entorno | Isolate V8 con 27 globals envenenados, aislamiento de objetos con prototipo nulo, deep freeze recursivo, y límites determinísticos de combustible CPU |
 | **Analizador de Contaminación** | Derivación lateral de PII (`charCodeAt`, inferencia booleana, agregaciones correlacionadas) | Control de Flujo de Información (IFC) estático basado en Acorn que rastrea el flujo de datos desde la fuente hasta el retorno |
 | **Escudo de Egreso PII** | Exfiltración directa de PII (emails, tarjetas de crédito, SSN, teléfonos) | Pipeline de salida en 4 etapas: coincidencia de nombre de clave → coincidencia difusa → validadores regex → Reconocimiento de Entidades Nombradas (NER) |
 | **Política de Agregación** | Exportación de datos a nivel de registro | Bloquea respuestas a nivel de registro; aplica umbrales de K-Anonimidad en datasets pequeños; aplica ruido Laplace (Privacidad Diferencial) |

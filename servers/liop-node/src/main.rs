@@ -3,6 +3,7 @@
 
 // Logic-Injection-on-Origin Protocol (LIOP) - Server Node (Data Host)
 // This node holds the data and provides a Zero-Trust Wasmtime sandbox for execution.
+#![allow(clippy::result_large_err)]
 
 use futures::StreamExt;
 use libp2p::kad::store::RecordStore;
@@ -70,6 +71,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     info!(addr = %addr, "Starting LIOP gRPC Service");
     let grpc_future = Server::builder()
+        .http2_keepalive_interval(Some(std::time::Duration::from_secs(30)))
+        .http2_keepalive_timeout(Some(std::time::Duration::from_secs(10)))
         .add_service(LogicMeshServer::new(liop_service))
         .serve(addr);
 

@@ -180,7 +180,7 @@ server.tool(
 When an agent passes dynamic logic bytecode (`.wasm` or JavaScript envelopes), the execution lifecycle enforces six distinct layers of defense:
 
 1. **Layer 1 (Guardian AST)**: Parses and inspects the abstract syntax tree before execution. Only 14 standard functions from `wasi_snapshot_preview1` are permitted. Any attempt to reference unauthorized host symbols aborts immediately.
-2. **Layer 2 (V8 Sandbox Isolation)**: Executes code inside an isolated V8 context where 25 potentially unsafe globals (`process`, `require`, `eval`, `Function`, `setTimeout`, `fetch`, `WebSocket`) are replaced with poisoned proxies that immediately trigger memory traps upon access. Eleven native prototypes (`Object`, `Array`, `Promise`, etc.) are frozen using `Object.freeze` to satisfy PCI-DSS limits.
+2. **Layer 2 (V8 Sandbox Isolation)**: Executes code inside an isolated V8 context where 27 potentially unsafe globals (`process`, `require`, `eval`, `Function`, `setTimeout`, `fetch`, `WebSocket`, TypedArrays, etc.) are replaced with poisoned proxies that immediately trigger memory traps upon access. Eleven native prototypes (`Object`, `Array`, `Promise`, etc.) are frozen using `Object.freeze` to satisfy PCI-DSS limits.
 3. **Layer 3 (Taint Analyzer)**: Acorn-based information flow control tracks variable assignments to prevent side-channel derivation of confidential inputs via boolean inference or character-code indexing.
 4. **Layer 4 (Egress PII Shield)**: Scans outbound data against fuzzy matches, credit card patterns, IBAN formulas, and NER entity detection.
 5. **Layer 5 (Aggregation-First Policy)**: Enforces that query outputs return summary statistics. Returning raw entity arrays triggers automatic policy rejection.

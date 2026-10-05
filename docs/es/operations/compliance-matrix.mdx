@@ -39,7 +39,7 @@ El protocolo Logic-Injection-on-Origin aporta controles técnicos verificables m
 | Requisito | Mandato del Estándar | Capa de Seguridad del Protocolo |
 |---|---|---|
 | **Req 3.4** | Proteger los números de tarjeta principales (PAN) en cualquier entorno. | El Escudo de Salida de Capa 4 suprime códigos CVV y PAN mediante `forbiddenKeys` y expresiones regulares antes de entregar la respuesta. |
-| **Req 6.4** | Neutralizar vulnerabilidades de inyección (SQLi, polución de prototipos, corrupción de memoria). | El análisis de Guardian AST en Capa 1 bloquea llamadas no autorizadas; el sandbox V8 anula 25 variables globales (incluidas APIs de temporización `Date`, `performance`, `Intl`, `SharedArrayBuffer`) y congela 11 prototipos nativos con `Object.freeze`. |
+| **Req 6.4** | Neutralizar vulnerabilidades de inyección (SQLi, polución de prototipos, corrupción de memoria). | El análisis de Guardian AST en Capa 1 bloquea llamadas no autorizadas; el sandbox V8 anula 27 variables globales (incluidas APIs de temporización `Date`, `performance`, `Intl`, `SharedArrayBuffer`) y congela 11 prototipos nativos con `Object.freeze`. |
 | **Req 10.2** | Pistas de auditoría automatizadas para todos los eventos de acceso a datos. | Los interceptores nativos registran telemetría estructurada sin reducir la velocidad de ejecución en el hilo anfitrión. |
 | **Req 11.3** | Proteger el tráfico de red interno e inalámbrico frente a escuchas no autorizadas. | El transporte gRPC aplica intercambio de claves ML-KEM-768 resistente a computación cuántica junto con canales mTLS. |
 
@@ -63,10 +63,10 @@ NIST SP 800-207 establece siete directivas esenciales de arquitectura Zero Trust
 
 | Estándar | Identificador de Control | Requisito Regulatorio | Defensa en el Protocolo LIOP |
 |---|---|---|---|
-| **NIST FIPS 203** | ML-KEM-768 | Encapsulación de claves post-cuánticas para transporte en redes inseguras. | Encapsula claves de sesión simétricas AES-256-GCM resistentes a ataques de descifrado retrospectivo. |
-| **NIST FIPS 204** | ML-DSA-65 | Firmas digitales post-cuánticas para autenticación y no repudio. | Co-firma recibos ZK Groth16 (Versión 2.1) y sella manifiestos de nodos impidiendo falsificaciones cuánticas. |
+| **NIST FIPS 203** | ML-KEM-768 | Encapsulación de claves post-cuánticas para transporte en redes inseguras. | Encapsula claves de sesión simétricas AES-256-GCM. Implementado en el SDK de TypeScript conforme al estándar final NIST FIPS 203 (`mlkem`). El nodo Rust compila el borrador Kyber-768 Round 3 (`pqcrypto-kyber`), con actualización a FIPS 203 final programada para la Fase RC. |
+| **NIST FIPS 204** | ML-DSA-65 | Firmas digitales post-cuánticas para autenticación y no repudio. | Implementado en el SDK de TypeScript mediante `@noble/post-quantum` (ML-DSA-65) para co-firmar recibos ZK Groth16 (Versión 2.1) y sellado de manifiestos. La serialización en Protocol Buffers para transporte gRPC en Rust está planificada para la Fase RC. |
 | **NIST SP 800-53** | **SC-39** | Aislamiento de procesos y neutralización de canales laterales. | La cuantización de combustible AST en bloques fijos de 100 unidades garantiza que códigos con topología idéntica consuman exactamente el mismo fuel (`stddev = 0`). |
-| **NIST SP 800-53** | **PE-3 / SC-28** | Protección de raíz de confianza en hardware y atestación criptográfica. | La verificación TEE pre-vuelo (`verifyTeeAttestationDetailed`) autentica informes AMD SEV-SNP (1.184 bytes) y AWS Nitro Enclaves (COSE_Sign1). |
+| **NIST SP 800-53** | **PE-3 / SC-28** | Protección de raíz de confianza en hardware y atestación criptográfica. | La verificación TEE pre-vuelo (`verifyTeeAttestationDetailed`) autentica informes AMD SEV-SNP (1.184 bytes) y AWS Nitro Enclaves (COSE_Sign1). Opera mediante stubs criptográficos validados en desarrollo, con activación de raíz de confianza física en hardware programada para la Fase RC. |
 
 ---
 

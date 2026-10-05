@@ -23,7 +23,7 @@ El SDK TypeScript de LIOP aplica un modelo de seguridad basado en **defensa en p
 | Capa | Propósito | Momento |
 |:-----|:----------|:--------|
 | **Guardian AST** | Bloquea importaciones WASM no autorizadas antes de la ejecución | Pre-compilación |
-| **WASI Sandbox** | Aísla el entorno de ejecución con 25 globales envenenados, congelamiento de prototipos y límites de CPU | Ejecución |
+| **WASI Sandbox** | Aísla el entorno de ejecución con 27 globales envenenados, congelamiento de prototipos y límites de CPU | Ejecución |
 | **IFC Taint Analyzer** | Control de flujo de información que previene derivaciones PII y canales laterales por claves computadas | Pre-flight |
 | **PII Shield** | Previene la fuga de datos mediante validadores algorítmicos y detección NER | Post-ejecución |
 | **Aggregation Policy** | Impone límites de cardinalidad en la salida de datos a nivel de fila (Aggregation-First) | Post-ejecución |
@@ -381,6 +381,12 @@ Las herramientas configuran su nivel de atestación mediante la directiva `Logic
 - **`zkMode: "required"` (`ZK_BLOCKING`)**: Obligatorio para enclaves soberanos de Nivel 1 (banca, defensa, registros médicos protegidos). Exige estrictamente una prueba Groth16 válida. Si el probador nativo falta, si se detectan pruebas ficticias simuladas o si la verificación falla, el enclave rechaza la petición con una respuesta formal de error: `"[LIOP-ZK] Clearance Tier 1 enclave policy violation: Valid Groth16 zero-knowledge proof required but unavailable."`
 - **`pqcSign: true`**: Instruye al enclave a co-firmar la prueba Groth16 con su clave privada persistente ML-DSA-65, emitiendo un recibo Versión 2.1 `GROTH16_PQC_HYBRID`.
 
+<Info>
+  **Dependencia del Módulo Nativo Groth16 y Mecanismo de Degradación Segura**
+
+  La generación de pruebas criptográficas de conocimiento cero Groth16 sobre la curva BN254 requiere el paquete nativo opcional `@nekzus/liop-zk-native`, compilado con enlaces en Rust y C++ para aritmética de curvas elípticas. Cuando este binario no se encuentra presente, o en entornos de navegador y arquitecturas serverless estándar sin herramientas nativas de compilación, el motor degrada de forma segura a recibos sellados criptográficamente mediante HMAC-SHA256 derivados del secreto de sesión post-cuántica ML-KEM-768. Esta degradación preserva la integridad computacional contra manipulaciones y mantiene la disponibilidad analítica sin interrumpir la ejecución.
+</Info>
+
 ### Atestación de Hardware TEE Pre-Vuelo
 
 Para establecer confianza sobre infraestructuras físicas no seguras antes de transmitir payloads de lógica cifrados, el SDK proporciona la función `verifyTeeAttestationDetailed`. Esta utilidad inspecciona las mediciones de la raíz de confianza de hardware emitidas por máquinas virtuales confidenciales:
@@ -422,8 +428,8 @@ El verificador soporta dos plataformas principales de computación confidencial:
 2. **Hash del Dataset**: Un hash `SHA-256` del dataset serializado ancla el estado de los datos al momento de la ejecución para auditorías regulatorias.
 3. **Privacidad Diferencial**: El ruido Laplace se aplica a las salidas numéricas antes del compromiso, garantizando que el ZK-Receipt coincida con los datos que el cliente recibe. Soporta **modo DDP** (PRNG determinista con semilla via `dataset_hash + image_id`) para reproducibilidad en auditorías.
 4. **Codificación Binaria del Journal**: Un buffer de 144 bytes que empaqueta `guest_image_id`, `logic_digest`, `dataset_digest`, `output_digest`, `fuel_consumed` y `execution_timestamp`.
-5. **Generación Nativa Groth16**: Ejecución R1CS paralelizada con Rayon mediante `@nekzus/liop-zk-native` generando puntos sobre la curva BN254 en fracciones de segundo en CPU local.
-6. **Co-Firma Post-Cuántica (Modo 3)**: Cuando `pqcSign` está activo, el enclave firma el diario y los puntos de la prueba empleando ML-DSA-65, integrando la firma y la clave pública en el layout wire v2.1.
+5. **Generación Nativa Groth16**: Ejecución R1CS paralelizada con Rayon mediante `@nekzus/liop-zk-native`, que genera puntos sobre la curva BN254 en fracciones de segundo en la CPU local.
+6. **Co-Firma Post-Cuántica (Modo 3)**: Cuando `pqcSign` está activo, el enclave firma el diario y los puntos de la prueba con ML-DSA-65, lo que integra la firma y la clave pública en la estructura wire v2.1.
 7. **Verificación y Mitigación de Replay**: El cliente valida la prueba en tiempo constante mediante emparejamientos bilineales o en el Worker Pool. Para impedir ataques de replay o manipulación de respuestas, el verificador calcula un hash SHA-256 local del resultado recibido y comprueba identidad estricta contra `journal.outputDigest`.
 8. **Extractor de Proxy por Llaves Balanceadas**: Si la llamada se delegó mediante proxy (`__liop_proxy_tool`), el verificador ejecuta una máquina de estados para aislar los argumentos originales antes del hashing, evitando falsos positivos cuando capas intermedias agregan metadatos.
 

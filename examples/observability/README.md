@@ -158,11 +158,11 @@ scrape_configs:
       - targets: ["host.docker.internal:15000"]
         labels:
           node_role: "nexus-seed"
-          tier: "tier3-backbone"
+          tier: "tier2-consortium"
       - targets: ["host.docker.internal:15018"]
         labels:
           node_role: "blg-perimeter"
-          tier: "tier2-perimeter"
+          tier: "tier2-consortium"
       - targets: ["host.docker.internal:15014"]
         labels:
           node_role: "bank-enclave"

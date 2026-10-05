@@ -59,7 +59,7 @@ LIOP implements six layered defenses. Each layer addresses a specific attack cla
 | Shield | Threat Neutralized | Mechanism |
 |---|---|---|
 | **Guardian AST** | Sandbox escape via forbidden imports | Static inspection of WASM imports against a 14-function WASI allowlist before execution begins |
-| **WASI Sandbox** | Arbitrary host access, infinite loops, environment variable leaks | V8 Isolate with 25 poisoned globals, null-prototype object isolation, recursive deep freeze, and deterministic CPU fuel limits |
+| **WASI Sandbox** | Arbitrary host access, infinite loops, environment variable leaks | V8 Isolate with 27 poisoned globals, null-prototype object isolation, recursive deep freeze, and deterministic CPU fuel limits |
 | **Taint Analyzer** | Side-channel PII derivation (`charCodeAt`, boolean inference, correlated aggregations) | Acorn-based static Information Flow Control (IFC) that traces data flow from source to return |
 | **Egress PII Shield** | Direct PII exfiltration (emails, credit cards, SSNs, phone numbers) | Four-stage output pipeline: key-name match → fuzzy match → regex pattern validators → Named Entity Recognition (NER) |
 | **Aggregation Policy** | Row-level data export | Blocks raw record-level responses; enforces K-Anonymity thresholds on small datasets; applies Laplace noise (Differential Privacy) |

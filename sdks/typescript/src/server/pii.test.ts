@@ -50,6 +50,20 @@ describe("PiiScanner (The Shield V2 - Military Grade)", () => {
 		);
 	});
 
+	it("should detect credit card numbers in native numeric types (number and bigint) [TS-08]", async () => {
+		// Valid Visa test number as BigInt
+		expect(await scanner.scan(4242424242424242n)).toBe(
+			PII_PATTERNS.CREDIT_CARD.name,
+		);
+		// In an object under an unmonitored key
+		expect(await scanner.scan({ balance_code: 4242424242424242n })).toBe(
+			PII_PATTERNS.CREDIT_CARD.name,
+		);
+		// Normal safe numbers must not trigger violations
+		expect(await scanner.scan(42)).toBe(null);
+		expect(await scanner.scan({ total: 1000, count: 5 })).toBe(null);
+	});
+
 	it("should detect forbidden keys in objects (Key Auditing)", async () => {
 		expect(await scanner.scan({ id: "123" })).toBe("Forbidden Key: id");
 		expect(await scanner.scan({ nested: { ssn: "999-00-9999" } })).toBe(

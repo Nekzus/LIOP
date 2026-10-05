@@ -1,0 +1,111 @@
+---
+title: "Interfaz de Línea de Comandos (liop-cli)"
+description: "Guía operativa y referencia de comandos para el CLI nativo en Rust del protocolo LIOP"
+icon: "terminal"
+---
+
+La herramienta `liop-cli` constituye la interfaz de comandos oficial para inspeccionar, diagnosticar y ejecutar intercambios Zero-Trust contra nodos del protocolo LIOP. Compilada en Rust sobre `liop-core` y el runtime asíncrono Tokio, permite al personal de desarrollo y operaciones verificar el estado operativo de los nodos e iniciar negociaciones de intención criptográficas desde la terminal.
+
+---
+
+## Instalación y Compilación
+
+El binario puede compilarse directamente desde el espacio de trabajo del monorepo:
+
+```bash
+cargo build --release -p liop-cli
+```
+
+El ejecutable resultante queda disponible en la ruta `target/release/liop` (o `target/release/liop.exe` en entornos Windows).
+
+Para comprobar la instalación:
+
+```bash
+./target/release/liop --version
+```
+
+---
+
+## Comandos Disponibles
+
+### 1. `health`
+
+Comprueba el estado de ejecución de un nodo LIOP enviando una petición HTTP hacia su endpoint administrativo.
+
+```bash
+liop health [OPCIONES]
+```
+
+#### Parámetros
+
+| Parámetro | Abreviatura | Valor Predeterminado | Descripción |
+|---|---|---|---|
+| `--target` | `-t` | `http://[::1]:50052` | Dirección HTTP del endpoint de diagnóstico del nodo |
+
+#### Ejemplos de Uso
+
+```bash
+# Consultar el puerto local estándar
+liop health
+
+# Consultar la dirección de un enclave remoto o personalizado
+liop health --target http://127.0.0.1:13012
+```
+
+Si la petición tiene éxito, el comando imprime el código de estado HTTP y la respuesta JSON devuelta por el nodo.
+
+---
+
+### 2. `negotiate`
+
+Inicia un acuerdo de intención Zero-Trust a través de gRPC utilizando Tonic. Este comando comprueba que el nodo destino admita las credenciales del emisor, resuelva la capacidad solicitada e intercambie claves criptográficas post-cuánticas.
+
+```bash
+liop negotiate [OPCIONES]
+```
+
+#### Parámetros
+
+| Parámetro | Abreviatura | Valor Predeterminado | Descripción |
+|---|---|---|---|
+| `--target` | `-t` | `http://[::1]:50051` | Dirección de escucha gRPC del nodo destino |
+| `--agent-did` | `-a` | `did:liop:cli-agent` | Identificador Descentralizado (DID) del agente emisor |
+| `--capability` | `-c` | `debug-capability-hash` | Identificador o resumen criptográfico de la capacidad |
+
+#### Ejemplos de Uso
+
+```bash
+# Negociar intención contra el listener gRPC local
+liop negotiate
+
+# Dirigir la petición a un enclave específico con credenciales dedicadas
+liop negotiate \
+  --target http://127.0.0.1:13011 \
+  --agent-did did:liop:secops-auditor \
+  --capability sha256-vault-analytics-v1
+```
+
+#### Flujo del Acuerdo Criptográfico
+
+1. El CLI construye una estructura `IntentRequest` con el DID del agente, el hash de la capacidad y la prueba criptográfica de intención.
+2. El nodo valida la autorización del emisor frente a sus políticas locales de acceso.
+3. Tras la aceptación, el nodo emite una respuesta `IntentResponse` que incluye un token de sesión activo y los bytes de su clave pública ML-KEM para encapsular la carga cifrada.
+
+---
+
+### 3. `info`
+
+Muestra la versión del binario, las características arquitectónicas habilitadas y el estado de madurez del protocolo.
+
+```bash
+liop info
+```
+
+#### Salida Estándar
+
+```text
+LIOP CLI - Logic-Injection-on-Origin Protocol Developer Tool
+Version: 0.1.0
+Features: zero-trust, post-quantum cryptography, multiplexing
+Status: Alpha (Experimental)
+```

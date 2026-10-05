@@ -337,7 +337,7 @@ Deploying interceptors within a distributed LIOP mesh requires adhering strictly
 - **Policy**: `GatewayInterceptor` **MUST NOT** be configured on data enclave servers.
 - **Technical Rationale**:
   1. **Prevention of False Positives on Code Payloads**: In LIOP, clients send valid logic micro-modules (`@LIOP{...}...@END`). Heuristic string-matching or generic WAF filters running inside enclaves inevitably misinterpret mathematical aggregations or analytical loops as code injection attacks.
-  2. **True Zero-Trust Sandbox Isolation**: Enclaves must never assume an upstream proxy neutralized threats. Instead, enclaves must rely entirely on **The Shield** (Guardian AST allowlist, WASI/V8 Sandbox with 25 poisoned globals, Taint IFC, and Egress PII Shield). Introducing an ingress admission hook on an enclave obscures the sandbox's actual boundary and invalidates compliance audits.
+  2. **True Zero-Trust Sandbox Isolation**: Enclaves must never assume an upstream proxy neutralized threats. Instead, enclaves must rely entirely on **The Shield** (Guardian AST allowlist, WASI/V8 Sandbox with 27 poisoned globals, Taint IFC, and Egress PII Shield). Introducing an ingress admission hook on an enclave obscures the sandbox's actual boundary and invalidates compliance audits.
 
 ### 3. Asymmetric Border Gateways (`BLG`)
 - **Target Node**: Border LIO Gateway (`BLG`) bridging Tier 2 (Consortium) into Tier 1 (Private Enclaves).
@@ -352,7 +352,7 @@ The `GatewayInterceptor` operates solely as an admission gate at the DMZ boundar
 | Layer | Protocol Mechanism | Interceptor Boundary |
 |:---|:---|:---|
 | **Layer 1: Guardian AST** | Wasm module import validation (14-symbol allowlist) | Enclave-internal. Executes after perimeter admission. |
-| **Layer 2: WASI Sandbox** | Isolated memory space with 25 poisoned globals and frozen prototypes | Enclave-internal. Completely isolated from the gateway node. |
+| **Layer 2: WASI Sandbox** | Isolated memory space with 27 poisoned globals and frozen prototypes | Enclave-internal. Completely isolated from the gateway node. |
 | **Layer 3: Taint Analyzer (IFC)** | Static AST taint tracking across variable assignments | Enclave-internal. Analyzes injected logic inside the enclave. |
 | **Layer 4: Egress PII Shield** | 4-stage outbound sanitization pipeline (Fuzzy, NER, RegEx) | Egress boundary. Filters responses departing the enclave. |
 | **Layer 5: Aggregation-First** | Mandatory aggregation check blocking raw row export | Enclave-internal. Enforced prior to WASM execution. |

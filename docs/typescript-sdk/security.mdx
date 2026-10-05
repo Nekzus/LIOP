@@ -23,7 +23,7 @@ The LIOP TypeScript SDK enforces a **defense-in-depth** security model composed 
 | Layer | Purpose | Timing |
 |:------|:--------|:-------|
 | **Guardian AST** | Blocks unauthorized WASM imports before execution | Pre-compile |
-| **WASI Sandbox** | Isolates runtime with 25 poisoned globals, prototype freezing, and CPU fuel limits | Execution |
+| **WASI Sandbox** | Isolates runtime with 27 poisoned globals, prototype freezing, and CPU fuel limits | Execution |
 | **IFC Taint Analyzer** | Static information flow control preventing PII side-channel and computed-key derivations | Pre-flight |
 | **PII Shield** | Prevents data leakage with algorithmic validators and NER detection | Post-execution |
 | **Aggregation Policy** | Enforces output cardinality limits on row-level data (Aggregation-First) | Post-execution |
@@ -380,6 +380,12 @@ Tool capabilities configure their Zero-Knowledge attestation level via `LogicExe
 - **`zkMode: "optimistic"`**: Attempts Groth16 v2 receipt generation via `@nekzus/liop-zk-native` or fast-path R1CS circuits. If the native prover is unavailable, falls back gracefully to HMAC commitment without disrupting analytical query workflows.
 - **`zkMode: "required"` (`ZK_BLOCKING`)**: Mandatory for Tier 1 Sovereign Enclaves (banking, defense, sensitive healthcare). Strictly enforces valid Groth16 zero-knowledge proof generation. If the native prover is absent, if mock proofs are supplied, or if proof verification fails, the enclave rejects the request with an explicit error response: `"[LIOP-ZK] Clearance Tier 1 enclave policy violation: Valid Groth16 zero-knowledge proof required but unavailable."`
 - **`pqcSign: true`**: Instructs the enclave to co-sign the Groth16 proof with its persistent ML-DSA-65 private key, emitting a Version 2.1 `GROTH16_PQC_HYBRID` receipt.
+
+<Info>
+  **Native Groth16 Module Dependency and Fallback Mechanism**
+
+  Generating cryptographic Groth16 zero-knowledge proofs over the BN254 curve requires the optional native package `@nekzus/liop-zk-native`, compiled with Rust and C++ bindings for elliptic curve arithmetic. When this native binary is absent, or when running within browser engines and standard serverless environments lacking native build toolchains, the execution engine gracefully degrades to cryptographic receipts sealed with HMAC-SHA256 derived from the ML-KEM-768 post-quantum session secret. This fallback preserves computational tamper evidence and analytical availability without interrupting execution.
+</Info>
 
 ### Hardware TEE Pre-Flight Attestation
 

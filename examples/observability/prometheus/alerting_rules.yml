@@ -81,7 +81,7 @@ groups:
   - name: liop_performance_and_red_alerts
     rules:
       - alert: LiopHighErrorRate
-        expr: (sum(rate(liop_tool_call_errors_total[2m])) / sum(rate(liop_tool_calls_total[2m]))) * 100 > 5
+        expr: (((sum(rate(liop_tool_call_errors_total[2m])) or vector(0)) / (sum(rate(liop_tool_calls_total[2m])) > 0)) * 100) > 5
         for: 2m
         labels:
           severity: warning

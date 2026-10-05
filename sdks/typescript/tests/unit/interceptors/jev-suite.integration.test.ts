@@ -682,49 +682,65 @@ describe.skipIf(!HAS_API_KEY)(
 
 				// 2. Operational Log Hook
 				const logInterceptor: LogInterceptor = async (event: Readonly<LogEvent>) => {
-					const res = await fetch("https://api.typesafe.ai/v1/systemone", {
-						method: "POST",
-						headers: {
-							"Content-Type": "application/json",
-							Authorization: `Bearer ${API_KEY}`,
-						},
-						body: JSON.stringify({
-							model: "jev-latest",
-							state: { level: event.level, message: event.message },
-							questions: {
-								is_anomalous: {
-									type: "noul",
-									instructions: "Is this log anomalous?",
+					for (let attempt = 0; attempt < 3; attempt++) {
+						try {
+							const res = await fetch("https://api.typesafe.ai/v1/systemone", {
+								method: "POST",
+								headers: {
+									"Content-Type": "application/json",
+									Authorization: `Bearer ${API_KEY}`,
 								},
-							},
-						}),
-					});
-					if (res.ok) {
-						lifecycleTelemetry.logInspected = true;
+								body: JSON.stringify({
+									model: "jev-latest",
+									state: { level: event.level, message: event.message },
+									questions: {
+										is_anomalous: {
+											type: "noul",
+											instructions: "Is this log anomalous?",
+										},
+									},
+								}),
+							});
+							if (res.ok) {
+								lifecycleTelemetry.logInspected = true;
+								break;
+							}
+						} catch {
+							// Retry on transient socket error
+						}
+						await new Promise((resolve) => setTimeout(resolve, 500));
 					}
 				};
 
 				// 3. Post-Seal Audit Hook
 				const auditInterceptor: AuditInterceptor = async (entry: Readonly<AuditEntry>) => {
-					const res = await fetch("https://api.typesafe.ai/v1/systemone", {
-						method: "POST",
-						headers: {
-							"Content-Type": "application/json",
-							Authorization: `Bearer ${API_KEY}`,
-						},
-						body: JSON.stringify({
-							model: "jev-latest",
-							state: { toolName: entry.toolName, status: entry.status },
-							questions: {
-								is_valid: {
-									type: "noul",
-									instructions: "Is this execution valid?",
+					for (let attempt = 0; attempt < 3; attempt++) {
+						try {
+							const res = await fetch("https://api.typesafe.ai/v1/systemone", {
+								method: "POST",
+								headers: {
+									"Content-Type": "application/json",
+									Authorization: `Bearer ${API_KEY}`,
 								},
-							},
-						}),
-					});
-					if (res.ok) {
-						lifecycleTelemetry.auditSealed = true;
+								body: JSON.stringify({
+									model: "jev-latest",
+									state: { toolName: entry.toolName, status: entry.status },
+									questions: {
+										is_valid: {
+											type: "noul",
+											instructions: "Is this execution valid?",
+										},
+									},
+								}),
+							});
+							if (res.ok) {
+								lifecycleTelemetry.auditSealed = true;
+								break;
+							}
+						} catch {
+							// Retry on transient socket error
+						}
+						await new Promise((resolve) => setTimeout(resolve, 500));
 					}
 				};
 

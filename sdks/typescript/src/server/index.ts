@@ -1827,7 +1827,7 @@ Protocol Adherence is mandatory for successful execution.`,
 					if (localTestToken) {
 						if (token === localTestToken) {
 							log.info(
-								`[LIOP-RPC] Bypass authentication for matching localTestToken: ${localTestToken}`,
+								"[LIOP-RPC] Bypass authentication for matching localTestToken: [REDACTED]",
 							);
 							import("../rpc/crypto/kyber.js").then(
 								async ({ Kyber768Wrapper }) => {
@@ -2417,7 +2417,7 @@ Protocol Adherence is mandatory for successful execution.`,
 					if (localTestToken) {
 						if (token === localTestToken) {
 							log.info(
-								`[LIOP-RPC] Bypass authentication in executeLogic for matching localTestToken: ${localTestToken}`,
+								"[LIOP-RPC] Bypass authentication in executeLogic for matching localTestToken: [REDACTED]",
 							);
 							await proceed();
 							return;

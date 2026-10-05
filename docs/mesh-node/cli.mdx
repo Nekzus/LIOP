@@ -1,0 +1,111 @@
+---
+title: "Command-Line Interface (liop-cli)"
+description: "Operational guide and command reference for the native Rust LIOP Developer CLI"
+icon: "terminal"
+---
+
+The `liop-cli` utility is the official native command-line interface for testing, inspecting, and orchestrating zero-trust interactions against running LIOP nodes. Built directly on top of `liop-core` and Tokio in Rust, it allows developers and operations teams to verify node liveness and execute cryptographic intent negotiations from terminal environments.
+
+---
+
+## Installation & Compilation
+
+You can compile the binary directly from the monorepo workspace:
+
+```bash
+cargo build --release -p liop-cli
+```
+
+The resulting executable is generated at `target/release/liop` (or `target/release/liop.exe` on Windows).
+
+To verify the installation:
+
+```bash
+./target/release/liop --version
+```
+
+---
+
+## Available Commands
+
+### 1. `health`
+
+Checks the operational liveness of an LIOP node by sending an HTTP request to its administrative health endpoint.
+
+```bash
+liop health [OPTIONS]
+```
+
+#### Options
+
+| Option | Shorthand | Default Value | Description |
+|---|---|---|---|
+| `--target` | `-t` | `http://[::1]:50052` | Target HTTP health address of the LIOP node |
+
+#### Example Usage
+
+```bash
+# Query the local node default port
+liop health
+
+# Query a custom or remote enclave address
+liop health --target http://127.0.0.1:13012
+```
+
+When successful, the CLI outputs the HTTP status code alongside the JSON liveness payload returned by the node.
+
+---
+
+### 2. `negotiate`
+
+Initiates a zero-trust intent handshake over Tonic gRPC. This command verifies that the target node accepts caller credentials, resolves the requested capability, and exchanges post-quantum keys.
+
+```bash
+liop negotiate [OPTIONS]
+```
+
+#### Options
+
+| Option | Shorthand | Default Value | Description |
+|---|---|---|---|
+| `--target` | `-t` | `http://[::1]:50051` | Target gRPC address of the LIOP node |
+| `--agent-did` | `-a` | `did:liop:cli-agent` | Decentralized Identifier (DID) representing the caller |
+| `--capability` | `-c` | `debug-capability-hash` | Capability identifier or hash requested for execution |
+
+#### Example Usage
+
+```bash
+# Negotiate intent against local default gRPC listener
+liop negotiate
+
+# Target a dedicated enclave with custom agent credentials
+liop negotiate \
+  --target http://127.0.0.1:13011 \
+  --agent-did did:liop:secops-auditor \
+  --capability sha256-vault-analytics-v1
+```
+
+#### Protocol Handshake Flow
+
+1. The CLI constructs an `IntentRequest` containing the caller DID, capability hash, and cryptographic proof of intent.
+2. The target node validates caller authorization against local policy rules.
+3. Upon acceptance, the node returns an `IntentResponse` containing an active session token and its public ML-KEM key bytes for quantum-resistant payload encapsulation.
+
+---
+
+### 3. `info`
+
+Prints build version details, supported architectural features, and protocol compatibility flags.
+
+```bash
+liop info
+```
+
+#### Output
+
+```text
+LIOP CLI - Logic-Injection-on-Origin Protocol Developer Tool
+Version: 0.1.0
+Features: zero-trust, post-quantum cryptography, multiplexing
+Status: Alpha (Experimental)
+```

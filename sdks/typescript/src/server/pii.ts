@@ -379,6 +379,16 @@ export class PiiScanner {
 			return null;
 		}
 
+		// 1b. Numeric/BigInt Scan (Direct Pattern/Luhn check for numeric PII - TS-08)
+		if (typeof input === "number" || typeof input === "bigint") {
+			const strVal = input.toString();
+			if (strVal.length >= 7) {
+				const patternViolation = this.checkString(strVal);
+				if (patternViolation) return patternViolation;
+			}
+			return null;
+		}
+
 		// 2. Recursive Objects/Arrays Scan
 		if (typeof input === "object") {
 			// Protection against circular references

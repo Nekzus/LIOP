@@ -149,7 +149,7 @@ pub async fn prove_analytical_query(
                 let num_records = records.len();
                 let count_val = num_records as u64;
                 let sum_val: u64 = payload.records.iter().sum();
-                let avg_val = if count_val > 0 { sum_val / count_val } else { 0 };
+                let avg_val = sum_val.checked_div(count_val).unwrap_or(0);
                 let expected_avg = payload.expected_avg.unwrap_or(avg_val);
 
                 let avg_fr = Fr::from(expected_avg);

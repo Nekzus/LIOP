@@ -100,7 +100,12 @@ plugins.push([
 ]);
 
 // 5. GITHUB RELEASES (Creates Release Notes for all channels: alpha, beta, main)
-plugins.push("@semantic-release/github");
+plugins.push([
+	"@semantic-release/github",
+	{
+		successComment: false,
+	},
+]);
 
 export default {
 	tagFormat: "v${version}",

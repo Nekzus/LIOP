@@ -76,7 +76,7 @@ async function getAuthToken(): Promise<string | null> {
 	return null;
 }
 
-async function fetchWithRetry(url: string, options: RequestInit, retries = 1, delayMs = 200): Promise<Response> {
+async function fetchWithRetry(url: string, options: RequestInit, retries = 1, delayMs = 3500): Promise<Response> {
 	for (let attempt = 0; attempt <= retries; attempt++) {
 		try {
 			const res = await fetch(url, options);
@@ -282,6 +282,38 @@ async function scanSingleNode(node: TargetNodeDef): Promise<ScannedNodeInfo> {
 			tools: [],
 			version: "2.5.0",
 		};
+	}
+
+	if (node.tier === 1 && process.env.DIRECT_ENCLAVE_ACCESS !== "true") {
+		// Tier 1 Enclaves are isolated behind BLG perimeter (Invariant 28)
+		const blgUrl = process.env.BLG_URL || "http://blg:3000";
+		try {
+			const res = await fetch(`${blgUrl}/health`, {
+				headers: { Accept: "application/json" },
+				signal: AbortSignal.timeout(2500),
+			});
+			if (res.ok) {
+				return {
+					id: node.id,
+					name: node.name,
+					tier: node.tier,
+					tierLabel: node.tierLabel,
+					host: node.host,
+					ports: node.ports,
+					role: node.role,
+					isolation: node.isolation,
+					dataset: node.dataset,
+					status: "online",
+					rttMs: 2,
+					peerId: "isolated-enclave-behind-blg",
+					multiaddrs: [`/ip4/${node.host}/tcp/3000`],
+					tools: [node.id === "bank" ? "Analyze_Synthetic_Bank_Transactions" : "Analyze_Synthetic_Medical_Records"],
+					version: "2.5.0",
+				};
+			}
+		} catch {
+			// Fallback to direct check if BLG is unreachable
+		}
 	}
 
 	const tStart = performance.now();
@@ -639,21 +671,37 @@ app.post("/api/execute", async (c) => {
 			let errorText = "";
 
 			if (tool === "Analyze_Synthetic_Bank_Transactions") {
-				const bankUrl = process.env.BANK_INTERNAL_URL || "http://172.22.0.12:3000";
-				const token = process.env.LIOP_TOKEN_BANK || "bank-local-test-token";
-				const res = await fetchWithRetry(`${bankUrl}/mcp`, {
+				const directAccess = process.env.DIRECT_ENCLAVE_ACCESS === "true";
+				const targetUrl = directAccess
+					? process.env.BANK_INTERNAL_URL || "http://172.22.0.12:3000"
+					: process.env.BLG_URL || "http://blg:3000";
+				const targetToken = directAccess
+					? process.env.LIOP_TOKEN_BANK || "bank-local-test-token"
+					: (await getAuthToken()) || "";
+				const targetTool = directAccess
+					? "Analyze_Synthetic_Bank_Transactions"
+					: "BLG_Execute_Banking_Analytics";
+				const targetArgs = directAccess
+					? { payload: envelope }
+					: { envelope };
+
+				const headers: Record<string, string> = {
+					"Content-Type": "application/json",
+				};
+				if (targetToken) {
+					headers.Authorization = `Bearer ${targetToken}`;
+				}
+
+				const res = await fetchWithRetry(`${targetUrl}/mcp`, {
 					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-						Authorization: `Bearer ${token}`,
-					},
+					headers,
 					body: JSON.stringify({
 						jsonrpc: "2.0",
 						id: Date.now(),
 						method: "tools/call",
 						params: {
-							name: "Analyze_Synthetic_Bank_Transactions",
-							arguments: { payload: envelope },
+							name: targetTool,
+							arguments: targetArgs,
 						},
 					}),
 					signal: AbortSignal.timeout(10000),
@@ -661,23 +709,41 @@ app.post("/api/execute", async (c) => {
 				const json = await res.json();
 				resultPayload = json.result;
 				isError = Boolean(json.error || json.result?.isError);
-				errorText = (typeof json.error === "string" ? json.error : json.error?.message) || extractText(json.result);
+				errorText =
+					(typeof json.error === "string" ? json.error : json.error?.message) ||
+					extractText(json.result);
 			} else if (tool === "Analyze_Synthetic_Medical_Records") {
-				const vaultUrl = process.env.VAULT_INTERNAL_URL || "http://172.22.0.11:3000";
-				const token = process.env.LIOP_TOKEN_VAULT || "vault-local-test-token";
-				const res = await fetchWithRetry(`${vaultUrl}/mcp`, {
+				const directAccess = process.env.DIRECT_ENCLAVE_ACCESS === "true";
+				const targetUrl = directAccess
+					? process.env.VAULT_INTERNAL_URL || "http://172.22.0.11:3000"
+					: process.env.BLG_URL || "http://blg:3000";
+				const targetToken = directAccess
+					? process.env.LIOP_TOKEN_VAULT || "vault-local-test-token"
+					: (await getAuthToken()) || "";
+				const targetTool = directAccess
+					? "Analyze_Synthetic_Medical_Records"
+					: "BLG_Execute_Healthcare_Analytics";
+				const targetArgs = directAccess
+					? { payload: envelope }
+					: { envelope };
+
+				const headers: Record<string, string> = {
+					"Content-Type": "application/json",
+				};
+				if (targetToken) {
+					headers.Authorization = `Bearer ${targetToken}`;
+				}
+
+				const res = await fetchWithRetry(`${targetUrl}/mcp`, {
 					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-						Authorization: `Bearer ${token}`,
-					},
+					headers,
 					body: JSON.stringify({
 						jsonrpc: "2.0",
 						id: Date.now(),
 						method: "tools/call",
 						params: {
-							name: "Analyze_Synthetic_Medical_Records",
-							arguments: { payload: envelope },
+							name: targetTool,
+							arguments: targetArgs,
 						},
 					}),
 					signal: AbortSignal.timeout(10000),
@@ -685,7 +751,9 @@ app.post("/api/execute", async (c) => {
 				const json = await res.json();
 				resultPayload = json.result;
 				isError = Boolean(json.error || json.result?.isError);
-				errorText = (typeof json.error === "string" ? json.error : json.error?.message) || extractText(json.result);
+				errorText =
+					(typeof json.error === "string" ? json.error : json.error?.message) ||
+					extractText(json.result);
 			} else if (tool.startsWith("BLG_")) {
 				const blgUrl = process.env.BLG_URL || "http://blg:3000";
 				const token = await getAuthToken();

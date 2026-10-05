@@ -169,6 +169,7 @@
               {
                 "group": "Enterprise Operations",
                 "pages": [
+                  "operations/roadmap",
                   "operations/sovereign-deployment",
                   "operations/observability-runbook",
                   "operations/compliance-matrix"
@@ -183,7 +184,8 @@
                 "group": "Rust Core Mesh Node",
                 "pages": [
                   "mesh-node/overview",
-                  "mesh-node/compilation"
+                  "mesh-node/compilation",
+                  "mesh-node/cli"
                 ]
               },
               {
@@ -321,6 +323,7 @@
               {
                 "group": "Operaciones Corporativas",
                 "pages": [
+                  "es/operations/roadmap",
                   "es/operations/sovereign-deployment",
                   "es/operations/observability-runbook",
                   "es/operations/compliance-matrix"
@@ -335,7 +338,8 @@
                 "group": "Nodo Core de la Malla",
                 "pages": [
                   "es/mesh-node/overview",
-                  "es/mesh-node/compilation"
+                  "es/mesh-node/compilation",
+                  "es/mesh-node/cli"
                 ]
               },
               {

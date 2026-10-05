@@ -38,8 +38,8 @@ services:
       liop-testnet:
         ipv4_address: 172.20.0.10
     ports:
-      - "13001:4000"    # libp2p TCP (P2P Mesh Port)
-      - "13000:3000"    # HTTP health / MCP Bootstrap
+      - "127.0.0.1:13001:4000"    # libp2p TCP (P2P Mesh Port)
+      - "127.0.0.1:13000:3000"    # HTTP health / MCP Bootstrap
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:3000/health"]
       interval: 5s
@@ -63,9 +63,9 @@ services:
       liop-testnet:
         ipv4_address: 172.20.0.11
     ports:
-      - "13003:4000"    # libp2p TCP (Vault P2P)
-      - "13011:50051"   # gRPC Vault
-      - "13013:3000"    # Health Vault
+      - "127.0.0.1:13003:4000"    # libp2p TCP (Vault P2P)
+      - "127.0.0.1:13011:50051"   # gRPC Vault
+      - "127.0.0.1:13013:3000"    # Health Vault
     depends_on:
       nexus:
         condition: service_healthy
@@ -86,9 +86,9 @@ services:
       liop-testnet:
         ipv4_address: 172.20.0.12
     ports:
-      - "13004:4000"    # libp2p TCP (Bank P2P)
-      - "13021:50051"   # gRPC Bank
-      - "13014:3000"    # Health Bank
+      - "127.0.0.1:13004:4000"    # libp2p TCP (Bank P2P)
+      - "127.0.0.1:13021:50051"   # gRPC Bank
+      - "127.0.0.1:13014:3000"    # Health Bank
     depends_on:
       nexus:
         condition: service_healthy
@@ -111,9 +111,9 @@ services:
       liop-testnet:
         ipv4_address: 172.20.0.13
     ports:
-      - "13005:4000"    # libp2p TCP (Oracle P2P)
-      - "13031:50051"   # gRPC Oracle
-      - "13015:3000"    # Health Oracle
+      - "127.0.0.1:13005:4000"    # libp2p TCP (Oracle P2P)
+      - "127.0.0.1:13031:50051"   # gRPC Oracle
+      - "127.0.0.1:13015:3000"    # Health Oracle
     depends_on:
       nexus:
         condition: service_healthy
@@ -129,12 +129,12 @@ services:
       VAULT_URL: http://vault:3000
       BANK_URL: http://bank:3000
       ORACLE_URL: http://oracle:3000
-      LIOP_CLIENT_ID: liop-mesh-agent
-      LIOP_CLIENT_SECRET: dev-secret-change-me
+      LIOP_CLIENT_ID: ${LIOP_CLIENT_ID:-liop-mesh-agent}
+      LIOP_CLIENT_SECRET: ${LIOP_CLIENT_SECRET:-dev-secret-change-me}
       LIOP_NEXUS_URL: http://nexus:3000
-      LIOP_TOKEN_BANK: bank-local-test-token
-      LIOP_TOKEN_VAULT: vault-local-test-token
-      LIOP_TOKEN_ORACLE: oracle-local-test-token
+      LIOP_TOKEN_BANK: ${LIOP_TOKEN_BANK:-bank-local-test-token}
+      LIOP_TOKEN_VAULT: ${LIOP_TOKEN_VAULT:-vault-local-test-token}
+      LIOP_TOKEN_ORACLE: ${LIOP_TOKEN_ORACLE:-oracle-local-test-token}
     networks:
       liop-testnet:
         ipv4_address: 172.20.0.100
@@ -157,17 +157,17 @@ services:
       LIOP_NODE_ROLE: client
       LIOP_LOG_LEVEL: info
       NEXUS_P2P: "/ip4/172.20.0.10/tcp/4000"
-      LIOP_CLIENT_ID: liop-mesh-agent
-      LIOP_CLIENT_SECRET: dev-secret-change-me
+      LIOP_CLIENT_ID: ${LIOP_CLIENT_ID:-liop-mesh-agent}
+      LIOP_CLIENT_SECRET: ${LIOP_CLIENT_SECRET:-dev-secret-change-me}
       LIOP_NEXUS_URL: http://nexus:3000
-      LIOP_TOKEN_BANK: bank-local-test-token
-      LIOP_TOKEN_VAULT: vault-local-test-token
-      LIOP_TOKEN_ORACLE: oracle-local-test-token
+      LIOP_TOKEN_BANK: ${LIOP_TOKEN_BANK:-bank-local-test-token}
+      LIOP_TOKEN_VAULT: ${LIOP_TOKEN_VAULT:-vault-local-test-token}
+      LIOP_TOKEN_ORACLE: ${LIOP_TOKEN_ORACLE:-oracle-local-test-token}
     networks:
       liop-testnet:
         ipv4_address: 172.20.0.200
     ports:
-      - "14000:3000"
+      - "127.0.0.1:14000:3000"
     depends_on:
       nexus:
         condition: service_healthy
@@ -183,7 +183,7 @@ services:
   # Start: docker compose --profile inspector up -d mcp-inspector
   # UI: http://127.0.0.1:16274 — in the sidebar use streamable-http → http://nexus:3000/mcp
   mcp-inspector:
-    image: ghcr.io/modelcontextprotocol/inspector:latest
+    image: ghcr.io/modelcontextprotocol/inspector:latest@sha256:de4f67a6f38a66afcf37b86a89d462cd6068f56e9e5ecfd267382c103492cb90
     container_name: liop-mcp-inspector
     profiles:
       - inspector

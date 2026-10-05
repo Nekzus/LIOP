@@ -2,8 +2,8 @@
 Provide a concise technical summary of the changes proposed in this pull request and the architectural motivation.
 
 ## Related Issues
-Fixes #
-Closes #
+<!-- Reference related issues or tracking discussions descriptively (e.g., Relates to #123). Avoid unverified auto-closing keywords (Fixes/Closes) per Invariant 18 -->
+Relates to #
 
 ## Type of Change
 - [ ] Bug fix (non-breaking change fixing an issue)
