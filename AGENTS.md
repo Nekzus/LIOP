@@ -132,6 +132,15 @@ Logic-Injection-on-Origin Protocol (LIOP) is the high-performance successor to t
      2. Deploy the tri-tier sovereign mesh (`liop-psk-init`, `liop-nexus-prod`, `liop-blg-prod`, `liop-vault-prod`, `liop-bank-prod`, `liop-oracle-prod`, `liop-edge-prod`, `liop-relay-prod`, `liop-playground-prod`, `liop-studio-prod`).
      3. Execute the full 12-suite production audit (`tests/vitest.audit.config.ts`) inside `liop-audit-runner` until 100% of tests pass (64/64 tests green).
      4. Recreate/start the observability stack (`examples/observability/docker-compose.observability.yml`: `liop-prometheus` and `liop-grafana`) and verify all 7 enclaves report `UP` in Prometheus targets and all API endpoints return HTTP 200.
+30. **Discrete PII vs Floating-Point Analytical Egress Invariant**:
+   - Security filters, data loss prevention (DLP) engines, and egress PII scanners must maintain a strict distinction between discrete identifiers (credit cards, SSNs, phone numbers, passport MRZ) and continuous mathematical aggregates (averages, balances, ratios, timestamps, GPS coordinates).
+   - Non-integer floating-point numbers (`typeof input === "number" && !Number.isInteger(input)`) must never be evaluated against discrete PII patterns such as phone numbers or identity cards.
+   - Telephone regular expressions that support dot delimiters must enforce structural consistency (rejecting matches where a dot is preceded or followed by more than 4 consecutive digits).
+   - In financial and business logic envelopes, aggregated monetary totals and averages must always be normalized to two decimal places (e.g. `Math.round(val * 100) / 100`) to eliminate IEEE 754 floating-point drift.
+31. **Bounded Codebase Inspection & Doc-First Precedence Invariant**:
+   - When researching features, interceptors, or architecture specifications, agents must prioritize reading structured project documentation (`docs/`, `AGENTS.md`, `specs/`) before initiating code searches.
+   - Unbounded recursive disk searches (such as `Get-ChildItem -Recurse` or `grep -r` across the repository root) are strictly prohibited.
+   - Any search command must explicitly exclude heavyweight artifact directories (`node_modules`, `dist`, `target`, `.git`, `graphify-out`) and specify targeted file extensions or subdirectories.
 
 ---
 
