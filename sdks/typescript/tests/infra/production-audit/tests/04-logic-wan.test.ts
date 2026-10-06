@@ -7,8 +7,9 @@ describe("Production Audit Suite 04 — In-situ Logic Execution under Geographic
 	it("should execute financial aggregation on Bank node with 1,500 accounts under Atlantic latency", async () => {
 		const logic = [
 			"const accounts = env.records;",
-			"const totalBalance = accounts.reduce((acc, a) => acc + (a.balance || 0), 0);",
-			"const avgBalance = totalBalance / accounts.length;",
+			"const total = accounts.reduce((acc, a) => acc + (a.balance || 0), 0);",
+			"const totalBalance = Math.round(total * 100) / 100;",
+			"const avgBalance = Math.round((total / accounts.length) * 100) / 100;",
 			"return { totalAccounts: accounts.length, totalBalance, avgBalance };",
 		].join("\n");
 

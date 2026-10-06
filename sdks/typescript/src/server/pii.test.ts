@@ -168,4 +168,19 @@ describe("PiiScanner (The Shield V2 - Military Grade)", () => {
 		// Random short garbage
 		expect(await passportScanner.scan("P<UTOERI<<")).toBe(null);
 	});
+
+	it("should NOT detect phone numbers in floating-point financial aggregates [Regression]", async () => {
+		const phoneScanner = new PiiScanner([PII_PATTERNS.PHONE]);
+		// Large financial aggregates and high-precision floats must never trigger PHONE
+		expect(
+			await phoneScanner.scan({
+				totalBalance: 150489761.21,
+				avgBalance: 100326.5074,
+			}),
+		).toBe(null);
+		expect(await phoneScanner.scan(75000123.4567)).toBe(null);
+		expect(
+			await phoneScanner.scan("Total balance was $75000123.4567 in accounts"),
+		).toBe(null);
+	});
 });

@@ -103,6 +103,11 @@ export const PII_PATTERNS = {
 		validator: (match: string) => {
 			const digits = match.replace(/\D/g, "");
 			if (digits.length < 7 || digits.length > 15) return false;
+			// Reject decimal numbers where dot is preceded by >4 digits (e.g. 75000123.4567)
+			if (match.includes(".")) {
+				const parts = match.split(".");
+				if (parts.some((p) => p.replace(/\D/g, "").length > 4)) return false;
+			}
 			// Reject fake test numbers like 0000000000 or 1234567890
 			if (/^(\d)\1+$/.test(digits)) return false;
 			if (digits === "1234567890") return false;
@@ -381,6 +386,10 @@ export class PiiScanner {
 
 		// 1b. Numeric/BigInt Scan (Direct Pattern/Luhn check for numeric PII - TS-08)
 		if (typeof input === "number" || typeof input === "bigint") {
+			// Mathematical floating-point values are never discrete PII identifiers (cards, SSNs, phones)
+			if (typeof input === "number" && !Number.isInteger(input)) {
+				return null;
+			}
 			const strVal = input.toString();
 			if (strVal.length >= 7) {
 				const patternViolation = this.checkString(strVal);
