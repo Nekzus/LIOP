@@ -44,6 +44,7 @@ minimumReleaseAgeExclude:
   - '@types/node@26.4.0'
 
 overrides:
+  "@modelcontextprotocol/sdk": ">=1.31.0"
   picomatch: ">=2.3.2"
   proxy-addr: ">=2.0.8"
   source-map-js: ">=1.2.2"
