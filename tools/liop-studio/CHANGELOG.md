@@ -2,6 +2,14 @@
 
 All notable changes to @nekzus/liop-studio will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.0.0-alpha.23](https://github.com/Nekzus/LIOP/compare/studio-v1.0.0-alpha.22...studio-v1.0.0-alpha.23) (2026-10-06)
+
+
+### Bug Fixes
+
+* **gateway:** permit optional payload property in transcodeMcpToLiop parameters ([cf5639a](https://github.com/Nekzus/LIOP/commit/cf5639a19a6de0f43265d94314383f2e59343de4))
+* **security:** resolve audit parity findings across sandbox, ci/cd, telemetry, and docs ([6ecbe75](https://github.com/Nekzus/LIOP/commit/6ecbe75c4bc5b9d955390dc6417e0e1bdaf090a6))
+
 # [1.0.0-alpha.22](https://github.com/Nekzus/LIOP/compare/studio-v1.0.0-alpha.21...studio-v1.0.0-alpha.22) (2026-09-29)
 
 
