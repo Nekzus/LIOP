@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.4.0-alpha.30](https://github.com/Nekzus/LIOP/compare/v2.4.0-alpha.29...v2.4.0-alpha.30) (2026-10-06)
+
+
+### Bug Fixes
+
+* **security:** eliminate phone PII false positives on financial floats ([6dde246](https://github.com/Nekzus/LIOP/commit/6dde24683b2754267a5b39aec4bf1ca5a3efd0c5))
+* **security:** resolve GHSA-6qxp-vccf-f47h in @modelcontextprotocol/sdk ([83d9158](https://github.com/Nekzus/LIOP/commit/83d9158567b731c8e64e47ecc017e329f1bc4f0c))
+
 # [2.4.0-alpha.29](https://github.com/Nekzus/LIOP/compare/v2.4.0-alpha.28...v2.4.0-alpha.29) (2026-10-06)
 
 
