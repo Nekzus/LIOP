@@ -2,6 +2,13 @@
 
 All notable changes to @nekzus/liop-studio will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.0.0-alpha.24](https://github.com/Nekzus/LIOP/compare/studio-v1.0.0-alpha.23...studio-v1.0.0-alpha.24) (2026-10-06)
+
+
+### Bug Fixes
+
+* **security:** resolve CVEs GHSA-jqcg-44mw-7w3h and GHSA-68fv-2mgg-jv7q via workspace overrides ([0bc864e](https://github.com/Nekzus/LIOP/commit/0bc864e4a78c8b967aa6511498bd75e8e164d826))
+
 # [1.0.0-alpha.23](https://github.com/Nekzus/LIOP/compare/studio-v1.0.0-alpha.22...studio-v1.0.0-alpha.23) (2026-10-06)
 
 
