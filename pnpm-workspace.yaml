@@ -45,6 +45,8 @@ minimumReleaseAgeExclude:
 
 overrides:
   picomatch: ">=2.3.2"
+  proxy-addr: ">=2.0.8"
+  source-map-js: ">=1.2.2"
   handlebars: ">=4.7.9"
   lodash: ">=4.18.1"
   lodash-es: ">=4.17.21"
