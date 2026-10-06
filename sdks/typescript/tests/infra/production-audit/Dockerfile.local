@@ -52,8 +52,9 @@ COPY --from=builder /app ./
 # Ensure local node_modules binaries and packages are prioritized
 ENV PATH="/app/node_modules/.bin:$PATH"
 
-# Ensure network scripts have execution permissions and give node user ownership of /app
-RUN chmod +x /app/network-profiles/*.sh \
+# Ensure network scripts have execution permissions, data directory exists, and give node user ownership of /app
+RUN mkdir -p /app/data \
+    && chmod +x /app/network-profiles/*.sh \
     && chown -R node:node /app
 
 USER node

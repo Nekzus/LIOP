@@ -28,6 +28,7 @@ COPY utils/ ./utils/
 COPY hft/ ./hft/
 COPY network-profiles/ ./network-profiles/
 COPY tests/ ./tests/
+RUN mkdir -p /app/data
 
 # Runtime stage: lean image with iproute2 for tc/netem and curl for healthchecks
 FROM node:22-slim@sha256:43ac6c60b8f89723f746e8a92ce91abd5017e627ce1ddfe4238355d3a30b772c AS runtime
@@ -48,8 +49,10 @@ COPY --from=builder /app ./
 # Ensure local node_modules binaries and packages are prioritized
 ENV PATH="/app/node_modules/.bin:$PATH"
 
-# Ensure network scripts have execution permissions and give node user ownership of /app
-RUN chmod +x /app/network-profiles/*.sh \
+# Ensure network scripts have execution permissions, data directory exists, and give node user ownership of /app
+RUN mkdir -p /app/data \
+    && chmod 777 /app/data \
+    && chmod +x /app/network-profiles/*.sh \
     && chown -R node:node /app
 
 USER node

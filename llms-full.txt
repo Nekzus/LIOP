@@ -842,7 +842,7 @@ LIOP implements six layered defenses. Each layer addresses a specific attack cla
 | Shield | Threat Neutralized | Mechanism |
 |---|---|---|
 | **Guardian AST** | Sandbox escape via forbidden imports | Static inspection of WASM imports against a 14-function WASI allowlist before execution begins |
-| **WASI Sandbox** | Arbitrary host access, infinite loops, environment variable leaks | V8 Isolate with 25 poisoned globals, null-prototype object isolation, recursive deep freeze, and deterministic CPU fuel limits |
+| **WASI Sandbox** | Arbitrary host access, infinite loops, environment variable leaks | V8 Isolate with 27 poisoned globals, null-prototype object isolation, recursive deep freeze, and deterministic CPU fuel limits |
 | **Taint Analyzer** | Side-channel PII derivation (`charCodeAt`, boolean inference, correlated aggregations) | Acorn-based static Information Flow Control (IFC) that traces data flow from source to return |
 | **Egress PII Shield** | Direct PII exfiltration (emails, credit cards, SSNs, phone numbers) | Four-stage output pipeline: key-name match → fuzzy match → regex pattern validators → Named Entity Recognition (NER) |
 | **Aggregation Policy** | Row-level data export | Blocks raw record-level responses; enforces K-Anonymity thresholds on small datasets; applies Laplace noise (Differential Privacy) |
@@ -1193,7 +1193,7 @@ The LIOP multi-tier topology standardizes specific network ports across services
 Within this multi-tier architecture, interceptors follow strict topological demarcation per NIST SP 800-207 Zero-Trust standards:
 
 * **Perimeter Ingress (`GatewayInterceptor`)**: Runs strictly at the DMZ boundary (e.g. Nexus Gateway) to filter malformed or hostile RPC calls (SQLi, Path Traversal, Prompt Injection) with HTTP 403 and error code `-32099`. It is **strictly prohibited** inside Tier 1 Enclaves to prevent false-positive rejections on legitimate analytical code and preserve genuine Zero-Trust sandbox evaluation.
-* **Enclave Compute Isolation (`The Shield`)**: Runs inside Tier 1 Enclaves (`The Bank`, `The Vault`), containing injected code via a 6-layer defense pipeline (Guardian AST allowlist, WASI/V8 sandbox with 25 poisoned globals and fuel limits, Taint IFC, Egress PII Shield, Aggregation-First policy, and ZK-Receipts).
+* **Enclave Compute Isolation (`The Shield`)**: Runs inside Tier 1 Enclaves (`The Bank`, `The Vault`), containing injected code via a 6-layer defense pipeline (Guardian AST allowlist, WASI/V8 sandbox with 27 poisoned globals and fuel limits, Taint IFC, Egress PII Shield, Aggregation-First policy, and ZK-Receipts).
 * **Universal Out-of-Band Observability (`LogInterceptor` & `AuditInterceptor`)**: Deployed across all tiers (Nexus, BLG, Enclaves) executing asynchronously out-of-band (0 ms host delay) to feed external SIEM analyzers, Prometheus, and SOC 2 / HIPAA compliance ledgers.
 
 <Frame caption="LIOP Interceptor Topology: Demarcation between Ingress Admission and Enclave Isolation">
@@ -2703,7 +2703,7 @@ server.tool(
 When an agent passes dynamic logic bytecode (`.wasm` or JavaScript envelopes), the execution lifecycle enforces six distinct layers of defense:
 
 1. **Layer 1 (Guardian AST)**: Parses and inspects the abstract syntax tree before execution. Only 14 standard functions from `wasi_snapshot_preview1` are permitted. Any attempt to reference unauthorized host symbols aborts immediately.
-2. **Layer 2 (V8 Sandbox Isolation)**: Executes code inside an isolated V8 context where 25 potentially unsafe globals (`process`, `require`, `eval`, `Function`, `setTimeout`, `fetch`, `WebSocket`) are replaced with poisoned proxies that immediately trigger memory traps upon access. Eleven native prototypes (`Object`, `Array`, `Promise`, etc.) are frozen using `Object.freeze` to satisfy PCI-DSS limits.
+2. **Layer 2 (V8 Sandbox Isolation)**: Executes code inside an isolated V8 context where 27 potentially unsafe globals (`process`, `require`, `eval`, `Function`, `setTimeout`, `fetch`, `WebSocket`, TypedArrays, etc.) are replaced with poisoned proxies that immediately trigger memory traps upon access. Eleven native prototypes (`Object`, `Array`, `Promise`, etc.) are frozen using `Object.freeze` to satisfy PCI-DSS limits.
 3. **Layer 3 (Taint Analyzer)**: Acorn-based information flow control tracks variable assignments to prevent side-channel derivation of confidential inputs via boolean inference or character-code indexing.
 4. **Layer 4 (Egress PII Shield)**: Scans outbound data against fuzzy matches, credit card patterns, IBAN formulas, and NER entity detection.
 5. **Layer 5 (Aggregation-First Policy)**: Enforces that query outputs return summary statistics. Returning raw entity arrays triggers automatic policy rejection.
@@ -3209,7 +3209,7 @@ The LIOP TypeScript SDK enforces a **defense-in-depth** security model composed 
 | Layer | Purpose | Timing |
 |:------|:--------|:-------|
 | **Guardian AST** | Blocks unauthorized WASM imports before execution | Pre-compile |
-| **WASI Sandbox** | Isolates runtime with 25 poisoned globals, prototype freezing, and CPU fuel limits | Execution |
+| **WASI Sandbox** | Isolates runtime with 27 poisoned globals, prototype freezing, and CPU fuel limits | Execution |
 | **IFC Taint Analyzer** | Static information flow control preventing PII side-channel and computed-key derivations | Pre-flight |
 | **PII Shield** | Prevents data leakage with algorithmic validators and NER detection | Post-execution |
 | **Aggregation Policy** | Enforces output cardinality limits on row-level data (Aggregation-First) | Post-execution |
@@ -3566,6 +3566,12 @@ Tool capabilities configure their Zero-Knowledge attestation level via `LogicExe
 - **`zkMode: "optimistic"`**: Attempts Groth16 v2 receipt generation via `@nekzus/liop-zk-native` or fast-path R1CS circuits. If the native prover is unavailable, falls back gracefully to HMAC commitment without disrupting analytical query workflows.
 - **`zkMode: "required"` (`ZK_BLOCKING`)**: Mandatory for Tier 1 Sovereign Enclaves (banking, defense, sensitive healthcare). Strictly enforces valid Groth16 zero-knowledge proof generation. If the native prover is absent, if mock proofs are supplied, or if proof verification fails, the enclave rejects the request with an explicit error response: `"[LIOP-ZK] Clearance Tier 1 enclave policy violation: Valid Groth16 zero-knowledge proof required but unavailable."`
 - **`pqcSign: true`**: Instructs the enclave to co-sign the Groth16 proof with its persistent ML-DSA-65 private key, emitting a Version 2.1 `GROTH16_PQC_HYBRID` receipt.
+
+<Info>
+  **Native Groth16 Module Dependency and Fallback Mechanism**
+
+  Generating cryptographic Groth16 zero-knowledge proofs over the BN254 curve requires the optional native package `@nekzus/liop-zk-native`, compiled with Rust and C++ bindings for elliptic curve arithmetic. When this native binary is absent, or when running within browser engines and standard serverless environments lacking native build toolchains, the execution engine gracefully degrades to cryptographic receipts sealed with HMAC-SHA256 derived from the ML-KEM-768 post-quantum session secret. This fallback preserves computational tamper evidence and analytical availability without interrupting execution.
+</Info>
 
 ### Hardware TEE Pre-Flight Attestation
 
@@ -4065,7 +4071,7 @@ LIOP requires low-latency, bidirectional streaming to support dynamic capability
 1. **Tonic (gRPC over HTTP/2):**
    Tonic manages message framing, streaming flow control, and backpressure asynchronously on top of the `tokio` multi-threaded runtime. All payloads serialize to binary Protobuf, eliminating JSON encoding overhead.
 2. **rust-libp2p (Noise & Kademlia):**
-   Nodes authenticate using cryptographic Ed25519 identities via the **Noise Protocol Framework** (`XX` handshake pattern). Peers locate content and capabilities dynamically using the standard Kademlia DHT protocol identifier (`/ipfs/kad/1.0.0`), eliminating dependence on centralized DNS or PKI certificate authorities.
+   Nodes authenticate using cryptographic Ed25519 identities via the **Noise Protocol Framework** (`XX` handshake pattern). Peers locate content and capabilities dynamically using the standard Kademlia DHT protocol identifier (`/liop/kad/1.0.0`), eliminating dependence on centralized DNS or PKI certificate authorities.
 
 ---
 
@@ -4119,7 +4125,7 @@ The table below contrasts the native Rust node against traditional containerized
 | **Cold Start Latency** | `0.42 ms` (Wasmtime JIT cache) | `3.80 ms` (V8 Isolate bootstrap) | `45.0 ms` (Process spawn) |
 | **Idle Memory Footprint** | `14.2 MB` (Resident Set Size) | `48.5 MB` (Node.js runtime) | `110.0 MB` (API Gateway) |
 | **In-Situ Aggregation Throughput** | `84,000 ops/sec` | `28,500 ops/sec` | `2,400 ops/sec` (Wire extraction) |
-| **PQC Handshake (ML-KEM-768)** | `0.18 ms` (Native SIMD) | `1.15 ms` (WASM / C++ binding) | N/A (Standard TLS 1.3 only) |
+| **PQC Handshake (ML-KEM-768)** | `0.18 ms` (Native SIMD, Kyber-768 Round 3) | `1.15 ms` (FIPS 203 final `mlkem`) | N/A (Standard TLS 1.3 only) |
 | **Memory Isolation Mechanism** | Wasmtime Fuel + Memory Trap | V8 Isolated Context + Proto Freeze | Container cgroups / Namespaces |
 
 
@@ -4259,7 +4265,7 @@ gantt
 
 ### 1.1 Phase Alpha (Core Architecture & Zero-Trust Sandbox)
 * **Status**: Complete & Verified.
-* **Core Runtime**: V8 Isolate sandboxing with 25 poisoned globals, deep-frozen prototypes (11 core prototypes), and a 32KB AST Taint Analyzer (Information Flow Control) to prevent PII derivation and side channels.
+* **Core Runtime**: V8 Isolate sandboxing with 27 poisoned globals, deep-frozen prototypes (11 core prototypes), and a 32KB AST Taint Analyzer (Information Flow Control) to prevent PII derivation and side channels.
 * **Cryptography**: Post-Quantum ML-KEM-768 (`mlkem@2.7.0`, NIST FIPS 203) key encapsulation for gRPC intent handshakes, AES-256-GCM authenticated payload encryption, and HMAC-SHA256 ZK-Receipts binding output to logic and SOX-compliant dataset hashes.
 * **Differential Privacy**: Laplace mechanism with CSPRNG (`crypto.randomBytes()`) and a 3-tier query budget (`FORBIDDEN`, `SENSITIVE`, `PUBLIC`) aligned with NIST SP 800-226.
 * **Dual-Era MCP Bridge**: Protocol transcoding supporting both MCP v2 (2026-07-28) and v1 legacy (2025-11-25) clients.
@@ -4362,7 +4368,7 @@ gantt
 
 ---
 
-### Phase GA: Massive Global Availability & High-Performance WAN
+### Phase GA: Global Network Availability & High-Performance WAN
 * **Target Window**: Q3 2027
 * **Key Components**:
   1. **Dedicated Global Bootstrap Supernodes**:
@@ -4390,8 +4396,8 @@ gantt
 | Phase | Package Installation Command | Architectural Purpose |
 |---|---|---|
 | **Beta-1** *(Complete)* | `pnpm add @libp2p/autonat @libp2p/circuit-relay-v2 @libp2p/dcutr @libp2p/mdns` | NAT Traversal, Circuit Relay, Hole Punching, LAN Discovery |
-| **Beta-2** | `pnpm add @noble/post-quantum @grpc/grpc-js-web` | Dilithium ML-DSA signatures & gRPC-Web fallback |
-| **Beta-3** | `pnpm add @opentelemetry/sdk-node @opentelemetry/exporter-otlp-http prom-client` | OpenTelemetry OTLP tracing, Prometheus exporter & metrics |
-| **RC** | `pnpm add @aws-sdk/client-nitro-enclaves-attestation` | AWS Nitro Enclaves hardware attestation verification |
-| **GA** | `pnpm add @libp2p/quic @libp2p/webtransport @chainsafe/libp2p-gossipsub` | 0-RTT QUIC, browser WebTransport, Gossipsub push network |
+| **Beta-2** *(Complete)* | `pnpm add @noble/post-quantum @grpc/grpc-js-web` | Dilithium ML-DSA signatures & gRPC-Web fallback |
+| **Beta-3** *(Complete)* | `pnpm add @opentelemetry/sdk-node @opentelemetry/exporter-otlp-http prom-client` | OpenTelemetry OTLP tracing, Prometheus exporter & metrics |
+| **RC** *(Active)* | `pnpm add @aws-sdk/client-nitro-enclaves-attestation` | AWS Nitro Enclaves hardware attestation verification |
+| **GA** *(Planned)* | `pnpm add @libp2p/quic @libp2p/webtransport @chainsafe/libp2p-gossipsub` | 0-RTT QUIC, browser WebTransport, Gossipsub push network |
 
