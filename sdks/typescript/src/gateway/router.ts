@@ -1187,7 +1187,11 @@ export class LiopMcpRouter {
 
 	private async transcodeMcpToLiop(
 		id: string | number | null | undefined,
-		params: { name: string; arguments?: Record<string, unknown> },
+		params: {
+			name: string;
+			arguments?: Record<string, unknown>;
+			payload?: unknown;
+		},
 		token?: string,
 	): Promise<McpResponse | null> {
 		if (params?.arguments) {
