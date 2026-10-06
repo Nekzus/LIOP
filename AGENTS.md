@@ -141,6 +141,13 @@ Logic-Injection-on-Origin Protocol (LIOP) is the high-performance successor to t
    - When researching features, interceptors, or architecture specifications, agents must prioritize reading structured project documentation (`docs/`, `AGENTS.md`, `specs/`) before initiating code searches.
    - Unbounded recursive disk searches (such as `Get-ChildItem -Recurse` or `grep -r` across the repository root) are strictly prohibited.
    - Any search command must explicitly exclude heavyweight artifact directories (`node_modules`, `dist`, `target`, `.git`, `graphify-out`) and specify targeted file extensions or subdirectories.
+32. **Two-Phase Hybrid Gateway Interception, Warmed ONNX Inference & Enclave Fail-Closed Defense Invariant**:
+   - **Two-Phase Gateway Pipeline**: Gateway interceptors protecting protocol endpoints must implement a strict two-phase pipeline:
+     1. *Phase 1A (Deterministic Syntactic Pre-Filter, < 0.05 ms)*: High-severity heuristic and regex scanning for SQL injection, path traversal, and shell syntax executed in-memory before invoking any neural model.
+     2. *Phase 1B (Local Neural Semantic Classification, < 1.5 ms)*: Evaluates prompt injection, system overrides, and jailbreak attempts using compact local ONNX models (e.g. `tiny-prompt-guard` on CPU) instead of incurring WAN roundtrip latency.
+   - **Mandatory Warmup Tensor Pass**: To prevent cold-start spikes (~50 ms latency penalty on first user query), local ONNX inference runtimes must be instantiated as singletons executing an upfront silent warmup pass during initialization to compile computation graphs and pre-allocate memory buffers.
+   - **Enclave Boundary Fail-Closed Invariant (Defense-in-Depth)**: When gateways operate in unconfigured or bypass mode (`interceptor: undefined`), sovereign data enclaves (Tier 1/2) must unconditionally enforce boundary schema validation, immediately rejecting raw or unencapsulated payloads that omit the canonical `@LIOP` envelope structure.
+   - **Asynchronous Non-Blocking SIEM Bridging**: `AuditInterceptor` and `LogInterceptor` hooks must execute asynchronously without blocking the core request/response lifecycle, enriching security events with semantic threat scores and logging to immutable append-only ledgers (`audit-ledger.jsonl`, `threat-alerts.jsonl`) or SIEM forwarding sinks.
 
 ---
 
