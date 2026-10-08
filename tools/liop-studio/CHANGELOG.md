@@ -2,6 +2,13 @@
 
 All notable changes to @nekzus/liop-studio will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.0.0-alpha.27](https://github.com/Nekzus/LIOP/compare/studio-v1.0.0-alpha.26...studio-v1.0.0-alpha.27) (2026-10-08)
+
+
+### Bug Fixes
+
+* **sast:** suppress and exclude client syntax validator from eval ban per semgrep best practices ([710515f](https://github.com/Nekzus/LIOP/commit/710515f43f05b6a2390eaabbd8d0db7365f3c9d1))
+
 # [1.0.0-alpha.26](https://github.com/Nekzus/LIOP/compare/studio-v1.0.0-alpha.25...studio-v1.0.0-alpha.26) (2026-10-08)
 
 
