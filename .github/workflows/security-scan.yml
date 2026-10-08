@@ -1,0 +1,76 @@
+name: Security Scan & SAST Quality Gate
+
+on:
+  push:
+    branches: [main, beta, alpha]
+    paths:
+      - 'sdks/typescript/**'
+      - 'servers/**'
+      - 'protocol/**'
+      - '.semgrep/**'
+      - '.github/workflows/security-scan.yml'
+  pull_request:
+    branches: [main, beta, alpha]
+    paths:
+      - 'sdks/typescript/**'
+      - 'servers/**'
+      - 'protocol/**'
+      - '.semgrep/**'
+      - '.github/workflows/security-scan.yml'
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  semgrep-audit:
+    name: Semgrep Static Application Security Testing
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@4d991eb9b905ef189e4c376166672c3f2f230481 # v2.11.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout Repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup Python
+        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+        with:
+          python-version: "3.12"
+
+      - name: Install Semgrep
+        run: pip install semgrep==1.104.0
+
+      - name: Run LIOP Custom Rules SAST Scan
+        run: |
+          semgrep scan \
+            --config .semgrep/liop-security-rules.yaml \
+            --error \
+            --exclude "node_modules" \
+            --exclude "dist" \
+            --exclude "build" \
+            --exclude "target" \
+            --exclude "graphify-out"
+
+      - name: Run OWASP Top 10 & Security Audit Ruleset
+        run: |
+          semgrep scan \
+            --config "p/security-audit" \
+            --config "p/owasp-top-ten" \
+            --sarif \
+            --output semgrep-results.sarif \
+            --exclude "node_modules" \
+            --exclude "dist" \
+            --exclude "build" \
+            --exclude "target" \
+            --exclude "graphify-out" || true
+
+      - name: Upload SARIF Security Report
+        uses: github/codeql-action/upload-sarif@6bb034416e761252ac01b95d7e4844f2883f77b0 # v3.28.11
+        if: always()
+        with:
+          sarif_file: semgrep-results.sarif

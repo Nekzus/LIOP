@@ -1,0 +1,92 @@
+rules:
+  - id: liop-banned-eval-construction
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: "Dynamic code execution via eval() or Function constructor is strictly banned in LIOP. All untrusted logic must execute within the hardened V8 Isolate or Wasmtime runtime."
+    metadata:
+      cwe: "CWE-95: Improper Neutralization of Directives in Dynamically Evaluated Code"
+      owasp: "A03:2021 - Injection"
+      category: security
+      technology: [liop, typescript]
+    patterns:
+      - pattern-either:
+          - pattern: eval(...)
+          - pattern: new Function(...)
+          - pattern: Function(...)
+    paths:
+      exclude:
+        - "**/tests/**"
+        - "**/*.test.ts"
+        - "**/sdks/typescript/src/sandbox/wasi.ts"
+
+  - id: liop-prototype-pollution-assignment
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: "Direct prototype modification detected. Modifying prototype chains bypasses PCI-DSS Req. 6.2 sandboxing guarantees."
+    metadata:
+      cwe: "CWE-1321: Improperly Controlled Modification of Object Prototype Attributes"
+      owasp: "A03:2021 - Injection"
+      category: security
+      technology: [liop, typescript]
+    patterns:
+      - pattern-either:
+          - pattern: $OBJ.__proto__ = $VAL
+          - pattern: Object.setPrototypeOf($OBJ, $VAL)
+    paths:
+      exclude:
+        - "**/tests/**"
+        - "**/*.test.ts"
+        - "**/sdks/typescript/src/sandbox/wasi.ts"
+
+  - id: liop-blocking-io-in-interceptors
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: "Synchronous filesystem call detected within interceptor. Audit and telemetry interceptors must execute asynchronously to prevent gRPC pipeline lockups."
+    metadata:
+      cwe: "CWE-400: Uncontrolled Resource Consumption"
+      category: performance
+      technology: [liop, nodejs]
+    paths:
+      include:
+        - "**/sdks/typescript/src/interceptors/**"
+    patterns:
+      - pattern-either:
+          - pattern: fs.readFileSync(...)
+          - pattern: fs.writeFileSync(...)
+          - pattern: fs.appendFileSync(...)
+
+  - id: liop-raw-records-egress-leak
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: "Direct return of unaggregated records array detected. Violates the LIOP Aggregation-First Policy and HIPAA/PCI data sovereignty standards."
+    metadata:
+      cwe: "CWE-200: Exposure of Sensitive Information to an Unauthorized Actor"
+      owasp: "A01:2021 - Broken Access Control"
+      category: security
+      technology: [liop, typescript]
+    patterns:
+      - pattern-either:
+          - pattern: return env.records;
+          - pattern: return records;
+    paths:
+      exclude:
+        - "**/tests/**"
+        - "**/*.test.ts"
+
+  - id: liop-insecure-random-in-dp
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: "Math.random() is prohibited in differential privacy algorithms. Noise generation must strictly use crypto.randomBytes() to satisfy NIST SP 800-226."
+    metadata:
+      cwe: "CWE-338: Use of Cryptographically Weak Pseudo-Random Number Generator (PRNG)"
+      category: security
+      technology: [liop, crypto]
+    paths:
+      include:
+        - "**/sdks/typescript/src/security/**"
+    patterns:
+      - pattern: Math.random()
+    paths:
+      exclude:
+        - "**/tests/**"
+        - "**/*.test.ts"
