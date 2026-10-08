@@ -84,9 +84,8 @@ rules:
     paths:
       include:
         - "**/sdks/typescript/src/security/**"
-    patterns:
-      - pattern: Math.random()
-    paths:
       exclude:
         - "**/tests/**"
         - "**/*.test.ts"
+    patterns:
+      - pattern: Math.random()
