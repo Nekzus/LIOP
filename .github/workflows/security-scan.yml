@@ -43,7 +43,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install Semgrep
-        run: pip install semgrep==1.104.0
+        run: pip install setuptools wheel semgrep==1.104.0
 
       - name: Run LIOP Custom Rules SAST Scan
         run: |
@@ -71,6 +71,6 @@ jobs:
 
       - name: Upload SARIF Security Report
         uses: github/codeql-action/upload-sarif@6bb031afdd8eb862ea3fc1848194185e076637e5 # v3.28.11
-        if: always()
+        if: always() && hashFiles('semgrep-results.sarif') != ''
         with:
           sarif_file: semgrep-results.sarif
