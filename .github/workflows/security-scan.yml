@@ -40,10 +40,12 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
         with:
-          python-version: "3.12"
+          python-version: "3.11"
 
       - name: Install Semgrep
-        run: pip install setuptools wheel semgrep==1.104.0
+        run: |
+          pip install --upgrade pip
+          pip install "setuptools<70" wheel semgrep
 
       - name: Run LIOP Custom Rules SAST Scan
         run: |
