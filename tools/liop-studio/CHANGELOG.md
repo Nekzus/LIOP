@@ -2,6 +2,13 @@
 
 All notable changes to @nekzus/liop-studio will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.0.0-alpha.28](https://github.com/Nekzus/LIOP/compare/studio-v1.0.0-alpha.27...studio-v1.0.0-alpha.28) (2026-10-08)
+
+
+### Features
+
+* **security:** enforce static host import ban and 2-decimal normalization on templates ([fd67192](https://github.com/Nekzus/LIOP/commit/fd6719278e0b77fac8ae0d778db4874a49ae7103))
+
 # [1.0.0-alpha.27](https://github.com/Nekzus/LIOP/compare/studio-v1.0.0-alpha.26...studio-v1.0.0-alpha.27) (2026-10-08)
 
 
