@@ -122,6 +122,7 @@ export function LogicEditor({
 
 		try {
 			// Validate JavaScript syntax safely in isolated function constructor without executing
+			// nosemgrep: semgrep.liop-banned-eval-construction, liop-banned-eval-construction -- Client-side syntax validation only; function is never invoked
 			new Function("env", rawJs);
 			return {
 				valid: true,

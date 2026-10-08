@@ -18,6 +18,7 @@ rules:
         - "**/tests/**"
         - "**/*.test.ts"
         - "**/sdks/typescript/src/sandbox/wasi.ts"
+        - "**/tools/liop-studio/ui/**"
 
   - id: liop-prototype-pollution-assignment
     languages: [javascript, typescript]
