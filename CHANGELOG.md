@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.4.0-alpha.33](https://github.com/Nekzus/LIOP/compare/v2.4.0-alpha.32...v2.4.0-alpha.33) (2026-10-08)
+
+
+### Features
+
+* **security:** enforce static host import ban and 2-decimal normalization on templates ([fd67192](https://github.com/Nekzus/LIOP/commit/fd6719278e0b77fac8ae0d778db4874a49ae7103))
+
 # [2.4.0-alpha.32](https://github.com/Nekzus/LIOP/compare/v2.4.0-alpha.31...v2.4.0-alpha.32) (2026-10-08)
 
 
