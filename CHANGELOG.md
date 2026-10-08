@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.4.0-alpha.32](https://github.com/Nekzus/LIOP/compare/v2.4.0-alpha.31...v2.4.0-alpha.32) (2026-10-08)
+
+
+### Bug Fixes
+
+* **sast:** suppress and exclude client syntax validator from eval ban per semgrep best practices ([710515f](https://github.com/Nekzus/LIOP/commit/710515f43f05b6a2390eaabbd8d0db7365f3c9d1))
+
 # [2.4.0-alpha.31](https://github.com/Nekzus/LIOP/compare/v2.4.0-alpha.30...v2.4.0-alpha.31) (2026-10-08)
 
 
