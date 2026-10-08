@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [2.4.0-alpha.31](https://github.com/Nekzus/LIOP/compare/v2.4.0-alpha.30...v2.4.0-alpha.31) (2026-10-08)
+
+
+### Bug Fixes
+
+* **ci:** add setuptools dependency for semgrep and guard sarif upload ([e753ab8](https://github.com/Nekzus/LIOP/commit/e753ab890fd3b45f7ae7e381e5de037cec665de2))
+* **ci:** correct upload-sarif action commit sha pin in security-scan workflow ([872f226](https://github.com/Nekzus/LIOP/commit/872f226a0f0dc6068da1ec792f52c0ec69994b18))
+* **ci:** pin Python 3.11 and setuptools<70 for semgrep execution ([23e57f8](https://github.com/Nekzus/LIOP/commit/23e57f805ccef0881af1ffbc1d537160e54be55c))
+* **sast:** consolidate duplicate paths key in semgrep differential privacy rule ([d9207c1](https://github.com/Nekzus/LIOP/commit/d9207c117ef84bb7c8cee840b42ad202dcc6b4ce))
+
 # [2.4.0-alpha.30](https://github.com/Nekzus/LIOP/compare/v2.4.0-alpha.29...v2.4.0-alpha.30) (2026-10-06)
 
 
