@@ -45,6 +45,7 @@ The repository maintains specialized static security rules located in `.semgrep/
 | `liop-raw-records-egress-leak` | ERROR | Direct return of unaggregated data | CWE-200 / OWASP A01:2021 (Data Exposure) | Immediate PR Block |
 | `liop-insecure-random-in-dp` | ERROR | Non-cryptographic PRNG in DP | CWE-338 (Weak PRNG) | Immediate PR Block |
 | `liop-blocking-io-in-interceptors` | WARNING | Synchronous I/O in telemetry pipes | CWE-400 (Resource Exhaustion) | Pipeline Warning |
+| `liop-banned-host-process-imports` | ERROR | Hazardous host process execution imports | CWE-78 / OWASP A03:2021 (Command Injection) | Immediate PR Block |
 
 ---
 
@@ -54,7 +55,7 @@ The repository maintains specialized static security rules located in `.semgrep/
 
 - **Description:** Scans JavaScript and TypeScript source files for invocations of `eval()`, `new Function()`, or `Function()`.
 - **Rationale:** Untrusted client logic must only execute within the hardened V8 Isolate or Wasmtime runtime. Using dynamic constructors in the host runtime introduces direct command injection vulnerabilities.
-- **Exclusions:** Unit test suites (`**/*.test.ts`) and sandbox initialization modules where global symbols are explicitly assigned to `undefined`.
+- **Exclusions:** Unit test suites (`**/*.test.ts`), UI client SPA (`**/tools/liop-studio/ui/**`), and sandbox initialization modules where global symbols are explicitly assigned to `undefined`.
 
 ### 3.2 Prototype Pollution Defense (`liop-prototype-pollution-assignment`)
 
@@ -75,6 +76,11 @@ The repository maintains specialized static security rules located in `.semgrep/
 
 - **Description:** Flags synchronous filesystem APIs (`fs.readFileSync`, `fs.writeFileSync`) inside network interceptors.
 - **Rationale:** High-throughput gRPC streams and telemetry pipelines will experience severe head-of-line blocking if audit log interceptors perform blocking disk writes on the main Node.js event loop.
+
+### 3.6 Hazardous Host Process Import Defense (`liop-banned-host-process-imports`)
+
+- **Description:** Detects unauthorized imports of host execution primitives (`child_process`, `cluster`, `worker_threads`) in sensitive sandbox, server, and security modules.
+- **Rationale:** Institutionalizes the import whitelist at the static level to prevent sandbox escapes, ensuring host execution boundaries cannot be bypassed via developer error or malicious third-party dependencies.
 
 ---
 

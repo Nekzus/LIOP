@@ -199,8 +199,8 @@ for (let i = 0; i < ticks.length; i++) {
 
 return {
   ticksProcessed: ticks.length,
-  vwap: sumVol > 0 ? sumPriceVol / sumVol : 0,
-  avgSpreadBps: ticks.length > 0 ? (sumSpread / ticks.length) * 10000 : 0
+  vwap: sumVol > 0 ? Number((sumPriceVol / sumVol).toFixed(2)) : 0,
+  avgSpreadBps: ticks.length > 0 ? Number(((sumSpread / ticks.length) * 10000).toFixed(2)) : 0
 };
 @END`
   },

@@ -90,3 +90,31 @@ rules:
         - "**/*.test.ts"
     patterns:
       - pattern: Math.random()
+
+  - id: liop-banned-host-process-imports
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: "Direct import of hazardous host execution modules (child_process, cluster, worker_threads) is strictly prohibited in enclaves and sandboxed adapters to prevent host escape."
+    metadata:
+      cwe: "CWE-78: Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')"
+      owasp: "A03:2021 - Injection"
+      category: security
+      technology: [liop, nodejs]
+    paths:
+      include:
+        - "**/sdks/typescript/src/sandbox/**"
+        - "**/sdks/typescript/src/security/**"
+        - "**/sdks/typescript/src/server/**"
+      exclude:
+        - "**/tests/**"
+        - "**/*.test.ts"
+    patterns:
+      - pattern-either:
+          - pattern: import ... from "child_process"
+          - pattern: import ... from "node:child_process"
+          - pattern: import ... from "cluster"
+          - pattern: import ... from "node:cluster"
+          - pattern: require("child_process")
+          - pattern: require("node:child_process")
+          - pattern: require("cluster")
+          - pattern: require("node:cluster")

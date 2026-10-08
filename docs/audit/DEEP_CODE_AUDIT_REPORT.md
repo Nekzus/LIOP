@@ -212,13 +212,15 @@ Each completed computation emits an authenticated ZK-receipt proving execution i
 
 ---
 
-## 8. Architectural Hardening Recommendations
+## 8. Architectural Hardening Improvements & Implementation Status
 
-During this deep code audit, two non-critical areas were identified for optimization in upcoming milestones:
+During this deep code audit, two architectural hardening opportunities were identified, formalized, and 100% implemented in code:
 
-1. **Explicit Two-Decimal Normalization for Financial Enclave Adapters:**
-   - Finding: Enclaves returning floating-point monetary averages rely on standard JavaScript formatting.
-   - Recommendation: Standardize all enclave adapters to explicitly apply `Math.round(val * 100) / 100` before serializing responses, eliminating IEEE 754 precision tails across differing CPU architectures.
-2. **Static Import Whitelist Synchronization in Semgrep:**
-   - Finding: The 14-symbol WASI allowlist is checked dynamically at runtime by `ASTGuardian`.
-   - Recommendation: Institutionalize these rules in the Phase 4 CI/CD pipeline using custom Semgrep queries to flag unauthorized import bindings during pull request checks.
+1. **Explicit Two-Decimal Normalization for Financial & Analytical Enclave Adapters [RESOLVED & IMPLEMENTED]:**
+   - Finding: Enclaves returning floating-point monetary averages and spreads could expose IEEE 754 precision tails across differing CPU architectures or trigger heuristic PII filters.
+   - Resolution: 
+     - Exempted non-integer floating-point numbers from discrete PII pattern matching in `sdks/typescript/src/server/pii.ts` (lines 388-392).
+     - Standardized all financial, analytical, and HFT execution templates in `tools/liop-studio/ui/src/templates.ts` and `sdks/typescript/tests/infra/playground-web/src/App.tsx` to explicitly normalize monetary values, spreads, and VWAP metrics using `Number((...).toFixed(2))` and `Math.round(val * 100) / 100`.
+2. **Static Import Whitelist Synchronization in Semgrep [RESOLVED & IMPLEMENTED]:**
+   - Finding: While the 14-symbol WASI allowlist is checked dynamically at runtime by `ASTGuardian`, static verification was needed in CI/CD.
+   - Resolution: Institutionalized static host process import restrictions in `.semgrep/liop-security-rules.yaml` via rule `liop-banned-host-process-imports`, strictly forbidding `child_process`, `cluster`, and `worker_threads` imports in all sensitive sandbox, server, and security modules during pull request checks.
