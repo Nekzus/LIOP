@@ -23,6 +23,8 @@
 
 For complete interactive guides, production cookbooks, and API specifications, visit our official documentation portal:
 
+[![LIOP Protocol on StartupScores](https://startupscores.com/badge/liop-protocol.svg?style=shield&v=combo&theme=dark)](https://startupscores.com/open-source/liop-protocol)
+
 | Section | Description | Canonical Link |
 |---|---|---|
 | **Getting Started** | Fast onboarding, architecture overview, and 3-way calling model | [Read Quickstart](https://nekzus-32.mintlify.app/getting-started/quickstart) |
